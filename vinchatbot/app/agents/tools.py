@@ -1,0 +1,96 @@
+from __future__ import annotations
+
+import json
+from typing import Any
+
+from vinchatbot.app.rag.citations import excerpt
+from vinchatbot.app.rag.retriever import Retriever
+
+
+def build_retrieval_tools(retriever: Retriever):
+    try:
+        from langchain.tools import tool
+    except ImportError as exc:
+        raise RuntimeError("Install langchain to build agent tools.") from exc
+
+    async def _search(
+        query: str,
+        filters: dict[str, Any] | None = None,
+        enforced_filters: dict[str, Any] | None = None,
+    ) -> str:
+        merged_filters = {}
+        if filters:
+            merged_filters.update({key: value for key, value in filters.items() if value})
+        if enforced_filters:
+            merged_filters.update(enforced_filters)
+        chunks = await retriever.search(query=query, filters=merged_filters, limit=8)
+        payload = {
+            "results": [
+                {
+                    "text": excerpt(chunk.text, max_chars=900),
+                    "score": chunk.score,
+                    "metadata": chunk.metadata.model_dump(),
+                }
+                for chunk in chunks
+            ]
+        }
+        return json.dumps(payload, ensure_ascii=False)
+
+    @tool
+    async def search_academic_calendar(query: str, filters: dict[str, Any] | None = None) -> str:
+        """Tìm thông tin về lịch học, học kỳ, deadline add/drop, kỳ thi và ngày nghỉ."""
+
+        return await _search(
+            query=query,
+            filters=filters,
+            enforced_filters={"category": "academic", "subcategory": "calendar"},
+        )
+
+    @tool
+    async def search_policy_documents(query: str, filters: dict[str, Any] | None = None) -> str:
+        """Tìm quy định, hướng dẫn và quyền/nghĩa vụ sinh viên trong tài liệu chính sách."""
+
+        return await _search(
+            query=query,
+            filters=filters,
+            enforced_filters={"category": "student_affairs"},
+        )
+
+    @tool
+    async def search_financial_regulations(query: str, filters: dict[str, Any] | None = None) -> str:
+        """Tìm học phí, tariff, lệ phí, phạt và thông tin tài chính dành cho sinh viên."""
+
+        return await _search(
+            query=query,
+            filters=filters,
+            enforced_filters={"category": "student_affairs", "subcategory": "financial"},
+        )
+
+    @tool
+    async def get_source_detail(source_id_or_url: str) -> str:
+        """Lấy các đoạn liên quan nhất từ một nguồn cụ thể theo URL hoặc source id."""
+
+        chunks = await retriever.search(
+            query=source_id_or_url,
+            filters={"source_url": source_id_or_url} if source_id_or_url.startswith("http") else None,
+            limit=5,
+        )
+        payload = {
+            "results": [
+                {
+                    "text": excerpt(chunk.text, max_chars=1200),
+                    "score": chunk.score,
+                    "metadata": chunk.metadata.model_dump(),
+                }
+                for chunk in chunks
+            ]
+        }
+        return json.dumps(payload, ensure_ascii=False)
+
+    return [
+        search_academic_calendar,
+        search_policy_documents,
+        search_financial_regulations,
+        get_source_detail,
+    ]
+
