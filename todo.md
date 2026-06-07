@@ -158,3 +158,48 @@ Backlog sau khi da co scaffold RAG + ReAct va domain-aware crawler.
 
 
 Lọc lại chunk level meta-data
+
+Traceback (most recent call last):
+  File "C:\Users\Admin\Documents\GitHub\VinChatbot\scripts\crawl_seed.py", line 152, in <module>
+    asyncio.run(main())
+    ~~~~~~~~~~~^^^^^^^^
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py", line 204, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py", line 127, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py", line 719, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "C:\Users\Admin\Documents\GitHub\VinChatbot\scripts\crawl_seed.py", line 60, in main
+    result = await crawler.crawl_full(urls=args.seed_urls, force=args.force)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\Documents\GitHub\VinChatbot\vinchatbot\app\ingest\crawler.py", line 201, in crawl_full
+    document, links, manifest_entry = await self._fetch_and_parse(
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "C:\Users\Admin\Documents\GitHub\VinChatbot\vinchatbot\app\ingest\crawler.py", line 327, in _fetch_and_parse
+    document = parse_spreadsheet_bytes(
+        response.content,
+    ...<2 lines>...
+        source_metadata=source_metadata,
+    )
+  File "C:\Users\Admin\Documents\GitHub\VinChatbot\vinchatbot\app\ingest\parsers.py", line 410, in parse_spreadsheet_bytes
+    extracted, records = _parse_excel_records(content, source_url, metadata)
+                         ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Admin\Documents\GitHub\VinChatbot\vinchatbot\app\ingest\parsers.py", line 998, in _parse_excel_records
+    sheets = pd.read_excel(io.BytesIO(content), sheet_name=None, dtype=str)
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\pandas\io\excel\_base.py", line 481, in read_excel
+    io = ExcelFile(
+        io,
+    ...<2 lines>...
+        engine_kwargs=engine_kwargs,
+    )
+  File "C:\Users\Admin\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\pandas\io\excel\_base.py", line 1608, in __init__
+    raise ValueError(
+    ...<2 lines>...
+    )
+ValueError: Excel file format cannot be determined, you must specify an engine manually.
