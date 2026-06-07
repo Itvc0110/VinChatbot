@@ -4,7 +4,6 @@ import re
 import unicodedata
 from urllib.parse import urlparse
 
-
 VIETNAMESE_MARKERS = {
     "đ",
     "ă",
@@ -96,6 +95,14 @@ def infer_source_kind(url: str, content_type: str | None = None, title: str | No
     haystack = f"{url} {content_type or ''} {title or ''}".lower()
     host = urlparse(url).netloc.lower()
     path = urlparse(url).path.lower()
+    if _is_image_path(path) or (content_type or "").lower().startswith("image/"):
+        return "image_asset"
+    if path.endswith((".xlsx", ".xls")) or "spreadsheet" in haystack or "excel" in haystack:
+        return "spreadsheet"
+    if path.endswith(".csv") or "text/csv" in haystack:
+        return "csv"
+    if path.endswith(".md") or "text/markdown" in haystack or "text/x-markdown" in haystack:
+        return "markdown"
     if "student-gateway" in path:
         return "gateway_page"
     if "academic-calendar" in path and "pdf" not in haystack:
@@ -119,6 +126,10 @@ def infer_source_kind(url: str, content_type: str | None = None, title: str | No
     if host.endswith("vinuni.edu.vn") or host == "vinuni.edu.vn":
         return "external_public_page"
     return "external_public_page"
+
+
+def _is_image_path(path: str) -> bool:
+    return path.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tif", ".tiff", ".svg"))
 
 
 def _is_policy_listing_path(path: str) -> bool:

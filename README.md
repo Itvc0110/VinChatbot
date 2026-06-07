@@ -20,6 +20,13 @@ py -m pip install -e ".[dev]"
 Copy-Item .env.example .env
 ```
 
+Cai optional OCR/table parser khi can:
+
+```powershell
+py -m pip install -e ".[ocr]"
+py -m pip install -e ".[tables]"
+```
+
 Cập nhật `.env` với `OPENROUTER_API_KEY`. Nếu dùng Qdrant Cloud, thêm `QDRANT_URL` và `QDRANT_API_KEY`; nếu không, local Qdrant path sẽ nằm trong `data/qdrant`.
 
 ## Chạy API
@@ -61,7 +68,14 @@ Crawler hiện tại là domain-aware crawler cho VinUni:
   - `data/processed/chunks.json`: vector chunks
   - `data/processed/crawl_manifest.json`: crawl manifest/idempotency metadata
   - `data/processed/link_references.json`: skipped/private/external link references
-  - `data/processed/structured_records.json`: calendar events, fee records, policy listings, program records
+  - `data/processed/structured_records.json`: calendar events, fee records, policy listings, program records, image assets, OCR text, tables, spreadsheet rows, file assets
+
+Asset/OCR behavior:
+
+- HTML images are captured as `image_asset` records with URL, alt text, caption, nearby text, section path and deterministic description.
+- OCR engine is PaddleOCR PP-OCRv5 English, but `ENABLE_OCR=false` by default.
+- When OCR is disabled, sparse PDF pages are only marked `needs_ocr=true`.
+- OCR text, table rows and spreadsheet rows can become retrievable chunks; binary assets themselves are not stored in vector DB.
 
 Các crawl caps có thể chỉnh trong `.env`:
 
@@ -71,6 +85,8 @@ CRAWL_MAX_VINUNI_PAGES_PER_DOMAIN=50
 CRAWL_MAX_EXTERNAL_PAGES_PER_DOMAIN=10
 CRAWL_VINUNI_MAX_DEPTH=2
 CRAWL_EXTERNAL_MAX_DEPTH=1
+ENABLE_IMAGE_ASSET_EXTRACTION=true
+ENABLE_OCR=false
 ```
 
 ## Test

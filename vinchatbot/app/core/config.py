@@ -59,6 +59,25 @@ class Settings(BaseSettings):
     crawl_vinuni_max_depth: int = Field(default=2, validation_alias="CRAWL_VINUNI_MAX_DEPTH")
     crawl_external_max_depth: int = Field(default=1, validation_alias="CRAWL_EXTERNAL_MAX_DEPTH")
 
+    enable_ocr: bool = Field(default=False, validation_alias="ENABLE_OCR")
+    ocr_engine: str = Field(default="paddleocr", validation_alias="OCR_ENGINE")
+    ocr_lang: str = Field(default="en", validation_alias="OCR_LANG")
+    ocr_model: str = Field(default="PP-OCRv5", validation_alias="OCR_MODEL")
+    ocr_max_image_mb: int = Field(default=5, validation_alias="OCR_MAX_IMAGE_MB")
+    ocr_max_pdf_pages: int = Field(default=20, validation_alias="OCR_MAX_PDF_PAGES")
+    ocr_min_text_chars_per_page: int = Field(
+        default=40, validation_alias="OCR_MIN_TEXT_CHARS_PER_PAGE"
+    )
+    ocr_store_text: bool = Field(default=True, validation_alias="OCR_STORE_TEXT")
+    ocr_store_boxes: bool = Field(default=False, validation_alias="OCR_STORE_BOXES")
+
+    enable_image_asset_extraction: bool = Field(
+        default=True, validation_alias="ENABLE_IMAGE_ASSET_EXTRACTION"
+    )
+    image_download_enabled: bool = Field(default=False, validation_alias="IMAGE_DOWNLOAD_ENABLED")
+    image_max_asset_mb: int = Field(default=5, validation_alias="IMAGE_MAX_ASSET_MB")
+    image_description_mode: str = Field(default="context", validation_alias="IMAGE_DESCRIPTION_MODE")
+
     raw_data_dir: str = Field(default="data/raw", validation_alias="RAW_DATA_DIR")
     processed_data_dir: str = Field(default="data/processed", validation_alias="PROCESSED_DATA_DIR")
 

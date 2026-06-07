@@ -1,17 +1,34 @@
 from __future__ import annotations
 
+import io
+import logging
 import re
 from pathlib import Path
+from typing import Any
 from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
+from vinchatbot.app.core.config import get_settings
+from vinchatbot.app.ingest.assets import (
+    build_binary_image_asset_record,
+    build_file_asset_record,
+    build_ocr_text_record,
+    extract_html_image_assets,
+    extract_html_table_records,
+    extract_pdf_page_image_assets,
+    file_asset_records_from_links,
+    is_image_url,
+    parse_csv_records,
+    table_record_to_text,
+)
 from vinchatbot.app.ingest.normalizer import (
     classify_domain,
     infer_category,
     infer_source_kind,
     normalize_text,
 )
+from vinchatbot.app.ingest.ocr import OcrResult, ocr_dependency_status, run_english_ocr_image
 from vinchatbot.app.schemas.document import (
     CalendarEvent,
     LinkReference,
@@ -21,7 +38,9 @@ from vinchatbot.app.schemas.document import (
     stable_hash,
 )
 
-PARSER_VERSION = "v2"
+logger = logging.getLogger(__name__)
+
+PARSER_VERSION = "v3"
 MONTHS = {
     "jan": 1,
     "feb": 2,
@@ -56,6 +75,7 @@ def parse_html(
     source_url: str,
     source_metadata: SourceDocumentMetadata | None = None,
 ) -> RawDocument:
+    settings = get_settings()
     title = source_url
     soup = BeautifulSoup(content, "html.parser")
     if soup.title and soup.title.text:
@@ -67,7 +87,17 @@ def parse_html(
     metadata.update(extract_policy_detail_metadata(content, source_url))
     metadata["link_count"] = len(extract_links_from_html(content, source_url))
 
-    structured_records = extract_structured_records_from_html(content, source_url, metadata)
+    structured_records = extract_structured_records_from_html(
+        content,
+        source_url,
+        metadata,
+        enable_image_asset_extraction=settings.enable_image_asset_extraction,
+        enable_ocr=settings.enable_ocr,
+        image_download_enabled=settings.image_download_enabled,
+        ocr_engine=settings.ocr_engine,
+        ocr_model=settings.ocr_model,
+        ocr_lang=settings.ocr_lang,
+    )
 
     if source_metadata:
         source_metadata.parser_name = "html"
@@ -134,27 +164,73 @@ def parse_pdf_bytes(
     title: str | None = None,
     source_metadata: SourceDocumentMetadata | None = None,
 ) -> RawDocument:
+    settings = get_settings()
     try:
         import fitz
     except ImportError as exc:
         raise RuntimeError("Install pymupdf to parse PDF files.") from exc
 
     pages: list[str] = []
+    page_stats: list[dict[str, Any]] = []
+    ocr_results: dict[int, OcrResult] = {}
+    ocr_status_by_page: dict[int, str] = {}
     with fitz.open(stream=content, filetype="pdf") as document:
         meta_title = document.metadata.get("title") if document.metadata else None
         title = title or meta_title or Path(source_url).name or source_url
         for index, page in enumerate(document, start=1):
             page_text = normalize_text(page.get_text("text"))
+            text_char_count = len(page_text)
+            image_count = len(page.get_images(full=True))
+            page_stats.append(
+                {
+                    "page_number": index,
+                    "text_char_count": text_char_count,
+                    "embedded_image_count": image_count,
+                    "width": round(page.rect.width),
+                    "height": round(page.rect.height),
+                }
+            )
             if page_text:
                 pages.append(f"# Trang {index}\n{page_text}")
+            if (
+                settings.enable_ocr
+                and index <= settings.ocr_max_pdf_pages
+                and text_char_count < settings.ocr_min_text_chars_per_page
+            ):
+                available, reason = ocr_dependency_status(settings.ocr_engine)
+                if not available:
+                    ocr_status_by_page[index] = reason or "skipped_dependency_missing"
+                    continue
+                try:
+                    pixmap = page.get_pixmap(dpi=200, alpha=False)
+                    result = run_english_ocr_image(
+                        pixmap.tobytes("png"),
+                        lang=settings.ocr_lang,
+                        model=settings.ocr_model,
+                        store_boxes=settings.ocr_store_boxes,
+                    )
+                    if result.text:
+                        ocr_results[index] = result
+                        ocr_status_by_page[index] = "completed"
+                    else:
+                        ocr_status_by_page[index] = "skipped_no_text"
+                except Exception as exc:  # pragma: no cover - depends on optional OCR runtime
+                    logger.warning("OCR failed for %s page %s: %s", source_url, index, exc)
+                    ocr_status_by_page[index] = "failed"
 
     source_kind = source_metadata.source_kind if source_metadata else infer_source_kind(source_url, "application/pdf", title)
     extracted = normalize_text("\n\n".join(pages))
     metadata = _base_raw_metadata(source_url, title, source_kind, source_metadata)
+    metadata["parser_name"] = "pdf"
     metadata["file_size_bytes"] = len(content)
+    metadata["content_hash"] = stable_hash(content.hex())
     metadata["page_count"] = len(pages)
     if source_kind == "calendar_pdf":
         metadata.setdefault("academic_year", infer_academic_year(extracted, source_url))
+    metadata["needs_ocr"] = any(
+        int(stat.get("text_char_count") or 0) < settings.ocr_min_text_chars_per_page
+        for stat in page_stats
+    )
 
     raw = RawDocument(
         source_url=source_url,
@@ -166,10 +242,188 @@ def parse_pdf_bytes(
         source_metadata=source_metadata,
     )
     raw.structured_records = structured_records_from_raw(raw)
+    raw.structured_records.extend(
+        extract_pdf_page_image_assets(
+            page_stats=page_stats,
+            source_url=source_url,
+            parent_doc_id=raw.parent_doc_id,
+            metadata=metadata,
+            enable_ocr=settings.enable_ocr,
+            ocr_engine=settings.ocr_engine,
+            ocr_model=settings.ocr_model,
+            ocr_lang=settings.ocr_lang,
+            ocr_min_text_chars_per_page=settings.ocr_min_text_chars_per_page,
+            ocr_max_pdf_pages=settings.ocr_max_pdf_pages,
+            ocr_results=ocr_results,
+            ocr_status_by_page=ocr_status_by_page,
+        )
+    )
+    raw.structured_records.extend(extract_pdf_table_records(content, source_url, raw.parent_doc_id, metadata))
     if source_metadata:
         source_metadata.parser_name = "pdf"
         source_metadata.parser_version = PARSER_VERSION
         source_metadata.content_hash = raw.content_hash
+        source_metadata.file_size_bytes = len(content)
+    return raw
+
+
+def parse_binary_asset_bytes(
+    content: bytes,
+    source_url: str,
+    content_type: str | None = None,
+    source_metadata: SourceDocumentMetadata | None = None,
+) -> RawDocument:
+    settings = get_settings()
+    title = Path(urlparse(source_url).path).name or source_url
+    source_kind = source_metadata.source_kind if source_metadata else infer_source_kind(source_url, content_type, title)
+    metadata = _base_raw_metadata(source_url, title, source_kind, source_metadata)
+    metadata["file_size_bytes"] = len(content)
+    metadata["mime_type"] = content_type.split(";", 1)[0] if content_type else None
+    metadata["content_hash"] = stable_hash(content.hex())
+    parent_doc_id = stable_hash(metadata.get("canonical_url") or source_url)
+    structured_records: list[StructuredRecord] = []
+    ocr_result: OcrResult | None = None
+    ocr_status: str | None = None
+
+    if is_image_url(source_url, metadata.get("mime_type")):
+        if settings.enable_ocr and len(content) <= settings.ocr_max_image_mb * 1024 * 1024:
+            available, reason = ocr_dependency_status(settings.ocr_engine)
+            if available:
+                try:
+                    ocr_result = run_english_ocr_image(
+                        content,
+                        lang=settings.ocr_lang,
+                        model=settings.ocr_model,
+                        store_boxes=settings.ocr_store_boxes,
+                    )
+                    ocr_status = "completed" if ocr_result.text else "skipped_no_text"
+                except Exception as exc:  # pragma: no cover - depends on optional OCR runtime
+                    logger.warning("OCR failed for image %s: %s", source_url, exc)
+                    ocr_status = "failed"
+            else:
+                ocr_status = reason or "skipped_dependency_missing"
+        elif settings.enable_ocr:
+            ocr_status = "skipped_size_cap"
+        image_record = build_binary_image_asset_record(
+            source_url=source_url,
+            parent_doc_id=parent_doc_id,
+            metadata=metadata,
+            content=content,
+            mime_type=metadata.get("mime_type"),
+            enable_ocr=settings.enable_ocr,
+            ocr_engine=settings.ocr_engine,
+            ocr_model=settings.ocr_model,
+            ocr_lang=settings.ocr_lang,
+            ocr_result=ocr_result,
+            ocr_status=ocr_status,
+        )
+        structured_records.append(image_record)
+        if ocr_result and ocr_result.text:
+            structured_records.append(
+                build_ocr_text_record(
+                    source_url=source_url,
+                    parent_doc_id=parent_doc_id,
+                    metadata=metadata,
+                    asset_url=source_url,
+                    page_number=None,
+                    result=ocr_result,
+                    ocr_engine=settings.ocr_engine,
+                    ocr_model=settings.ocr_model,
+                    ocr_lang=settings.ocr_lang,
+                )
+            )
+    else:
+        structured_records.append(
+            build_file_asset_record(
+                source_url=source_url,
+                parent_doc_id=parent_doc_id,
+                metadata=metadata,
+                content=content,
+                mime_type=metadata.get("mime_type"),
+            )
+        )
+
+    raw = RawDocument(
+        source_url=source_url,
+        canonical_url=metadata.get("canonical_url", source_url),
+        title=normalize_text(title),
+        document_type=source_kind if source_kind in {"image_asset", "file_asset"} else "file_asset",
+        content=ocr_result.text if ocr_result and ocr_result.text else "",
+        metadata=metadata,
+        source_metadata=source_metadata,
+        structured_records=structured_records,
+    )
+    if source_metadata:
+        source_metadata.parser_name = "binary_asset"
+        source_metadata.parser_version = PARSER_VERSION
+        source_metadata.content_hash = stable_hash(content.hex())
+        source_metadata.file_size_bytes = len(content)
+    return raw
+
+
+def parse_markdown(
+    content: str,
+    source_url: str,
+    source_metadata: SourceDocumentMetadata | None = None,
+) -> RawDocument:
+    title = _markdown_title(content) or Path(urlparse(source_url).path).name or source_url
+    source_kind = source_metadata.source_kind if source_metadata else "markdown"
+    extracted = normalize_text(content)
+    metadata = _base_raw_metadata(source_url, title, source_kind, source_metadata)
+    metadata["parser_name"] = "markdown"
+    structured_records = extract_markdown_table_records(extracted, source_url, metadata)
+    raw = RawDocument(
+        source_url=source_url,
+        canonical_url=metadata.get("canonical_url", source_url),
+        title=normalize_text(title),
+        document_type="markdown",
+        content=extracted,
+        metadata=metadata,
+        source_metadata=source_metadata,
+        structured_records=structured_records,
+    )
+    if source_metadata:
+        source_metadata.parser_name = "markdown"
+        source_metadata.parser_version = PARSER_VERSION
+        source_metadata.content_hash = raw.content_hash
+    return raw
+
+
+def parse_spreadsheet_bytes(
+    content: bytes,
+    source_url: str,
+    content_type: str | None = None,
+    source_metadata: SourceDocumentMetadata | None = None,
+) -> RawDocument:
+    title = Path(urlparse(source_url).path).name or source_url
+    source_kind = source_metadata.source_kind if source_metadata else infer_source_kind(source_url, content_type, title)
+    metadata = _base_raw_metadata(source_url, title, source_kind, source_metadata)
+    metadata["parser_name"] = "spreadsheet"
+    metadata["file_size_bytes"] = len(content)
+    metadata["mime_type"] = content_type.split(";", 1)[0] if content_type else None
+    metadata["content_hash"] = stable_hash(content.hex())
+    extension = Path(urlparse(source_url).path).suffix.lower()
+
+    if extension == ".csv" or (content_type or "").lower().startswith("text/csv"):
+        extracted, records = parse_csv_records(content, source_url, metadata)
+    else:
+        extracted, records = _parse_excel_records(content, source_url, metadata)
+    records.extend(extract_domain_records_from_spreadsheet(records, metadata))
+
+    raw = RawDocument(
+        source_url=source_url,
+        canonical_url=metadata.get("canonical_url", source_url),
+        title=normalize_text(title),
+        document_type="csv" if extension == ".csv" else "spreadsheet",
+        content=extracted,
+        metadata=metadata,
+        source_metadata=source_metadata,
+        structured_records=records,
+    )
+    if source_metadata:
+        source_metadata.parser_name = "spreadsheet"
+        source_metadata.parser_version = PARSER_VERSION
+        source_metadata.content_hash = raw.content_hash or stable_hash(content.hex())
         source_metadata.file_size_bytes = len(content)
     return raw
 
@@ -261,6 +515,8 @@ def _base_raw_metadata(
         category, subcategory = "academic", "registrar"
     elif source_kind == "library_page":
         category, subcategory = "student_services", "library"
+    elif source_kind in {"image_asset", "file_asset", "spreadsheet", "csv", "markdown"}:
+        category, subcategory = "asset", source_kind
 
     metadata = {
         "source_kind": source_kind,
@@ -398,12 +654,33 @@ def extract_structured_records_from_html(
     content: str,
     source_url: str,
     metadata: dict[str, Any] | None = None,
+    *,
+    enable_image_asset_extraction: bool = True,
+    enable_ocr: bool = False,
+    image_download_enabled: bool = False,
+    ocr_engine: str = "paddleocr",
+    ocr_model: str = "PP-OCRv5",
+    ocr_lang: str = "en",
 ) -> list[StructuredRecord]:
     metadata = metadata or {}
     source_kind = metadata.get("source_kind") or infer_source_kind(source_url)
     records: list[StructuredRecord] = []
     if source_kind == "policy_listing":
         records.extend(parse_policy_listing_records(content, source_url, metadata))
+    records.extend(extract_html_table_records(content, source_url, metadata))
+    if enable_image_asset_extraction:
+        records.extend(
+            extract_html_image_assets(
+                content,
+                source_url,
+                metadata,
+                enable_ocr=enable_ocr,
+                image_download_enabled=image_download_enabled,
+                ocr_engine=ocr_engine,
+                ocr_model=ocr_model,
+                ocr_lang=ocr_lang,
+            )
+        )
 
     raw = RawDocument(
         source_url=source_url,
@@ -415,7 +692,9 @@ def extract_structured_records_from_html(
     )
     records.extend(structured_records_from_raw(raw))
     if source_kind in {"gateway_page", "registrar_page", "library_page", "external_public_page"}:
-        records.extend(link_records_from_links(extract_links_from_html(content, source_url), raw.parent_doc_id, metadata))
+        links = extract_links_from_html(content, source_url)
+        records.extend(link_records_from_links(links, raw.parent_doc_id, metadata))
+        records.extend(file_asset_records_from_links(links, raw.parent_doc_id, metadata))
     return _dedupe_records(records)
 
 
@@ -511,6 +790,249 @@ def extract_program_records(raw: RawDocument) -> list[StructuredRecord]:
                 )
             )
     return records
+
+
+def extract_pdf_table_records(
+    content: bytes,
+    source_url: str,
+    parent_doc_id: str,
+    metadata: dict[str, Any],
+) -> list[StructuredRecord]:
+    try:
+        import pdfplumber
+    except ImportError:
+        return []
+
+    records: list[StructuredRecord] = []
+    try:
+        with pdfplumber.open(io.BytesIO(content)) as document:
+            for page_index, page in enumerate(document.pages, start=1):
+                tables = page.extract_tables() or []
+                for table_index, table in enumerate(tables, start=1):
+                    rows = [
+                        [normalize_text(str(cell or "")) for cell in row]
+                        for row in table
+                        if row and any(str(cell or "").strip() for cell in row)
+                    ]
+                    if not rows:
+                        continue
+                    headers = rows[0]
+                    data_rows = rows[1:] if len(rows) > 1 else []
+                    table_id = stable_hash(f"pdf_table:{source_url}:{page_index}:{table_index}")
+                    rag_text = table_record_to_text(
+                        title=f"{metadata.get('document_title') or source_url} page {page_index}",
+                        headers=headers,
+                        rows=data_rows,
+                    )
+                    record_metadata = dict(metadata)
+                    record_metadata.update({"page_number": page_index, "table_id": table_id})
+                    records.append(
+                        StructuredRecord(
+                            record_id=stable_hash(f"table_record:{table_id}"),
+                            record_type="table_record",
+                            parent_doc_id=parent_doc_id,
+                            source_url=source_url,
+                            title=f"PDF table page {page_index}",
+                            data={
+                                "table_id": table_id,
+                                "caption": None,
+                                "headers": headers,
+                                "rows": data_rows,
+                                "row_count": len(data_rows),
+                                "column_count": len(headers),
+                                "section_path": list(metadata.get("section_path", [])),
+                                "page_number": page_index,
+                                "rag_text": rag_text,
+                                "content_hash": stable_hash(rag_text),
+                            },
+                            metadata=record_metadata,
+                        )
+                    )
+    except Exception as exc:  # pragma: no cover - depends on optional parser/runtime
+        logger.warning("pdfplumber table extraction failed for %s: %s", source_url, exc)
+    return records
+
+
+def extract_markdown_table_records(
+    content: str,
+    source_url: str,
+    metadata: dict[str, Any],
+) -> list[StructuredRecord]:
+    parent_doc_id = stable_hash(metadata.get("canonical_url") or source_url)
+    records: list[StructuredRecord] = []
+    section_path: list[str] = []
+    pending_table: list[list[str]] = []
+    table_index = 0
+
+    def flush() -> None:
+        nonlocal pending_table, table_index
+        if len(pending_table) < 2:
+            pending_table = []
+            return
+        headers = pending_table[0]
+        data_rows = pending_table[2:] if _is_markdown_separator(pending_table[1]) else pending_table[1:]
+        if not data_rows:
+            pending_table = []
+            return
+        table_index += 1
+        table_id = stable_hash(f"markdown_table:{source_url}:{table_index}:{headers}")
+        rag_text = table_record_to_text(
+            title=metadata.get("document_title") or source_url,
+            headers=headers,
+            rows=data_rows,
+        )
+        records.append(
+            StructuredRecord(
+                record_id=stable_hash(f"table_record:{table_id}"),
+                record_type="table_record",
+                parent_doc_id=parent_doc_id,
+                source_url=source_url,
+                title=f"Markdown table {table_index}",
+                data={
+                    "table_id": table_id,
+                    "caption": None,
+                    "headers": headers,
+                    "rows": data_rows,
+                    "row_count": len(data_rows),
+                    "column_count": len(headers),
+                    "section_path": list(section_path),
+                    "page_number": None,
+                    "rag_text": rag_text,
+                    "content_hash": stable_hash(rag_text),
+                },
+                metadata=metadata,
+            )
+        )
+        pending_table = []
+
+    for raw_line in content.splitlines():
+        line = raw_line.strip()
+        if line.startswith("#"):
+            flush()
+            level = max(1, min(6, len(line) - len(line.lstrip("#"))))
+            heading = normalize_text(line.lstrip("#").strip())
+            section_path = section_path[: level - 1]
+            if heading:
+                section_path.append(heading)
+            continue
+        if "|" in line and line.strip("|").strip():
+            pending_table.append([normalize_text(cell) for cell in line.strip("|").split("|")])
+            continue
+        flush()
+    flush()
+    return records
+
+
+def extract_domain_records_from_spreadsheet(
+    spreadsheet_rows: list[StructuredRecord],
+    metadata: dict[str, Any],
+) -> list[StructuredRecord]:
+    records: list[StructuredRecord] = []
+    for row_record in spreadsheet_rows:
+        if row_record.record_type != "spreadsheet_row":
+            continue
+        row_text = str(row_record.data.get("rag_text") or "")
+        lowered = row_text.lower()
+        if VND_PATTERN.search(row_text):
+            raw = RawDocument(
+                source_url=row_record.source_url,
+                canonical_url=metadata.get("canonical_url", row_record.source_url),
+                title=metadata.get("document_title") or row_record.title or row_record.source_url,
+                document_type="spreadsheet",
+                content=row_text,
+                metadata={**metadata, "source_kind": "financial_policy"},
+            )
+            records.extend(extract_fee_records(raw))
+            continue
+        if DATE_PATTERN.search(row_text) and any(
+            keyword in lowered
+            for keyword in ["deadline", "exam", "holiday", "registration", "fall", "spring", "summer"]
+        ):
+            date_match = DATE_PATTERN.search(row_text)
+            if not date_match:
+                continue
+            date_text = date_match.group("date")
+            date_start_iso, date_end_iso = normalize_date_range(date_text, metadata.get("academic_year"))
+            data = {
+                "event_name": row_text,
+                "event_type": infer_event_type(row_text),
+                "date_text_original": date_text,
+                "date_start_iso": date_start_iso,
+                "date_end_iso": date_end_iso,
+                "term": _term_from_text(row_text),
+                "academic_year": metadata.get("academic_year"),
+            }
+            records.append(
+                StructuredRecord(
+                    record_id=stable_hash(f"calendar_event:{row_record.record_id}:{date_text}"),
+                    record_type="calendar_event",
+                    parent_doc_id=row_record.parent_doc_id,
+                    source_url=row_record.source_url,
+                    title=row_text[:120],
+                    data=data,
+                    metadata=metadata,
+                )
+            )
+    return records
+
+
+def _parse_excel_records(
+    content: bytes,
+    source_url: str,
+    metadata: dict[str, Any],
+) -> tuple[str, list[StructuredRecord]]:
+    try:
+        import pandas as pd
+    except ImportError:
+        parent_doc_id = stable_hash(metadata.get("canonical_url") or source_url)
+        return "", [
+            build_file_asset_record(
+                source_url=source_url,
+                parent_doc_id=parent_doc_id,
+                metadata={**metadata, "parser_warning": "spreadsheet_dependency_missing"},
+                content=content,
+                mime_type=metadata.get("mime_type"),
+            )
+        ]
+
+    sheets = pd.read_excel(io.BytesIO(content), sheet_name=None, dtype=str)
+    parent_doc_id = stable_hash(metadata.get("canonical_url") or source_url)
+    records: list[StructuredRecord] = []
+    lines: list[str] = [f"Spreadsheet: {metadata.get('document_title') or source_url}"]
+    for sheet_name, frame in sheets.items():
+        frame = frame.fillna("")
+        headers = [normalize_text(str(column)) for column in frame.columns]
+        lines.append(f"Sheet: {sheet_name}")
+        lines.append(f"Columns: {' | '.join(headers)}")
+        for row_index, row in enumerate(frame.astype(str).values.tolist(), start=1):
+            values = [normalize_text(value) for value in row]
+            row_data = {
+                header or f"column_{index + 1}": values[index] if index < len(values) else ""
+                for index, header in enumerate(headers)
+            }
+            row_text = f"Sheet {sheet_name} row {row_index}: " + " | ".join(
+                f"{key}: {value}" for key, value in row_data.items() if value
+            )
+            lines.append(row_text)
+            records.append(
+                StructuredRecord(
+                    record_id=stable_hash(f"spreadsheet_row:{source_url}:{sheet_name}:{row_index}:{row_text}"),
+                    record_type="spreadsheet_row",
+                    parent_doc_id=parent_doc_id,
+                    source_url=source_url,
+                    title=f"{sheet_name} row {row_index}",
+                    data={
+                        "sheet_name": str(sheet_name),
+                        "row_index": row_index,
+                        "headers": headers,
+                        "values": row_data,
+                        "rag_text": row_text,
+                        "content_hash": stable_hash(row_text),
+                    },
+                    metadata=metadata,
+                )
+            )
+    return normalize_text("\n".join(lines)), records
 
 
 def link_records_from_links(
@@ -639,6 +1161,29 @@ def infer_collection_time(text: str) -> str | None:
         index = lowered.find(marker)
         if index >= 0:
             return text[index:].strip()
+    return None
+
+
+def _markdown_title(content: str) -> str | None:
+    for line in content.splitlines():
+        stripped = normalize_text(line)
+        if stripped.startswith("# "):
+            return stripped.lstrip("#").strip()
+    return None
+
+
+def _is_markdown_separator(row: list[str]) -> bool:
+    return all(set(cell.replace(":", "").strip()) <= {"-"} for cell in row if cell.strip())
+
+
+def _term_from_text(text: str) -> str | None:
+    lowered = text.lower()
+    if "fall" in lowered:
+        return "Fall"
+    if "spring" in lowered:
+        return "Spring"
+    if "summer" in lowered:
+        return "Summer"
     return None
 
 

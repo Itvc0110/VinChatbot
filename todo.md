@@ -16,6 +16,14 @@ Backlog sau khi da co scaffold RAG + ReAct va domain-aware crawler.
   - `data/processed/structured_records.json`
 - [x] Parsers ban dau cho policy listing, policy detail, calendar event, fee record, program record.
 - [x] Tests co ban cho crawler metadata va parser.
+- [x] Asset-aware crawler/parser v1.
+  - HTML `image_asset` metadata voi alt/caption/nearby text/section path.
+  - HTML/PDF/Markdown table `table_record`.
+  - CSV/XLSX `spreadsheet_row` parser, XLSX dung optional `pandas/openpyxl`.
+  - Direct binary `file_asset`/`image_asset` parser.
+  - PaddleOCR PP-OCRv5 English selected, `ENABLE_OCR=false` mac dinh.
+  - Sparse PDF pages duoc danh dau `needs_ocr=true`.
+  - OCR/table/spreadsheet records co the thanh retrievable chunks khi co text tot.
 
 ## P0 - Viec can lam ngay
 
@@ -73,6 +81,17 @@ Backlog sau khi da co scaffold RAG + ReAct va domain-aware crawler.
   - `fee_type`
 
 ## P2 - Xu ly data theo tung datatype
+
+- [ ] Asset/OCR production pass.
+  - Neu can OCR: cai `.[ocr]`, bat `ENABLE_OCR=true`, test PaddleOCR tren Windows.
+  - Neu can PDF table/XLSX: cai `.[tables]`, test `pdfplumber` va `openpyxl`.
+  - Them image header download de lay kich thuoc/file size khi `IMAGE_DOWNLOAD_ENABLED=true`.
+  - Them cache binary asset neu can audit ve sau.
+  - Ghi nho chien luoc hien tai: khong OCR/chunk moi anh mac dinh; HTML image chi tao `image_asset` metadata va chi enqueue/download khi `IMAGE_DOWNLOAD_ENABLED=true`.
+  - Neu muon OCR moi anh: bat ca `IMAGE_DOWNLOAD_ENABLED=true` va `ENABLE_OCR=true`; can them cache/size cap/rate limit rieng truoc khi crawl lon.
+  - Nguong PDF can OCR hien tai: page text layer `< OCR_MIN_TEXT_CHARS_PER_PAGE`, mac dinh 40 ky tu.
+  - Nguong OCR text duoc chunk hien tai: OCR text dai toi thieu 20 ky tu trong `chunker.py`.
+  - Can quyet dinh sau: co chunk moi `image_asset.description` khong co alt/caption hay khong; hien tai chi chunk image description khi co alt hoac caption.
 
 - [ ] Policy listing parser production.
   - Extract chinh xac title/code/issued/updated/detail URL.
@@ -136,3 +155,6 @@ Backlog sau khi da co scaffold RAG + ReAct va domain-aware crawler.
 - Conversation memory chi de hieu ngu canh, khong phai source of truth.
 - Source of truth cho fee/deadline/policy phai den tu retrieval co citation.
 - Private/login-required pages chi luu link reference, khong index content.
+
+
+Lọc lại chunk level meta-data

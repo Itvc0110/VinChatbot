@@ -13,13 +13,17 @@ from uuid import uuid4
 import httpx
 
 from vinchatbot.app.core.config import Settings, get_settings
+from vinchatbot.app.ingest.assets import file_asset_records_from_links
 from vinchatbot.app.ingest.normalizer import classify_domain, infer_source_kind, normalize_text
 from vinchatbot.app.ingest.parsers import (
     PARSER_VERSION,
     extract_links_from_html,
     link_records_from_links,
+    parse_binary_asset_bytes,
     parse_html,
+    parse_markdown,
     parse_pdf_bytes,
+    parse_spreadsheet_bytes,
 )
 from vinchatbot.app.schemas.document import (
     CrawlManifestEntry,
@@ -37,6 +41,7 @@ logger = logging.getLogger(__name__)
 SEED_URLS = [
     "https://vinuni.edu.vn/student-gateway/",
     "https://vinuni.edu.vn/academic-calendar/",
+    "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
     "https://policy.vinuni.edu.vn/all-policies/",
     "https://policy.vinuni.edu.vn/whats-new/",
     "https://policy.vinuni.edu.vn/governance-and-legal/",
@@ -137,9 +142,22 @@ class VinUniCrawler:
     async def crawl_full(self, urls: list[str] | None = None, force: bool = False) -> CrawlResult:
         crawl_run_id = str(uuid4())
         previous_manifest = read_crawl_manifest(Path(self.settings.processed_data_dir) / "crawl_manifest.json")
+        previous_link_references = read_link_references(
+            Path(self.settings.processed_data_dir) / "link_references.json"
+        )
+        previous_links_by_source = _links_by_source(previous_link_references)
+        seed_urls = urls or SEED_URLS
+        logger.info(
+            "Starting crawl run_id=%s seeds=%s max_pages=%s vinuni_depth=%s external_depth=%s",
+            crawl_run_id,
+            len(seed_urls),
+            self.max_pages_total,
+            self.vinuni_max_depth,
+            self.external_max_depth,
+        )
         frontier: deque[CrawlTarget] = deque(
             CrawlTarget(source_url=_canonicalize_url(url), crawl_depth=0, discovered_from="seed")
-            for url in (urls or SEED_URLS)
+            for url in seed_urls
         )
         seen: set[str] = set()
         per_domain_counts: dict[str, int] = defaultdict(int)
@@ -155,16 +173,26 @@ class VinUniCrawler:
                 target = frontier.popleft()
                 target.source_url = _canonicalize_url(target.source_url)
                 if target.source_url in seen:
+                    logger.debug("Skipping already-seen URL: %s", target.source_url)
                     continue
                 seen.add(target.source_url)
+                logger.info(
+                    "Crawling depth=%s queued=%s processed=%s url=%s",
+                    target.crawl_depth,
+                    len(frontier),
+                    len(result.manifest_entries),
+                    target.source_url,
+                )
 
                 crawlable, reason = self._should_fetch_target(target, per_domain_counts)
                 if not crawlable:
+                    logger.info("Skipping URL reason=%s url=%s", reason, target.source_url)
                     result.link_references.append(self._target_to_link_reference(target, reason=reason))
                     continue
 
                 robots_allowed = await self._can_fetch(client, target.source_url)
                 if not robots_allowed:
+                    logger.info("Skipping robots-disallowed URL: %s", target.source_url)
                     result.manifest_entries.append(self._skipped_manifest(target, "robots_disallowed", crawl_run_id))
                     result.link_references.append(self._target_to_link_reference(target, reason="robots_disallowed"))
                     continue
@@ -183,6 +211,15 @@ class VinUniCrawler:
 
                 result.manifest_entries.append(manifest_entry)
                 per_domain_counts[urlparse(document.source_url).netloc.lower()] += 1
+                logger.info(
+                    "Fetched status=%s kind=%s skipped=%s links=%s records=%s title=%s",
+                    manifest_entry.http_status,
+                    manifest_entry.source_kind,
+                    manifest_entry.skipped,
+                    len(links),
+                    len(document.structured_records),
+                    document.title,
+                )
 
                 if manifest_entry.skipped:
                     await asyncio.sleep(self.settings.crawl_rate_limit_seconds)
@@ -191,6 +228,22 @@ class VinUniCrawler:
                 if not force and _manifest_is_unchanged(manifest_entry, previous_manifest):
                     manifest_entry.skipped = True
                     manifest_entry.skip_reason = "unchanged"
+                    logger.info("Skipping unchanged URL: %s", manifest_entry.canonical_url)
+                    previous_links = previous_links_by_source.get(manifest_entry.canonical_url, [])
+                    if previous_links:
+                        logger.info(
+                            "Reusing %s previous link references for unchanged URL: %s",
+                            len(previous_links),
+                            manifest_entry.canonical_url,
+                        )
+                        result.link_references.extend(previous_links)
+                        self._enqueue_previous_links(
+                            frontier=frontier,
+                            links=previous_links,
+                            parent_url=manifest_entry.canonical_url,
+                            parent_depth=target.crawl_depth,
+                            seen=seen,
+                        )
                     await asyncio.sleep(self.settings.crawl_rate_limit_seconds)
                     continue
 
@@ -216,6 +269,13 @@ class VinUniCrawler:
                 await asyncio.sleep(self.settings.crawl_rate_limit_seconds)
 
         self.last_result = result
+        logger.info(
+            "Finished crawl documents=%s manifest_entries=%s link_references=%s structured_records=%s",
+            len(result.documents),
+            len(result.manifest_entries),
+            len(result.link_references),
+            len(result.structured_records),
+        )
         return result
 
     async def _fetch_and_parse(
@@ -258,15 +318,40 @@ class VinUniCrawler:
             )
             return empty_doc, [self._target_to_link_reference(target, reason=reason)], manifest_entry
 
-        if "pdf" in content_type.lower() or final_url.lower().endswith(".pdf"):
+        lowered_content_type = content_type.lower()
+        lowered_url = final_url.lower()
+        if "pdf" in lowered_content_type or lowered_url.endswith(".pdf"):
             document = parse_pdf_bytes(response.content, final_url, source_metadata=source_metadata)
             links: list[LinkReference] = []
+        elif source_kind in {"csv", "spreadsheet"}:
+            document = parse_spreadsheet_bytes(
+                response.content,
+                final_url,
+                content_type=content_type,
+                source_metadata=source_metadata,
+            )
+            links = []
+        elif source_kind == "markdown":
+            document = parse_markdown(response.text, final_url, source_metadata=source_metadata)
+            links = []
+        elif source_kind in {"image_asset", "file_asset"} or _is_binary_response(content_type, final_url):
+            document = parse_binary_asset_bytes(
+                response.content,
+                final_url,
+                content_type=content_type,
+                source_metadata=source_metadata,
+            )
+            links = []
         else:
             document = parse_html(response.text, final_url, source_metadata=source_metadata)
             links = self._classify_links(extract_links_from_html(response.text, final_url), document)
+            if self.settings.image_download_enabled:
+                links.extend(self._classify_links(self._image_links_from_document(document), document))
             document.structured_records.extend(link_records_from_links(links, document.parent_doc_id, document.metadata))
+            document.structured_records.extend(file_asset_records_from_links(links, document.parent_doc_id, document.metadata))
+            document.structured_records = _dedupe_structured_records(document.structured_records)
 
-        source_metadata.content_hash = document.content_hash
+        source_metadata.content_hash = document.metadata.get("content_hash") or document.content_hash
         document.source_metadata = source_metadata
         document.metadata.update(source_metadata.model_dump(exclude_none=True))
         manifest_entry = _manifest_from_source(source_metadata, indexed=True, skipped=False)
@@ -399,6 +484,58 @@ class VinUniCrawler:
             reason=reason,
         )
 
+    @staticmethod
+    def _image_links_from_document(document: RawDocument) -> list[LinkReference]:
+        links: list[LinkReference] = []
+        for record in document.structured_records:
+            if record.record_type != "image_asset":
+                continue
+            asset_url = record.data.get("asset_url")
+            if not asset_url:
+                continue
+            domain, domain_type, source_trust = classify_domain(asset_url)
+            links.append(
+                LinkReference(
+                    source_url=document.source_url,
+                    target_url=_canonicalize_url(asset_url),
+                    anchor_text=record.title,
+                    link_context=record.data.get("description") or record.data.get("nearby_text"),
+                    section_path=list(record.data.get("section_path") or []),
+                    discovered_from=document.source_url,
+                    domain=domain,
+                    domain_type=domain_type,
+                    source_kind=infer_source_kind(asset_url),
+                    source_trust=source_trust,
+                )
+            )
+        return links
+
+    @staticmethod
+    def _enqueue_previous_links(
+        frontier: deque[CrawlTarget],
+        links: list[LinkReference],
+        parent_url: str,
+        parent_depth: int,
+        seen: set[str],
+    ) -> None:
+        for link in links:
+            if not link.should_crawl:
+                continue
+            child_url = _canonicalize_url(link.target_url)
+            if child_url in seen:
+                continue
+            frontier.append(
+                CrawlTarget(
+                    source_url=child_url,
+                    parent_url=parent_url,
+                    crawl_depth=parent_depth + 1,
+                    anchor_text=link.anchor_text,
+                    link_context=link.link_context,
+                    discovered_from=parent_url,
+                    source_kind_hint=link.source_kind,
+                )
+            )
+
     def _skipped_manifest(self, target: CrawlTarget, reason: str, crawl_run_id: str) -> CrawlManifestEntry:
         canonical_url = _canonicalize_url(target.source_url)
         domain, _, _ = classify_domain(canonical_url)
@@ -434,6 +571,22 @@ def read_raw_documents(input_dir: str | Path) -> list[RawDocument]:
     for path in Path(input_dir).glob("*.json"):
         documents.append(RawDocument.model_validate(json.loads(path.read_text(encoding="utf-8"))))
     return documents
+
+
+def read_link_references(input_path: str | Path) -> list[LinkReference]:
+    path = Path(input_path)
+    if not path.exists():
+        return []
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return [LinkReference.model_validate(item) for item in payload]
+
+
+def read_structured_records(input_path: str | Path) -> list[StructuredRecord]:
+    path = Path(input_path)
+    if not path.exists():
+        return []
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return [StructuredRecord.model_validate(item) for item in payload]
 
 
 def write_crawl_manifest(entries: list[CrawlManifestEntry], output_path: str | Path) -> None:
@@ -511,6 +664,13 @@ def _manifest_is_unchanged(
     )
 
 
+def _links_by_source(links: list[LinkReference]) -> dict[str, list[LinkReference]]:
+    grouped: dict[str, list[LinkReference]] = defaultdict(list)
+    for link in links:
+        grouped[_canonicalize_url(link.source_url)].append(link)
+    return grouped
+
+
 def _canonicalize_url(url: str) -> str:
     url, _ = urldefrag(url)
     return url.strip()
@@ -532,6 +692,42 @@ def _is_private_or_login_url(url: str) -> bool:
     if host in PRIVATE_OR_LOGIN_HOSTS:
         return True
     return any(marker in lowered for marker in ["login", "signin", "sso", "sharepoint.com", "forms.office.com"])
+
+
+def _is_binary_response(content_type: str, url: str) -> bool:
+    lowered_content_type = (content_type or "").lower()
+    if lowered_content_type.startswith(("text/html", "text/plain", "application/xhtml+xml")):
+        return False
+    if "json" in lowered_content_type or "xml" in lowered_content_type:
+        return False
+    path = urlparse(url).path.lower()
+    if path.endswith((".html", ".htm", "/")):
+        return False
+    return bool(lowered_content_type) or path.endswith(
+        (
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".webp",
+            ".bmp",
+            ".tif",
+            ".tiff",
+            ".svg",
+            ".doc",
+            ".docx",
+            ".ppt",
+            ".pptx",
+            ".zip",
+        )
+    )
+
+
+def _dedupe_structured_records(records: list[StructuredRecord]) -> list[StructuredRecord]:
+    deduped: dict[str, StructuredRecord] = {}
+    for record in records:
+        deduped[record.record_id] = record
+    return list(deduped.values())
 
 
 def _looks_login_required(response: httpx.Response) -> bool:

@@ -1,4 +1,5 @@
 from vinchatbot.app.ingest.crawler import (
+    SEED_URLS,
     VinUniCrawler,
     _manifest_is_unchanged,
 )
@@ -135,3 +136,7 @@ def test_manifest_detects_unchanged_content():
     previous = {entry.canonical_url: entry}
 
     assert _manifest_is_unchanged(entry, previous)
+
+
+def test_seed_urls_include_direct_academic_calendar_pdf():
+    assert "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf" in SEED_URLS

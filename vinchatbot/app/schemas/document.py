@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
-
 
 DocumentType = Literal[
     "html",
@@ -24,6 +23,12 @@ DocumentType = Literal[
     "registrar_page",
     "library_page",
     "external_public_page",
+    "markdown",
+    "spreadsheet",
+    "csv",
+    "image_asset",
+    "file_asset",
+    "pdf_ocr",
     "link_reference",
     "unknown",
 ]
@@ -34,11 +39,16 @@ RecordType = Literal[
     "policy_listing",
     "program",
     "link_reference",
+    "image_asset",
+    "ocr_text",
+    "table_record",
+    "spreadsheet_row",
+    "file_asset",
 ]
 
 
 def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def stable_hash(value: str) -> str:
@@ -180,6 +190,17 @@ class DocumentMetadata(BaseModel):
     audience: str = "student"
     entities: list[str] = Field(default_factory=list)
     relation_hints: list[str] = Field(default_factory=list)
+    record_type: str | None = None
+    asset_url: str | None = None
+    asset_type: str | None = None
+    mime_type: str | None = None
+    filename: str | None = None
+    description_source: str | None = None
+    ocr_engine: str | None = None
+    ocr_model: str | None = None
+    ocr_lang: str | None = None
+    ocr_confidence: float | None = None
+    needs_ocr: bool | None = None
 
     @field_validator("source_url", "canonical_url", "document_title", "chunk_id", "parent_doc_id")
     @classmethod
