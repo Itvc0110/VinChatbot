@@ -1,6 +1,8 @@
 from vinchatbot.app.ingest.crawler import (
     SEED_URLS,
     VinUniCrawler,
+    build_crawl_coverage_report,
+    _is_policy_allowed_path,
     _manifest_is_unchanged,
 )
 from vinchatbot.app.ingest.parsers import (
@@ -124,6 +126,53 @@ def test_crawler_marks_private_links_as_references():
     assert reference.should_crawl is False
 
 
+def test_crawler_allows_policy_details_publication_and_uploads():
+    assert _is_policy_allowed_path("/all-policies/student-affairs-code-of-conduct/")
+    assert _is_policy_allowed_path("/publication/academic-catalogs/")
+    assert _is_policy_allowed_path("/publication-public/student-handbook/")
+    assert _is_policy_allowed_path("/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf")
+
+
+def test_crawler_keeps_non_student_support_vinuni_subdomains_out_of_scope():
+    crawler = VinUniCrawler()
+    target = CrawlTarget(
+        source_url="https://marketing.vinuni.edu.vn/campaign/",
+        parent_url="https://vinuni.edu.vn/student-gateway/",
+        crawl_depth=1,
+        anchor_text="Marketing",
+    )
+
+    should_fetch, reason = crawler._should_fetch_target(target, {})
+
+    assert should_fetch is False
+    assert reason == "vinuni_subdomain_out_of_scope"
+
+
+def test_crawl_coverage_report_counts_artifacts():
+    document = RawDocument(
+        source_url="https://policy.vinuni.edu.vn/student-affairs/",
+        canonical_url="https://policy.vinuni.edu.vn/student-affairs/",
+        title="Student Affairs",
+        document_type="policy_listing",
+        content="Student policies",
+    )
+    manifest = CrawlManifestEntry(
+        source_id="1",
+        source_url=document.source_url,
+        final_url=document.source_url,
+        canonical_url=document.source_url,
+        source_kind="policy_listing",
+        domain="policy.vinuni.edu.vn",
+        indexed=True,
+    )
+
+    report = build_crawl_coverage_report([document], [manifest], [])
+
+    assert report["totals"]["documents"] == 1
+    assert report["documents_by_type"]["policy_listing"] == 1
+    assert report["manifest_by_source_kind"]["policy_listing"] == 1
+
+
 def test_manifest_detects_unchanged_content():
     entry = CrawlManifestEntry(
         source_id="1",
@@ -140,3 +189,8 @@ def test_manifest_detects_unchanged_content():
 
 def test_seed_urls_include_direct_academic_calendar_pdf():
     assert "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf" in SEED_URLS
+
+
+def test_seed_urls_include_registrar_and_library_public_entrypoints():
+    assert "https://registrar.vinuni.edu.vn/" in SEED_URLS
+    assert "https://library.vinuni.edu.vn/" in SEED_URLS

@@ -404,10 +404,30 @@ def parse_spreadsheet_bytes(
     metadata["content_hash"] = stable_hash(content.hex())
     extension = Path(urlparse(source_url).path).suffix.lower()
 
-    if extension == ".csv" or (content_type or "").lower().startswith("text/csv"):
+    if _looks_like_html_spreadsheet(content):
+        metadata["parser_warning"] = "spreadsheet_html_fallback"
+        html_text = content.decode("utf-8-sig", errors="replace")
+        raw = parse_html(html_text, source_url, source_metadata=source_metadata)
+        raw.metadata.update(metadata)
+        raw.metadata["parser_name"] = "spreadsheet_html_fallback"
+        raw.document_type = "spreadsheet"
+        if source_metadata:
+            source_metadata.parser_name = "spreadsheet_html_fallback"
+            source_metadata.parser_version = PARSER_VERSION
+            source_metadata.content_hash = metadata.get("content_hash") or raw.content_hash
+            source_metadata.file_size_bytes = len(content)
+        return raw
+
+    if (
+        extension == ".csv"
+        or (content_type or "").lower().startswith("text/csv")
+        or _looks_like_csv_spreadsheet(content)
+    ):
+        if extension != ".csv" and not (content_type or "").lower().startswith("text/csv"):
+            metadata["parser_warning"] = "spreadsheet_csv_fallback"
         extracted, records = parse_csv_records(content, source_url, metadata)
     else:
-        extracted, records = _parse_excel_records(content, source_url, metadata)
+        extracted, records = _parse_excel_records(content, source_url, metadata, extension=extension)
     records.extend(extract_domain_records_from_spreadsheet(records, metadata))
 
     raw = RawDocument(
@@ -423,7 +443,7 @@ def parse_spreadsheet_bytes(
     if source_metadata:
         source_metadata.parser_name = "spreadsheet"
         source_metadata.parser_version = PARSER_VERSION
-        source_metadata.content_hash = raw.content_hash or stable_hash(content.hex())
+        source_metadata.content_hash = metadata.get("content_hash") or raw.content_hash
         source_metadata.file_size_bytes = len(content)
     return raw
 
@@ -980,6 +1000,7 @@ def _parse_excel_records(
     content: bytes,
     source_url: str,
     metadata: dict[str, Any],
+    extension: str | None = None,
 ) -> tuple[str, list[StructuredRecord]]:
     try:
         import pandas as pd
@@ -995,7 +1016,22 @@ def _parse_excel_records(
             )
         ]
 
-    sheets = pd.read_excel(io.BytesIO(content), sheet_name=None, dtype=str)
+    engine = _excel_engine_for_content(content, extension or Path(urlparse(source_url).path).suffix.lower())
+    try:
+        sheets = pd.read_excel(io.BytesIO(content), sheet_name=None, dtype=str, engine=engine)
+    except Exception as exc:
+        parent_doc_id = stable_hash(metadata.get("canonical_url") or source_url)
+        warning = f"spreadsheet_parse_failed:{exc.__class__.__name__}"
+        logger.warning("Spreadsheet parse failed for %s: %s", source_url, exc)
+        return "", [
+            build_file_asset_record(
+                source_url=source_url,
+                parent_doc_id=parent_doc_id,
+                metadata={**metadata, "parser_warning": warning},
+                content=content,
+                mime_type=metadata.get("mime_type"),
+            )
+        ]
     parent_doc_id = stable_hash(metadata.get("canonical_url") or source_url)
     records: list[StructuredRecord] = []
     lines: list[str] = [f"Spreadsheet: {metadata.get('document_title') or source_url}"]
@@ -1033,6 +1069,32 @@ def _parse_excel_records(
                 )
             )
     return normalize_text("\n".join(lines)), records
+
+
+def _looks_like_html_spreadsheet(content: bytes) -> bool:
+    sample = content[:4096].lstrip().lower()
+    return sample.startswith((b"<!doctype html", b"<html", b"<table")) or b"<table" in sample
+
+
+def _looks_like_csv_spreadsheet(content: bytes) -> bool:
+    if content.startswith((b"PK\x03\x04", b"\xd0\xcf\x11\xe0")) or b"\x00" in content[:4096]:
+        return False
+    sample = content[:4096].decode("utf-8-sig", errors="replace")
+    if "<html" in sample.lower() or "<table" in sample.lower():
+        return False
+    if "\n" not in sample and "\r" not in sample:
+        return False
+    first_line = sample.splitlines()[0] if sample.splitlines() else ""
+    return any(delimiter in first_line for delimiter in [",", "\t", ";"])
+
+
+def _excel_engine_for_content(content: bytes, extension: str | None) -> str | None:
+    extension = (extension or "").lower()
+    if extension == ".xlsx" or content.startswith(b"PK\x03\x04"):
+        return "openpyxl"
+    if extension == ".xls" or content.startswith(b"\xd0\xcf\x11\xe0"):
+        return "xlrd"
+    return None
 
 
 def link_records_from_links(

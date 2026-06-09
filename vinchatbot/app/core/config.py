@@ -39,6 +39,14 @@ class Settings(BaseSettings):
         default="vinuni_documents", validation_alias="QDRANT_COLLECTION"
     )
     qdrant_local_path: str = Field(default="data/qdrant", validation_alias="QDRANT_LOCAL_PATH")
+    qdrant_timeout_seconds: int = Field(default=120, validation_alias="QDRANT_TIMEOUT_SECONDS")
+    qdrant_batch_size: int = Field(default=16, validation_alias="QDRANT_BATCH_SIZE")
+    vector_store_backend: str = Field(default="qdrant", validation_alias="VECTOR_STORE_BACKEND")
+    chroma_collection: str = Field(default="vinuni_documents", validation_alias="CHROMA_COLLECTION")
+    chroma_persist_dir: str = Field(default="data/chroma", validation_alias="CHROMA_PERSIST_DIR")
+    pinecone_api_key: str | None = Field(default=None, validation_alias="PINECONE_API_KEY")
+    pinecone_index_name: str = Field(default="vinuni-documents", validation_alias="PINECONE_INDEX_NAME")
+    pinecone_namespace: str | None = Field(default=None, validation_alias="PINECONE_NAMESPACE")
 
     checkpointer_backend: str = Field(default="memory", validation_alias="CHECKPOINTER_BACKEND")
     postgres_uri: str | None = Field(default=None, validation_alias="POSTGRES_URI")

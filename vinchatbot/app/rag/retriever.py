@@ -6,6 +6,8 @@ from typing import Any, Protocol
 from vinchatbot.app.core.config import Settings, get_settings
 from vinchatbot.app.rag.reranker import OpenRouterReranker
 from vinchatbot.app.schemas.document import DocumentChunk, DocumentMetadata
+from vinchatbot.app.storage.qdrant_store import ensure_qdrant_payload_indexes, qdrant_location_kwargs
+from vinchatbot.app.storage.vector_metadata import restore_document_metadata
 
 
 @dataclass(frozen=True)
@@ -55,10 +57,23 @@ class InMemoryRetriever:
 class QdrantHybridRetriever:
     def __init__(self, settings: Settings | None = None, vector_store=None) -> None:
         self.settings = settings or get_settings()
+        self.backend = self.settings.vector_store_backend.lower().strip()
         self.vector_store = vector_store or self._build_vector_store()
         self.reranker = OpenRouterReranker(self.settings)
 
     def _build_vector_store(self):
+        if self.backend == "qdrant":
+            return self._build_qdrant_vector_store()
+        if self.backend == "chroma":
+            return self._build_chroma_vector_store()
+        if self.backend == "pinecone":
+            return self._build_pinecone_vector_store()
+        raise RuntimeError(
+            f"Unsupported VECTOR_STORE_BACKEND={self.settings.vector_store_backend!r}. "
+            "Use qdrant, chroma, or pinecone."
+        )
+
+    def _build_qdrant_vector_store(self):
         try:
             from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode
         except ImportError as exc:
@@ -72,12 +87,50 @@ class QdrantHybridRetriever:
             "sparse_embedding": FastEmbedSparse(model_name="Qdrant/BM25"),
             "retrieval_mode": RetrievalMode.HYBRID,
         }
-        if self.settings.qdrant_url:
-            kwargs["url"] = self.settings.qdrant_url
-            kwargs["api_key"] = self.settings.qdrant_api_key
-        else:
-            kwargs["path"] = self.settings.qdrant_local_path
-        return QdrantVectorStore.from_existing_collection(**kwargs)
+        kwargs.update(qdrant_location_kwargs(self.settings))
+        vector_store = QdrantVectorStore.from_existing_collection(**kwargs)
+        ensure_qdrant_payload_indexes(
+            vector_store.client,
+            self.settings.qdrant_collection,
+            self.settings.qdrant_timeout_seconds,
+        )
+        return vector_store
+
+    def _build_chroma_vector_store(self):
+        try:
+            from langchain_chroma import Chroma
+        except ImportError as exc:
+            raise RuntimeError(
+                "Install optional Chroma dependencies with `python -m pip install -e \".[vector-backups]\"`."
+            ) from exc
+
+        from vinchatbot.app.embeddings.openrouter_embeddings import build_embeddings
+
+        return Chroma(
+            collection_name=self.settings.chroma_collection,
+            persist_directory=self.settings.chroma_persist_dir,
+            embedding_function=build_embeddings(self.settings),
+        )
+
+    def _build_pinecone_vector_store(self):
+        try:
+            from langchain_pinecone import PineconeVectorStore
+        except ImportError as exc:
+            raise RuntimeError(
+                "Install optional Pinecone dependencies with `python -m pip install -e \".[vector-backups]\"`."
+            ) from exc
+
+        from vinchatbot.app.embeddings.openrouter_embeddings import build_embeddings
+
+        kwargs: dict[str, Any] = {
+            "index_name": self.settings.pinecone_index_name,
+            "embedding": build_embeddings(self.settings),
+        }
+        if self.settings.pinecone_namespace:
+            kwargs["namespace"] = self.settings.pinecone_namespace
+        if self.settings.pinecone_api_key:
+            kwargs["pinecone_api_key"] = self.settings.pinecone_api_key
+        return PineconeVectorStore(**kwargs)
 
     async def search(
         self,
@@ -85,11 +138,11 @@ class QdrantHybridRetriever:
         filters: dict[str, Any] | None = None,
         limit: int = 8,
     ) -> list[RetrievedChunk]:
-        qdrant_filter = self._to_qdrant_filter(filters or {})
+        search_filter = self._to_qdrant_filter(filters or {}) if self.backend == "qdrant" else (filters or None)
         docs = await self.vector_store.asimilarity_search(
             query,
             k=max(limit * 3, limit),
-            filter=qdrant_filter,
+            filter=search_filter,
         )
         if not docs:
             return []
@@ -103,7 +156,7 @@ class QdrantHybridRetriever:
         return [
             RetrievedChunk(
                 text=doc.page_content,
-                metadata=DocumentMetadata.model_validate(doc.metadata),
+                metadata=restore_document_metadata(doc.metadata),
                 score=score,
             )
             for doc, score in ordered

@@ -1,3 +1,7 @@
+import io
+
+import pytest
+
 from vinchatbot.app.ingest.assets import (
     build_ocr_text_record,
     extract_html_image_assets,
@@ -38,6 +42,66 @@ def test_html_image_asset_metadata_has_context_description_and_ocr_disabled():
     assert record.data["section_path"] == ["Student Gateway", "Academic Calendar"]
     assert record.data["description_source"] == "caption"
     assert record.data["ocr_status"] == "disabled"
+
+
+def test_html_image_with_nearby_context_becomes_retrievable_chunk_and_ocr_candidate():
+    html = """
+    <html><body>
+      <h1>Student Gateway</h1>
+      <h2>Exam Schedule</h2>
+      <div>
+        Final exam timetable and deadline summary for students.
+        <img src="/assets/exam-schedule.png">
+      </div>
+    </body></html>
+    """
+
+    records = extract_html_image_assets(
+        html,
+        "https://vinuni.edu.vn/student-gateway/",
+        {"document_title": "Gateway for VinUnians"},
+        enable_ocr=False,
+    )
+    raw = RawDocument(
+        source_url="https://vinuni.edu.vn/student-gateway/",
+        canonical_url="https://vinuni.edu.vn/student-gateway/",
+        title="Gateway for VinUnians",
+        document_type="gateway_page",
+        content="",
+        metadata={"source_kind": "gateway_page", "category": "gateway", "subcategory": "student_support"},
+        structured_records=records,
+    )
+
+    chunks = chunk_document(raw)
+
+    assert records[0].data["description_source"] == "context"
+    assert records[0].data["needs_ocr"] is True
+    assert chunks
+    assert chunks[0].metadata.record_type == "image_asset"
+    assert "Final exam timetable" in chunks[0].text
+
+
+def test_html_image_without_text_context_is_flagged_but_not_chunked():
+    html = '<html><body><img src="/assets/banner.png"></body></html>'
+
+    records = extract_html_image_assets(
+        html,
+        "https://vinuni.edu.vn/student-gateway/",
+        {"document_title": "Gateway for VinUnians"},
+        enable_ocr=False,
+    )
+    raw = RawDocument(
+        source_url="https://vinuni.edu.vn/student-gateway/",
+        canonical_url="https://vinuni.edu.vn/student-gateway/",
+        title="Gateway for VinUnians",
+        document_type="gateway_page",
+        content="",
+        metadata={"source_kind": "gateway_page", "category": "gateway", "subcategory": "student_support"},
+        structured_records=records,
+    )
+
+    assert records[0].data["needs_ocr"] is True
+    assert chunk_document(raw) == []
 
 
 def test_html_table_record_generates_rag_text_and_chunk():
@@ -140,3 +204,68 @@ def test_csv_parser_emits_spreadsheet_rows_and_fee_records():
     assert "fee_record" in record_types
     fee_record = next(record for record in raw.structured_records if record.record_type == "fee_record")
     assert fee_record.data["amount"] == 200000
+
+
+def test_spreadsheet_parser_falls_back_when_xlsx_url_contains_csv():
+    csv_content = b"Fee,Amount\nStudent ID Card Replacement,200000 VND\n"
+
+    raw = parse_spreadsheet_bytes(
+        csv_content,
+        "https://policy.vinuni.edu.vn/wp-content/uploads/fees.xlsx",
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+    assert raw.metadata["parser_warning"] == "spreadsheet_csv_fallback"
+    assert any(record.record_type == "spreadsheet_row" for record in raw.structured_records)
+
+
+def test_spreadsheet_parser_falls_back_when_excel_url_contains_html_table():
+    html_content = b"""
+    <html><body><table>
+      <tr><th>Fee</th><th>Amount</th></tr>
+      <tr><td>Student ID Card Replacement</td><td>200000 VND</td></tr>
+    </table></body></html>
+    """
+
+    raw = parse_spreadsheet_bytes(
+        html_content,
+        "https://policy.vinuni.edu.vn/wp-content/uploads/fees.xls",
+        content_type="application/vnd.ms-excel",
+    )
+
+    assert raw.document_type == "spreadsheet"
+    assert raw.metadata["parser_warning"] == "spreadsheet_html_fallback"
+    assert any(record.record_type == "table_record" for record in raw.structured_records)
+
+
+def test_spreadsheet_parser_keeps_corrupt_excel_as_file_asset():
+    raw = parse_spreadsheet_bytes(
+        b"not an excel workbook",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/broken.xlsx",
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+    assert raw.structured_records
+    assert raw.structured_records[0].record_type == "file_asset"
+    assert raw.structured_records[0].data["parser_warning"]
+
+
+def test_spreadsheet_parser_reads_valid_xlsx_when_optional_dependencies_exist():
+    pytest.importorskip("pandas")
+    openpyxl = pytest.importorskip("openpyxl")
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "Fees"
+    sheet.append(["Fee", "Amount"])
+    sheet.append(["Student ID Card Replacement", "200000 VND"])
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+
+    raw = parse_spreadsheet_bytes(
+        buffer.getvalue(),
+        "https://policy.vinuni.edu.vn/wp-content/uploads/fees.xlsx",
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+    assert any(record.record_type == "spreadsheet_row" for record in raw.structured_records)
+    assert "Student ID Card Replacement" in raw.content

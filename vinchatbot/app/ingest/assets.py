@@ -92,6 +92,13 @@ def extract_html_image_assets(
             "description": description,
             "description_source": description_source,
             "description_confidence": confidence,
+            "needs_ocr": _image_needs_ocr(
+                filename=filename,
+                section_path=section_stack,
+                alt_text=alt_text,
+                caption=caption,
+                nearby_text=nearby_text,
+            ),
             "ocr_enabled": enable_ocr,
             "ocr_status": ocr_status,
             "ocr_text": None,
@@ -287,6 +294,14 @@ def build_binary_image_asset_record(
         "description": description,
         "description_source": description_source,
         "description_confidence": confidence,
+        "needs_ocr": ocr_result is None
+        and _image_needs_ocr(
+            filename=filename,
+            section_path=list(metadata.get("section_path", [])),
+            alt_text=None,
+            caption=None,
+            nearby_text=metadata.get("link_context"),
+        ),
         "ocr_enabled": enable_ocr,
         "ocr_status": ocr_status or ("completed" if ocr_result else _ocr_initial_status(enable_ocr, True, ocr_engine)),
         "ocr_text": ocr_result.text if ocr_result else None,
@@ -323,6 +338,7 @@ def build_file_asset_record(
         "file_size_bytes": len(content),
         "content_hash": stable_hash(content.hex()),
         "source_trust": metadata.get("source_trust"),
+        "parser_warning": metadata.get("parser_warning"),
     }
     return StructuredRecord(
         record_id=stable_hash(f"file_asset:{source_url}:{data['content_hash']}"),
@@ -655,6 +671,39 @@ def _ocr_initial_status(
     if not image_download_enabled:
         return "skipped_download_disabled"
     return "pending"
+
+
+def _image_needs_ocr(
+    *,
+    filename: str | None,
+    section_path: list[str],
+    alt_text: str | None,
+    caption: str | None,
+    nearby_text: str | None,
+) -> bool:
+    text_context = " ".join(
+        value
+        for value in [alt_text, caption, nearby_text, " ".join(section_path), filename]
+        if value
+    ).lower()
+    has_text_context = bool((alt_text or "").strip() or (caption or "").strip() or (nearby_text or "").strip())
+    if not has_text_context:
+        return True
+    important_markers = {
+        "academic calendar",
+        "calendar",
+        "deadline",
+        "drop",
+        "exam",
+        "fee",
+        "financial",
+        "policy",
+        "schedule",
+        "table",
+        "tariff",
+        "tuition",
+    }
+    return any(marker in text_context for marker in important_markers) and len(text_context) < 160
 
 
 def _asset_type_from_extension(extension: str, mime_type: str | None) -> str:

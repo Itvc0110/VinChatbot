@@ -42,6 +42,10 @@ tables = [
     "pandas>=2.2.0",
     "openpyxl>=3.1.0",
 ]
+vector-backups = [
+    "langchain-chroma>=0.1.4",
+    "langchain-pinecone>=0.2.0",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

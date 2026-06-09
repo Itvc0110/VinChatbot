@@ -1,4 +1,4 @@
-import pytest
+import asyncio
 
 from vinchatbot.app.ingest.chunker import chunk_document
 from vinchatbot.app.ingest.parsers import extract_calendar_events
@@ -6,26 +6,28 @@ from vinchatbot.app.rag.retriever import InMemoryRetriever
 from vinchatbot.app.schemas.document import RawDocument
 
 
-@pytest.mark.asyncio
-async def test_in_memory_retriever_returns_filtered_calendar_citation():
-    raw = RawDocument(
-        source_url="https://policy.vinuni.edu.vn/calendar.pdf",
-        canonical_url="https://policy.vinuni.edu.vn/calendar.pdf",
-        title="Academic Calendar",
-        document_type="pdf",
-        content="# Academic Calendar\n\nFall 2025 Instruction Begins - 15 September",
-    )
-    chunks = chunk_document(raw)
-    retriever = InMemoryRetriever(chunks)
+def test_in_memory_retriever_returns_filtered_calendar_citation():
+    async def run_test():
+        raw = RawDocument(
+            source_url="https://policy.vinuni.edu.vn/calendar.pdf",
+            canonical_url="https://policy.vinuni.edu.vn/calendar.pdf",
+            title="Academic Calendar",
+            document_type="pdf",
+            content="# Academic Calendar\n\nFall 2025 Instruction Begins - 15 September",
+        )
+        chunks = chunk_document(raw)
+        retriever = InMemoryRetriever(chunks)
 
-    results = await retriever.search(
-        "Fall instruction begins",
-        filters={"category": "academic", "subcategory": "calendar"},
-    )
+        results = await retriever.search(
+            "Fall instruction begins",
+            filters={"category": "academic", "subcategory": "calendar"},
+        )
 
-    assert results
-    assert results[0].metadata.source_url == raw.source_url
-    assert "15 September" in results[0].text
+        assert results
+        assert results[0].metadata.source_url == raw.source_url
+        assert "15 September" in results[0].text
+
+    asyncio.run(run_test())
 
 
 def test_calendar_parser_extracts_deadline_like_events():

@@ -12,6 +12,7 @@ from vinchatbot.app.ingest.crawler import (
     read_link_references,
     read_structured_records,
     write_crawl_manifest,
+    write_crawl_coverage_report,
     write_link_references,
     write_raw_documents,
     write_structured_records,
@@ -62,6 +63,7 @@ async def main() -> None:
     manifest_path = f"{settings.processed_data_dir}/crawl_manifest.json"
     link_refs_path = f"{settings.processed_data_dir}/link_references.json"
     records_path = f"{settings.processed_data_dir}/structured_records.json"
+    coverage_path = f"{settings.processed_data_dir}/crawl_coverage_report.json"
     write_crawl_manifest(
         merge_manifest_entries(
             list(read_crawl_manifest(manifest_path).values()),
@@ -76,6 +78,12 @@ async def main() -> None:
     write_structured_records(
         merge_structured_records(read_structured_records(records_path), result.structured_records),
         records_path,
+    )
+    write_crawl_coverage_report(
+        result.documents,
+        result.manifest_entries,
+        result.link_references,
+        coverage_path,
     )
 
     for path in paths:
@@ -94,6 +102,7 @@ async def main() -> None:
             "crawl_manifest": manifest_path,
             "link_references": link_refs_path,
             "structured_records": records_path,
+            "crawl_coverage_report": coverage_path,
         }
     )
     if not result.documents:

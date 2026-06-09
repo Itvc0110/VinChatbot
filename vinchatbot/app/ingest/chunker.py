@@ -216,7 +216,11 @@ def _record_to_chunk_text(record: StructuredRecord) -> str | None:
         rag_text = normalize_text(str(data.get("rag_text") or ""))
         return rag_text if len(rag_text) >= 20 else None
     if record.record_type == "image_asset":
-        if not data.get("alt_text") and not data.get("caption"):
+        has_text_context = any(
+            data.get(key)
+            for key in ("alt_text", "caption", "nearby_text", "link_context", "ocr_text")
+        )
+        if not has_text_context:
             return None
         description = normalize_text(str(data.get("description") or ""))
         return f"Image asset: {description}" if len(description) >= 20 else None

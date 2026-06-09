@@ -11,6 +11,7 @@ from vinchatbot.app.ingest.crawler import (
     VinUniCrawler,
     read_raw_documents,
     write_crawl_manifest,
+    write_crawl_coverage_report,
     write_link_references,
     write_raw_documents,
     write_structured_records,
@@ -34,6 +35,12 @@ async def run_ingest(request: IngestRunRequest) -> IngestRunResponse:
         write_crawl_manifest(crawl_result.manifest_entries, processed_dir / "crawl_manifest.json")
         write_link_references(crawl_result.link_references, processed_dir / "link_references.json")
         write_structured_records(crawl_result.structured_records, processed_dir / "structured_records.json")
+        write_crawl_coverage_report(
+            raw_documents,
+            crawl_result.manifest_entries,
+            crawl_result.link_references,
+            processed_dir / "crawl_coverage_report.json",
+        )
 
         chunks: list[DocumentChunk] = []
         skipped = 0

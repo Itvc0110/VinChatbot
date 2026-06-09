@@ -1,6 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
+from vinchatbot.app.ingest.normalizer import guess_language
 from vinchatbot.app.schemas.document import DocumentChunk, DocumentMetadata
 
 
@@ -27,4 +28,10 @@ def test_chunk_requires_non_empty_text():
 
     with pytest.raises(ValidationError):
         DocumentChunk(text="   ", metadata=metadata)
+
+
+def test_guess_language_handles_english_vietnamese_and_mixed_text():
+    assert guess_language("Course drop deadline and tuition policy") == "en"
+    assert guess_language("Sinh viên cần kiểm tra hạn đăng ký học phần.") == "vi"
+    assert guess_language("Sinh viên cần kiểm tra course drop deadline.") == "mixed"
 

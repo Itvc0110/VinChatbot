@@ -4,44 +4,23 @@ import re
 import unicodedata
 from urllib.parse import urlparse
 
-VIETNAMESE_MARKERS = {
-    "đ",
-    "ă",
-    "â",
-    "ê",
-    "ô",
-    "ơ",
-    "ư",
-    "á",
-    "à",
-    "ả",
-    "ã",
-    "ạ",
-    "é",
-    "è",
-    "ẻ",
-    "ẽ",
-    "ẹ",
-    "í",
-    "ì",
-    "ỉ",
-    "ĩ",
-    "ị",
-    "ó",
-    "ò",
-    "ỏ",
-    "õ",
-    "ọ",
-    "ú",
-    "ù",
-    "ủ",
-    "ũ",
-    "ụ",
-    "ý",
-    "ỳ",
-    "ỷ",
-    "ỹ",
-    "ỵ",
+VIETNAMESE_MARKERS = set(
+    "ăâđêôơư"
+    "áàảãạắằẳẵặấầẩẫậéèẻẽẹếềểễệ"
+    "íìỉĩịóòỏõọốồổỗộớờởỡợ"
+    "úùủũụứừửữựýỳỷỹỵ"
+)
+
+ENGLISH_HINTS = {
+    "academic",
+    "calendar",
+    "course",
+    "deadline",
+    "drop",
+    "fee",
+    "policy",
+    "student",
+    "tuition",
 }
 
 
@@ -55,8 +34,12 @@ def normalize_text(text: str) -> str:
 
 def guess_language(text: str) -> str:
     lowered = text.lower()
-    marker_count = sum(lowered.count(marker) for marker in VIETNAMESE_MARKERS)
-    if marker_count >= 3:
+    marker_count = sum(1 for char in lowered if char in VIETNAMESE_MARKERS)
+    has_vietnamese = marker_count >= 2 or "việt" in lowered or "sinh viên" in lowered
+    english_hint_count = sum(1 for term in ENGLISH_HINTS if re.search(rf"\b{term}\b", lowered))
+    if has_vietnamese and english_hint_count >= 2:
+        return "mixed"
+    if has_vietnamese:
         return "vi"
     return "en"
 

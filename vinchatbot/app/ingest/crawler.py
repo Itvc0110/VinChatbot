@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from collections import defaultdict, deque
+from collections import Counter, defaultdict, deque
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urldefrag, urlparse
@@ -54,6 +54,8 @@ SEED_URLS = [
     "https://policy.vinuni.edu.vn/financial-management/",
     "https://policy.vinuni.edu.vn/facilities-operations-and-safety/",
     "https://policy.vinuni.edu.vn/publication/",
+    "https://registrar.vinuni.edu.vn/",
+    "https://library.vinuni.edu.vn/",
 ]
 
 VINUNI_PUBLIC_SUBDOMAINS = {
@@ -61,20 +63,6 @@ VINUNI_PUBLIC_SUBDOMAINS = {
     "policy.vinuni.edu.vn",
     "registrar.vinuni.edu.vn",
     "library.vinuni.edu.vn",
-    "admissions.vinuni.edu.vn",
-    "cas.vinuni.edu.vn",
-    "cbm.vinuni.edu.vn",
-    "cecs.vinuni.edu.vn",
-    "chs.vinuni.edu.vn",
-    "experience.vinuni.edu.vn",
-    "smarthealth.vinuni.edu.vn",
-    "eship.vinuni.edu.vn",
-    "scholarships.vinuni.edu.vn",
-    "dei.vinuni.edu.vn",
-    "marketing.vinuni.edu.vn",
-    "alumni.vinuni.edu.vn",
-    "sustainability.vinuni.edu.vn",
-    "giving.vinuni.edu.vn",
 }
 
 PRIVATE_OR_LOGIN_HOSTS = {
@@ -203,6 +191,7 @@ class VinUniCrawler:
                         target=target,
                         crawl_run_id=crawl_run_id,
                         robots_allowed=robots_allowed,
+                        per_domain_counts=per_domain_counts,
                     )
                 except httpx.HTTPError as exc:
                     logger.warning("Failed to crawl %s: %s", target.source_url, exc)
@@ -284,6 +273,7 @@ class VinUniCrawler:
         target: CrawlTarget,
         crawl_run_id: str,
         robots_allowed: bool,
+        per_domain_counts: dict[str, int],
     ) -> tuple[RawDocument, list[LinkReference], CrawlManifestEntry]:
         response = await client.get(target.source_url)
         final_url = _canonicalize_url(str(response.url))
@@ -344,9 +334,19 @@ class VinUniCrawler:
             links = []
         else:
             document = parse_html(response.text, final_url, source_metadata=source_metadata)
-            links = self._classify_links(extract_links_from_html(response.text, final_url), document)
+            links = self._classify_links(
+                extract_links_from_html(response.text, final_url),
+                document,
+                per_domain_counts=per_domain_counts,
+            )
             if self.settings.image_download_enabled:
-                links.extend(self._classify_links(self._image_links_from_document(document), document))
+                links.extend(
+                    self._classify_links(
+                        self._image_links_from_document(document),
+                        document,
+                        per_domain_counts=per_domain_counts,
+                    )
+                )
             document.structured_records.extend(link_records_from_links(links, document.parent_doc_id, document.metadata))
             document.structured_records.extend(file_asset_records_from_links(links, document.parent_doc_id, document.metadata))
             document.structured_records = _dedupe_structured_records(document.structured_records)
@@ -393,7 +393,13 @@ class VinUniCrawler:
             crawl_run_id=crawl_run_id,
         )
 
-    def _classify_links(self, links: list[LinkReference], document: RawDocument) -> list[LinkReference]:
+    def _classify_links(
+        self,
+        links: list[LinkReference],
+        document: RawDocument,
+        per_domain_counts: dict[str, int] | None = None,
+    ) -> list[LinkReference]:
+        per_domain_counts = per_domain_counts or {}
         classified: list[LinkReference] = []
         for link in links:
             target = CrawlTarget(
@@ -404,7 +410,7 @@ class VinUniCrawler:
                 link_context=link.link_context,
                 discovered_from=document.source_url,
             )
-            should_crawl, reason = self._should_fetch_target(target, defaultdict(int), from_link=True)
+            should_crawl, reason = self._should_fetch_target(target, per_domain_counts, from_link=True)
             link.should_crawl = should_crawl
             link.reason = reason
             link.requires_login = _is_private_or_login_url(link.target_url)
@@ -427,22 +433,29 @@ class VinUniCrawler:
         if host in NOISY_REFERENCE_HOSTS:
             return False, "noisy_reference_domain"
 
-        domain, domain_type, _ = classify_domain(target.source_url)
+        _, domain_type, _ = classify_domain(target.source_url)
         if domain_type == "policy":
+            if target.crawl_depth > self.vinuni_max_depth:
+                return False, "vinuni_depth_cap"
+            if per_domain_counts.get(host, 0) >= self.max_vinuni_pages_per_domain:
+                return False, "vinuni_domain_cap"
             if _is_policy_allowed_path(parsed.path):
                 return True, None
             return False, "policy_path_out_of_scope"
 
+        if domain_type in {"vinuni_subdomain", "vinuni_owned"} and host not in VINUNI_PUBLIC_SUBDOMAINS:
+            return False, "vinuni_subdomain_out_of_scope"
+
         if host in VINUNI_PUBLIC_SUBDOMAINS:
             if target.crawl_depth > self.vinuni_max_depth:
                 return False, "vinuni_depth_cap"
-            if not from_link and per_domain_counts.get(host, 0) >= self.max_vinuni_pages_per_domain:
+            if per_domain_counts.get(host, 0) >= self.max_vinuni_pages_per_domain:
                 return False, "vinuni_domain_cap"
             return True, None
 
         if target.crawl_depth > self.external_max_depth:
             return False, "external_depth_cap"
-        if not from_link and per_domain_counts.get(host, 0) >= self.max_external_pages_per_domain:
+        if per_domain_counts.get(host, 0) >= self.max_external_pages_per_domain:
             return False, "external_domain_cap"
         return True, None
 
@@ -624,6 +637,48 @@ def write_structured_records(records: list[StructuredRecord], output_path: str |
     )
 
 
+def build_crawl_coverage_report(
+    documents: list[RawDocument],
+    manifest_entries: list[CrawlManifestEntry],
+    link_references: list[LinkReference],
+) -> dict[str, object]:
+    return {
+        "totals": {
+            "documents": len(documents),
+            "manifest_entries": len(manifest_entries),
+            "link_references": len(link_references),
+        },
+        "documents_by_type": _counter_dict(document.document_type for document in documents),
+        "manifest_by_source_kind": _counter_dict(entry.source_kind for entry in manifest_entries),
+        "manifest_by_domain": _counter_dict(entry.domain for entry in manifest_entries),
+        "manifest_by_skip_reason": _counter_dict(
+            entry.skip_reason or "indexed" for entry in manifest_entries
+        ),
+        "links_by_reason": _counter_dict(reference.reason or "crawlable" for reference in link_references),
+        "links_by_domain": _counter_dict(reference.domain for reference in link_references),
+        "uncrawled_public_relevant_links": [
+            reference.model_dump()
+            for reference in link_references
+            if not reference.should_crawl
+            and not reference.requires_login
+            and reference.reason
+            not in {"private_or_login_required", "noisy_reference_domain", "unsupported_scheme"}
+        ][:200],
+    }
+
+
+def write_crawl_coverage_report(
+    documents: list[RawDocument],
+    manifest_entries: list[CrawlManifestEntry],
+    link_references: list[LinkReference],
+    output_path: str | Path,
+) -> None:
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    report = build_crawl_coverage_report(documents, manifest_entries, link_references)
+    path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def _manifest_from_source(
     source: SourceDocumentMetadata,
     indexed: bool,
@@ -677,13 +732,19 @@ def _canonicalize_url(url: str) -> str:
 
 
 def _is_policy_allowed_path(path: str) -> bool:
+    path = path.lower()
     normalized = path if path.endswith("/") else f"{path}/"
     return (
         normalized in POLICY_LISTING_PATHS
         or path.startswith("/all-policies/")
         or path.startswith("/publication/")
+        or path.startswith("/publication-public/")
         or path.startswith("/wp-content/uploads/")
     )
+
+
+def _counter_dict(values) -> dict[str, int]:
+    return dict(sorted(Counter(str(value or "unknown") for value in values).items()))
 
 
 def _is_private_or_login_url(url: str) -> bool:
