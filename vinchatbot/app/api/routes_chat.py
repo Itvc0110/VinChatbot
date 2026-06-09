@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from functools import lru_cache
 import logging
+from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException, status
 
+from vinchatbot.app.agents.guardrails import build_guardrail_response, resolve_guardrail_decision
 from vinchatbot.app.agents.vinuni_agent import VinUniAgentService
 from vinchatbot.app.schemas.chat import ChatRequest, ChatResponse
 
@@ -19,6 +20,18 @@ def get_agent_service() -> VinUniAgentService:
 
 @router.post("", response_model=ChatResponse)
 async def chat(request: ChatRequest) -> ChatResponse:
+    guardrail_decision = await resolve_guardrail_decision(
+        request.message,
+        list(request.filters.compact().values()) if request.filters else None,
+    )
+    if not guardrail_decision.allowed:
+        logger.info(
+            "Chat request handled before agent initialization action=%s conversation_id=%s",
+            guardrail_decision.action,
+            request.conversation_id,
+        )
+        return build_guardrail_response(guardrail_decision, request.message)
+
     try:
         return await get_agent_service().chat(request)
     except RuntimeError as exc:

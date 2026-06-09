@@ -18,8 +18,8 @@ class RetrievalFilters(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    message: str = Field(min_length=1)
-    conversation_id: str = Field(default="default", min_length=1)
+    message: str = Field(min_length=1, max_length=4000)
+    conversation_id: str = Field(default="default", min_length=1, max_length=128)
     filters: RetrievalFilters | None = None
 
 

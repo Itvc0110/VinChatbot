@@ -60,8 +60,8 @@ Invoke-RestMethod -Method Post http://localhost:8000/ingest/run `
 
 Crawler hiện tại là domain-aware crawler cho VinUni:
 
-- Seed chính gồm Student Gateway, Academic Calendar, toàn bộ policy category pages, All Policies, What's New và Publication.
-- Tự discovery public links từ `policy.vinuni.edu.vn`, public VinUni-owned subdomains, public PDFs/files.
+- Seed chính gồm Student Gateway, Academic Calendar, Office of Registrar, Experience VinUni, toàn bộ policy category pages, All Policies, What's New, Publication và Publication Public.
+- Tự discovery public links từ `vinuni.edu.vn`, `policy.vinuni.edu.vn`, `registrar.vinuni.edu.vn`, `experience.vinuni.edu.vn`, public PDFs/files.
 - Private/login-required links như SIS, Canvas, SharePoint, Microsoft Forms được lưu thành link reference thay vì index vào vector DB.
 - Crawl artifacts:
   - `data/raw/*.json`: normalized raw documents
@@ -80,11 +80,11 @@ Asset/OCR behavior:
 Các crawl caps có thể chỉnh trong `.env`:
 
 ```env
-CRAWL_MAX_PAGES_TOTAL=500
-CRAWL_MAX_VINUNI_PAGES_PER_DOMAIN=50
-CRAWL_MAX_EXTERNAL_PAGES_PER_DOMAIN=10
-CRAWL_VINUNI_MAX_DEPTH=2
-CRAWL_EXTERNAL_MAX_DEPTH=1
+CRAWL_MAX_PAGES_TOTAL=50000
+CRAWL_MAX_VINUNI_PAGES_PER_DOMAIN=10000
+CRAWL_MAX_EXTERNAL_PAGES_PER_DOMAIN=250
+CRAWL_VINUNI_MAX_DEPTH=25
+CRAWL_EXTERNAL_MAX_DEPTH=3
 ENABLE_IMAGE_ASSET_EXTRACTION=true
 ENABLE_OCR=false
 ```

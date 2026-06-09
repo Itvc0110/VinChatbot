@@ -1,10 +1,12 @@
 from vinchatbot.app.ingest.crawler import (
     SEED_URLS,
+    VINUNI_PUBLIC_SUBDOMAINS,
     VinUniCrawler,
-    build_crawl_coverage_report,
     _is_policy_allowed_path,
     _manifest_is_unchanged,
+    build_crawl_coverage_report,
 )
+from vinchatbot.app.ingest.normalizer import infer_source_kind
 from vinchatbot.app.ingest.parsers import (
     extract_fee_records,
     extract_policy_detail_metadata,
@@ -191,6 +193,18 @@ def test_seed_urls_include_direct_academic_calendar_pdf():
     assert "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf" in SEED_URLS
 
 
-def test_seed_urls_include_registrar_and_library_public_entrypoints():
+def test_seed_urls_include_registrar_public_entrypoints():
     assert "https://registrar.vinuni.edu.vn/" in SEED_URLS
-    assert "https://library.vinuni.edu.vn/" in SEED_URLS
+    assert "https://library.vinuni.edu.vn/" not in SEED_URLS
+
+
+def test_seed_urls_include_deeper_public_student_support_entrypoints():
+    assert "https://vinuni.edu.vn/registrar/" in SEED_URLS
+    assert "https://policy.vinuni.edu.vn/publication-public/" in SEED_URLS
+    assert "https://experience.vinuni.edu.vn/" in SEED_URLS
+
+
+def test_experience_domain_is_public_student_support_scope():
+    assert "experience.vinuni.edu.vn" in VINUNI_PUBLIC_SUBDOMAINS
+    assert "library.vinuni.edu.vn" not in VINUNI_PUBLIC_SUBDOMAINS
+    assert infer_source_kind("https://experience.vinuni.edu.vn/") == "student_life_page"

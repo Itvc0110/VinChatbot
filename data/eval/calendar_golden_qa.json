@@ -1,0 +1,304 @@
+{
+  "dataset_name": "vinuni_academic_calendar_ay2026_2027_bilingual",
+  "description": "Bilingual question and golden-answer pairs derived directly from the VinUni 2026-2027 Academic Calendar.",
+  "source": {
+    "file": "VinUni-Academic-Calendar.pdf",
+    "title": "2026 - 2027 Academic Calendar",
+    "version": "5/25/2026",
+    "page": 1
+  },
+  "evaluation_notes": [
+    "Dates marked as tentative in the source must be described as tentative.",
+    "Do not confuse Course Drop with Add, Transfer Credit, Independent Study, or course registration.",
+    "Answers may use equivalent Vietnamese or English date formatting if the date and event are correct.",
+    "The source labels the 7-18 June final exam period as Fall'26. Treat this as a source inconsistency and do not silently relabel it as Spring'27."
+  ],
+  "cases": [
+    {
+      "id": "calendar-fall-instruction-begins-en",
+      "pair_id": "calendar-fall-instruction-begins",
+      "language": "en",
+      "question": "When does instruction begin for Fall 2026?",
+      "golden_answer": "Fall 2026 instruction begins on September 21, 2026.",
+      "required_facts": ["Fall 2026", "September 21, 2026"],
+      "evidence": "21-Sep Fall'26 Instruction Begins",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-fall-instruction-begins-vi",
+      "pair_id": "calendar-fall-instruction-begins",
+      "language": "vi",
+      "question": "Học kỳ Fall 2026 bắt đầu giảng dạy vào ngày nào?",
+      "golden_answer": "Học kỳ Fall 2026 bắt đầu giảng dạy vào ngày 21 tháng 9 năm 2026.",
+      "required_facts": ["Fall 2026", "21 tháng 9 năm 2026"],
+      "evidence": "21-Sep Fall'26 Instruction Begins",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-fall-course-drop-en",
+      "pair_id": "calendar-fall-course-drop",
+      "language": "en",
+      "question": "What is the course drop deadline for Fall 2026?",
+      "golden_answer": "The Fall 2026 course drop deadline is October 9, 2026.",
+      "required_facts": ["Course Drop Deadline", "October 9, 2026"],
+      "forbidden_facts": ["October 1, 2026"],
+      "evidence": "9-Oct Course Drop Deadline",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-fall-course-drop-vi",
+      "pair_id": "calendar-fall-course-drop",
+      "language": "vi",
+      "question": "Hạn cuối để sinh viên hủy môn trong học kỳ Fall 2026 là ngày nào?",
+      "golden_answer": "Hạn cuối hủy môn của học kỳ Fall 2026 là ngày 9 tháng 10 năm 2026.",
+      "required_facts": ["hủy môn", "9 tháng 10 năm 2026"],
+      "forbidden_facts": ["1 tháng 10 năm 2026"],
+      "evidence": "9-Oct Course Drop Deadline",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-fall-add-transfer-deadline-en",
+      "pair_id": "calendar-fall-add-transfer-deadline",
+      "language": "en",
+      "question": "When is the Fall 2026 Add, Transfer Credit, and Independent Study deadline?",
+      "golden_answer": "The Fall 2026 Add, Transfer Credit, and Independent Study deadline is October 1, 2026.",
+      "required_facts": ["Add/Transfer Credit/Independent Study Deadline", "October 1, 2026"],
+      "forbidden_facts": ["October 9, 2026"],
+      "evidence": "1-Oct Add/Transfer Credit/Independent Study Deadline",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-fall-add-transfer-deadline-vi",
+      "pair_id": "calendar-fall-add-transfer-deadline",
+      "language": "vi",
+      "question": "Hạn Add, Transfer Credit và Independent Study của Fall 2026 là ngày nào?",
+      "golden_answer": "Hạn Add, Transfer Credit và Independent Study của Fall 2026 là ngày 1 tháng 10 năm 2026.",
+      "required_facts": ["Add", "Transfer Credit", "Independent Study", "1 tháng 10 năm 2026"],
+      "forbidden_facts": ["9 tháng 10 năm 2026"],
+      "evidence": "1-Oct Add/Transfer Credit/Independent Study Deadline",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-fall-final-schedule-en",
+      "pair_id": "calendar-fall-final-schedule",
+      "language": "en",
+      "question": "When will the Fall 2026 final exam schedule be released?",
+      "golden_answer": "The final exam schedule will be released on December 7, 2026.",
+      "required_facts": ["Final Exam Schedule Release", "December 7, 2026"],
+      "evidence": "7-Dec Final Exam Schedule Release",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-fall-final-schedule-vi",
+      "pair_id": "calendar-fall-final-schedule",
+      "language": "vi",
+      "question": "Lịch thi cuối kỳ Fall 2026 được công bố vào ngày nào?",
+      "golden_answer": "Lịch thi cuối kỳ được công bố vào ngày 7 tháng 12 năm 2026.",
+      "required_facts": ["lịch thi cuối kỳ", "7 tháng 12 năm 2026"],
+      "evidence": "7-Dec Final Exam Schedule Release",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-spring-enrollment-en",
+      "pair_id": "calendar-spring-enrollment",
+      "language": "en",
+      "question": "What is the Spring 2027 course registration period?",
+      "golden_answer": "Spring 2027 course registration runs from December 24, 2026 through January 8, 2027.",
+      "required_facts": ["Spring 2027", "December 24, 2026", "January 8, 2027"],
+      "evidence": "24-Dec - 8 - Jan Spring'27 Class Enrollment Starts (Course Registration)",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-spring-enrollment-vi",
+      "pair_id": "calendar-spring-enrollment",
+      "language": "vi",
+      "question": "Thời gian đăng ký môn cho Spring 2027 diễn ra khi nào?",
+      "golden_answer": "Thời gian đăng ký môn cho Spring 2027 diễn ra từ ngày 24 tháng 12 năm 2026 đến ngày 8 tháng 1 năm 2027.",
+      "required_facts": ["Spring 2027", "24 tháng 12 năm 2026", "8 tháng 1 năm 2027"],
+      "evidence": "24-Dec - 8 - Jan Spring'27 Class Enrollment Starts (Course Registration)",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-fall-last-instruction-en",
+      "pair_id": "calendar-fall-last-instruction",
+      "language": "en",
+      "question": "What is the last day of instruction for Fall 2026?",
+      "golden_answer": "The last day of instruction for Fall 2026 is December 31, 2026.",
+      "required_facts": ["Last Day of Instruction", "December 31, 2026"],
+      "evidence": "31-Dec Last Day of Instruction",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-fall-last-instruction-vi",
+      "pair_id": "calendar-fall-last-instruction",
+      "language": "vi",
+      "question": "Ngày giảng dạy cuối cùng của Fall 2026 là ngày nào?",
+      "golden_answer": "Ngày giảng dạy cuối cùng của Fall 2026 là ngày 31 tháng 12 năm 2026.",
+      "required_facts": ["ngày giảng dạy cuối cùng", "31 tháng 12 năm 2026"],
+      "evidence": "31-Dec Last Day of Instruction",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-fall-final-exams-en",
+      "pair_id": "calendar-fall-final-exams",
+      "language": "en",
+      "question": "When is the Fall 2026 final exam period?",
+      "golden_answer": "The Fall 2026 final exam period runs from January 11 through January 22, 2027.",
+      "required_facts": ["Fall 2026", "January 11, 2027", "January 22, 2027"],
+      "evidence": "11-22-Jan Final Exam Period - Fall'26",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-fall-final-exams-vi",
+      "pair_id": "calendar-fall-final-exams",
+      "language": "vi",
+      "question": "Kỳ thi cuối kỳ Fall 2026 diễn ra trong khoảng thời gian nào?",
+      "golden_answer": "Kỳ thi cuối kỳ Fall 2026 diễn ra từ ngày 11 đến ngày 22 tháng 1 năm 2027.",
+      "required_facts": ["Fall 2026", "11 tháng 1 năm 2027", "22 tháng 1 năm 2027"],
+      "evidence": "11-22-Jan Final Exam Period - Fall'26",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-spring-instruction-begins-en",
+      "pair_id": "calendar-spring-instruction-begins",
+      "language": "en",
+      "question": "When does instruction begin for Spring 2027?",
+      "golden_answer": "Spring 2027 instruction begins on February 15, 2027.",
+      "required_facts": ["Spring 2027", "February 15, 2027"],
+      "evidence": "15-Feb Spring'27 Instruction Begins",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-spring-instruction-begins-vi",
+      "pair_id": "calendar-spring-instruction-begins",
+      "language": "vi",
+      "question": "Học kỳ Spring 2027 bắt đầu giảng dạy vào ngày nào?",
+      "golden_answer": "Học kỳ Spring 2027 bắt đầu giảng dạy vào ngày 15 tháng 2 năm 2027.",
+      "required_facts": ["Spring 2027", "15 tháng 2 năm 2027"],
+      "evidence": "15-Feb Spring'27 Instruction Begins",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-spring-course-drop-en",
+      "pair_id": "calendar-spring-course-drop",
+      "language": "en",
+      "question": "What is the course drop deadline for Spring 2027?",
+      "golden_answer": "The Spring 2027 course drop deadline is March 5, 2027.",
+      "required_facts": ["Course Drop Deadline", "March 5, 2027"],
+      "forbidden_facts": ["February 26, 2027"],
+      "evidence": "5-Mar Course Drop Deadline",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-spring-course-drop-vi",
+      "pair_id": "calendar-spring-course-drop",
+      "language": "vi",
+      "question": "Hạn cuối hủy môn của học kỳ Spring 2027 là ngày nào?",
+      "golden_answer": "Hạn cuối hủy môn của học kỳ Spring 2027 là ngày 5 tháng 3 năm 2027.",
+      "required_facts": ["hủy môn", "5 tháng 3 năm 2027"],
+      "forbidden_facts": ["26 tháng 2 năm 2027"],
+      "evidence": "5-Mar Course Drop Deadline",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-spring-last-instruction-en",
+      "pair_id": "calendar-spring-last-instruction",
+      "language": "en",
+      "question": "What is the last day of instruction for Spring 2027?",
+      "golden_answer": "The last day of instruction for Spring 2027 is May 28, 2027.",
+      "required_facts": ["Last Day of Instruction", "May 28, 2027"],
+      "evidence": "28-May Last Day of Instruction",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-spring-last-instruction-vi",
+      "pair_id": "calendar-spring-last-instruction",
+      "language": "vi",
+      "question": "Ngày giảng dạy cuối cùng của Spring 2027 là ngày nào?",
+      "golden_answer": "Ngày giảng dạy cuối cùng của Spring 2027 là ngày 28 tháng 5 năm 2027.",
+      "required_facts": ["ngày giảng dạy cuối cùng", "28 tháng 5 năm 2027"],
+      "evidence": "28-May Last Day of Instruction",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-summer-instruction-begins-en",
+      "pair_id": "calendar-summer-instruction-begins",
+      "language": "en",
+      "question": "When does instruction begin for Summer 2027?",
+      "golden_answer": "Summer 2027 instruction begins on July 5, 2027.",
+      "required_facts": ["Summer 2027", "July 5, 2027"],
+      "evidence": "5-Jul Summer'27 Instruction Begins",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-summer-instruction-begins-vi",
+      "pair_id": "calendar-summer-instruction-begins",
+      "language": "vi",
+      "question": "Học kỳ Summer 2027 bắt đầu giảng dạy vào ngày nào?",
+      "golden_answer": "Học kỳ Summer 2027 bắt đầu giảng dạy vào ngày 5 tháng 7 năm 2027.",
+      "required_facts": ["Summer 2027", "5 tháng 7 năm 2027"],
+      "evidence": "5-Jul Summer'27 Instruction Begins",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-summer-final-exams-en",
+      "pair_id": "calendar-summer-final-exams",
+      "language": "en",
+      "question": "When is the Summer 2027 final exam period?",
+      "golden_answer": "The Summer 2027 final exam period runs from August 23 through August 27, 2027.",
+      "required_facts": ["Summer 2027", "August 23, 2027", "August 27, 2027"],
+      "evidence": "23-27 Aug Final Exam Period - Sum'27",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-summer-final-exams-vi",
+      "pair_id": "calendar-summer-final-exams",
+      "language": "vi",
+      "question": "Kỳ thi cuối kỳ Summer 2027 diễn ra khi nào?",
+      "golden_answer": "Kỳ thi cuối kỳ Summer 2027 diễn ra từ ngày 23 đến ngày 27 tháng 8 năm 2027.",
+      "required_facts": ["Summer 2027", "23 tháng 8 năm 2027", "27 tháng 8 năm 2027"],
+      "evidence": "23-27 Aug Final Exam Period - Sum'27",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-independence-day-en",
+      "pair_id": "calendar-independence-day",
+      "language": "en",
+      "question": "When is the Independence Day break shown in the 2026-2027 academic calendar?",
+      "golden_answer": "The calendar tentatively lists the Independence Day break from August 31 through September 2, 2026.",
+      "required_facts": ["tentatively", "August 31, 2026", "September 2, 2026"],
+      "evidence": "31-Aug-2-Sep Independence Day (tentatively)",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-independence-day-vi",
+      "pair_id": "calendar-independence-day",
+      "language": "vi",
+      "question": "Lịch năm học 2026-2027 dự kiến nghỉ Quốc khánh khi nào?",
+      "golden_answer": "Lịch dự kiến kỳ nghỉ Quốc khánh diễn ra từ ngày 31 tháng 8 đến ngày 2 tháng 9 năm 2026.",
+      "required_facts": ["dự kiến", "31 tháng 8 năm 2026", "2 tháng 9 năm 2026"],
+      "evidence": "31-Aug-2-Sep Independence Day (tentatively)",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-source-inconsistency-en",
+      "pair_id": "calendar-source-inconsistency",
+      "language": "en",
+      "question": "According to the calendar, when is the final exam period listed in June 2027, and which term label does the source use?",
+      "golden_answer": "The calendar lists a final exam period from June 7 through June 18, 2027 and labels it as Fall'26. This appears inconsistent with its placement in June, so the term should not be silently changed.",
+      "required_facts": ["June 7, 2027", "June 18, 2027", "Fall'26", "inconsistent"],
+      "evidence": "7-18-Jun Final Exam Period - Fall'26",
+      "source_page": 1
+    },
+    {
+      "id": "calendar-source-inconsistency-vi",
+      "pair_id": "calendar-source-inconsistency",
+      "language": "vi",
+      "question": "Theo lịch, kỳ thi cuối kỳ được ghi vào tháng 6 năm 2027 diễn ra khi nào và nguồn gắn nhãn học kỳ nào?",
+      "golden_answer": "Lịch ghi kỳ thi cuối kỳ diễn ra từ ngày 7 đến ngày 18 tháng 6 năm 2027 và gắn nhãn Fall'26. Nhãn này có vẻ không nhất quán với vị trí tháng 6, vì vậy không nên tự động đổi thành Spring'27.",
+      "required_facts": ["7 tháng 6 năm 2027", "18 tháng 6 năm 2027", "Fall'26", "không nhất quán"],
+      "evidence": "7-18-Jun Final Exam Period - Fall'26",
+      "source_page": 1
+    }
+  ]
+}

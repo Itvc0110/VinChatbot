@@ -22,6 +22,7 @@ DocumentType = Literal[
     "program_spec",
     "registrar_page",
     "library_page",
+    "student_life_page",
     "external_public_page",
     "markdown",
     "spreadsheet",

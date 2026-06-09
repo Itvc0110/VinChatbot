@@ -54,15 +54,17 @@ SEED_URLS = [
     "https://policy.vinuni.edu.vn/financial-management/",
     "https://policy.vinuni.edu.vn/facilities-operations-and-safety/",
     "https://policy.vinuni.edu.vn/publication/",
+    "https://policy.vinuni.edu.vn/publication-public/",
+    "https://vinuni.edu.vn/registrar/",
     "https://registrar.vinuni.edu.vn/",
-    "https://library.vinuni.edu.vn/",
+    "https://experience.vinuni.edu.vn/",
 ]
 
 VINUNI_PUBLIC_SUBDOMAINS = {
     "vinuni.edu.vn",
     "policy.vinuni.edu.vn",
     "registrar.vinuni.edu.vn",
-    "library.vinuni.edu.vn",
+    "experience.vinuni.edu.vn",
 }
 
 PRIVATE_OR_LOGIN_HOSTS = {

@@ -58,6 +58,8 @@ def infer_category(url: str, title: str) -> tuple[str, str]:
         return "academic", "registrar"
     if "library" in haystack:
         return "student_services", "library"
+    if "experience" in haystack:
+        return "student_services", "student_life"
     if "student-affairs" in haystack or "policy" in haystack:
         return "student_affairs", "policy"
     return "general", "unknown"
@@ -106,6 +108,8 @@ def infer_source_kind(url: str, content_type: str | None = None, title: str | No
         return "registrar_page"
     if host == "library.vinuni.edu.vn":
         return "library_page"
+    if host == "experience.vinuni.edu.vn":
+        return "student_life_page"
     if host.endswith("vinuni.edu.vn") or host == "vinuni.edu.vn":
         return "external_public_page"
     return "external_public_page"
