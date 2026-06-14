@@ -4,9 +4,20 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from vinchatbot.app.core.config import Settings, get_settings
+from vinchatbot.app.rag.context import (
+    SectionSibling,
+    apply_metadata_boosts,
+    dedup_by_text,
+    expand_to_parent_sections,
+    reorder_for_long_context,
+    select_dynamic_k,
+)
 from vinchatbot.app.rag.reranker import OpenRouterReranker
 from vinchatbot.app.schemas.document import DocumentChunk, DocumentMetadata
-from vinchatbot.app.storage.qdrant_store import ensure_qdrant_payload_indexes, qdrant_location_kwargs
+from vinchatbot.app.storage.qdrant_store import (
+    ensure_qdrant_payload_indexes,
+    qdrant_location_kwargs,
+)
 from vinchatbot.app.storage.vector_metadata import restore_document_metadata
 
 
@@ -23,6 +34,8 @@ class Retriever(Protocol):
         query: str,
         filters: dict[str, Any] | None = None,
         limit: int = 8,
+        reorder: bool = True,
+        boost_hints: dict[str, Any] | None = None,
     ) -> list[RetrievedChunk]:
         ...
 
@@ -38,6 +51,8 @@ class InMemoryRetriever:
         query: str,
         filters: dict[str, Any] | None = None,
         limit: int = 8,
+        reorder: bool = True,
+        boost_hints: dict[str, Any] | None = None,
     ) -> list[RetrievedChunk]:
         filters = filters or {}
         terms = {term.lower() for term in query.split() if len(term) > 1}
@@ -137,23 +152,28 @@ class QdrantHybridRetriever:
         query: str,
         filters: dict[str, Any] | None = None,
         limit: int = 8,
+        reorder: bool = True,
+        boost_hints: dict[str, Any] | None = None,
     ) -> list[RetrievedChunk]:
         search_filter = self._to_qdrant_filter(filters or {}) if self.backend == "qdrant" else (filters or None)
-        docs = await self.vector_store.asimilarity_search(
-            query,
-            k=max(limit * 3, limit),
-            filter=search_filter,
+        candidate_k = (
+            max(self.settings.retrieval_candidate_k, limit)
+            if self.settings.enable_dynamic_k
+            else max(limit * 3, limit)
         )
+        docs = await self.vector_store.asimilarity_search(query, k=candidate_k, filter=search_filter)
         if not docs:
             return []
 
-        reranked = await self.reranker.rerank(query, [doc.page_content for doc in docs], top_n=limit)
+        # Rerank the whole candidate pool, then build a relevance-descending chunk list.
+        reranked = await self.reranker.rerank(query, [doc.page_content for doc in docs], top_n=candidate_k)
         if reranked:
-            ordered = [(docs[item.index], item.score) for item in reranked if item.index < len(docs)]
+            ranked = sorted(reranked, key=lambda item: item.score, reverse=True)
+            ordered = [(docs[item.index], item.score) for item in ranked if item.index < len(docs)]
         else:
-            ordered = [(doc, None) for doc in docs[:limit]]
+            ordered = [(doc, None) for doc in docs]
 
-        return [
+        chunks = [
             RetrievedChunk(
                 text=doc.page_content,
                 metadata=restore_document_metadata(doc.metadata),
@@ -161,6 +181,74 @@ class QdrantHybridRetriever:
             )
             for doc, score in ordered
         ]
+
+        if self.settings.enable_result_dedup:
+            chunks = dedup_by_text(chunks, lambda chunk: chunk.text)
+
+        if self.settings.enable_metadata_boost:
+            chunks = apply_metadata_boosts(chunks, query, hints=boost_hints, enabled=True)
+
+        chunks = select_dynamic_k(
+            chunks,
+            lambda chunk: chunk.score,
+            enabled=self.settings.enable_dynamic_k,
+            min_k=self.settings.retrieval_min_k,
+            max_k=max(self.settings.retrieval_max_k, limit) if not self.settings.enable_dynamic_k else self.settings.retrieval_max_k,
+            ratio=self.settings.retrieval_score_ratio,
+        )
+
+        if self.settings.enable_parent_doc and self.backend == "qdrant":
+            skip = frozenset(
+                part.strip()
+                for part in (self.settings.parent_doc_skip_subcategories or "").split(",")
+                if part.strip()
+            )
+            chunks = expand_to_parent_sections(
+                chunks,
+                self._fetch_section_siblings,
+                max_chars=self.settings.parent_doc_max_chars,
+                max_siblings=self.settings.parent_doc_max_siblings,
+                skip_subcategories=skip,
+            )
+
+        if reorder and self.settings.enable_litm_reorder:
+            chunks = reorder_for_long_context(chunks)
+        return chunks
+
+    def _fetch_section_siblings(self, parent_doc_id: str, section_id: str) -> list[SectionSibling]:
+        """Return every chunk sharing `(parent_doc_id, section_id)` for parent-document
+        retrieval. Scrolls the indexed `metadata.parent_doc_id` keyword field, then filters
+        the section client-side (section_id is not separately indexed). Fails soft to []."""
+        client = getattr(self.vector_store, "client", None)
+        if client is None:
+            return []
+        try:
+            from qdrant_client.models import FieldCondition, Filter, MatchValue
+        except ImportError:
+            return []
+        scroll_filter = Filter(
+            must=[FieldCondition(key="metadata.parent_doc_id", match=MatchValue(value=parent_doc_id))]
+        )
+        try:
+            points, _next = client.scroll(
+                collection_name=self.settings.qdrant_collection,
+                scroll_filter=scroll_filter,
+                limit=512,
+                with_payload=True,
+                with_vectors=False,
+            )
+        except Exception:
+            return []
+        siblings: list[SectionSibling] = []
+        for point in points:
+            payload = point.payload or {}
+            metadata = payload.get("metadata") or {}
+            if metadata.get("section_id") != section_id:
+                continue
+            text = payload.get("page_content") or ""
+            if text:
+                siblings.append((text, metadata.get("page_number"), metadata.get("content_hash")))
+        return siblings
 
     @staticmethod
     def _to_qdrant_filter(filters: dict[str, Any]):

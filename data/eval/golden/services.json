@@ -1,0 +1,45 @@
+{
+  "description": "Student-services cases (library, registrar, student life) that exercise the general search_vinuni tool / services specialist. Grounded in crawled service pages.",
+  "cases": [
+    {
+      "id": "svc-library-room-booking",
+      "language": "en",
+      "question": "Does the VinUni library offer a room booking service?",
+      "required_facts": ["room booking"],
+      "expected_source": "library.vinuni.edu.vn",
+      "expects_refusal": false
+    },
+    {
+      "id": "svc-library-services",
+      "language": "en",
+      "question": "What learning and research support services does the VinUni library provide?",
+      "required_facts": ["research support"],
+      "expected_source": "library.vinuni.edu.vn",
+      "expects_refusal": false
+    },
+    {
+      "id": "svc-library-databases",
+      "language": "en",
+      "question": "Where can VinUni students access databases and journals?",
+      "required_facts": ["databases"],
+      "expected_source": "library.vinuni.edu.vn",
+      "expects_refusal": false
+    },
+    {
+      "id": "svc-registrar-office",
+      "language": "en",
+      "question": "Which VinUni office handles the academic registry and degree audits?",
+      "required_facts": ["registrar"],
+      "expected_source": "registrar.vinuni.edu.vn",
+      "expects_refusal": false
+    },
+    {
+      "id": "svc-library-course-books",
+      "language": "en",
+      "question": "Can VinUni students request course books from the library?",
+      "required_facts": ["course books"],
+      "expected_source": "library.vinuni.edu.vn",
+      "expects_refusal": false
+    }
+  ]
+}

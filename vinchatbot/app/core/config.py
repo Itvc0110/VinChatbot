@@ -51,6 +51,69 @@ class Settings(BaseSettings):
     checkpointer_backend: str = Field(default="memory", validation_alias="CHECKPOINTER_BACKEND")
     postgres_uri: str | None = Field(default=None, validation_alias="POSTGRES_URI")
 
+    # Retrieval tuning (Phase 1). Toggle-gated so each lever can be A/B-measured.
+    enable_litm_reorder: bool = Field(default=True, validation_alias="ENABLE_LITM_REORDER")
+    retrieval_candidate_k: int = Field(default=40, validation_alias="RETRIEVAL_CANDIDATE_K")
+    retrieval_min_k: int = Field(default=3, validation_alias="RETRIEVAL_MIN_K")
+    retrieval_max_k: int = Field(default=8, validation_alias="RETRIEVAL_MAX_K")
+    retrieval_score_ratio: float = Field(default=0.5, validation_alias="RETRIEVAL_SCORE_RATIO")
+    enable_dynamic_k: bool = Field(default=True, validation_alias="ENABLE_DYNAMIC_K")
+    enable_result_dedup: bool = Field(default=True, validation_alias="ENABLE_RESULT_DEDUP")
+    enable_query_expansion: bool = Field(default=True, validation_alias="ENABLE_QUERY_EXPANSION")
+    enable_metadata_boost: bool = Field(default=True, validation_alias="ENABLE_METADATA_BOOST")
+    enable_soft_routing: bool = Field(default=True, validation_alias="ENABLE_SOFT_ROUTING")
+
+    # Parent-document retrieval (Phase 4). At retrieval time, collapse the fine chunks that
+    # share a (parent_doc_id, section_id) into one chunk carrying the full section text:
+    # small-chunk match precision, full-section context for the LLM. Retrieval-time only —
+    # no re-ingest, A/B-testable on the serving collection. The principled fix for the
+    # over-fragmentation that sank the markdown pipeline (Phase 3).
+    enable_parent_doc: bool = Field(default=False, validation_alias="ENABLE_PARENT_DOC")
+    parent_doc_max_chars: int = Field(default=4000, validation_alias="PARENT_DOC_MAX_CHARS")
+    parent_doc_max_siblings: int = Field(default=6, validation_alias="PARENT_DOC_MAX_SIBLINGS")
+    # Subcategories opted out of section stitching (comma-separated). Calendar is point-lookup
+    # tabular data where expanding the section makes the model over-share adjacent dates.
+    parent_doc_skip_subcategories: str = Field(
+        default="calendar", validation_alias="PARENT_DOC_SKIP_SUBCATEGORIES"
+    )
+
+    # Ingestion v2 (Phase 3) — markdown-first parsing + token/header chunking.
+    # Validated and SHELVED: even tuned (PDF-as-text, 1024-token, h1/h2) it netted ~81%
+    # vs the proven plain-text pipeline's 92.5% (HTML markdown fragments policy; over-answers).
+    # Kept here, OFF by default; flip ENABLE_MARKDOWN_PARSING=true to experiment. See PHASE3_LOG.md.
+    enable_markdown_parsing: bool = Field(default=False, validation_alias="ENABLE_MARKDOWN_PARSING")
+    enable_pdf_markdown: bool = Field(default=False, validation_alias="ENABLE_PDF_MARKDOWN")
+    chunk_max_tokens: int = Field(default=1024, validation_alias="CHUNK_MAX_TOKENS")
+    chunk_overlap_tokens: int = Field(default=96, validation_alias="CHUNK_OVERLAP_TOKENS")
+    chunk_header_levels: int = Field(default=2, validation_alias="CHUNK_HEADER_LEVELS")
+
+    # Guardrails. Layered: regex/deobf (always) -> safety API (non-confident) -> small-LLM
+    # injection+scope classifier. The rule tier runs first so most turns never call an API.
+    enable_llm_guard: bool = Field(default=True, validation_alias="ENABLE_LLM_GUARD")
+    guard_model: str = Field(
+        default="qwen/qwen-2.5-7b-instruct", validation_alias="GUARD_MODEL"
+    )
+    enable_indirect_injection_scan: bool = Field(
+        default=True, validation_alias="ENABLE_INDIRECT_INJECTION_SCAN"
+    )
+    enable_output_moderation: bool = Field(default=False, validation_alias="ENABLE_OUTPUT_MODERATION")
+
+    # Safety tier (content moderation). Default OpenAI omni-moderation (free/cheapest).
+    safety_guard_backend: str = Field(
+        default="openai_moderation", validation_alias="SAFETY_GUARD_BACKEND"
+    )  # openai_moderation | llama_guard | off
+    enable_safety_on_all: bool = Field(default=False, validation_alias="ENABLE_SAFETY_ON_ALL")
+    openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
+    openai_base_url: str = Field(
+        default="https://api.openai.com/v1", validation_alias="OPENAI_BASE_URL"
+    )
+    openai_moderation_model: str = Field(
+        default="omni-moderation-latest", validation_alias="OPENAI_MODERATION_MODEL"
+    )
+    llama_guard_model: str = Field(
+        default="meta-llama/llama-guard-4-12b", validation_alias="LLAMA_GUARD_MODEL"
+    )
+
     crawl_user_agent: str = Field(
         default="VinChatbotBot/0.1 (+https://vinuni.edu.vn)",
         validation_alias="CRAWL_USER_AGENT",

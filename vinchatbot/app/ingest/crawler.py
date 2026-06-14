@@ -20,6 +20,7 @@ from vinchatbot.app.ingest.parsers import (
     extract_links_from_html,
     link_records_from_links,
     parse_binary_asset_bytes,
+    parse_docx,
     parse_html,
     parse_markdown,
     parse_pdf_bytes,
@@ -242,6 +243,17 @@ class VinUniCrawler:
                 result.structured_records.extend(document.structured_records)
                 result.link_references.extend(links)
 
+                # Persist each document as soon as it is fetched so a late failure in a
+                # long crawl does not lose progress. Never let a write error abort the run.
+                try:
+                    write_raw_document(document, self.settings.raw_data_dir)
+                except Exception:
+                    logger.warning(
+                        "Failed to incrementally save raw document url=%s",
+                        document.source_url,
+                        exc_info=True,
+                    )
+
                 for link in links:
                     if not link.should_crawl:
                         continue
@@ -325,6 +337,9 @@ class VinUniCrawler:
             links = []
         elif source_kind == "markdown":
             document = parse_markdown(response.text, final_url, source_metadata=source_metadata)
+            links = []
+        elif source_kind == "docx":
+            document = parse_docx(response.content, final_url, source_metadata=source_metadata)
             links = []
         elif source_kind in {"image_asset", "file_asset"} or _is_binary_response(content_type, final_url):
             document = parse_binary_asset_bytes(
@@ -570,15 +585,16 @@ class VinUniCrawler:
         )
 
 
-def write_raw_documents(documents: list[RawDocument], output_dir: str | Path) -> list[Path]:
+def write_raw_document(document: RawDocument, output_dir: str | Path) -> Path:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    paths: list[Path] = []
-    for document in documents:
-        path = output_path / f"{document.parent_doc_id}.json"
-        path.write_text(document.model_dump_json(indent=2), encoding="utf-8")
-        paths.append(path)
-    return paths
+    path = output_path / f"{document.parent_doc_id}.json"
+    path.write_text(document.model_dump_json(indent=2), encoding="utf-8")
+    return path
+
+
+def write_raw_documents(documents: list[RawDocument], output_dir: str | Path) -> list[Path]:
+    return [write_raw_document(document, output_dir) for document in documents]
 
 
 def read_raw_documents(input_dir: str | Path) -> list[RawDocument]:

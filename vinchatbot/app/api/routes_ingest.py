@@ -10,8 +10,8 @@ from vinchatbot.app.ingest.chunker import chunk_document
 from vinchatbot.app.ingest.crawler import (
     VinUniCrawler,
     read_raw_documents,
-    write_crawl_manifest,
     write_crawl_coverage_report,
+    write_crawl_manifest,
     write_link_references,
     write_raw_documents,
     write_structured_records,

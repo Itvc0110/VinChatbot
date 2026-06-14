@@ -192,6 +192,8 @@ class DocumentMetadata(BaseModel):
     entities: list[str] = Field(default_factory=list)
     relation_hints: list[str] = Field(default_factory=list)
     record_type: str | None = None
+    event_type: str | None = None
+    fee_type: str | None = None
     asset_url: str | None = None
     asset_type: str | None = None
     mime_type: str | None = None

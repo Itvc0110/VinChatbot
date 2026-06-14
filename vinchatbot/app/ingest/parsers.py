@@ -129,13 +129,22 @@ def _extract_html_text(content: str, soup: BeautifulSoup, source_kind: str) -> s
     }:
         return _extract_structured_html_text(soup)
 
+    markdown = get_settings().enable_markdown_parsing
     extracted = None
     try:
         import trafilatura
 
-        extracted = trafilatura.extract(content, include_links=False, include_tables=True)
-    except ImportError:
-        extracted = None
+        kwargs = {"include_links": False, "include_tables": True}
+        if markdown:
+            kwargs["output_format"] = "markdown"
+        extracted = trafilatura.extract(content, **kwargs)
+    except (ImportError, TypeError):
+        try:
+            import trafilatura
+
+            extracted = trafilatura.extract(content, include_links=False, include_tables=True)
+        except ImportError:
+            extracted = None
 
     if not extracted:
         extracted = _extract_structured_html_text(soup)
@@ -153,9 +162,86 @@ def _extract_structured_html_text(soup: BeautifulSoup) -> str:
         if element.name in {"h1", "h2", "h3", "h4", "h5"}:
             level = int(element.name[1])
             headings_and_text.append(f"{'#' * level} {text}")
+        elif element.name == "li":
+            headings_and_text.append(f"- {text}")
         else:
             headings_and_text.append(text)
     return "\n\n".join(headings_and_text)
+
+
+def _pdf_pages_to_markdown(document) -> dict[int, str] | None:
+    """Per-page Markdown via pymupdf4llm (preserves headings/lists/tables). Returns None on
+    failure so the caller falls back to plain text."""
+    try:
+        import pymupdf4llm
+
+        chunks = pymupdf4llm.to_markdown(document, page_chunks=True, show_progress=False)
+        return {index + 1: (chunk.get("text") or "") for index, chunk in enumerate(chunks)}
+    except Exception:
+        logger.debug("pymupdf4llm markdown extraction failed; using plain text.", exc_info=True)
+        return None
+
+
+def _docx_to_markdown(stream) -> str:
+    import docx
+
+    document = docx.Document(stream)
+    lines: list[str] = []
+    for paragraph in document.paragraphs:
+        text = normalize_text(paragraph.text)
+        if not text:
+            continue
+        style = (paragraph.style.name if paragraph.style else "") or ""
+        if style.startswith("Heading"):
+            try:
+                level = int(style.split()[-1])
+            except (ValueError, IndexError):
+                level = 2
+            lines.append(f"{'#' * max(1, min(6, level))} {text}")
+        elif style.startswith("List") or text.lstrip().startswith(("-", "•", "*")):
+            lines.append(f"- {text.lstrip('-•* ').strip()}")
+        else:
+            lines.append(text)
+    for table in document.tables:
+        for row in table.rows:
+            cells = [normalize_text(cell.text) for cell in row.cells]
+            if any(cells):
+                lines.append("| " + " | ".join(cells) + " |")
+    return "\n\n".join(lines)
+
+
+def parse_docx(
+    content: bytes,
+    source_url: str,
+    source_metadata: SourceDocumentMetadata | None = None,
+) -> RawDocument:
+    try:
+        import docx  # noqa: F401
+    except ImportError as exc:
+        raise RuntimeError("Install python-docx to parse DOCX files.") from exc
+
+    title = Path(urlparse(source_url).path).name or source_url
+    source_kind = source_metadata.source_kind if source_metadata else infer_source_kind(source_url, title=title)
+    markdown = _docx_to_markdown(io.BytesIO(content))
+    metadata = _base_raw_metadata(source_url, title, source_kind, source_metadata)
+    metadata["parser_name"] = "docx"
+    metadata["file_size_bytes"] = len(content)
+    metadata["content_hash"] = stable_hash(content.hex())
+    if source_metadata:
+        source_metadata.parser_name = "docx"
+        source_metadata.parser_version = PARSER_VERSION
+        source_metadata.content_hash = metadata.get("content_hash")
+        source_metadata.file_size_bytes = len(content)
+    return RawDocument(
+        source_url=source_url,
+        canonical_url=metadata.get("canonical_url", source_url),
+        title=normalize_text(title),
+        document_type="markdown",
+        content=normalize_text(markdown),
+        metadata=metadata,
+        source_metadata=source_metadata,
+        structured_records=[],
+    )
 
 
 def parse_pdf_bytes(
@@ -177,8 +263,10 @@ def parse_pdf_bytes(
     with fitz.open(stream=content, filetype="pdf") as document:
         meta_title = document.metadata.get("title") if document.metadata else None
         title = title or meta_title or Path(source_url).name or source_url
+        page_markdown = _pdf_pages_to_markdown(document) if settings.enable_pdf_markdown else None
         for index, page in enumerate(document, start=1):
-            page_text = normalize_text(page.get_text("text"))
+            markdown = page_markdown.get(index) if page_markdown else None
+            page_text = normalize_text(markdown if markdown else page.get_text("text"))
             text_char_count = len(page_text)
             image_count = len(page.get_images(full=True))
             page_stats.append(

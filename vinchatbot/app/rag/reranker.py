@@ -31,19 +31,26 @@ class OpenRouterReranker:
             "Authorization": f"Bearer {self.settings.openrouter_api_key}",
             "Content-Type": "application/json",
         }
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                f"{self.settings.openrouter_base_url.rstrip('/')}/rerank",
-                headers=headers,
-                json={
-                    "model": self.settings.openrouter_rerank_model,
-                    "query": query,
-                    "documents": documents,
-                    "top_n": min(top_n, len(documents)),
-                },
-            )
-            response.raise_for_status()
-            payload = response.json()
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self.settings.openrouter_base_url.rstrip('/')}/rerank",
+                    headers=headers,
+                    json={
+                        "model": self.settings.openrouter_rerank_model,
+                        "query": query,
+                        "documents": documents,
+                        "top_n": min(top_n, len(documents)),
+                    },
+                )
+                response.raise_for_status()
+                payload = response.json()
+        except Exception:
+            # Reranking is a precision boost, not a hard dependency. On any failure
+            # (bad model id, network, rate limit) fall back to the original retrieval
+            # order rather than failing the whole chat turn.
+            logger.warning("Rerank call failed; falling back to original retrieval order.", exc_info=True)
+            return []
 
         results = []
         for item in payload.get("results", []):

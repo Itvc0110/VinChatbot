@@ -1,0 +1,61 @@
+{
+  "description": "Policy & procedure cases grounded in crawled VinUni policy detail pages. Facts verified from document text; kept in English to match the source language.",
+  "cases": [
+    {
+      "id": "pol-loa-applicability",
+      "language": "en",
+      "question": "Who is the VinUni leave of absence and withdrawal procedure applicable to?",
+      "required_facts": ["full-time students"],
+      "expected_source": "procedure-for-requesting-a-leave-of-absence",
+      "expects_refusal": false
+    },
+    {
+      "id": "pol-loa-first-step",
+      "language": "en",
+      "question": "What is the first step a student takes to request a leave of absence at VinUni?",
+      "required_facts": ["form"],
+      "expected_source": "procedure-for-requesting-a-leave-of-absence",
+      "expects_refusal": false
+    },
+    {
+      "id": "pol-loa-purpose",
+      "language": "en",
+      "question": "What is the purpose of the leave of absence procedure for VinUni students?",
+      "required_facts": ["temporary"],
+      "expected_source": "procedure-for-requesting-a-leave-of-absence",
+      "expects_refusal": false
+    },
+    {
+      "id": "pol-md-attendance-scope",
+      "language": "en",
+      "question": "Which year groups does the Medical Doctor program attendance policy apply to?",
+      "required_facts": ["Year 1, 2 and 3"],
+      "expected_source": "attendance-policy-at-medical-doctor-program",
+      "expects_refusal": false
+    },
+    {
+      "id": "pol-academic-integrity-exists",
+      "language": "en",
+      "question": "Does VinUni have a student academic integrity policy I can refer to?",
+      "required_facts": ["academic integrity"],
+      "expected_source": "student-academic-integrity",
+      "expects_refusal": false
+    },
+    {
+      "id": "pol-sexual-misconduct-exists",
+      "language": "en",
+      "question": "Where can I find VinUni's policy on sexual misconduct and how it is handled?",
+      "required_facts": ["sexual misconduct"],
+      "expected_source": "sexual-misconduct-and-response",
+      "expects_refusal": false
+    },
+    {
+      "id": "pol-loa-fulltime-vi",
+      "language": "vi",
+      "question": "Quy trình xin nghỉ học tạm thời tại VinUni áp dụng cho đối tượng sinh viên nào?",
+      "required_facts": ["toàn thời gian"],
+      "expected_source": "procedure-for-requesting-a-leave-of-absence",
+      "expects_refusal": false
+    }
+  ]
+}

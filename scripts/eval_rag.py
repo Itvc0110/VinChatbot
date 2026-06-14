@@ -6,7 +6,6 @@ import json
 from vinchatbot.app.agents.vinuni_agent import VinUniAgentService
 from vinchatbot.app.schemas.chat import ChatRequest
 
-
 QUESTIONS = [
     "Khi nào bắt đầu học kỳ Fall?",
     "Hạn drop course là khi nào?",

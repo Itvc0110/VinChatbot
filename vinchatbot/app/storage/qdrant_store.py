@@ -4,7 +4,6 @@ from typing import Any
 
 from vinchatbot.app.core.config import Settings, get_settings
 
-
 QDRANT_KEYWORD_PAYLOAD_FIELDS = (
     "metadata.parent_doc_id",
     "metadata.source_url",
@@ -14,6 +13,11 @@ QDRANT_KEYWORD_PAYLOAD_FIELDS = (
     "metadata.academic_year",
     "metadata.term",
     "metadata.original_language",
+    "metadata.source_kind",
+    "metadata.source_trust",
+    "metadata.policy_code",
+    "metadata.event_type",
+    "metadata.fee_type",
 )
 
 

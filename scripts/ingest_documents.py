@@ -20,6 +20,51 @@ def configure_logging() -> None:
     )
 
 
+def _stamp_policy_metadata(chunks, records) -> int:
+    """Propagate policy_code / issued / updated from `policy_listing` records onto the
+    policy *text* chunks (matched by detail_url == chunk canonical_url). The rich listing
+    metadata is otherwise stranded on listing records that mostly aren't chunked.
+    """
+    by_url: dict[str, dict] = {}
+    for record in records:
+        if record.record_type != "policy_listing":
+            continue
+        data = record.data
+        url = (data.get("detail_url") or "").rstrip("/")
+        if url and data.get("policy_code"):
+            by_url[url] = {
+                "policy_code": data.get("policy_code"),
+                "issued_date": data.get("date_issued"),
+                "updated_date": data.get("date_last_updated"),
+            }
+    stamped = 0
+    for chunk in chunks:
+        meta = by_url.get((chunk.metadata.canonical_url or "").rstrip("/"))
+        if not meta:
+            continue
+        if not chunk.metadata.policy_code:
+            chunk.metadata.policy_code = meta["policy_code"]
+            chunk.metadata.issued_date = chunk.metadata.issued_date or meta["issued_date"]
+            chunk.metadata.updated_date = chunk.metadata.updated_date or meta["updated_date"]
+            stamped += 1
+    return stamped
+
+
+def _dedup_by_content_hash(chunks):
+    """Drop chunks with duplicate content (keep first occurrence). Removes exact
+    duplicates such as a policy's HTML and PDF copies that chunk to identical text.
+    """
+    seen: set[str] = set()
+    deduped = []
+    for chunk in chunks:
+        digest = chunk.metadata.content_hash
+        if digest in seen:
+            continue
+        seen.add(digest)
+        deduped.append(chunk)
+    return deduped
+
+
 def main() -> None:
     configure_logging()
     settings = get_settings()
@@ -45,9 +90,21 @@ def main() -> None:
                 document.title[:120],
             )
 
+    stamped = _stamp_policy_metadata(chunks, records)
+    logger.info("Stamped policy_code onto %s policy chunks from listing records", stamped)
+
+    before = len(chunks)
+    chunks = _dedup_by_content_hash(chunks)
+    logger.info("Deduped chunks by content hash: %s -> %s (-%s)", before, len(chunks), before - len(chunks))
+
     records_path = f"{settings.processed_data_dir}/structured_records.json"
     logger.info("Writing structured records=%s path=%s", len(records), records_path)
     write_structured_records(records, records_path)
+
+    chunks_path = f"{settings.processed_data_dir}/chunks.json"
+    logger.info("Writing chunks=%s path=%s", len(chunks), chunks_path)
+    with open(chunks_path, "w", encoding="utf-8") as handle:
+        json.dump([chunk.model_dump() for chunk in chunks], handle, ensure_ascii=False, indent=2)
 
     logger.info(
         "Indexing chunks=%s backend=%s qdrant_collection=%s",

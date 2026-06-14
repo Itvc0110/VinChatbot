@@ -1,0 +1,69 @@
+{
+  "description": "Financial cases grounded in 'Financial Regulations and Tariff (for student)' (VU_TS03). Figures verified from the crawled document text.",
+  "source": "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
+  "cases": [
+    {
+      "id": "fin-nursing-tuition-year-en",
+      "language": "en",
+      "question": "What is the listed tuition fee per academic year for the Bachelor of Nursing program?",
+      "required_facts": ["349,650,000"],
+      "expected_source": "financial-regulations-and-tariff-for-student",
+      "expects_refusal": false
+    },
+    {
+      "id": "fin-nursing-tuition-credit-en",
+      "language": "en",
+      "question": "What is the listed tuition fee per credit for the Bachelor of Nursing program?",
+      "required_facts": ["9,780,000"],
+      "expected_source": "financial-regulations-and-tariff-for-student",
+      "expects_refusal": false
+    },
+    {
+      "id": "fin-other-bachelor-year-en",
+      "language": "en",
+      "question": "What is the listed tuition fee per academic year for other Bachelor programs at VinUni?",
+      "required_facts": ["815,850,000"],
+      "expected_source": "financial-regulations-and-tariff-for-student",
+      "expects_refusal": false
+    },
+    {
+      "id": "fin-other-bachelor-semester-vi",
+      "language": "vi",
+      "question": "Học phí niêm yết mỗi học kỳ của các chương trình Cử nhân khác tại VinUni là bao nhiêu?",
+      "required_facts": ["407,925,000"],
+      "expected_source": "financial-regulations-and-tariff-for-student",
+      "expects_refusal": false
+    },
+    {
+      "id": "fin-standard-credit-vi",
+      "language": "vi",
+      "question": "Học phí niêm yết theo tín chỉ của chương trình Cử nhân tiêu chuẩn là bao nhiêu?",
+      "required_facts": ["27,195,000"],
+      "expected_source": "financial-regulations-and-tariff-for-student",
+      "expects_refusal": false
+    },
+    {
+      "id": "fin-currency-en",
+      "language": "en",
+      "question": "In what currency are VinUni student tuition fees listed?",
+      "required_facts": ["VND"],
+      "expected_source": "financial-regulations-and-tariff-for-student",
+      "expects_refusal": false
+    },
+    {
+      "id": "fin-library-overdue-fine-en",
+      "language": "en",
+      "question": "What is the VinUni library overdue fine for a normal item per day?",
+      "required_facts": ["10,000"],
+      "expects_refusal": false
+    },
+    {
+      "id": "fin-medicine-tuition-year-en",
+      "language": "en",
+      "question": "What is the listed tuition fee per academic year for the Doctor of Medicine program?",
+      "required_facts": ["815,850,000"],
+      "expected_source": "financial-regulations-and-tariff-for-student",
+      "expects_refusal": false
+    }
+  ]
+}

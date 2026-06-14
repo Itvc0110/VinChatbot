@@ -10,4 +10,6 @@ pytest-cache-files-*/
 data/qdrant/
 data/raw/*.json
 data/processed/*.json
+data/processed/*.log
+data/eval/results/
 

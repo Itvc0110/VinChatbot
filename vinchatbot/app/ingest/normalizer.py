@@ -2,7 +2,48 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections import Counter
 from urllib.parse import urlparse
+
+_BOILERPLATE_LINES = {
+    "policy content",
+    "policy status",
+    "pdf version",
+    "table of contents",
+    "event calendar",
+}
+_BOILERPLATE_PREFIXES = ("access this link to read the full document",)
+
+
+def strip_boilerplate(text: str) -> str:
+    """Remove known boilerplate lines and repeated nav/menu lines.
+
+    Drops policy-page scaffolding ("Policy Content", "PDF version", ...), collapses
+    consecutive duplicate lines, and removes lines that repeat many times across the page
+    (navigation menus) after their first occurrence — the main driver of nav-heavy pages
+    over-chunking.
+    """
+    lines = text.split("\n")
+    counts = Counter(line.strip().lower() for line in lines if line.strip())
+    out: list[str] = []
+    prev_low: str | None = None
+    emitted: set[str] = set()
+    for line in lines:
+        low = line.strip().lower()
+        bare = low.lstrip("-*•#").strip()  # tolerate Markdown list/heading prefixes
+        if bare in _BOILERPLATE_LINES:
+            continue
+        if any(bare.startswith(prefix) for prefix in _BOILERPLATE_PREFIXES):
+            continue
+        if low and low == prev_low:
+            continue
+        if low and counts[low] > 3 and low in emitted:
+            continue
+        out.append(line)
+        if low:
+            emitted.add(low)
+            prev_low = low
+    return "\n".join(out)
 
 VIETNAMESE_MARKERS = set(
     "ăâđêôơư"
@@ -52,7 +93,20 @@ def infer_category(url: str, title: str) -> tuple[str, str]:
         return "academic", "catalog"
     if "financial" in haystack or "tariff" in haystack or "tuition" in haystack:
         return "student_affairs", "financial"
-    if "code-of-conduct" in haystack or "conduct" in haystack:
+    # Conduct/discipline cluster. "conduct" also matches "misconduct"; the extra terms catch
+    # the disciplinary appendices and the Vietnamese student-affairs regulation (VU_CTSV02,
+    # "quy che cong tac sinh vien") whose titles/URLs omit the word "conduct" — keeping the
+    # whole Student Code of Conduct family under one subcategory for routing/boosts.
+    if (
+        "code-of-conduct" in haystack
+        or "conduct" in haystack
+        or "disciplinary" in haystack
+        or "violation" in haystack
+        or "student-behaviour" in haystack
+        or "student behaviour" in haystack
+        or "cong-tac-sinh-vien" in haystack
+        or "cong tac sinh vien" in haystack
+    ):
         return "student_affairs", "conduct"
     if "registrar" in haystack:
         return "academic", "registrar"
@@ -86,6 +140,8 @@ def infer_source_kind(url: str, content_type: str | None = None, title: str | No
         return "spreadsheet"
     if path.endswith(".csv") or "text/csv" in haystack:
         return "csv"
+    if path.endswith(".docx") or "wordprocessingml" in haystack or "msword" in haystack:
+        return "docx"
     if path.endswith(".md") or "text/markdown" in haystack or "text/x-markdown" in haystack:
         return "markdown"
     if "student-gateway" in path:

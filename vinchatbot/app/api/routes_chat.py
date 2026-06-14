@@ -5,7 +5,12 @@ from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException, status
 
-from vinchatbot.app.agents.guardrails import build_guardrail_response, resolve_guardrail_decision
+from vinchatbot.app.agents.guardrails import (
+    CONVERSATIONAL_ACTIONS,
+    build_conversational_response,
+    build_guardrail_response,
+    resolve_guardrail_decision,
+)
 from vinchatbot.app.agents.vinuni_agent import VinUniAgentService
 from vinchatbot.app.schemas.chat import ChatRequest, ChatResponse
 
@@ -30,6 +35,8 @@ async def chat(request: ChatRequest) -> ChatResponse:
             guardrail_decision.action,
             request.conversation_id,
         )
+        if guardrail_decision.action in CONVERSATIONAL_ACTIONS:
+            return await build_conversational_response(guardrail_decision, request.message)
         return build_guardrail_response(guardrail_decision, request.message)
 
     try:

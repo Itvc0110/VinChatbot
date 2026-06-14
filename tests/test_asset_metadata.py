@@ -44,7 +44,7 @@ def test_html_image_asset_metadata_has_context_description_and_ocr_disabled():
     assert record.data["ocr_status"] == "disabled"
 
 
-def test_html_image_with_nearby_context_becomes_retrievable_chunk_and_ocr_candidate():
+def test_html_image_with_only_nearby_context_is_flagged_but_not_chunked():
     html = """
     <html><body>
       <h1>Student Gateway</h1>
@@ -76,9 +76,10 @@ def test_html_image_with_nearby_context_becomes_retrievable_chunk_and_ocr_candid
 
     assert records[0].data["description_source"] == "context"
     assert records[0].data["needs_ocr"] is True
-    assert chunks
-    assert chunks[0].metadata.record_type == "image_asset"
-    assert "Final exam timetable" in chunks[0].text
+    # Phase 2: nearby-text-only images are low-signal — flagged for OCR but NOT indexed as
+    # chunks (only OCR text or a substantive caption qualifies). The nearby prose is still
+    # captured by the page's normal content chunking.
+    assert all(chunk.metadata.record_type != "image_asset" for chunk in chunks)
 
 
 def test_html_image_without_text_context_is_flagged_but_not_chunked():

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
+from vinchatbot.app.agents.guardrails import scan_for_injection
+from vinchatbot.app.core.config import get_settings
 from vinchatbot.app.rag.citations import excerpt
+from vinchatbot.app.rag.context import dedup_by_text, reorder_for_long_context
+from vinchatbot.app.rag.query_engineering import expand_query, reciprocal_rank_fusion
 from vinchatbot.app.rag.retriever import Retriever
 
 
@@ -18,12 +23,45 @@ def build_retrieval_tools(retriever: Retriever):
         filters: dict[str, Any] | None = None,
         enforced_filters: dict[str, Any] | None = None,
     ) -> str:
-        merged_filters = {}
-        if filters:
-            merged_filters.update({key: value for key, value in filters.items() if value})
-        if enforced_filters:
-            merged_filters.update(enforced_filters)
-        chunks = await retriever.search(query=query, filters=merged_filters, limit=8)
+        settings = get_settings()
+        caller_filters = {key: value for key, value in (filters or {}).items() if value}
+
+        # Soft routing: the specialist's category goes in as a *boost hint* (not a hard
+        # filter), so a mis-route never blanks out results. Otherwise enforce it.
+        if settings.enable_soft_routing:
+            merged_filters = caller_filters
+            boost_hints = enforced_filters or None
+        else:
+            merged_filters = {**caller_filters, **(enforced_filters or {})}
+            boost_hints = None
+
+        max_k = settings.retrieval_max_k
+        queries = await expand_query(query, settings) if settings.enable_query_expansion else [query]
+
+        if len(queries) > 1:
+            # Multi-query: retrieve each variant in relevance order (parallel), fuse with
+            # RRF, then dedup and apply the lost-in-the-middle reorder once on the result.
+            ranked_lists = await asyncio.gather(
+                *(
+                    retriever.search(
+                        query=q, filters=merged_filters, limit=max_k, reorder=False, boost_hints=boost_hints
+                    )
+                    for q in queries
+                )
+            )
+            fused = reciprocal_rank_fusion(ranked_lists, key=lambda chunk: chunk.metadata.chunk_id)
+            fused = dedup_by_text(fused, lambda chunk: chunk.text)[:max_k]
+            chunks = reorder_for_long_context(fused) if settings.enable_litm_reorder else fused
+        else:
+            chunks = await retriever.search(
+                query=query, filters=merged_filters, limit=max_k, boost_hints=boost_hints
+            )
+
+        # Indirect-injection defense: drop retrieved chunks whose text carries injection
+        # patterns so poisoned source content cannot steer the model.
+        if settings.enable_indirect_injection_scan:
+            chunks = [chunk for chunk in chunks if not scan_for_injection(chunk.text)]
+
         payload = {
             "results": [
                 {
@@ -67,6 +105,17 @@ def build_retrieval_tools(retriever: Retriever):
         )
 
     @tool
+    async def search_vinuni(query: str, filters: dict[str, Any] | None = None) -> str:
+        """Tìm kiếm tổng quát trên toàn bộ tài liệu công khai của VinUni.
+
+        Dùng cho thư viện, phòng đăng ký (registrar), đời sống sinh viên, dịch vụ sinh
+        viên và mọi câu hỏi không thuộc riêng lịch học, chính sách hay tài chính. Không
+        áp đặt bộ lọc category nên bao phủ được toàn bộ corpus.
+        """
+
+        return await _search(query=query, filters=filters)
+
+    @tool
     async def get_source_detail(source_id_or_url: str) -> str:
         """Lấy các đoạn liên quan nhất từ một nguồn cụ thể theo URL hoặc source id."""
 
@@ -91,6 +140,7 @@ def build_retrieval_tools(retriever: Retriever):
         search_academic_calendar,
         search_policy_documents,
         search_financial_regulations,
+        search_vinuni,
         get_source_detail,
     ]
 

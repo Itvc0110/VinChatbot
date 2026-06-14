@@ -4,6 +4,8 @@ Backend MVP cho chatbot hỗ trợ sinh viên VinUni bằng RAG + ReAct agent.
 
 ## Kiến trúc nhanh
 
+> Sơ đồ luồng (ingest, query, guard layering) ở [ARCHITECTURE.md](ARCHITECTURE.md).
+
 - FastAPI cung cấp `/chat`, `/ingest/run`, `/sources`, `/health`.
 - LangChain `create_agent` chạy ReAct tool loop trên LangGraph.
 - `conversation_id` trong request được dùng làm LangGraph `thread_id` để giữ short-term context.
@@ -80,11 +82,11 @@ Asset/OCR behavior:
 Các crawl caps có thể chỉnh trong `.env`:
 
 ```env
-CRAWL_MAX_PAGES_TOTAL=50000
-CRAWL_MAX_VINUNI_PAGES_PER_DOMAIN=10000
-CRAWL_MAX_EXTERNAL_PAGES_PER_DOMAIN=250
-CRAWL_VINUNI_MAX_DEPTH=25
-CRAWL_EXTERNAL_MAX_DEPTH=3
+CRAWL_MAX_PAGES_TOTAL=1000
+CRAWL_MAX_VINUNI_PAGES_PER_DOMAIN=100
+CRAWL_MAX_EXTERNAL_PAGES_PER_DOMAIN=25
+CRAWL_VINUNI_MAX_DEPTH=3
+CRAWL_EXTERNAL_MAX_DEPTH=1
 ENABLE_IMAGE_ASSET_EXTRACTION=true
 ENABLE_OCR=false
 ```

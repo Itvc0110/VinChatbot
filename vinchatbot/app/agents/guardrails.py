@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import logging
 import re
 import unicodedata
 from collections.abc import Awaitable, Callable
@@ -7,18 +9,27 @@ from dataclasses import dataclass
 from typing import Literal
 
 from vinchatbot.app.core.config import Settings, get_settings
+from vinchatbot.app.ingest.normalizer import VIETNAMESE_MARKERS
 from vinchatbot.app.llm.openrouter_chat import build_chat_model
 from vinchatbot.app.schemas.chat import ChatResponse, Citation
 
+logger = logging.getLogger(__name__)
+
 GuardrailAction = Literal[
     "allow",
-    "greeting",
+    "smalltalk",
+    "capability",
+    "greeting",  # legacy; superseded by "smalltalk" (kept for backward compatibility)
     "prompt_injection",
     "restricted_data",
     "abusive_language",
     "needs_scope_router",
     "out_of_scope",
 ]
+
+# Benign conversational turns: answered directly (no block, no retrieval) via
+# build_conversational_response — distinct from blocked actions.
+CONVERSATIONAL_ACTIONS = frozenset({"smalltalk", "capability"})
 
 
 @dataclass(frozen=True)
@@ -70,7 +81,37 @@ RESTRICTED_DATA_PATTERNS = (
 
 GREETING_PATTERNS = (
     re.compile(r"^(hi|hello|hey|good morning|good afternoon|good evening)[!. ]*$"),
-    re.compile(r"^(xin chao|chao ban|chao|alo)[!. ]*$"),
+    re.compile(r"^(xin chao|chao ban|chao|alo|chao buoi (sang|chieu|toi))[!. ]*$"),
+)
+
+# Closings / thanks / acknowledgements / reactions — FULLMATCH only, so a closing word at the
+# start of a real question ("ok hạn drop môn?") is NOT swallowed. Matched on normalized text, so
+# both accented ("tạm biệt") and accent-less ("tam biet") input are caught.
+CLOSING_PATTERNS = (
+    re.compile(r"^(ok|okay|oke|okie|kk?)[!. ]*$"),
+    re.compile(r"^(uh|um+|uk|u|oh|hmm+|haha+|hihi+|hee+)[!. ]*$"),
+    re.compile(r"^(duoc|duoc roi|ok roi|the thoi|vay thoi|roi)[!. ]*$"),
+    re.compile(r"^(thanks|thank you|thank u|thanks a lot|ty|tks|tysm)[!. ]*$"),
+    re.compile(r"^(cam on|cam on ban|cam on nhe|cam on nhieu|cam on nhe ban)[!. ]*$"),
+    re.compile(r"^(tam biet|bye|goodbye|bye bye|see you|hen gap lai|chao tam biet)[!. ]*$"),
+    re.compile(r"^(yes|no|yep|nope|vang|da|u|u roi)[!. ]*$"),
+)
+
+# Identity / capability / light social — SEARCH, anchored to "you/bạn" so generic "X là gì?" is
+# not caught. Runs after scope-allow, so real questions that merely contain these phrases (e.g.
+# "what are you allowed to tell me about fees") still route to retrieval.
+CAPABILITY_PATTERNS = (
+    re.compile(r"\bban la (gi|ai)\b"),
+    re.compile(r"\bban la (chatbot|tro ly|ai|con gi|cai gi)\b"),
+    re.compile(r"\b(what|who) are you\b"),
+    re.compile(r"\bwhat can you do\b"),
+    re.compile(r"\bban (lam|giup) duoc gi\b"),
+    re.compile(r"\bban co the (lam|giup) (duoc )?gi\b"),
+    re.compile(r"\bban (khoe khong|co khoe khong)\b"),
+    re.compile(r"\bhow are you\b"),
+    re.compile(r"\bban ten (la )?gi\b"),
+    re.compile(r"\bwhat'?s your name\b"),
+    re.compile(r"^(help|giup|giup voi|giup minh|giup toi)[!. ]*$"),
 )
 
 ABUSIVE_PATTERNS = (
@@ -196,25 +237,33 @@ OFFICIAL_SOURCES = (
 
 def assess_user_message(message: str) -> GuardrailDecision:
     normalized = normalize_for_matching(message)
+    deobfuscated = normalize_for_matching(deobfuscate(message))
 
-    if any(pattern.search(normalized) for pattern in INJECTION_PATTERNS):
+    def matches(patterns: tuple[re.Pattern, ...]) -> bool:
+        return any(pattern.search(normalized) or pattern.search(deobfuscated) for pattern in patterns)
+
+    if matches(INJECTION_PATTERNS):
         return GuardrailDecision(
             action="prompt_injection",
             reason="The request attempts to override instructions or expose protected configuration.",
         )
 
-    if any(pattern.search(normalized) for pattern in RESTRICTED_DATA_PATTERNS):
+    if matches(RESTRICTED_DATA_PATTERNS):
         return GuardrailDecision(
             action="restricted_data",
             reason="The request asks for access to private student or account data.",
         )
 
+    # Pure greeting — friendly, before scope checks.
     if any(pattern.fullmatch(normalized) for pattern in GREETING_PATTERNS):
-        return GuardrailDecision(action="greeting", reason="Greeting")
+        return GuardrailDecision(action="smalltalk", reason="Greeting")
 
     has_scope = any(_contains_term(normalized, term) for term in SCOPE_TERMS)
     has_abuse = any(pattern.search(normalized) for pattern in ABUSIVE_PATTERNS)
     has_threat = any(pattern.search(normalized) for pattern in THREAT_PATTERNS)
+
+    # A genuine in-scope question wins over the conversational/abusive heuristics (so rough
+    # language inside a real support question is still allowed).
     if has_scope and not has_threat:
         return GuardrailDecision(action="allow", reason="VinUni student-support topic")
 
@@ -223,6 +272,14 @@ def assess_user_message(message: str) -> GuardrailDecision:
             action="abusive_language",
             reason="The request contains abusive language without a clear support question.",
         )
+
+    # Identity / capability / light social ("bạn là gì", "what can you do", "bạn khỏe không").
+    if any(pattern.search(normalized) for pattern in CAPABILITY_PATTERNS):
+        return GuardrailDecision(action="capability", reason="Identity or capability question.")
+
+    # Pure closing / thanks / acknowledgement / reaction (incl. emoji- or punctuation-only).
+    if any(pattern.fullmatch(normalized) for pattern in CLOSING_PATTERNS) or _is_reaction_only(message):
+        return GuardrailDecision(action="smalltalk", reason="Closing or acknowledgement.")
 
     if any(pattern.search(normalized) for pattern in GRAY_SCOPE_PATTERNS):
         return GuardrailDecision(
@@ -234,6 +291,12 @@ def assess_user_message(message: str) -> GuardrailDecision:
         action="out_of_scope",
         reason="The request is outside public VinUni student-support information.",
     )
+
+
+def _is_reaction_only(message: str) -> bool:
+    """True for non-empty messages with no alphanumeric word characters — pure emoji /
+    punctuation reactions ("👍", ":)", "..."), which are benign acknowledgements."""
+    return bool(message.strip()) and re.search(r"[0-9a-zA-ZÀ-ỹ]", message) is None
 
 
 def assess_chat_input(
@@ -257,20 +320,53 @@ async def resolve_guardrail_decision(
     settings: Settings | None = None,
     scope_router: Callable[[str], Awaitable[GuardrailDecision]] | None = None,
 ) -> GuardrailDecision:
+    settings = settings or get_settings()
     decision = assess_chat_input(message, filter_values)
-    if decision.action != "needs_scope_router":
+
+    # Confident regex outcomes return immediately: hard blocks, greetings, and confident
+    # allows. Only the non-confident outcomes (gray zone / out-of-scope) consult the APIs,
+    # so the cheap rule tier always runs first and most turns never hit a remote guard.
+    confident = decision.action not in {"needs_scope_router", "out_of_scope"}
+    if confident:
+        if decision.allowed and settings.enable_safety_on_all:
+            safety = await _run_safety_guard(message, settings)
+            if not safety.allowed:
+                return safety
         return decision
 
+    # Non-confident: a custom scope_router (test/override) owns the decision; otherwise run
+    # the content-safety tier, then the injection/scope classifier.
     if scope_router is not None:
         return await scope_router(message)
 
-    try:
-        return await route_gray_scope_with_model(message, settings=settings)
-    except Exception:
+    safety = await _run_safety_guard(message, settings)
+    if not safety.allowed:
+        return safety
+
+    if settings.enable_llm_guard and settings.openrouter_api_key:
+        try:
+            from vinchatbot.app.agents.llm_guard import classify_with_llm
+
+            return await classify_with_llm(message, settings=settings)
+        except Exception:
+            pass
+
+    # No model tier available: keep the prior lenient behavior for ambiguous queries.
+    if decision.action == "needs_scope_router":
         return GuardrailDecision(
             action="allow",
-            reason="Scope router unavailable; allowing ambiguous VinUni-context query.",
+            reason="No model guard available; allowing ambiguous VinUni-context query.",
         )
+    return decision
+
+
+async def _run_safety_guard(message: str, settings: Settings) -> GuardrailDecision:
+    try:
+        from vinchatbot.app.agents.safety_guard import assess_safety
+
+        return await assess_safety(message, settings)
+    except Exception:
+        return GuardrailDecision(action="allow", reason="Safety guard unavailable.")
 
 
 async def route_gray_scope_with_model(
@@ -318,8 +414,10 @@ async def route_gray_scope_with_model(
 
 def build_guardrail_response(decision: GuardrailDecision, message: str) -> ChatResponse:
     language = answer_language(message)
-    if decision.action == "greeting":
-        answer = _greeting_answer(language)
+    if decision.action in ("smalltalk", "greeting"):
+        answer = _smalltalk_answer(message, language)
+    elif decision.action == "capability":
+        answer = _capability_answer(language)
     elif decision.action == "prompt_injection":
         answer = _prompt_injection_answer(language)
     elif decision.action == "restricted_data":
@@ -344,6 +442,30 @@ def build_guardrail_response(decision: GuardrailDecision, message: str) -> ChatR
     )
 
 
+async def build_conversational_response(
+    decision: GuardrailDecision,
+    message: str,
+    settings: Settings | None = None,
+) -> ChatResponse:
+    """Answer a benign conversational turn directly — no retrieval, no refusal. Smalltalk
+    (greeting/closing/ack) uses warm canned copy; capability/identity/social uses a small LLM
+    persona reply (fail-open to canned). Always replies in the detected language."""
+    settings = settings or get_settings()
+    language = answer_language(message)
+    if decision.action == "capability":
+        answer = await _capability_reply(message, language, settings)
+    else:  # smalltalk (greeting / closing / ack / reaction)
+        answer = _smalltalk_answer(message, language)
+
+    return ChatResponse(
+        answer=answer,
+        citations=[],
+        confidence=1.0,
+        tool_trace=[{"type": "guardrail", "action": decision.action, "reason": decision.reason}],
+        needs_human_review=False,
+    )
+
+
 def should_gracefully_degrade(answer: str, citations: list[Citation]) -> bool:
     if not citations:
         return True
@@ -354,6 +476,50 @@ def should_gracefully_degrade(answer: str, citations: list[Citation]) -> bool:
 def contains_sensitive_output(answer: str) -> bool:
     normalized = answer.lower()
     return any(marker in normalized for marker in SENSITIVE_OUTPUT_MARKERS)
+
+
+_FACT_TOKEN_RE = re.compile(r"\d[\d.,/-]*\d")
+
+# The grounding check inspects the substantive answer body only. The citation/source trailer
+# carries metadata digits (policy codes like "VUNI.54", URLs, reference numbers) that are
+# never present in the chunk *body text* and are already validated by the citation pipeline —
+# extracting them as "facts" produced false-positive degradations (a correct LOA answer was
+# refused solely because its source code "VUNI.54" wasn't in the evidence).
+_MD_LINK_RE = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+_SOURCE_LINE_RE = re.compile(
+    r"(?im)^[\s>*_-]*(?:source|sources|nguồn|tài liệu|tham khảo|reference|references|policy code|mã)\b.*$"
+)
+_CODE_PAREN_RE = re.compile(
+    r"(?i)\((?:policy code|reference number|mã[^):]*|source)\s*:[^)]*\)"
+)
+
+
+def _grounding_body(answer: str) -> str:
+    """Strip citation/source attribution (markdown link targets, `Source:`/`Nguồn:` lines,
+    `(Policy Code: …)`) so only substantive claims are grounding-checked."""
+    text = _MD_LINK_RE.sub(r"\1", answer)
+    text = _CODE_PAREN_RE.sub(" ", text)
+    text = _SOURCE_LINE_RE.sub(" ", text)
+    return text
+
+
+def assess_faithfulness(answer: str, retrieved_texts: list[str]) -> bool:
+    """Conservative output grounding check.
+
+    If the answer asserts numeric/date/amount facts but the retrieved evidence shares none
+    of them, treat it as unfaithful. Lenient by design (any overlap passes) so differing
+    date/number formatting between answer and source does not over-trigger degradation.
+    Citation/source metadata (policy codes, URLs) is excluded so it is not mistaken for a
+    claim. Returns True when the answer is considered grounded (or there is nothing to check).
+    """
+
+    if not retrieved_texts:
+        return True  # the citation-presence guard already covers the no-evidence case
+    answer_facts = {token for token in _FACT_TOKEN_RE.findall(normalize_for_matching(_grounding_body(answer)))}
+    if not answer_facts:
+        return True
+    evidence = normalize_for_matching(" \n ".join(retrieved_texts))
+    return any(fact in evidence for fact in answer_facts)
 
 
 def _message_content(message: object) -> str:
@@ -406,16 +572,62 @@ def normalize_for_matching(text: str) -> str:
     return re.sub(r"\s+", " ", without_accents.replace("đ", "d")).strip()
 
 
+_ZERO_WIDTH_RE = re.compile(r"[​-‏⁠﻿]")
+_LEET_MAP = str.maketrans({"4": "a", "3": "e", "1": "i", "0": "o", "$": "s", "@": "a", "5": "s", "7": "t"})
+_BASE64_RE = re.compile(r"[A-Za-z0-9+/]{16,}={0,2}")
+
+
+def deobfuscate(text: str) -> str:
+    """Best-effort de-obfuscation so encoded/disguised injections still match the rules:
+    strip zero-width characters, fold common leetspeak, and append base64-decoded text.
+    """
+    stripped = _ZERO_WIDTH_RE.sub("", text)
+    folded = stripped.translate(_LEET_MAP)
+    decoded: list[str] = []
+    for token in _BASE64_RE.findall(text):
+        try:
+            padded = token + "=" * ((4 - len(token) % 4) % 4)
+            raw = base64.b64decode(padded, validate=False).decode("utf-8", "ignore")
+        except Exception:
+            continue
+        if len(raw) >= 4 and raw.isprintable():
+            decoded.append(raw)
+    return f"{folded} {' '.join(decoded)}".strip()
+
+
+def scan_for_injection(text: str) -> bool:
+    """True if the text contains prompt-injection patterns. Used to screen retrieved
+    document content for indirect (data-borne) injection before it reaches the model.
+    """
+    for variant in (normalize_for_matching(text), normalize_for_matching(deobfuscate(text))):
+        if any(pattern.search(variant) for pattern in INJECTION_PATTERNS):
+            return True
+    return False
+
+
 def _contains_term(normalized: str, term: str) -> bool:
     return re.search(rf"(?<!\w){re.escape(term)}(?!\w)", normalized) is not None
 
 
+# Accent-less Vietnamese hint words (matched on normalized tokens) so Vietnamese typed WITHOUT
+# diacritics ("xin chao", "cam on", "ban la gi") is still detected as Vietnamese. Deliberately
+# excludes words that collide with common English ("the", "on", "ten", "gap", "hen") to avoid
+# misclassifying English questions as Vietnamese.
+_VI_WORD_HINTS = frozenset(
+    (
+        "la", "khi", "ngay", "hoc", "sinh", "vien", "toi", "ban", "minh", "xin", "chao",
+        "cam", "tam", "biet", "gi", "vay", "khong", "khoe", "oke", "vang", "duoc", "roi",
+        "lai", "giup", "cua", "nhe", "voi",
+    )
+)
+
+
 def answer_language(message: str) -> Literal["vi", "en"]:
-    lowered = message.lower()
-    if any(char in lowered for char in "ăâđêôơư") or any(
-        token in normalize_for_matching(message).split()
-        for token in ("la", "khi", "ngay", "hoc", "sinh", "vien", "toi", "ban")
-    ):
+    # Any Vietnamese diacritic → Vietnamese (the full accent set, reused from the normalizer);
+    # otherwise fall back to accent-less hint words; default English.
+    if any(char in VIETNAMESE_MARKERS for char in message.lower()):
+        return "vi"
+    if set(normalize_for_matching(message).split()) & _VI_WORD_HINTS:
         return "vi"
     return "en"
 
@@ -429,12 +641,85 @@ def _source_list(language: Literal["vi", "en"]) -> str:
 def _greeting_answer(language: Literal["vi", "en"]) -> str:
     if language == "vi":
         return (
-            "Xin chào! Mình có thể hỗ trợ thông tin công khai dành cho sinh viên VinUni, "
-            "như lịch học, deadline, chính sách, học phí và dịch vụ sinh viên."
+            "Xin chào! Mình là VinChatbot, trợ lý hỗ trợ sinh viên VinUni. Mình có thể giúp về "
+            "lịch học, deadline, quy định, học phí và dịch vụ sinh viên. Bạn cần hỏi gì nào?"
         )
     return (
-        "Hello! I can help with public VinUni student-support information such as academic "
-        "calendars, deadlines, policies, fees, and student services."
+        "Hi! I'm VinChatbot, VinUni's student-support assistant. I can help with academic "
+        "calendars, deadlines, policies, fees, and student services. What would you like to ask?"
+    )
+
+
+CAPABILITY_PERSONA = (
+    "Bạn là VinChatbot, trợ lý AI hỗ trợ học vụ và dịch vụ sinh viên VinUni. Hãy giới thiệu bản thân "
+    "và khả năng một cách thân thiện, ngắn gọn (2-4 câu): bạn trả lời các câu hỏi về lịch học, "
+    "deadline, quy định/quy chế, học phí và dịch vụ sinh viên dựa trên tài liệu chính thức và có "
+    "trích dẫn nguồn; bạn không truy cập dữ liệu cá nhân (điểm, SIS, email). Mời người dùng đặt một "
+    "câu hỏi học vụ cụ thể. TUYỆT ĐỐI không bịa số liệu, quy định hay mốc thời gian cụ thể, và trả "
+    "lời đúng ngôn ngữ của người dùng."
+)
+
+
+def _capability_answer(language: Literal["vi", "en"]) -> str:
+    """Canned identity/capability reply (also the fail-open fallback for the LLM persona reply)."""
+    if language == "vi":
+        return (
+            "Mình là VinChatbot — trợ lý AI hỗ trợ học vụ VinUni. Mình trả lời các câu hỏi về lịch "
+            "học, deadline, quy định, học phí và dịch vụ sinh viên, kèm trích dẫn nguồn chính thức, "
+            "và không truy cập dữ liệu cá nhân. Bạn cứ hỏi mình một câu hỏi học vụ cụ thể nhé!"
+        )
+    return (
+        "I'm VinChatbot — an AI assistant for VinUni student support. I answer questions about "
+        "academic calendars, deadlines, policies, fees, and student services with citations to "
+        "official sources, and I can't access personal data. Ask me a specific student-support "
+        "question!"
+    )
+
+
+async def _capability_reply(message: str, language: Literal["vi", "en"], settings: Settings) -> str:
+    """LLM persona reply for identity/capability/social turns; fail-open to the canned answer."""
+    canned = _capability_answer(language)
+    if not settings.openrouter_api_key:
+        return canned
+    directive = "Trả lời bằng tiếng Việt." if language == "vi" else "Answer in English."
+    try:
+        model = build_chat_model(settings)
+        response = await model.ainvoke(
+            [
+                {"role": "system", "content": f"{CAPABILITY_PERSONA}\n\n{directive}"},
+                {"role": "user", "content": message},
+            ]
+        )
+        text = _message_content(response).strip()
+        return text or canned
+    except Exception:
+        logger.debug("Capability persona reply failed; using canned answer.", exc_info=True)
+        return canned
+
+
+def _smalltalk_answer(message: str, language: Literal["vi", "en"]) -> str:
+    """Warm canned reply for greeting / thanks / farewell / acknowledgement. No source list."""
+    normalized = normalize_for_matching(message)
+    if any(pattern.fullmatch(normalized) for pattern in GREETING_PATTERNS):
+        return _greeting_answer(language)
+    is_thanks = "cam on" in normalized or "thank" in normalized or "tks" in normalized
+    is_farewell = any(token in normalized for token in ("tam biet", "bye", "goodbye", "hen gap lai", "see you"))
+    if language == "vi":
+        if is_thanks:
+            return "Rất vui được giúp bạn! Nếu cần thêm thông tin học vụ, bạn cứ hỏi mình nhé."
+        if is_farewell:
+            return "Tạm biệt bạn! Khi cần hỗ trợ học vụ, hãy quay lại hỏi mình bất cứ lúc nào nhé."
+        return (
+            "Mình ở đây để hỗ trợ bạn! Bạn cứ hỏi mình về lịch học, deadline, quy định, học phí "
+            "hay dịch vụ sinh viên VinUni nhé."
+        )
+    if is_thanks:
+        return "Happy to help! Feel free to ask me anything else about VinUni student support."
+    if is_farewell:
+        return "Goodbye! Come back anytime you need help with VinUni academics or student services."
+    return (
+        "I'm here to help! Ask me about VinUni academic calendars, deadlines, policies, fees, or "
+        "student services."
     )
 
 

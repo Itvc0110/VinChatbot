@@ -6,12 +6,12 @@ from uuid import NAMESPACE_URL, uuid5
 
 from vinchatbot.app.core.config import Settings, get_settings
 from vinchatbot.app.schemas.document import DocumentChunk
-from vinchatbot.app.storage.vector_metadata import compact_vector_metadata
 from vinchatbot.app.storage.qdrant_store import (
     build_sparse_embeddings,
     ensure_qdrant_payload_indexes,
     qdrant_location_kwargs,
 )
+from vinchatbot.app.storage.vector_metadata import compact_vector_metadata
 
 
 def chunks_to_langchain_documents(chunks: Iterable[DocumentChunk], compact_metadata: bool = False):

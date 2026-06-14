@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import logging
 import sys
+from pathlib import Path
+from urllib.parse import urldefrag
 
 from vinchatbot.app.core.config import get_settings
 from vinchatbot.app.ingest.crawler import (
@@ -11,8 +14,8 @@ from vinchatbot.app.ingest.crawler import (
     read_crawl_manifest,
     read_link_references,
     read_structured_records,
-    write_crawl_manifest,
     write_crawl_coverage_report,
+    write_crawl_manifest,
     write_link_references,
     write_raw_documents,
     write_structured_records,
@@ -27,6 +30,10 @@ def parse_args() -> argparse.Namespace:
         action="append",
         dest="seed_urls",
         help="Seed URL to crawl. Can be passed multiple times. Defaults to built-in VinUni seeds.",
+    )
+    parser.add_argument(
+        "--seed-file",
+        help="Path to a JSON file containing a list of seed URLs (e.g. data/processed/core_seeds.json).",
     )
     parser.add_argument("--max-pages", type=int, help="Override CRAWL_MAX_PAGES_TOTAL for this run.")
     parser.add_argument("--rate-limit", type=float, help="Override CRAWL_RATE_LIMIT_SECONDS for this run.")
@@ -57,9 +64,17 @@ async def main() -> None:
     if args.rate_limit is not None:
         settings.crawl_rate_limit_seconds = args.rate_limit
 
+    seed_urls = list(args.seed_urls or [])
+    if args.seed_file:
+        seed_urls.extend(load_seed_file(args.seed_file))
+    seed_urls = seed_urls or None  # None lets the crawler use its built-in SEED_URLS
+
     crawler = VinUniCrawler(settings)
-    result = await crawler.crawl_full(urls=args.seed_urls, force=args.force)
+    result = await crawler.crawl_full(urls=seed_urls, force=args.force)
     paths = write_raw_documents(result.documents, settings.raw_data_dir)
+
+    if seed_urls:
+        report_seed_coverage(seed_urls, result.manifest_entries)
     manifest_path = f"{settings.processed_data_dir}/crawl_manifest.json"
     link_refs_path = f"{settings.processed_data_dir}/link_references.json"
     records_path = f"{settings.processed_data_dir}/structured_records.json"
@@ -110,6 +125,33 @@ async def main() -> None:
             "No raw documents were written. Check crawl_manifest.json skip_reason values. "
             "If skip_reason contains connection errors, verify network access."
         )
+
+
+def load_seed_file(path: str) -> list[str]:
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(payload, list):
+        raise ValueError(f"Seed file {path} must contain a JSON list of URLs.")
+    return [str(url).strip() for url in payload if str(url).strip()]
+
+
+def report_seed_coverage(
+    seed_urls: list[str],
+    manifest_entries: list[CrawlManifestEntry],
+) -> None:
+    def _norm(url: str) -> str:
+        return urldefrag(url.strip())[0].rstrip("/")
+
+    reached = set()
+    for entry in manifest_entries:
+        for value in (entry.source_url, entry.final_url, entry.canonical_url):
+            if value:
+                reached.add(_norm(value))
+    missing = [url for url in seed_urls if _norm(url) not in reached]
+    logging.info("Seed coverage: %s/%s seeds reached the manifest.", len(seed_urls) - len(missing), len(seed_urls))
+    if missing:
+        logging.warning("Seeds NOT in this run's manifest (%s):", len(missing))
+        for url in missing[:50]:
+            logging.warning("  missing seed: %s", url)
 
 
 def merge_manifest_entries(

@@ -3,8 +3,11 @@ from __future__ import annotations
 from vinchatbot.app.core.config import Settings, get_settings
 
 
-def build_chat_model(settings: Settings | None = None):
-    """Build a LangChain chat model backed by OpenRouter."""
+def build_chat_model(settings: Settings | None = None, model: str | None = None):
+    """Build a LangChain chat model backed by OpenRouter.
+
+    `model` overrides the default chat model (e.g. a cheaper model for the guard tier).
+    """
 
     settings = settings or get_settings()
     if not settings.openrouter_api_key:
@@ -22,7 +25,7 @@ def build_chat_model(settings: Settings | None = None):
         headers["X-OpenRouter-Title"] = settings.openrouter_app_title
 
     return ChatOpenAI(
-        model=settings.openrouter_chat_model,
+        model=model or settings.openrouter_chat_model,
         api_key=settings.openrouter_api_key,
         base_url=settings.openrouter_base_url,
         default_headers=headers or None,
