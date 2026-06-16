@@ -92,6 +92,13 @@ class Settings(BaseSettings):
     enable_adaptive_retrieval: bool = Field(
         default=True, validation_alias="ENABLE_ADAPTIVE_RETRIEVAL"
     )
+    # Cross-lingual expansion (Phase 1.8): add ONE other-language (VI↔EN) translation of the query to
+    # the multi-query set on every domain, so a question in one language still matches sources written
+    # in the other (e.g. VI query vs the English fee tariff / calendar). Independent of the
+    # same-language paraphrase expansion (ENABLE_QUERY_EXPANSION).
+    enable_crosslingual_expansion: bool = Field(
+        default=True, validation_alias="ENABLE_CROSSLINGUAL_EXPANSION"
+    )
 
     # Parent-document retrieval (Phase 4). At retrieval time, collapse the fine chunks that
     # share a (parent_doc_id, section_id) into one chunk carrying the full section text:
