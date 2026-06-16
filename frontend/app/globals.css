@@ -307,11 +307,16 @@ textarea::placeholder {
 /* ---------- two-column conversation ---------- */
 .split {
   display: grid;
-  grid-template-columns: 60fr 40fr;
+  /* minmax(0, …) lets each track shrink below its content's min-content size, so a wide
+     chat column can't blow out the 60/40 ratio and squish the sources panel. */
+  grid-template-columns: minmax(0, 60fr) minmax(0, 40fr);
   flex: 1 1 auto;
   min-height: 0;
 }
 .pane {
+  /* min-width: 0 is required for the same reason — a grid item defaults to
+     min-width: auto, which prevents it from shrinking and collapses the sibling track. */
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -353,6 +358,7 @@ textarea::placeholder {
 /* ---------- chat ---------- */
 .messages {
   flex: 1 1 auto;
+  min-width: 0;
   overflow-y: auto;
   padding: 16px 16px;
   display: flex;
@@ -780,6 +786,7 @@ textarea::placeholder {
 /* ---------- sources panel ---------- */
 .panel-body {
   flex: 1 1 auto;
+  min-width: 0;
   overflow-y: auto;
   padding: 14px 13px 18px;
 }
