@@ -20,6 +20,16 @@ from vinchatbot.app.agents.guardrails import (
     should_gracefully_degrade,
 )
 from vinchatbot.app.core.config import Settings, get_settings
+from vinchatbot.app.core.observability import (
+    estimate_cost_usd,
+    get_point_lookup,
+    get_request_id,
+    get_rerank_count,
+    redact,
+    reset_point_lookup,
+    reset_rerank_count,
+    sum_token_usage,
+)
 from vinchatbot.app.rag.citations import dedupe_citations, excerpt
 from vinchatbot.app.rag.retriever import QdrantHybridRetriever, RetrievedChunk, Retriever
 from vinchatbot.app.schemas.chat import ChatRequest, ChatResponse, Citation
@@ -42,6 +52,8 @@ class VinUniAgentService:
 
     async def chat(self, request: ChatRequest) -> ChatResponse:
         started = time.perf_counter()
+        reset_rerank_count()  # count rerank (Cohere) calls for this turn → surfaced in _log_turn
+        reset_point_lookup()  # did adaptive routing treat this turn as a point-lookup?
         guardrail_decision = await resolve_guardrail_decision(
             request.message,
             list(request.filters.compact().values()) if request.filters else None,
@@ -75,6 +87,16 @@ class VinUniAgentService:
         )
         user_message = f"{user_message}\n\n[Language / Ngôn ngữ trả lời: {language_directive}]"
 
+        if self.settings.enable_langfuse:
+            # Group this turn's traces under the conversation and tag with the request id, so a
+            # multi-turn session reads as one thread in Langfuse (the per-call handler is attached
+            # at the model). Best-effort metadata; never required for the turn to succeed.
+            config["metadata"] = {
+                "langfuse_session_id": request.conversation_id,
+                "request_id": get_request_id(),
+                "langfuse_tags": ["vinchatbot", self.settings.app_env],
+            }
+
         result = await self.agent.ainvoke(
             {"messages": [{"role": "user", "content": user_message}]},
             config=config,
@@ -95,10 +117,17 @@ class VinUniAgentService:
         if should_gracefully_degrade(answer, citations) or not assess_faithfulness(
             answer, retrieved_texts
         ):
-            logger.info(
-                "Chat response used graceful degradation conversation_id=%s citations=%s",
-                request.conversation_id,
-                len(citations),
+            self._log_turn(
+                request,
+                intent=result.get("intent"),
+                latency_ms=int((time.perf_counter() - started) * 1000),
+                messages=messages,
+                citations=len(citations),
+                confidence=0.0,
+                tool_trace=tool_trace,
+                needs_human_review=True,
+                degraded=True,
+                guardrail_action="graceful_degradation",
             )
             return build_graceful_degradation_response(
                 request.message,
@@ -117,12 +146,17 @@ class VinUniAgentService:
         confidence = _estimate_confidence(citations)
         needs_human_review = _needs_human_review(answer, citations)
 
-        logger.info(
-            "chat turn conversation_id=%s latency_ms=%d citations=%d confidence=%.2f",
-            request.conversation_id,
-            int((time.perf_counter() - started) * 1000),
-            len(citations),
-            confidence,
+        self._log_turn(
+            request,
+            intent=result.get("intent"),
+            latency_ms=int((time.perf_counter() - started) * 1000),
+            messages=messages,
+            citations=len(citations),
+            confidence=confidence,
+            tool_trace=tool_trace,
+            needs_human_review=needs_human_review,
+            degraded=False,
+            guardrail_action="allow",
         )
 
         return ChatResponse(
@@ -131,6 +165,70 @@ class VinUniAgentService:
             confidence=confidence,
             tool_trace=tool_trace,
             needs_human_review=needs_human_review,
+        )
+
+    def _log_turn(
+        self,
+        request: ChatRequest,
+        *,
+        intent: Any,
+        latency_ms: int,
+        messages: list[Any],
+        citations: int,
+        confidence: float,
+        tool_trace: list[dict[str, Any]],
+        needs_human_review: bool,
+        degraded: bool,
+        guardrail_action: str,
+    ) -> None:
+        """Emit one structured turn line carrying the AI-specific signals (latency, tokens, cost,
+        quality). Best-effort: cost capture failing must never break the response."""
+        tokens_in = tokens_out = 0
+        est_cost = 0.0
+        if self.settings.enable_cost_tracking:
+            try:
+                tokens_in, tokens_out = sum_token_usage(messages)
+                est_cost = estimate_cost_usd(
+                    self.settings.openrouter_chat_model, tokens_in, tokens_out
+                )
+            except Exception:
+                logger.debug("Cost capture failed; logging zeros.", exc_info=True)
+        question = redact(request.message) if self.settings.log_redact_pii else request.message
+        tool_calls = sum(1 for entry in tool_trace if entry.get("type") == "tool_result")
+        rerank_calls = get_rerank_count()
+        point_lookup = get_point_lookup()
+        logger.info(
+            "chat_turn intent=%s latency_ms=%d tokens=%d/%d est_cost_usd=%.6f citations=%d "
+            "confidence=%.2f rerank_calls=%d point_lookup=%s action=%s%s",
+            intent,
+            latency_ms,
+            tokens_in,
+            tokens_out,
+            est_cost,
+            citations,
+            confidence,
+            rerank_calls,
+            point_lookup,
+            guardrail_action,
+            " degraded" if degraded else "",
+            extra={
+                "event": "chat_turn",
+                "conversation_id": request.conversation_id,
+                "intent": intent,
+                "latency_ms": latency_ms,
+                "tokens_in": tokens_in,
+                "tokens_out": tokens_out,
+                "est_cost_usd": est_cost,
+                "citations": citations,
+                "confidence": round(float(confidence), 3),
+                "guardrail_action": guardrail_action,
+                "degraded": degraded,
+                "tool_calls": tool_calls,
+                "rerank_calls": rerank_calls,
+                "point_lookup": point_lookup,
+                "needs_human_review": needs_human_review,
+                "question": question,
+            },
         )
 
     def _build_agent(self):

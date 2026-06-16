@@ -19,13 +19,13 @@ web app with login/roles/admin/chat-history) is **~0% built**. The highest-lever
 
 | Subsystem | Maturity | One-line state |
 |---|---|---|
-| Core RAG + multi-agent | ●●●●○ | Hybrid+rerank+RRF+boosts+dynamic-k+LITM; supervisor→4 specialists. Strong. |
+| Core RAG + multi-agent | ●●●●○ | Hybrid+RRF+**fuse-rerank-once (1.6)**+boosts+dynamic-k+LITM+**adaptive point-lookup routing & full-section reading (1.7)**; supervisor→4 specialists. Strong. |
 | Guardrails / safety | ●●●●○ | Layered regex→moderation→LLM injection/scope + output checks. Strong. |
-| Generation / prompts | ●●●○○ | Versioned specialist prompts; EN→VI language leak + no structured procedure output. |
-| **Evaluation / testing** | ●●○○○ | 86 cases, token-match only. **No retrieval recall, LLM-judge, held-out set, regression/cost tracking.** |
+| Generation / prompts | ●●●○○ | Versioned specialist prompts (+ flag-gated strict point-lookup suffix, 1.7); EN→VI language leak + no structured procedure output. |
+| **Evaluation / testing** | ●●●○○ | **130 cases (1.7)** + `run_eval.py --diff` (per-case flips/deltas). Still token-match only; **no retrieval recall, LLM-judge, multi-run averaging** (single-run noise ~±3 cases). |
 | Data quality / ingest | ●●●○○ | Rich extraction; **dedup exact-hash only, heuristic metadata, OCR off, regex-fragile calendar/fee.** |
-| Backend / API | ●●○○○ | Minimal FastAPI; no lifespan, streaming, retries, request IDs, rate limiting. |
-| Observability | ●○○○○ | Basic logging only; no tracing, metrics, cost/token capture, feedback loop. |
+| Backend / API | ●●○○○ | Minimal FastAPI; request IDs added (1.5a); still no lifespan, streaming, retries, rate limiting. |
+| Observability | ●●●○○ | **1.5a/b done:** JSON logs + correlation IDs + per-turn cost/tokens + Langfuse tracing. Remaining (1.5c): metrics endpoint, dashboards, alerts/SLO, feedback loop. |
 | Platform (auth/UI/admin/deploy) | ○○○○○ | **Not started — brief requirement, teammates own.** |
 
 ---
@@ -35,9 +35,12 @@ web app with login/roles/admin/chat-history) is **~0% built**. The highest-lever
 ### A. Evaluation & Testing — *highest priority (it gates every other improvement)*
 
 **Now:** `scripts/run_eval.py` — token-subset fact matching + citation-substring + refusal detection;
-86 golden cases; nightly `eval.yml`. **Gaps:** no retrieval metrics (recall@k/nDCG/MRR), no
-LLM-as-judge (token matching fails on `temporary`≠`temporarily`, date formats), partly circular
-golden set, no run-over-run regression tracking, no latency/cost capture, no per-specialist scores.
+**130 golden cases (1.7)** incl. a `calendar_pointlookup` category with adjacent-date distractors +
+cross-lingual fee + multilingual guard cases; **`--diff <report>`** prints per-case flips +
+per-category deltas (1.7); nightly `eval.yml`. **Gaps:** **single-run noise ~±3 cases** (a 30-case
+category swung ±0.10 on identical logic) → need **multi-run averaging / lower-variance harness**; no
+retrieval metrics (recall@k/nDCG/MRR), no LLM-as-judge, partly circular golden set, no per-specialist
+scores.
 
 **Why it's #1:** improvements are measured against a noisy ±2-case token matcher; we can't see *where*
 retrieval fails (recall) vs *where* generation fails. 2026 practice treats eval infra as a
@@ -62,10 +65,15 @@ context recall) + LLM-as-judge as the standard ([RAGAS/TruLens/DeepEval — Atla
 
 ### B. Retrieval & RAG — *biggest quality lever after eval*
 
-**Now:** multi-query+RRF → hybrid Qdrant (dense+BM25) → OpenRouter rerank → metadata boosts →
-dynamic-k → dedup → LITM. **Gaps:** (1) **cross-lingual** — VN query vs EN tariff ranks the right doc
-last (proven); (2) off-domain pages outrank routed-domain docs (soft-routing boost too weak); (3)
-calendar point-lookups; (4) **Contextual Retrieval not implemented**; (5) one-pass for all queries.
+**Now:** adaptive (1.7) — router (`is_point_lookup`) → expansion (calendar OFF / financial ON +
+**cross-lingual EN variant**) → per-variant candidates → RRF fuse → **rerank ONCE (1.6)** → boosts →
+dynamic-k → **full-section reading for point-lookups** → LITM → injection scan. **Done in 1.6/1.7:**
+fuse-rerank-once (cost), point-lookup precision (calendar wrong-date fixed), cross-lingual fee recall
+(VI→EN nursing misses fixed). **Remaining gaps:** (1) calendar "period"/grade-release **persistent
+fails** — wrong-document (calendar PDF loses to registrar blogs) + cross-term confusion → wants a
+**structured calendar lookup** (calendar_event records already exist, PHASE1.0) and/or a
+**calendar-source boost**; (2) off-domain pages outrank routed docs (soft-routing boost weak);
+(3) **Contextual Retrieval not implemented**.
 
 **Proposals (research-backed)**
 - **Contextual Retrieval (Anthropic):** prepend a 1–2 sentence LLM context to each chunk before
@@ -169,16 +177,25 @@ streaming, retries, request IDs, rate limiting; checkpointer in-memory by defaul
 
 ### H. Observability & Ops — *cheap, high-leverage, enables everything else*
 
-**Now:** plain logging only. No tracing/metrics/cost. The quota blow-up this session was invisible until a 403.
+**Done — Phase 1.5a/b** (see [LOGS/PHASE1.5_LOG.md](LOGS/PHASE1.5_LOG.md)): structured JSON logging +
+`X-Request-ID` correlation + PII redaction; per-turn token/cost capture (structured `chat_turn` line);
+**Langfuse tracing** wired at `build_chat_model` (every LLM call) with session grouping + email/phone
+masking. `langfuse` is an `observability` optional extra; all fail-open.
 
-**Proposals (research)**
-- **Adopt Langfuse** (open-source, MIT, self-hostable) for tracing + token/cost + prompt mgmt + LLM-judge
-  eval in one place; integrates with LangChain/LangGraph and OpenTelemetry
-  ([Langfuse](https://langfuse.com/docs/observability/overview),
-  [LLM observability 2026 comparison](https://explore.n1n.ai/blog/llm-observability-langfuse-langsmith-opentelemetry-2026-05-17)).
-- **Cost/token capture per turn** (embeddings+chat+rerank+guard) → guards against the quota incident.
+**Remaining — Phase 1.5c (the full SRE stack; deferred here as future work):**
+- **`/metrics` Prometheus endpoint** (`prometheus-fastapi-instrumentator`): request rate, latency
+  histogram P50/95/99, error counter + custom token/cost/guardrail/tool-success metrics. Gated
+  `ENABLE_METRICS`.
+- **Grafana dashboard** (3-layer: golden signals → AI metrics → per-route), JSON committed under `ops/`.
+- **≥3 symptom-based alerts** (P95 latency, error rate, daily-cost spike) + **1 SLO + error budget** +
+  Slack webhook (`SLACK_WEBHOOK_URL`).
 - **Readiness probe** checking Qdrant + OpenRouter reachability (current `/health` always 200).
-- **User feedback loop** (helpful/not-helpful → dataset) feeding the held-out eval set (A).
+- **Online feedback endpoint** (`POST /chat/feedback`, 👍/👎 keyed by `request_id`) → online quality
+  proxy feeding the held-out eval set (A). *(Langfuse can also capture scores via its API.)*
+- **TTFT** needs SSE streaming (see G) — stretch.
+
+Research refs: [Langfuse](https://langfuse.com/docs/observability/overview),
+[LLM observability 2026 comparison](https://explore.n1n.ai/blog/llm-observability-langfuse-langsmith-opentelemetry-2026-05-17).
 
 ---
 
@@ -226,9 +243,9 @@ Each item: toggle-gated where it touches serving, A/B-measured on the upgraded e
 ---
 
 ## Consolidated TODO checklist
-- [ ] **Eval:** retrieval recall@k/MRR/nDCG; LLM-judge tier; regression diff vs baseline; latency/cost; held-out set
-- [ ] **Observability:** Langfuse tracing + token/cost capture; readiness probe; feedback loop
-- [ ] **Retrieval:** contextual chunks; adaptive query router; cross-lingual query; off-category penalty; structured calendar/fee KB
+- [~] **Eval:** [x] eval set 86→130 + `--diff` regression tooling (1.7) — [ ] remaining: **multi-run averaging** (single-run noise ~±3 cases); retrieval recall@k/MRR/nDCG; LLM-judge tier; held-out set
+- [x] **Observability (1.5a/b done):** JSON logging + correlation IDs + per-turn cost/tokens + Langfuse tracing — [ ] remaining (1.5c): Prometheus `/metrics` + Grafana dashboard; ≥3 alerts + SLO/error-budget; readiness probe; feedback endpoint
+- [~] **Retrieval:** [x] fuse-rerank-once (1.6); adaptive point-lookup router + full-section + cross-lingual query (1.7) — [ ] remaining: structured calendar lookup; calendar-source boost; contextual chunks; off-category penalty
 - [ ] **Agents:** complexity gate + iteration budget; reflection step
 - [ ] **Data:** index-time near-dup dedup; quality filter; VN OCR; table-aware fee parse; headless/JS fetch + image OCR for `experience.vinuni.edu.vn` (student-life/health/career/housing seed)
 - [ ] **Backend:** lifespan warmup; SSE streaming; LLM/Qdrant retries; request IDs; Postgres checkpointer

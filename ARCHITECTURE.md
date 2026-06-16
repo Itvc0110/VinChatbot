@@ -4,11 +4,14 @@ Visual reference for how data and a chat turn move through the system. Diagrams 
 Mermaid (render in GitHub and the VS Code Mermaid preview). Pairs with [PRD.md](PRD.md) /
 [UPDATE_PLAN.md](UPDATE_PLAN.md).
 
-> State (2026-06-14, post-Phase 1.4): the flows, multi-agent routing, layered guards, and module
-> map below match the current code. The layered safety guard (OpenAI omni-moderation) is **live**,
-> and the Phase 1.4 faithfulness output-gate fix is reflected in §2. Serving pipeline is **plain-text**
-> (markdown OFF) on **`gpt-4o-mini`**; **parent-document retrieval is built but gated OFF**
-> (`ENABLE_PARENT_DOC=false`), so it is not drawn here. See [PHASE1.4_LOG.md](LOGS/PHASE1.4_LOG.md).
+> State (2026-06-16, post-Phase 1.7): the flows, multi-agent routing, layered guards, and module
+> map below match the current code. The layered safety guard (OpenAI omni-moderation) is **live**;
+> the Phase 1.4 faithfulness output-gate fix is in §2. Serving pipeline is **plain-text** (markdown
+> OFF) on **`gpt-4o-mini`**. Retrieval now includes **Phase 1.6 fuse→rerank-once** and **Phase 1.7
+> adaptive point-lookup routing** (`ENABLE_ADAPTIVE_RETRIEVAL=true`): point-lookups read the **full
+> section** (the parent-doc machinery, previously gated off, is now used for them) + a strict
+> extraction prompt. Full detail in **§2b**. See [PHASE1.6_LOG.md](LOGS/PHASE1.6_LOG.md) /
+> [PHASE1.7_LOG.md](LOGS/PHASE1.7_LOG.md).
 
 ---
 
@@ -65,16 +68,7 @@ flowchart TD
         spec["Selected specialist (1 of 4)<br/>ReAct agent, own prompt + tool subset"]
     end
 
-    subgraph retr["Retrieval (tool _search → QdrantHybridRetriever)"]
-        expand["multi-query expand + RRF<br/>(query_engineering.py)"]
-        hybrid["hybrid dense+sparse search (Qdrant)"]
-        rerank["rerank (OpenRouter, fail-open)"]
-        ddup["near-dup dedup"]
-        boost["metadata boost<br/>(source_trust / term / policy_code)"]
-        dynk["dynamic-k (score-ratio + min/max)"]
-        litm["lost-in-the-middle reorder"]
-        scan["indirect-injection scan (drop poisoned chunks)"]
-    end
+    retr["Retrieval pipeline (adaptive)<br/>tool _search → QdrantHybridRetriever<br/>— full detail in §2b"]
 
     answer["answer + citations + tool_trace"]
     guard_out{"Output checks (chat)<br/>secret-leak · citation/degrade · faithfulness"}
@@ -85,12 +79,58 @@ flowchart TD
     req --> guard_in
     guard_in -->|blocked| blocked
     guard_in -->|allowed| lang --> sup --> spec
-    spec -->|tool call| expand --> hybrid --> rerank --> ddup --> boost --> dynk --> litm --> scan --> spec
+    spec -->|tool call| retr --> spec
     spec --> answer --> guard_out
     guard_out -->|leak| blocked
     guard_out -->|unsupported| degrade
     guard_out -->|ok| resp
     graph <--> mem
+```
+
+## 2b. Retrieval pipeline detail (adaptive — Phase 1.6 / 1.7)
+
+Every tool call enters `_search` ([tools.py](vinchatbot/app/agents/tools.py)). A cheap router
+(`is_point_lookup`, [query_engineering.py](vinchatbot/app/rag/query_engineering.py)) splits **prose**
+from **point-lookups** (exact dates/amounts/codes — routed category `calendar`/`financial`, or a
+year/term/amount in the query). Two shipped levers: **Phase 1.6** reranks the RRF-fused pool **once**
+(not per variant — ~67% fewer rerank calls); **Phase 1.7** routes point-lookups to **full-section
+reading + a strict extraction prompt**, with a domain split on query expansion (calendar OFF for
+precision; financial ON + a cross-lingual English variant for recall). Toggles:
+`ENABLE_RERANK_AFTER_FUSION`, `ENABLE_ADAPTIVE_RETRIEVAL` (both default **true**; set either `false`
+to revert).
+
+```mermaid
+flowchart TD
+    q["tool _search(query, routed category) — tools.py"]
+    soft["soft-routing → category as boost hint"]
+    pl{"is_point_lookup?<br/>ENABLE_ADAPTIVE_RETRIEVAL +<br/>category calendar/financial OR year/term/amount"}
+
+    q --> soft --> pl
+
+    pl -->|"calendar point-lookup"| c1["NO expansion (single query)<br/>precision: date-grid neighbours are distractors"]
+    pl -->|"financial / other point-lookup"| c2["expand_query + cross-lingual EN variant<br/>recall: match the EN tariff"]
+    pl -->|"prose (not a point-lookup)"| c3["expand_query (same-language paraphrases)"]
+
+    c2 --> mq{"len(queries) > 1?"}
+    c3 --> mq
+    mq -->|yes| fuse["per-variant candidates (vector+BM25, NO rerank)<br/>→ RRF fuse → near-dup dedup → cap to candidate_k"]
+    fuse --> rr
+    mq -->|no| rr
+    c1 --> rr
+
+    subgraph finz["rerank + finalize — QdrantHybridRetriever._finalize"]
+        rr["rerank ONCE (OpenRouter Cohere, fail-open)<br/>Phase 1.6: one call, not per-variant"]
+        dd["near-dup dedup"]
+        bo["metadata boost (trust / term / policy_code / category)"]
+        dk["dynamic-k (score-ratio, min/max)"]
+        se["full-section expand for point-lookups<br/>(parent-doc machinery; incl. the calendar table)"]
+        lm["lost-in-the-middle reorder"]
+        rr --> dd --> bo --> dk --> se --> lm
+    end
+
+    lm --> scan["indirect-injection scan (drop poisoned chunks)"]
+    scan --> out["chunks → specialist as tool result"]
+    out --> sp["calendar & financial specialists add a strict<br/>'answer the exact value only' prompt (point-lookups)"]
 ```
 
 ## 2a. Multi-agent: supervisor → specialists → tools (and where MCP/A2A would fit)
@@ -128,7 +168,7 @@ flowchart TD
         t5["get_source_detail"]
     end
 
-    retr["Retrieval pipeline → Qdrant<br/>expand → hybrid → rerank → metadata-boost →<br/>dynamic-k → dedup → LITM → injection-scan"]
+    retr["Retrieval pipeline → Qdrant (adaptive)<br/>router → expand/fuse → rerank-once →<br/>boost → dynamic-k → full-section → LITM → scan<br/>(full detail in §2b)"]
 
     q --> sup
     sup -->|calendar| cal --> t1

@@ -50,6 +50,9 @@ vector-backups = [
     "langchain-chroma>=0.1.4",
     "langchain-pinecone>=0.2.0",
 ]
+observability = [
+    "langfuse>=4.0.0,<5",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

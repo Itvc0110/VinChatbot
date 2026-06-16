@@ -6,9 +6,14 @@ from typing import Any
 
 from vinchatbot.app.agents.guardrails import scan_for_injection
 from vinchatbot.app.core.config import get_settings
+from vinchatbot.app.core.observability import mark_point_lookup
 from vinchatbot.app.rag.citations import excerpt
 from vinchatbot.app.rag.context import dedup_by_text, reorder_for_long_context
-from vinchatbot.app.rag.query_engineering import expand_query, reciprocal_rank_fusion
+from vinchatbot.app.rag.query_engineering import (
+    expand_query,
+    is_point_lookup,
+    reciprocal_rank_fusion,
+)
 from vinchatbot.app.rag.retriever import Retriever
 
 
@@ -36,11 +41,45 @@ def build_retrieval_tools(retriever: Retriever):
             boost_hints = None
 
         max_k = settings.retrieval_max_k
-        queries = await expand_query(query, settings) if settings.enable_query_expansion else [query]
+        routed = enforced_filters or {}
+        subcat = routed.get("subcategory") or routed.get("category")
+        point_lookup = settings.enable_adaptive_retrieval and is_point_lookup(query, subcat)
+        if point_lookup:
+            mark_point_lookup()
+        expand_sections = point_lookup
+        fuse_then_rerank = settings.enable_rerank_after_fusion or point_lookup
 
-        if len(queries) > 1:
-            # Multi-query: retrieve each variant in relevance order (parallel), fuse with
-            # RRF, then dedup and apply the lost-in-the-middle reorder once on the result.
+        # Adaptive (Phase 1.7) domain split: a calendar date-grid's neighbours are pure distractors,
+        # so calendar point-lookups DROP expansion (precision); financial/other point-lookups KEEP
+        # expansion and add an English variant (cross-lingual recall for the EN tariff). Both read the
+        # full section + a strict prompt so the model picks the exact row.
+        if point_lookup and subcat == "calendar":
+            queries = [query]
+        elif settings.enable_query_expansion:
+            queries = await expand_query(query, settings, cross_lingual=point_lookup)
+        else:
+            queries = [query]
+
+        if len(queries) > 1 and fuse_then_rerank:
+            # Retrieve candidates per variant WITHOUT reranking, RRF-fuse, then rerank ONCE.
+            candidate_lists = await asyncio.gather(
+                *(
+                    retriever.search_candidates(query=q, filters=merged_filters, limit=max_k)
+                    for q in queries
+                )
+            )
+            fused = reciprocal_rank_fusion(candidate_lists, key=lambda chunk: chunk.metadata.chunk_id)
+            fused = dedup_by_text(fused, lambda chunk: chunk.text)[: settings.retrieval_candidate_k]
+            chunks = await retriever.rerank_fused(
+                query,
+                fused,
+                limit=max_k,
+                boost_hints=boost_hints,
+                reorder=settings.enable_litm_reorder,
+                expand_sections=expand_sections,
+            )
+        elif len(queries) > 1:
+            # Legacy per-variant rerank (only when rerank-after-fusion is off and not a point-lookup).
             ranked_lists = await asyncio.gather(
                 *(
                     retriever.search(
@@ -54,7 +93,11 @@ def build_retrieval_tools(retriever: Retriever):
             chunks = reorder_for_long_context(fused) if settings.enable_litm_reorder else fused
         else:
             chunks = await retriever.search(
-                query=query, filters=merged_filters, limit=max_k, boost_hints=boost_hints
+                query=query,
+                filters=merged_filters,
+                limit=max_k,
+                boost_hints=boost_hints,
+                expand_sections=expand_sections,
             )
 
         # Indirect-injection defense: drop retrieved chunks whose text carries injection

@@ -171,6 +171,60 @@ def _summarize(rows: list[dict]) -> dict:
     }
 
 
+def _compute_diff(
+    rows: list[dict], summary: dict, base_rows: list[dict], base_summary: dict
+) -> dict:
+    """Compare a new run (rows/summary) against a baseline report's cases/summary.
+
+    Returns per-case flips for the cases present in BOTH runs (so an expanded eval set doesn't
+    show every new case as a 'flip'), plus added/removed ids and the overall pass rates.
+    """
+    base_pass = {c["id"]: bool(c.get("passed")) for c in base_rows if "id" in c}
+    cur_pass = {r["id"]: bool(r.get("passed")) for r in rows if "id" in r}
+    shared = [i for i in cur_pass if i in base_pass]
+    return {
+        "lost": sorted(i for i in shared if base_pass[i] and not cur_pass[i]),
+        "gained": sorted(i for i in shared if not base_pass[i] and cur_pass[i]),
+        "added": sorted(i for i in cur_pass if i not in base_pass),
+        "removed": sorted(i for i in base_pass if i not in cur_pass),
+        "overall_base": base_summary.get("passed"),
+        "overall_cur": summary.get("passed"),
+    }
+
+
+def _print_diff(rows: list[dict], summary: dict, baseline_path: Path) -> None:
+    """Print per-case flips (pass<->fail) + per-category pass-rate deltas vs a prior report."""
+    if not baseline_path.exists():
+        print(f"\n[diff] baseline not found: {baseline_path}")
+        return
+    base = json.loads(baseline_path.read_text(encoding="utf-8"))
+    diff = _compute_diff(rows, summary, base.get("cases", []), base.get("summary", {}))
+    category = {r["id"]: r.get("category", "unknown") for r in rows if "id" in r}
+
+    print(f"\n===== DIFF vs {baseline_path.name} =====")
+    print(
+        f"overall: {diff['overall_base']} -> {diff['overall_cur']}  "
+        f"(+{len(diff['gained'])} / -{len(diff['lost'])}; "
+        f"new={len(diff['added'])}, removed={len(diff['removed'])})"
+    )
+    print("LOST (pass -> fail):" if diff["lost"] else "LOST: none")
+    for case_id in diff["lost"]:
+        print(f"  - [{category.get(case_id, '?')}] {case_id}")
+    print("GAINED (fail -> pass):" if diff["gained"] else "GAINED: none")
+    for case_id in diff["gained"]:
+        print(f"  + [{category.get(case_id, '?')}] {case_id}")
+
+    base_cat = base.get("summary", {}).get("by_category", {})
+    cur_cat = summary.get("by_category", {})
+    print("per-category passed (baseline -> current):")
+    for cat in sorted(set(base_cat) | set(cur_cat)):
+        print(f"  {cat}: {base_cat.get(cat, {}).get('passed')} -> {cur_cat.get(cat, {}).get('passed')}")
+    if diff["added"]:
+        print("new cases (not in baseline):", ", ".join(diff["added"]))
+    if diff["removed"]:
+        print("removed cases (only in baseline):", ", ".join(diff["removed"]))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Score VinChatbot against golden sets.")
     parser.add_argument("--golden-dir", default="data/eval/golden")
@@ -178,6 +232,7 @@ def main() -> None:
     parser.add_argument("--min-pass", type=float, default=0.0, help="Exit non-zero below this overall pass rate.")
     parser.add_argument("--limit", type=int, default=None, help="Only run the first N cases (quick smoke).")
     parser.add_argument("--strict", action="store_true", help="Exact-substring fact matching (default: token-subset).")
+    parser.add_argument("--diff", default=None, help="Path to a prior report JSON; print per-case flips + per-category deltas vs it.")
     args = parser.parse_args()
 
     cases = _load_cases(Path(args.golden_dir), Path(args.legacy_calendar))
@@ -201,6 +256,8 @@ def main() -> None:
 
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     print(f"report: {report_path}")
+    if args.diff:
+        _print_diff(rows, summary, Path(args.diff))
     if summary["passed"] < args.min_pass:
         print(f"FAIL: overall pass {summary['passed']} < min-pass {args.min_pass}")
         sys.exit(1)

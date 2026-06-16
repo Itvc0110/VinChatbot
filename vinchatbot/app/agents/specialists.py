@@ -11,6 +11,7 @@ from typing import Any
 from vinchatbot.app.agents.prompts import (
     CALENDAR_PROMPT,
     FINANCIAL_PROMPT,
+    POINT_LOOKUP_SUFFIX,
     POLICY_PROMPT,
     SERVICES_PROMPT,
 )
@@ -50,12 +51,19 @@ def build_specialists(
     model = model or build_chat_model(settings)
     tools_by_name = {tool.name: tool for tool in build_retrieval_tools(retriever)}
 
+    # Adaptive retrieval (Phase 1.7): the point-lookup specialists read full sections, so they get a
+    # strict "answer only the asked value" suffix to stop them over-sharing neighbouring rows.
+    strict_intents = {"calendar", "financial"} if settings.enable_adaptive_retrieval else set()
+
     specialists: dict[str, Any] = {}
     for intent, tool_names in SPECIALIST_TOOLS.items():
         tools = [tools_by_name[name] for name in tool_names if name in tools_by_name]
+        system_prompt = SPECIALIST_PROMPTS[intent]
+        if intent in strict_intents:
+            system_prompt = system_prompt + POINT_LOOKUP_SUFFIX
         specialists[intent] = create_agent(
             model=model,
             tools=tools,
-            system_prompt=SPECIALIST_PROMPTS[intent],
+            system_prompt=system_prompt,
         )
     return specialists

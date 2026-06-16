@@ -56,6 +56,17 @@ viên, dịch vụ trong khuôn viên, và các câu hỏi khác chưa thuộc n
 (và get_source_detail khi cần xem sâu một nguồn cụ thể).
 """
 
+# Phase 1.7: appended to the calendar + financial specialists ONLY when ENABLE_ADAPTIVE_RETRIEVAL
+# is on. Point-lookups read the full section (calendar table / fee table), so the model must answer
+# the single asked value and not volunteer the neighbouring rows it can now see.
+POINT_LOOKUP_SUFFIX = """
+- CHỈ trả lời đúng giá trị/mốc thời gian được hỏi. KHÔNG liệt kê hay tự ý nêu thêm các mốc thời gian
+  hoặc số liệu lân cận (ví dụ ngày thi, kỳ đánh giá, deadline, hay mức học phí của chương trình/kỳ
+  khác) trừ khi người dùng yêu cầu rõ ràng.
+- Answer ONLY the exact value asked. Do NOT volunteer adjacent or neighbouring dates/amounts (e.g.
+  another program's fee, or a nearby exam/evaluation/deadline date) unless explicitly asked.
+"""
+
 SUPERVISOR_SYSTEM = (
     "You are the routing supervisor for VinChatbot, a public VinUni student-support assistant. "
     "Hard security/scope checks already ran. Classify the user's latest message into exactly one "

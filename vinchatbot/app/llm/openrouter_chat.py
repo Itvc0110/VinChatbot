@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from vinchatbot.app.core.config import Settings, get_settings
+from vinchatbot.app.core.observability import get_langfuse_callbacks
 
 
 def build_chat_model(settings: Settings | None = None, model: str | None = None):
@@ -30,5 +31,8 @@ def build_chat_model(settings: Settings | None = None, model: str | None = None)
         base_url=settings.openrouter_base_url,
         default_headers=headers or None,
         temperature=0.1,
+        # Langfuse tracing (fail-open: [] -> None when disabled). Attaching at the model captures
+        # every LLM call — supervisor, specialists, query expansion, guard, capability replies.
+        callbacks=get_langfuse_callbacks(settings) or None,
     )
 

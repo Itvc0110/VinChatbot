@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import httpx
 
 from vinchatbot.app.core.config import Settings, get_settings
+from vinchatbot.app.core.observability import incr_rerank_count
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ class OpenRouterReranker:
             "Authorization": f"Bearer {self.settings.openrouter_api_key}",
             "Content-Type": "application/json",
         }
+        incr_rerank_count()  # one billed Cohere "search" — counted per turn for the cost log
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(

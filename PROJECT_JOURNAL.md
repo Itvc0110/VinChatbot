@@ -1,11 +1,12 @@
 # VinChatbot — Project Journal (read this first)
 
-Single read-back file for context. Last updated: 2026-06-14.
+Single read-back file for context. Last updated: 2026-06-16.
 Detailed docs: [PRD.md](PRD.md) · [UPDATE_PLAN.md](UPDATE_PLAN.md) (roadmap) ·
-[ARCHITECTURE.md](ARCHITECTURE.md) (flow diagrams) · [PHASE1.0_LOG.md](LOGS/PHASE1.0_LOG.md) ·
-[PHASE1.1_LOG.md](LOGS/PHASE1.1_LOG.md) · [PHASE1.2_LOG.md](LOGS/PHASE1.2_LOG.md) · [PHASE1.3_LOG.md](LOGS/PHASE1.3_LOG.md) ·
-[PHASE1.4_LOG.md](LOGS/PHASE1.4_LOG.md) · [FUTURE_IMPROVEMENTS.md](FUTURE_IMPROVEMENTS.md) (whole-project
-assessment + research-backed roadmap) · [todo.md](todo.md) (incl. deferred Vietnamese work).
+[ARCHITECTURE.md](ARCHITECTURE.md) (flow diagrams, incl. §2b retrieval) · LOGS/PHASE1.0–1.4 ·
+[PHASE1.5_LOG.md](LOGS/PHASE1.5_LOG.md) (observability) · [PHASE1.6_LOG.md](LOGS/PHASE1.6_LOG.md)
+(rerank cost) · [PHASE1.7_LOG.md](LOGS/PHASE1.7_LOG.md) (eval expansion + adaptive retrieval) ·
+[FUTURE_IMPROVEMENTS.md](FUTURE_IMPROVEMENTS.md) (whole-project assessment + roadmap) ·
+[todo.md](todo.md) (deferred Vietnamese work).
 
 ## What this is
 RAG + multi-agent chatbot answering VinUni students' questions on policies, academic
@@ -17,9 +18,12 @@ stretch. Deployed-app (auth/UI/admin) required by brief but not built yet.
 ## System shape (see ARCHITECTURE.md)
 - **Online (`/chat`)**: input guard → supervisor routes to 1 of 4 specialist ReAct agents
   (calendar/policy/financial/services) → retrieval tool → answer → output checks.
-- **Retrieval**: query expansion (multi-query+RRF) → hybrid Qdrant → OpenRouter rerank →
-  metadata boosts (source_trust/term/policy_code) → dynamic-k → dedup → lost-in-the-middle
-  reorder → indirect-injection scan.
+- **Retrieval** (adaptive, ARCHITECTURE §2b): a cheap router (`is_point_lookup`) splits prose vs
+  point-lookups. Multi-query: per-variant candidates (no rerank) → RRF fuse → **rerank ONCE**
+  (Phase 1.6, ~67% fewer rerank calls) → metadata boosts → dynamic-k → **full-section expand for
+  point-lookups** → LITM → indirect-injection scan. Phase 1.7 split: calendar point-lookups drop
+  expansion (precision); financial keep it + a **cross-lingual EN variant** (recall); both get a
+  strict "exact value only" prompt. Toggles `ENABLE_RERANK_AFTER_FUSION` / `ENABLE_ADAPTIVE_RETRIEVAL`.
 - **Guards (cost-aware, rule tier first)**: regex+deobfuscation (base64/zero-width/leet) →
   (non-confident only) OpenAI omni-moderation (safety) → qwen-2.5-7b classifier
   (injection/scope). Output: secret-leak + citation/degrade + faithfulness checks.
@@ -44,6 +48,15 @@ stretch. Deployed-app (auth/UI/admin) required by brief but not built yet.
   regex (59 clean events → 8) + over-fragmentation (2× chunks) flooded retrieval with tiny
   registrar fragments. **Markdown is OFF by default** (`ENABLE_MARKDOWN_PARSING=false`); code
   kept gated. **DOCX parsing/routing was kept** (genuine new dtype). See LOGS/PHASE1.3_LOG.md.
+- **Phase 1.4 — chunking/retrieval/faithfulness**: faithfulness output-gate false-positive fix
+  (shipped); parent-doc built but gated off; conversational handling fix. **0.919** (eval grew to 86).
+- **Phase 1.5 — observability**: structured JSON logging + `X-Request-ID` + PII redaction + per-turn
+  token/cost capture; **Langfuse** tracing (opt-in). Logging-only, no eval regression (0.919/0.930).
+- **Phase 1.6 — rerank cost**: rerank the RRF-fused pool **once** (not per query variant), ~67%
+  fewer rerank calls. Shipped on (`ENABLE_RERANK_AFTER_FUSION=true`); A/B accepted a ~1-case tradeoff.
+- **Phase 1.7 — eval expansion + adaptive retrieval**: eval **86 → 130** (new `calendar_pointlookup`
+  category + cross-lingual fee + multilingual guard cases) + `run_eval.py --diff` tooling; **adaptive
+  point-lookup routing shipped** (`ENABLE_ADAPTIVE_RETRIEVAL=true`). See § Current state for numbers.
 
 ## Key decisions & rationale
 - **Qdrant Cloud** canonical vector store (Pinecone/Chroma opt-in).
@@ -53,7 +66,9 @@ stretch. Deployed-app (auth/UI/admin) required by brief but not built yet.
   planned fix before any revisit.
 - All RAG/guard/ingest levers are **`ENABLE_*` toggles in `config.py`** for A/B.
 - Eval scorer: token-subset matching (accent-insensitive), `expected_source` citation check,
-  refusal detection, multi-turn via `turns`. **Baseline to beat: 92.5%.**
+  refusal detection, multi-turn via `turns`. **Reference baseline: 0.846 on the 130-case set**
+  (`data/eval/baseline.json`, adaptive OFF); see § Current state for why this is lower than the old
+  86-case ~0.92 (harder set, not a regression).
 
 ## Conventions (how to run)
 - Python via **`py`** launcher (Windows 3.14). `PYTHONUTF8=1` to avoid console crashes on VN text.
@@ -65,9 +80,21 @@ stretch. Deployed-app (auth/UI/admin) required by brief but not built yet.
 - Gate: `py -m pytest -m "not live"` + `py -m ruff check .` (89 tests, must stay green).
 - CI: `.github/workflows/ci.yml` (lint+pytest non-live), `eval.yml` (nightly live, secrets).
 
-## Current state (2026-06-14)
+## Current state (2026-06-16)
 - Production = main Qdrant collection **`vinuni_documents` (7,957 points, plain-text)**, untouched.
-- **Phase 1 (sub-phases 1.0–1.4) DONE** (logs in `LOGS/`). Highlights from 1.4:
+- **Phase 1 (sub-phases 1.0–1.7) DONE** (logs in `LOGS/`). 1.5 observability, 1.6 rerank-cost, and
+  1.7 adaptive retrieval are all shipped (flag-gated, one-flag revert each).
+- **Score baseline — READ THIS (the number changed meaning in 1.7):** the eval set grew from **86 →
+  130 cases** in Phase 1.7 by adding *deliberately hard* cases (calendar point-lookups with
+  adjacent-date distractors, VI→EN cross-lingual fees, multilingual guards). So absolute scores are
+  **NOT comparable** to the old 86-case ~0.92. On the new 130-case set: **baseline (adaptive OFF) =
+  0.846**; **shipped (adaptive ON) ≈ 0.854** (this run; v1/v2 variants scored 0.869/0.877 — the
+  ~±3-case run-to-run noise means single runs can't rank them). Guards (adversarial/safety) stay
+  **1.000**; calendar 0.893. Adaptive's confirmed mechanistic wins: the calendar wrong-date bug and
+  the persistent VI→EN fee misses are fixed. `data/eval/baseline.json` is the adaptive-OFF reference;
+  for future A/Bs, re-baseline against the adaptive-ON production state. Eval noise (multi-run
+  averaging) is the top open eval-rigor item.
+- Highlights from 1.4:
   - **Faithfulness false-positive FIX (shipped, no toggle)**: `assess_faithfulness` was extracting
     digits from the answer's citation/Source line (policy code "VUNI.54" → token `54`) and, not
     finding them in chunk text, forcing a graceful-degradation refusal over *correct* answers. It

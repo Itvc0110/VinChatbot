@@ -13,6 +13,21 @@ class Settings(BaseSettings):
     app_env: str = Field(default="development", validation_alias="APP_ENV")
     default_answer_language: str = Field(default="vi", validation_alias="DEFAULT_ANSWER_LANGUAGE")
 
+    # Observability (Phase 1.5a). Structured logging + per-turn cost/token capture. All
+    # fail-open and behavior-preserving; log_format=auto -> json in prod, text in dev.
+    log_format: str = Field(default="auto", validation_alias="LOG_FORMAT")  # auto | json | text
+    log_level: str = Field(default="INFO", validation_alias="LOG_LEVEL")
+    log_redact_pii: bool = Field(default=True, validation_alias="LOG_REDACT_PII")
+    enable_cost_tracking: bool = Field(default=True, validation_alias="ENABLE_COST_TRACKING")
+
+    # Langfuse tracing (Phase 1.5b). Fail-open: off unless enabled AND both keys are present.
+    enable_langfuse: bool = Field(default=False, validation_alias="ENABLE_LANGFUSE")
+    langfuse_public_key: str | None = Field(default=None, validation_alias="LANGFUSE_PUBLIC_KEY")
+    langfuse_secret_key: str | None = Field(default=None, validation_alias="LANGFUSE_SECRET_KEY")
+    langfuse_host: str = Field(
+        default="https://cloud.langfuse.com", validation_alias="LANGFUSE_HOST"
+    )
+
     openrouter_api_key: str | None = Field(default=None, validation_alias="OPENROUTER_API_KEY")
     openrouter_base_url: str = Field(
         default="https://openrouter.ai/api/v1", validation_alias="OPENROUTER_BASE_URL"
@@ -62,6 +77,21 @@ class Settings(BaseSettings):
     enable_query_expansion: bool = Field(default=True, validation_alias="ENABLE_QUERY_EXPANSION")
     enable_metadata_boost: bool = Field(default=True, validation_alias="ENABLE_METADATA_BOOST")
     enable_soft_routing: bool = Field(default=True, validation_alias="ENABLE_SOFT_ROUTING")
+    # Rerank-after-fusion (Phase 1.6): on multi-query turns, retrieve each variant WITHOUT
+    # reranking, RRF-fuse, then rerank the fused pool ONCE (1 Cohere call instead of one per
+    # variant — ~67% rerank-cost cut). SHIPPED ON: A/B accepted a ~1-case tradeoff (0.930->0.919)
+    # for the cost cut. Known sensitive spot: calendar point-lookups (see PHASE1.6_LOG.md).
+    enable_rerank_after_fusion: bool = Field(
+        default=True, validation_alias="ENABLE_RERANK_AFTER_FUSION"
+    )
+    # Adaptive retrieval (Phase 1.7, SHIPPED): route point-lookup queries to full-section reading +
+    # a strict extraction prompt so exact-row answers stop losing to adjacent distractor rows.
+    # Domain split: calendar point-lookups drop query expansion (precision); financial/other keep it
+    # and add a cross-lingual variant (recall). A/B fixed the calendar wrong-date + VI→EN fee misses,
+    # guards 1.000 (overall is eval-noise-band; see PHASE1.6/1.7 logs).
+    enable_adaptive_retrieval: bool = Field(
+        default=True, validation_alias="ENABLE_ADAPTIVE_RETRIEVAL"
+    )
 
     # Parent-document retrieval (Phase 4). At retrieval time, collapse the fine chunks that
     # share a (parent_doc_id, section_id) into one chunk carrying the full section text:

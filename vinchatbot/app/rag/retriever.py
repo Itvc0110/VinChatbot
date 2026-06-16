@@ -36,7 +36,29 @@ class Retriever(Protocol):
         limit: int = 8,
         reorder: bool = True,
         boost_hints: dict[str, Any] | None = None,
+        expand_sections: bool = False,
     ) -> list[RetrievedChunk]:
+        ...
+
+    async def search_candidates(
+        self,
+        query: str,
+        filters: dict[str, Any] | None = None,
+        limit: int = 8,
+    ) -> list[RetrievedChunk]:
+        """Candidate pool for multi-query fusion: vector/BM25 order, deduped, NOT reranked."""
+        ...
+
+    async def rerank_fused(
+        self,
+        query: str,
+        chunks: list[RetrievedChunk],
+        limit: int = 8,
+        boost_hints: dict[str, Any] | None = None,
+        reorder: bool = True,
+        expand_sections: bool = False,
+    ) -> list[RetrievedChunk]:
+        """Rerank an already-fused candidate list ONCE, then run the standard finalize tail."""
         ...
 
 
@@ -53,6 +75,7 @@ class InMemoryRetriever:
         limit: int = 8,
         reorder: bool = True,
         boost_hints: dict[str, Any] | None = None,
+        expand_sections: bool = False,
     ) -> list[RetrievedChunk]:
         filters = filters or {}
         terms = {term.lower() for term in query.split() if len(term) > 1}
@@ -67,6 +90,25 @@ class InMemoryRetriever:
                 scored.append(RetrievedChunk(chunk.text, chunk.metadata, float(score)))
         scored.sort(key=lambda item: item.score or 0.0, reverse=True)
         return scored[:limit]
+
+    async def search_candidates(
+        self,
+        query: str,
+        filters: dict[str, Any] | None = None,
+        limit: int = 8,
+    ) -> list[RetrievedChunk]:
+        return await self.search(query, filters=filters, limit=limit, reorder=False)
+
+    async def rerank_fused(
+        self,
+        query: str,
+        chunks: list[RetrievedChunk],
+        limit: int = 8,
+        boost_hints: dict[str, Any] | None = None,
+        reorder: bool = True,
+        expand_sections: bool = False,
+    ) -> list[RetrievedChunk]:
+        return list(chunks)[:limit]
 
 
 class QdrantHybridRetriever:
@@ -154,7 +196,56 @@ class QdrantHybridRetriever:
         limit: int = 8,
         reorder: bool = True,
         boost_hints: dict[str, Any] | None = None,
+        expand_sections: bool = False,
     ) -> list[RetrievedChunk]:
+        candidates = await self._fetch_candidates(query, filters, limit)
+        if not candidates:
+            return []
+        return await self._finalize(
+            query, candidates, limit, boost_hints, reorder, expand_sections=expand_sections
+        )
+
+    async def search_candidates(
+        self,
+        query: str,
+        filters: dict[str, Any] | None = None,
+        limit: int = 8,
+    ) -> list[RetrievedChunk]:
+        """Candidate pool for multi-query fusion: vector/BM25 order, deduped, NOT reranked. Lets
+        the rerank-after-fusion path rerank once on the fused pool instead of once per variant."""
+        candidates = await self._fetch_candidates(query, filters, limit)
+        if self.settings.enable_result_dedup:
+            candidates = dedup_by_text(candidates, lambda chunk: chunk.text)
+        return candidates
+
+    async def rerank_fused(
+        self,
+        query: str,
+        chunks: list[RetrievedChunk],
+        limit: int = 8,
+        boost_hints: dict[str, Any] | None = None,
+        reorder: bool = True,
+        expand_sections: bool = False,
+    ) -> list[RetrievedChunk]:
+        """Rerank an already-fused candidate list ONCE, then run the standard finalize tail.
+
+        `expand_sections=True` (point-lookups) stitches each kept chunk to its full section so the
+        model reads the whole table/section and picks the exact row — while query expansion upstream
+        still provides recall.
+        """
+        if not chunks:
+            return []
+        return await self._finalize(
+            query, list(chunks), limit, boost_hints, reorder, expand_sections=expand_sections
+        )
+
+    async def _fetch_candidates(
+        self,
+        query: str,
+        filters: dict[str, Any] | None,
+        limit: int,
+    ) -> list[RetrievedChunk]:
+        """Vector/BM25 candidate fetch — no rerank, no post-processing (`score=None`)."""
         search_filter = self._to_qdrant_filter(filters or {}) if self.backend == "qdrant" else (filters or None)
         candidate_k = (
             max(self.settings.retrieval_candidate_k, limit)
@@ -162,24 +253,40 @@ class QdrantHybridRetriever:
             else max(limit * 3, limit)
         )
         docs = await self.vector_store.asimilarity_search(query, k=candidate_k, filter=search_filter)
-        if not docs:
-            return []
-
-        # Rerank the whole candidate pool, then build a relevance-descending chunk list.
-        reranked = await self.reranker.rerank(query, [doc.page_content for doc in docs], top_n=candidate_k)
-        if reranked:
-            ranked = sorted(reranked, key=lambda item: item.score, reverse=True)
-            ordered = [(docs[item.index], item.score) for item in ranked if item.index < len(docs)]
-        else:
-            ordered = [(doc, None) for doc in docs]
-
-        chunks = [
+        return [
             RetrievedChunk(
                 text=doc.page_content,
                 metadata=restore_document_metadata(doc.metadata),
-                score=score,
+                score=None,
             )
-            for doc, score in ordered
+            for doc in docs
+        ]
+
+    async def _finalize(
+        self,
+        query: str,
+        chunks: list[RetrievedChunk],
+        limit: int,
+        boost_hints: dict[str, Any] | None,
+        reorder: bool,
+        expand_sections: bool = False,
+    ) -> list[RetrievedChunk]:
+        """Rerank the candidate pool, then dedup -> metadata-boost -> dynamic-k -> parent-doc ->
+        lost-in-the-middle reorder. Shared by single-query `search()` and `rerank_fused()`."""
+        if not chunks:
+            return []
+
+        # Rerank the whole candidate pool, then build a relevance-descending chunk list.
+        reranked = await self.reranker.rerank(query, [chunk.text for chunk in chunks], top_n=len(chunks))
+        if reranked:
+            ranked = sorted(reranked, key=lambda item: item.score, reverse=True)
+            ordered = [(chunks[item.index], item.score) for item in ranked if item.index < len(chunks)]
+        else:
+            ordered = [(chunk, chunk.score) for chunk in chunks]
+
+        chunks = [
+            RetrievedChunk(text=chunk.text, metadata=chunk.metadata, score=score)
+            for chunk, score in ordered
         ]
 
         if self.settings.enable_result_dedup:
@@ -197,11 +304,17 @@ class QdrantHybridRetriever:
             ratio=self.settings.retrieval_score_ratio,
         )
 
-        if self.settings.enable_parent_doc and self.backend == "qdrant":
-            skip = frozenset(
-                part.strip()
-                for part in (self.settings.parent_doc_skip_subcategories or "").split(",")
-                if part.strip()
+        if (expand_sections or self.settings.enable_parent_doc) and self.backend == "qdrant":
+            # Point-lookups (expand_sections) want the full section — incl. calendar tables — so they
+            # bypass the calendar skip; the strict extraction prompt keeps the model from over-sharing.
+            skip = (
+                frozenset()
+                if expand_sections
+                else frozenset(
+                    part.strip()
+                    for part in (self.settings.parent_doc_skip_subcategories or "").split(",")
+                    if part.strip()
+                )
             )
             chunks = expand_to_parent_sections(
                 chunks,
