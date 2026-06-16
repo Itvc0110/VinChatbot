@@ -93,11 +93,12 @@ def _fake_chunks():
     return [RetrievedChunk(text=c.text, metadata=c.metadata, score=1.0) for c in chunk_document(raw)]
 
 
-def _settings(rerank_after_fusion: bool = False, adaptive: bool = False):
+def _settings(rerank_after_fusion: bool = False, adaptive: bool = False, crosslingual: bool = False):
     return SimpleNamespace(
         enable_query_expansion=True,
         enable_rerank_after_fusion=rerank_after_fusion,
         enable_adaptive_retrieval=adaptive,
+        enable_crosslingual_expansion=crosslingual,
         retrieval_max_k=8,
         retrieval_candidate_k=40,
         enable_litm_reorder=True,
@@ -111,18 +112,19 @@ def _run_tool(
     *,
     rerank_after_fusion: bool = False,
     adaptive: bool = False,
+    crosslingual: bool = False,
     tool_name: str = "search_vinuni",
     query: str = "library hours and services",
 ) -> "_CountingRetriever":
     retriever = _CountingRetriever(_fake_chunks())
-    retriever.expand_cross_lingual = []
+    retriever.expand_calls = []  # list of (paraphrase, cross_lingual) tuples expand_query saw
 
     async def fake_expand(query, settings, *args, **kwargs):
-        retriever.expand_cross_lingual.append(kwargs.get("cross_lingual", False))
+        retriever.expand_calls.append((kwargs.get("paraphrase"), kwargs.get("cross_lingual")))
         return [query, f"{query} variant 2", f"{query} variant 3"]
 
     monkeypatch.setattr(tools_mod, "expand_query", fake_expand)
-    monkeypatch.setattr(tools_mod, "get_settings", lambda: _settings(rerank_after_fusion, adaptive))
+    monkeypatch.setattr(tools_mod, "get_settings", lambda: _settings(rerank_after_fusion, adaptive, crosslingual))
 
     tools = tools_mod.build_retrieval_tools(retriever)
     tool = next(t for t in tools if t.name == tool_name)
@@ -153,33 +155,54 @@ def test_is_point_lookup_truth_table():
     assert not is_point_lookup("How do I appeal an academic decision?")
 
 
-def test_adaptive_calendar_point_lookup_drops_expansion_reads_full_section(monkeypatch):
-    # Calendar point-lookup (v3): DROP expansion (date-grid neighbours are distractors) + full section.
+def test_calendar_point_lookup_no_expansion_when_crosslingual_off(monkeypatch):
+    # Calendar point-lookup, cross-lingual OFF: NO expansion at all (paraphrase off + xling off) +
+    # single-query full-section read (the Phase 1.7 precision path).
     retriever = _run_tool(
         monkeypatch,
         adaptive=True,
         rerank_after_fusion=True,
+        crosslingual=False,
         tool_name="search_academic_calendar",
         query="Summer 2027 final exam dates",
     )
-    assert retriever.expand_cross_lingual == []  # expansion skipped entirely
-    assert retriever.search_calls == 1  # single query
-    assert retriever.search_expand_sections is True  # full-section reading
+    assert retriever.expand_calls == []  # expand_query not called
+    assert retriever.search_calls == 1
+    assert retriever.search_expand_sections is True
     assert retriever.candidate_calls == 0 and retriever.fused_calls == 0
 
 
-def test_adaptive_financial_point_lookup_keeps_crosslingual_expansion_full_section(monkeypatch):
-    # Financial point-lookup (v3): KEEP expansion with a cross-lingual variant + full section.
+def test_calendar_point_lookup_crosslingual_only_no_paraphrase(monkeypatch):
+    # Calendar point-lookup, cross-lingual ON (Phase 1.8): translation variant but NO paraphrase
+    # flood → fuse + rerank once + full section.
     retriever = _run_tool(
         monkeypatch,
         adaptive=True,
         rerank_after_fusion=True,
+        crosslingual=True,
+        tool_name="search_academic_calendar",
+        query="Lịch thi cuối kỳ Summer 2027",
+    )
+    assert retriever.expand_calls == [(False, True)]  # paraphrase OFF, cross-lingual ON
+    assert retriever.candidate_calls == 3  # variants fused (no rerank per variant)
+    assert retriever.fused_calls == 1
+    assert retriever.fused_expand_sections is True
+    assert retriever.search_calls == 0
+
+
+def test_financial_point_lookup_paraphrase_and_crosslingual(monkeypatch):
+    # Financial point-lookup, cross-lingual ON: paraphrase AND cross-lingual + full section.
+    retriever = _run_tool(
+        monkeypatch,
+        adaptive=True,
+        rerank_after_fusion=True,
+        crosslingual=True,
         tool_name="search_financial_regulations",
         query="Học phí ngành Điều dưỡng là bao nhiêu?",
     )
-    assert retriever.expand_cross_lingual == [True]  # cross-lingual expansion requested
-    assert retriever.candidate_calls == 3  # expansion kept (recall)
-    assert retriever.fused_calls == 1  # single rerank
-    assert retriever.fused_expand_sections is True  # full-section reading
+    assert retriever.expand_calls == [(True, True)]  # both kinds requested
+    assert retriever.candidate_calls == 3
+    assert retriever.fused_calls == 1
+    assert retriever.fused_expand_sections is True
     assert retriever.search_calls == 0
 

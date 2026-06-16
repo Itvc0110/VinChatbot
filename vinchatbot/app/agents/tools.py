@@ -49,14 +49,18 @@ def build_retrieval_tools(retriever: Retriever):
         expand_sections = point_lookup
         fuse_then_rerank = settings.enable_rerank_after_fusion or point_lookup
 
-        # Adaptive (Phase 1.7) domain split: a calendar date-grid's neighbours are pure distractors,
-        # so calendar point-lookups DROP expansion (precision); financial/other point-lookups KEEP
-        # expansion and add an English variant (cross-lingual recall for the EN tariff). Both read the
-        # full section + a strict prompt so the model picks the exact row.
-        if point_lookup and subcat == "calendar":
-            queries = [query]
-        elif settings.enable_query_expansion:
-            queries = await expand_query(query, settings, cross_lingual=point_lookup)
+        # Query expansion — two independent kinds:
+        #  • paraphrase (same-language): recall for prose; OFF for calendar point-lookups, whose
+        #    date-grid neighbours are distractors (Phase 1.7).
+        #  • cross-lingual (VI↔EN, Phase 1.8): one translation variant on EVERY domain, so a query in
+        #    one language still matches sources written in the other (VI query vs the English tariff /
+        #    calendar). Calendar point-lookups therefore get the translation but not the paraphrase flood.
+        paraphrase = settings.enable_query_expansion and not (point_lookup and subcat == "calendar")
+        cross_lingual = settings.enable_crosslingual_expansion
+        if paraphrase or cross_lingual:
+            queries = await expand_query(
+                query, settings, paraphrase=paraphrase, cross_lingual=cross_lingual
+            )
         else:
             queries = [query]
 

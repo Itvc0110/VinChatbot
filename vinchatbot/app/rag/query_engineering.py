@@ -39,21 +39,28 @@ def is_point_lookup(query: str, category: str | None = None) -> bool:
         return True
     return bool(_POINTLOOKUP_RE.search(query or ""))
 
-_EXPANSION_SYSTEM = (
+# Query expansion has two independent kinds (Phase 1.8 made them orthogonal):
+#  • paraphrase  — same-language synonym/keyword variants (multi-query recall). Gated by
+#    ENABLE_QUERY_EXPANSION; off for calendar point-lookups (date-grid neighbours are distractors).
+#  • cross_lingual — ONE VI↔EN translation of the query, so a question in one language still matches
+#    sources written in the other (e.g. VI query vs the English fee tariff / calendar). Gated by
+#    ENABLE_CROSSLINGUAL_EXPANSION; applies on every domain.
+_PARAPHRASE_SYSTEM = (
     "You expand a student's search query for a VinUni academic assistant. Produce "
     "{n} alternative search queries that paraphrase or add synonyms/keywords for the same "
     "intent, IN THE SAME LANGUAGE as the input. Output only the queries, one per line, no "
     "numbering, no commentary."
 )
-
-# Cross-lingual variant (Phase 1.7): for point-lookups whose answer lives in an English source table
-# (e.g. the fee tariff) but is asked in Vietnamese, include an English translation so retrieval can
-# match the English table. Targets the long-standing VI-query vs EN-tariff cross-lingual miss.
-_EXPANSION_SYSTEM_XLING = (
+_PARAPHRASE_XLING_SYSTEM = (
     "You expand a student's search query for a VinUni academic assistant. Produce {n} alternative "
     "search queries for the SAME intent: paraphrases/synonyms in the same language as the input, AND "
-    "include one accurate ENGLISH translation of the query (so it can match English source tables). "
-    "Output only the queries, one per line, no numbering, no commentary."
+    "one accurate translation of the query into the OTHER language (Vietnamese↔English), so it can "
+    "match sources written in either language. Output only the queries, one per line, no numbering."
+)
+_XLING_ONLY_SYSTEM = (
+    "Translate this VinUni student's search query into the OTHER language (Vietnamese→English or "
+    "English→Vietnamese), preserving the exact intent and any names, dates and amounts. Output ONLY "
+    "the single translated query — no original, no commentary."
 )
 
 
@@ -62,26 +69,37 @@ async def expand_query(
     settings: Settings | None = None,
     model=None,
     max_variants: int = 2,
+    paraphrase: bool = True,
     cross_lingual: bool = False,
 ) -> list[str]:
-    """Return [original, ...up to max_variants paraphrases]. Falls back to [query].
+    """Return ``[original, ...variants]`` in one LLM call.
 
-    `cross_lingual=True` also requests one English translation variant (for point-lookups whose
-    answer lives in an English source table, e.g. the fee tariff).
+    `paraphrase` adds up to `max_variants` same-language paraphrases; `cross_lingual` adds one VI↔EN
+    translation. Any combination is valid; with neither (or no API key / error) returns ``[query]``.
+    The caller (tools._search) decides the flags from settings + routed domain.
     """
 
     settings = settings or get_settings()
-    if not settings.enable_query_expansion or not settings.openrouter_api_key or max_variants <= 0:
+    if not settings.openrouter_api_key or max_variants <= 0:
         return [query]
+    if not paraphrase and not cross_lingual:
+        return [query]
+
+    if paraphrase and cross_lingual:
+        system, cap = _PARAPHRASE_XLING_SYSTEM.format(n=max_variants), max_variants + 2
+    elif cross_lingual:
+        system, cap = _XLING_ONLY_SYSTEM, 2
+    else:
+        system, cap = _PARAPHRASE_SYSTEM.format(n=max_variants), max_variants + 1
+
     try:
         if model is None:
             from vinchatbot.app.llm.openrouter_chat import build_chat_model
 
             model = build_chat_model(settings)
-        system = _EXPANSION_SYSTEM_XLING if cross_lingual else _EXPANSION_SYSTEM
         response = await model.ainvoke(
             [
-                {"role": "system", "content": system.format(n=max_variants)},
+                {"role": "system", "content": system},
                 {"role": "user", "content": query},
             ]
         )
@@ -91,7 +109,7 @@ async def expand_query(
             cleaned = line.strip().lstrip("-•*0123456789. )").strip()
             if cleaned and cleaned.lower() != query.lower() and cleaned not in variants:
                 variants.append(cleaned)
-        return variants[: max_variants + 1]
+        return variants[:cap]
     except Exception:
         logger.debug("Query expansion failed; using the original query only.", exc_info=True)
         return [query]

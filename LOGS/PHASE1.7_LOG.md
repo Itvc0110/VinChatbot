@@ -282,6 +282,29 @@ stays true (1.6) — prose + financial point-lookups use fuse→rerank-once. Off
 **Revert:** `ENABLE_ADAPTIVE_RETRIEVAL=false` → 1.6 behavior, byte-identical (retrieval + strict
 prompt both flag-gated); no data migration.
 
+### 2026-06-16 — Phase 1.8: cross-lingual (VI↔EN) expansion, all domains
+
+Made cross-lingual its own lever, **independent** of same-language paraphrase expansion. `expand_query`
+([query_engineering.py](../vinchatbot/app/rag/query_engineering.py)) refactored into **3 clear modes**
+(`paraphrase` / `cross_lingual` / both) in one LLM call; `_search`
+([tools.py](../vinchatbot/app/agents/tools.py)) now computes `paraphrase = ENABLE_QUERY_EXPANSION and
+not (calendar point-lookup)` and `cross_lingual = ENABLE_CROSSLINGUAL_EXPANSION` (new flag,
+[config.py](../vinchatbot/app/core/config.py), default **true**). So calendar point-lookups get the
+**translation variant but NOT the paraphrase flood**. Bidirectional (the failing direction was VI→EN
+vs the English calendar/tariff). ruff clean; 8 retrieval tests (incl. calendar-xling-only & financial).
+
+**Calendar-only live A/B (58 cases, cross-lingual ON) vs shipped v3 (`eval_20260616T164230Z.json` vs
+`…094657Z.json`):** calendar **0.893→0.929**, calendar_pointlookup **0.700→0.767**, net **+5/−2**.
+**Headline bug `summer-final-exams-vi` still PASSES** ("23–27 tháng 8"). Persistent `fall-evaluation-vi`
+(had cited a registrar blog) **recovered** — the EN variant matched the English calendar, the predicted
+mechanism. Losses: `summer-evaluation-vi` (eval-vs-exam near-tie) + `convocation-vi` (holiday refusal)
+— known hard patterns / noise, not cross-lingual harm. **→ delivered (kept default-on).**
+
+**Full 130-case eval: deferred (user, 2026-06-16)** — validated on the calendar subset + offline tests
+(ruff, 118 passed); the broad-dataset confirmation (prose/financial/guards no-regression, re-baseline)
+is the open item before 1.8 is considered fully validated. Cross-lingual is gated + one-flag revert
+(`ENABLE_CROSSLINGUAL_EXPANSION=false`) if needed.
+
 **Open follow-ups (not blocking):**
 - **Eval-rigor:** multi-run averaging / lower-variance harness — the ±3-case noise prevents confident
   overall ranking (FUTURE §A).
