@@ -1,9 +1,9 @@
 {
   "summary": {
     "n": 130,
-    "passed": 0.846,
-    "facts_ok": 0.862,
-    "citation_ok": 0.985,
+    "passed": 0.885,
+    "facts_ok": 0.892,
+    "citation_ok": 0.992,
     "by_category": {
       "adversarial": {
         "n": 19,
@@ -13,14 +13,14 @@
       },
       "calendar": {
         "n": 28,
-        "passed": 0.857,
-        "facts_ok": 0.857,
+        "passed": 0.929,
+        "facts_ok": 0.929,
         "citation_ok": 1.0
       },
       "calendar_pointlookup": {
         "n": 30,
-        "passed": 0.767,
-        "facts_ok": 0.767,
+        "passed": 0.733,
+        "facts_ok": 0.733,
         "citation_ok": 1.0
       },
       "conduct": {
@@ -31,9 +31,9 @@
       },
       "financial": {
         "n": 16,
-        "passed": 0.688,
-        "facts_ok": 0.75,
-        "citation_ok": 0.938
+        "passed": 0.875,
+        "facts_ok": 0.875,
+        "citation_ok": 1.0
       },
       "multiturn": {
         "n": 4,
@@ -61,8 +61,8 @@
       },
       "unanswerable": {
         "n": 5,
-        "passed": 0.8,
-        "facts_ok": 0.8,
+        "passed": 1.0,
+        "facts_ok": 1.0,
         "citation_ok": 1.0
       }
     }
@@ -142,7 +142,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Sorry, this question is outside the scope of public VinUni student-support information. You can ask about academic calendars, deadlines, policies, or student services.\n\nOfficial sources to check:\n- [Student Gateway](https://vinuni.edu.vn/student-gateway/)\n- [Academic Calendar](https://vinuni.edu.vn/academic-calendar/)\n- [VinUni Policy Library](https://policy.vinuni.edu.vn/)\n- [Office of University Registrar](https://registrar.vinuni.edu.vn/)",
+      "answer": "Sorry, I could not find sufficiently clear official information in the available data to answer confidently. Please check the official sources below or contact the responsible office for confirmation.\n\nOfficial sources to check:\n- [Student Gateway](https://vinuni.edu.vn/student-gateway/)\n- [Academic Calendar](https://vinuni.edu.vn/academic-calendar/)\n- [VinUni Policy Library](https://policy.vinuni.edu.vn/)\n- [Office of University Registrar](https://registrar.vinuni.edu.vn/)",
       "citations": []
     },
     {
@@ -285,10 +285,9 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The end-of-semester course evaluation period for Summer 2027 is scheduled from August 16 to August 20, 2027.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "The end-of-semester course evaluation period for Summer 2027 is from August 16 to August 20, 2027.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
-        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
     },
@@ -296,20 +295,13 @@
       "id": "calendar-summer-evaluation-vi",
       "category": "calendar_pointlookup",
       "question": "Kỳ đánh giá môn học cuối kỳ của học kỳ Summer 2027 diễn ra khi nào?",
-      "facts_ok": false,
+      "facts_ok": true,
       "citation_ok": true,
       "refusal_ok": true,
-      "passed": false,
-      "answer": "Xin lỗi, mình chưa tìm thấy thông tin chính thức đủ rõ trong dữ liệu hiện có để trả lời chắc chắn. Bạn nên kiểm tra các nguồn chính thức dưới đây hoặc liên hệ đơn vị phụ trách để xác nhận.\n\nNguồn chính thức nên tham khảo:\n- [Student Gateway](https://vinuni.edu.vn/student-gateway/)\n- [Academic Calendar](https://vinuni.edu.vn/academic-calendar/)\n- [VinUni Policy Library](https://policy.vinuni.edu.vn/)\n- [Office of University Registrar](https://registrar.vinuni.edu.vn/)",
+      "passed": true,
+      "answer": "Kỳ đánh giá môn học cuối kỳ của học kỳ Summer 2027 sẽ diễn ra từ ngày 16 đến 20 tháng 8 năm 2027.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/10/BSME_FRM7_Curriculum-Framework_20250815_V2025_ForIntake6.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/10/BSEE_FRM7_Curriculum-Framework_20250815_V2025_ForIntake6.pdf",
-        "https://registrar.vinuni.edu.vn/vi/2026/05/25/thong-bao-chinh-thuc-dang-ky-mon-hoc-hoc-ky-summer-2026/",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/vF.250812_BAE_25-29_Curriculum-Framework.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/vF_250816_BSCS_25-29_Curriculum-Framework.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/vF_250816_BSCS_25-29_Curriculum-Framework.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/10/BSEE_FRM7_Curriculum-Framework_20250815_V2025_ForIntake6.pdf",
-        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/"
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
     },
     {
@@ -320,7 +312,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Course registration for Summer 2027 starts on **June 21, 2027**, and runs until **July 2, 2027**.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Course registration for Summer 2027 starts on **June 21, 2027**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -336,8 +328,6 @@
       "passed": true,
       "answer": "Sinh viên bắt đầu đăng ký môn cho học kỳ Summer 2027 vào ngày 21 tháng 6 năm 2027.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
-        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
     },
@@ -349,7 +339,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The final exam schedule for Spring 2027 will be released on May 3, 2027.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "The Spring 2027 final exam schedule will be released on May 3, 2027.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -363,10 +353,8 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Lịch thi cuối kỳ cho học kỳ Spring 2027 chưa được công bố cụ thể trong dữ liệu hiện có. Tuy nhiên, có thông tin rằng lịch thi cuối kỳ sẽ được công bố vào ngày 3 tháng 5 năm 2027.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Lịch thi cuối kỳ của học kỳ Spring 2027 sẽ được công bố vào ngày 3 tháng 5 năm 2027.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/10/BSME_FRM7_Curriculum-Framework_20250815_V2025_ForIntake6.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
     },
@@ -388,12 +376,13 @@
       "id": "calendar-spring-add-transfer-deadline-vi",
       "category": "calendar_pointlookup",
       "question": "Hạn Add, Transfer Credit và Independent Study của học kỳ Spring 2027 là ngày nào?",
-      "facts_ok": false,
+      "facts_ok": true,
       "citation_ok": true,
       "refusal_ok": true,
-      "passed": false,
-      "answer": "Hạn cuối để thực hiện việc thêm môn học, chuyển tín chỉ và học độc lập trong học kỳ Spring 2027 là **ngày 26 tháng 2 năm 2027**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "passed": true,
+      "answer": "Hạn Add, Transfer Credit và Independent Study của học kỳ Spring 2027 là ngày **26 tháng 2 năm 2027**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
+        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
@@ -406,7 +395,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Convocation Day for the 2026-2027 academic year is tentatively scheduled for **September 26, 2026**.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Convocation Day for the 2026-2027 academic calendar is tentatively scheduled for **September 26, 2026**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -420,7 +409,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Ngày Convocation trong lịch năm học 2026-2027 dự kiến sẽ diễn ra vào ngày 26 tháng 9 năm 2026. \n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Ngày Convocation trong lịch năm học 2026-2027 dự kiến là vào **26 tháng 9 năm 2026**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -434,7 +423,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The end-of-semester course evaluation period for Fall 2026 is scheduled from December 21 to December 31, 2026.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "The end-of-semester course evaluation period for Fall 2026 is from December 21 to December 31, 2026.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -448,15 +437,10 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": false,
-      "answer": "Kỳ thi cuối kỳ của học kỳ Fall 2026 sẽ diễn ra từ ngày 24 tháng 08 đến ngày 28 tháng 08 năm 2026.\n\nNguồn: [Registrar's Office - VinUni](https://registrar.vinuni.edu.vn/vi/2026/05/25/thong-bao-chinh-thuc-dang-ky-mon-hoc-hoc-ky-summer-2026/)",
+      "answer": "Kỳ đánh giá môn học cuối kỳ của học kỳ Fall 2026 sẽ diễn ra từ ngày 11 đến 22 tháng 1 năm 2027.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
-        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
-        "https://registrar.vinuni.edu.vn/category/thong-bao-en/",
-        "https://registrar.vinuni.edu.vn/vi/2026/04/06/thong-bao-ve-xet-tot-nghiep-dai-hoc-nam-hoc-2026/",
-        "https://registrar.vinuni.edu.vn/vi/2026/05/25/thong-bao-chinh-thuc-dang-ky-mon-hoc-hoc-ky-summer-2026/",
-        "https://registrar.vinuni.edu.vn/vi/2025/11/10/final-exam-dang-toi-can-biet-gi-ve-lich-thi-va-quy-dinh/",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/10/BSME_FRM7_Curriculum-Framework_20250815_V2025_ForIntake6.pdf",
-        "https://registrar.vinuni.edu.vn/vi/2026/05/25/thong-bao-chinh-thuc-dang-ky-mon-hoc-hoc-ky-summer-2026/"
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
     },
     {
@@ -467,7 +451,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "For Fall 2026, the marking, appeal, and grade release period is scheduled from **January 25 to February 12, 2027**.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "The marking, appeal, and grade release period for Fall 2026 is from January 25 to February 12, 2027.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -477,16 +461,18 @@
       "id": "calendar-fall-grade-release-vi",
       "category": "calendar_pointlookup",
       "question": "Thời gian chấm điểm, phúc khảo và công bố điểm của học kỳ Fall 2026 diễn ra khi nào?",
-      "facts_ok": true,
+      "facts_ok": false,
       "citation_ok": true,
       "refusal_ok": true,
-      "passed": true,
-      "answer": "Thời gian chấm điểm, phúc khảo và công bố điểm của học kỳ Fall 2026 diễn ra từ **25 tháng 1 đến 12 tháng 2 năm 2027**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "passed": false,
+      "answer": "Thời gian chấm điểm, phúc khảo và công bố điểm của học kỳ Fall 2026 diễn ra từ **19/01 đến 30/01/2026**.\n\nNguồn: [VinUni Registrar](https://registrar.vinuni.edu.vn/vi/2025/11/10/final-exam-dang-toi-can-biet-gi-ve-lich-thi-va-quy-dinh/)",
       "citations": [
         "https://registrar.vinuni.edu.vn/vi/2025/11/10/final-exam-dang-toi-can-biet-gi-ve-lich-thi-va-quy-dinh/",
-        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
-        "https://registrar.vinuni.edu.vn/vi/2026/01/27/thong-bao-ve-lo-trinh-xet-tot-nghiep-dai-hoc-nam-2026/",
         "https://registrar.vinuni.edu.vn/vi/2026/04/06/thong-bao-ve-xet-tot-nghiep-dai-hoc-nam-hoc-2026/",
+        "https://registrar.vinuni.edu.vn/vi/2025/11/10/final-exam-dang-toi-can-biet-gi-ve-lich-thi-va-quy-dinh/",
+        "https://registrar.vinuni.edu.vn/2026/01/27/announcement-undergraduate-graduation-review-timeline-for-academic-year-2026/",
+        "https://registrar.vinuni.edu.vn/2026/01/27/announcement-undergraduate-graduation-review-timeline-for-academic-year-2026/",
+        "https://registrar.vinuni.edu.vn/vi/2026/01/27/thong-bao-ve-lo-trinh-xet-tot-nghiep-dai-hoc-nam-2026/",
         "https://registrar.vinuni.edu.vn/vi/2026/04/06/thong-bao-ve-xet-tot-nghiep-dai-hoc-nam-hoc-2026/",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
@@ -513,7 +499,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Kỳ nghỉ Tết Nguyên đán trong lịch năm học 2026-2027 dự kiến diễn ra từ ngày 2 đến ngày 10 tháng 2 năm 2027. \n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf) (dự kiến).",
+      "answer": "Kỳ nghỉ Tết Nguyên đán trong lịch năm học 2026-2027 dự kiến diễn ra từ ngày 2 đến 10 tháng 2 năm 2027.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -523,11 +509,11 @@
       "id": "calendar-graduation-en",
       "category": "calendar_pointlookup",
       "question": "When is Graduation Day in the 2026-2027 calendar?",
-      "facts_ok": true,
+      "facts_ok": false,
       "citation_ok": true,
       "refusal_ok": true,
-      "passed": true,
-      "answer": "Graduation Day for the academic year 2026-2027 is tentatively scheduled for **June 26, 2027**.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "passed": false,
+      "answer": "Graduation Day for the 2026-2027 academic year is tentatively scheduled for **26-Jun 2027**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/20230923_BN_CurriculumFramework_Cohort-2023.pdf",
@@ -540,16 +526,15 @@
       "id": "calendar-graduation-vi",
       "category": "calendar_pointlookup",
       "question": "Ngày tốt nghiệp (Graduation Day) trong lịch 2026-2027 dự kiến là khi nào?",
-      "facts_ok": true,
+      "facts_ok": false,
       "citation_ok": true,
       "refusal_ok": true,
-      "passed": true,
-      "answer": "Ngày tốt nghiệp (Graduation Day) dự kiến trong lịch học năm 2026-2027 là **26 tháng 6 năm 2027**. Tuy nhiên, đây là thông tin dự kiến và có thể thay đổi.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "passed": false,
+      "answer": "Ngày tốt nghiệp (Graduation Day) trong lịch học năm 2026-2027 chưa được xác định cụ thể trong các nguồn tài liệu hiện có. Tuy nhiên, có thông tin về lộ trình xét tốt nghiệp cho năm 2026, trong đó có các mốc thời gian quan trọng liên quan đến việc xét tốt nghiệp.\n\nNguồn: [Thông báo về Lộ trình xét tốt nghiệp đại học năm 2026](https://registrar.vinuni.edu.vn/vi/2026/01/27/thong-bao-ve-lo-trinh-xet-tot-nghiep-dai-hoc-nam-2026/)",
       "citations": [
-        "https://registrar.vinuni.edu.vn/vi/2026/04/06/thong-bao-ve-xet-tot-nghiep-dai-hoc-nam-hoc-2026/",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://registrar.vinuni.edu.vn/vi/2026/01/27/thong-bao-ve-lo-trinh-xet-tot-nghiep-dai-hoc-nam-2026/",
-        "https://registrar.vinuni.edu.vn/vi/2026/01/27/thong-bao-ve-lo-trinh-xet-tot-nghiep-dai-hoc-nam-2026/",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
+        "https://registrar.vinuni.edu.vn/vi/2026/04/06/thong-bao-ve-xet-tot-nghiep-dai-hoc-nam-hoc-2026/"
       ]
     },
     {
@@ -560,7 +545,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Hung King's Commemoration Day is marked on April 16, 2027, in the 2026-2027 academic calendar.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Hung King's Commemoration Day is marked on April 16, 2027, in the 2026-2027 academic calendar.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://vinuni.edu.vn/wp-content/uploads/2020/07/VinUni-Academic-Calendar_AY24-25_vF.pdf",
@@ -575,12 +560,11 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Ngày Giỗ Tổ Hùng Vương năm 2027 sẽ rơi vào ngày 16 tháng 4. \n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Ngày Giỗ Tổ Hùng Vương năm 2027 (16-Apr) rơi vào ngày 16 tháng 4.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
-        "https://vinuni.edu.vn/vi/campus-services-vi/",
-        "https://vinuni.edu.vn/vi/student_life/sinh-vien-quoc-te/",
-        "https://vinuni.edu.vn/vi/nguoi-kien-tao-he-sinh-thai-nghien-cuu-va-nhan-tai-tri-tue-nhan-tao-tai-viet-nam/",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
+        "https://vinuni.edu.vn/vi/campus-services-vi/"
       ]
     },
     {
@@ -605,10 +589,9 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Ngày Văn hóa Việt Nam trong lịch năm học 2026-2027 dự kiến sẽ diễn ra vào ngày 24 tháng 11. \n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf) (dự kiến).",
+      "answer": "Ngày Văn hóa Việt Nam trong lịch năm học 2026-2027 dự kiến là vào ngày 24 tháng 11.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf) (dự kiến).",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
-        "https://vinuni.edu.vn/vi/student_life/sinh-vien-quoc-te/",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
     },
@@ -620,7 +603,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": false,
-      "answer": "For Spring 2027, the marking, appeal, and grade release period is scheduled from **January 25 to February 12, 2027**. \n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "The marking, appeal, and grade release period for Spring 2027 is from January 25 to February 12, 2027.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -637,19 +620,18 @@
       "answer": "Thời gian chấm điểm, phúc khảo và công bố điểm của học kỳ Spring 2027 diễn ra từ **25 tháng 1 đến 12 tháng 2 năm 2027**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
-        "https://registrar.vinuni.edu.vn/vi/2025/11/10/final-exam-dang-toi-can-biet-gi-ve-lich-thi-va-quy-dinh/",
-        "https://registrar.vinuni.edu.vn/vi/2025/11/10/final-exam-dang-toi-can-biet-gi-ve-lich-thi-va-quy-dinh/"
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
     },
     {
       "id": "calendar-summer-grade-release-en",
       "category": "calendar_pointlookup",
       "question": "When are Summer 2027 grades released (the marking, appeal, and grade release period)?",
-      "facts_ok": true,
+      "facts_ok": false,
       "citation_ok": true,
       "refusal_ok": true,
-      "passed": true,
-      "answer": "For Summer 2027 at VinUni, the marking, appeal, and grade release period is scheduled from **August 30 to September 10, 2027**.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "passed": false,
+      "answer": "The marking, appeal, and grade release period for Summer 2027 is from June 21 to July 2, 2027. \n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -663,7 +645,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": false,
-      "answer": "Thời gian chấm điểm, phúc khảo và công bố điểm của học kỳ Summer 2027 diễn ra từ **21 tháng 6 đến 2 tháng 7 năm 2027**. \n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Thời gian chấm điểm, phúc khảo và công bố điểm của học kỳ Summer 2027 diễn ra từ **21 tháng 6 đến 2 tháng 7 năm 2027**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://registrar.vinuni.edu.vn/vi/2025/11/10/final-exam-dang-toi-can-biet-gi-ve-lich-thi-va-quy-dinh/",
@@ -688,15 +670,14 @@
       "id": "calendar-orientation-week-vi",
       "category": "calendar_pointlookup",
       "question": "Tuần định hướng (Orientation Week) cho học kỳ Fall 2026 diễn ra khi nào?",
-      "facts_ok": false,
+      "facts_ok": true,
       "citation_ok": true,
       "refusal_ok": true,
-      "passed": false,
-      "answer": "Tuần định hướng (Orientation Week) cho học kỳ Fall 2026 chưa được xác định cụ thể trong dữ liệu hiện có. Tuy nhiên, ngày bắt đầu giảng dạy cho học kỳ này là 21 tháng 9 năm 2026.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "passed": true,
+      "answer": "Tuần định hướng (Orientation Week) cho học kỳ Fall 2026 sẽ diễn ra từ **14 đến 18 tháng 9 năm 2026**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
-        "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/chuyen-doi-tin-chi/",
-        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/"
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
     },
     {
@@ -707,7 +688,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Victory Day is marked on April 30, 2027, in the 2026-2027 academic calendar.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Victory Day is marked on April 30, 2027, in the 2026-2027 academic calendar.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -721,10 +702,11 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Ngày Giải phóng miền Nam (Victory Day) trong năm học 2026-2027 sẽ rơi vào ngày 30 tháng 4.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Ngày Giải phóng miền Nam (Victory Day) trong năm học 2026-2027 là ngày 30 tháng 4.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/20230923_BN_CurriculumFramework_Cohort-2023.pdf"
       ]
     },
     {
@@ -735,14 +717,14 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The VinUni Student Code of Conduct applies to all VinUniversity students as members of the university community. This includes students enrolled in any academic program at VinUni, and it outlines the expected standards of behavior, rights, and responsibilities of these students.\n\n**Source:** [VinUni Student Code of Conduct](https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf)",
+      "answer": "The VinUni Student Code of Conduct applies to all VinUniversity students. It outlines the expected standards of behavior for students as members of a respectful, inclusive, and academically rigorous learning community. The Code aims to promote ethical behavior, define students' rights and responsibilities, and clearly outline prohibited conduct along with associated disciplinary consequences.\n\n**Source:** [VinUni Student Code of Conduct](https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/Appendix-I-Student-behaviours_ENG.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf",
-        "https://policy.vinuni.edu.vn/all-policies/student-academic-integrity/",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2026/05/VU_GDL_Sexual-Misconduct-and-Response-Guideline_19062023.pdf",
         "https://policy.vinuni.edu.vn/all-policies/internship-management-policy/",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2026/05/VU_GDL_Sexual-Misconduct-and-Response-Guideline_19062023.pdf",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf",
         "https://policy.vinuni.edu.vn/all-policies/student-affairs-regulations-code-of-conduct/"
       ]
@@ -755,14 +737,14 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The purpose of the VinUni Student Code of Conduct is to establish the standards of behavior expected from all students at VinUniversity. It aims to:\n\n1. **Promote Ethical Behavior**: Foster a culture of mutual respect among students, faculty, staff, and the broader community.\n2. **Define Rights and Responsibilities**: Clearly outline the rights and responsibilities of students as members of the University.\n3. **Outline Prohibited Conduct**: Specify behaviors that are not acceptable and the disciplinary consequences associated with them.\n4. **Guide Responsible Decision-Making**: Assist students in making decisions that align with the values of VinUniversity.\n5. **Maintain University Reputation**: Serve as a foundation for upholding a positive reputation for the University and contributing to the public good.\n\nThe Code is both educational and regulatory, designed to help students grow as responsible global citizens.\n\n**Source**: [VinUni Student Code of Conduct](https://policy.vinuni.edu.vn/all-policies/student-affairs-regulations-code-of-conduct/)",
+      "answer": "The purpose of the VinUni Student Code of Conduct is to establish the standards of behavior expected from all students at VinUniversity. It aims to:\n\n1. **Promote Ethical Behavior**: Foster a culture of mutual respect among students, faculty, staff, and the broader community.\n2. **Define Rights and Responsibilities**: Clearly outline the rights and responsibilities of students as members of the university.\n3. **Outline Prohibited Conduct**: Specify behaviors that are not acceptable and the disciplinary consequences associated with them.\n4. **Guide Responsible Decision-Making**: Assist students in making decisions that align with the values of VinUniversity.\n5. **Maintain University Reputation**: Serve as a foundation for upholding a positive reputation for the university and contributing to the public good.\n\nThe Code is both educational and regulatory, designed to help students grow as responsible global citizens.\n\n**Source**: [VinUni Student Code of Conduct](https://policy.vinuni.edu.vn/all-policies/student-affairs-regulations-code-of-conduct/)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/Appendix-I-Student-behaviours_ENG.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf",
-        "https://policy.vinuni.edu.vn/all-policies/student-academic-integrity/",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2026/05/VU_GDL_Sexual-Misconduct-and-Response-Guideline_19062023.pdf",
         "https://policy.vinuni.edu.vn/all-policies/internship-management-policy/",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2026/05/VU_GDL_Sexual-Misconduct-and-Response-Guideline_19062023.pdf",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf",
         "https://policy.vinuni.edu.vn/all-policies/student-affairs-regulations-code-of-conduct/"
       ]
@@ -775,12 +757,12 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "At VinUniversity, students may face various levels of disciplinary action for violations, categorized into four tiers based on the severity of the misconduct:\n\n1. **Tier 1: Expression of Disapproval**\n   - Applied to students who commit a first-time violation of a minor nature.\n\n2. **Tier 2: Warning**\n   - Given to students who have previously received a reprimand and committed a repeat violation, or who commit minor but frequent violations, or a relatively serious first-time violation.\n\n3. **Tier 3: Temporary Suspension**\n   - Imposed on students who, while under a warning, continue to violate regulations, or who commit serious violations of prohibited acts. This may also apply to students convicted under criminal law but granted a suspended sentence. The suspension period can vary, including one semester or one academic year.\n\n4. **Tier 4: Dismissal/Expulsion**\n   - This is for students who, while under temporary suspension, continue to violate regulations, or who commit a first-time violation of particularly serious nature, causing significant harm to the university or society.\n\nDisciplinary actions at the level of warning or higher are recorded in the student's official records and notified to the student’s family. In cases of temporary suspension or expulsion, formal notices are sent to the student’s family and local authorities for coordinated management and educational support.\n\n**Source:** [VinUniversity Student Code of Conduct](https://policy.vinuni.edu.vn/all-policies/student-affairs-regulations-code-of-conduct/) (Policy Code: VU_CTSV02.EN)",
+      "answer": "VinUni students may face various levels of disciplinary action for violations of the Student Code of Conduct, categorized as follows:\n\n1. **Expression of Disapproval**: For first-time minor violations.\n2. **Warning**: For repeat minor violations or a serious first-time violation.\n3. **Temporary Suspension**: For serious violations or continued misconduct while under a warning.\n4. **Dismissal/Expulsion**: For severe violations or criminal convictions.\n\nThe severity of the violation, frequency, and consequences will determine the appropriate disciplinary action. \n\nFor more details, you can refer to the official document [here](https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf).\n\n**Nguồn**: VU_CTSV02 - Student Code of Conduct, VinUniversity.",
       "citations": [
-        "https://policy.vinuni.edu.vn/all-policies/student-affairs-regulations-code-of-conduct/",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/Appendix-II-Disciplinary-Procedures_ENG.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2023/05/Appendix-IV.-Procedure-for-Student-Code-of-Conduct-Incidents.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2023/05/Form-02_Student-Misconduct-Report-Form.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf",
         "https://policy.vinuni.edu.vn/all-policies/student-affairs-regulations-code-of-conduct/",
         "https://policy.vinuni.edu.vn/all-policies/student-affairs-regulations-code-of-conduct/",
@@ -795,13 +777,13 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "To report suspected student misconduct at VinUni, follow these steps:\n\n### Conditions\n- Any member of the VinUni community (students, faculty, or staff) can report misconduct.\n\n### Steps to Report\n1. **Initial Reporting**: If you suspect misconduct, you can report it via email to **connect-sam@vinuni.edu.vn** or visit the Student Affairs Management Office.\n2. **Documentation**: Include the following in your report:\n   - Your full name and contact details.\n   - The full name of the person(s) suspected of misconduct (if known).\n   - Details of the suspected misconduct.\n   - Any evidence (photos, videos, etc.) if available.\n\n### Required Documents\n- **FRM01**: Suspected Misconduct Report Form.\n- Evidence of the misconduct (if available).\n\n### Where to Submit\n- Email your report to **connect-sam@vinuni.edu.vn** or submit it in person at the Student Affairs Management Office.\n\n### Notes\n- It is important to act promptly and report any misconduct to maintain a safe environment.\n- If you feel unsafe or uncomfortable, seek assistance from faculty or staff.\n\n### Source\n- For more details, refer to the [Appendix IV - Procedure for Student Code of Conduct Incidents](https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/Appendix-IV-Procedure-for-Student-Code-of-Conduct-Incidents-and-Forms_EN.pdf).",
+      "answer": "To report suspected student misconduct at VinUni, follow these steps:\n\n### Điều kiện\n- Bất kỳ ai trong cộng đồng VinUni (sinh viên, giảng viên, nhân viên) đều có trách nhiệm báo cáo hành vi vi phạm.\n\n### Các bước thực hiện\n1. **Gửi báo cáo**: \n   - Gửi email đến **connect-sam@vinuni.edu.vn** hoặc đến Văn phòng Quản lý Sinh viên (Student Affairs Management Office).\n   - Cung cấp thông tin chi tiết về hành vi vi phạm, bao gồm tên và thông tin liên lạc của người báo cáo, tên của người bị nghi ngờ vi phạm (nếu biết), và mô tả chi tiết về hành vi vi phạm.\n\n2. **Hình thức báo cáo**:\n   - Có thể sử dụng **Form 1 (FRM01)**: Suspected Misconduct Report Form để ghi lại thông tin.\n\n3. **Xử lý ban đầu**:\n   - Nếu an toàn, giảng viên hoặc nhân viên có thể thực hiện các hành động xử lý ban đầu trước khi báo cáo.\n\n### Giấy tờ cần chuẩn bị\n- Bằng chứng vi phạm (nếu có), có thể là bản sao mềm hoặc bản cứng (hình ảnh, video, báo cáo vi phạm tạm thời, v.v.).\n\n### Nơi nộp/Đơn vị liên hệ\n- **Email**: connect-sam@vinuni.edu.vn\n- **Văn phòng**: Văn phòng Quản lý Sinh viên (Student Affairs Management Office).\n\n### Lưu ý\n- Hãy đảm bảo rằng thông tin báo cáo là chính xác và đầy đủ để hỗ trợ quá trình điều tra.\n\n### Nguồn\n- [Appendix II. Disciplinary Procedures](https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/Appendix-II-Disciplinary-Procedures_ENG.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2023/05/Appendix-IV.-Procedure-for-Student-Code-of-Conduct-Incidents.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2023/05/Appendix-IV.-Procedure-for-Student-Code-of-Conduct-Incidents.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2026/05/VU_GDL_Sexual-Misconduct-and-Response-Guideline_19062023.pdf",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/Appendix-IV-Procedure-for-Student-Code-of-Conduct-Incidents-and-Forms_EN.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2023/05/Form-02_Student-Misconduct-Report-Form.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/Appendix-II-Disciplinary-Procedures_ENG.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/Appendix-IV-Procedure-for-Student-Code-of-Conduct-Incidents-and-Forms_EN.pdf"
@@ -815,7 +797,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Sinh viên VinUni có thể bị xử lý kỷ luật ở các mức độ sau:\n\n1. **Bậc 1: Khiển trách** - Áp dụng cho sinh viên lần đầu vi phạm ở mức độ nhẹ.\n2. **Bậc 2: Cảnh cáo** - Áp dụng cho sinh viên đã từng bị khiển trách và tái phạm, hoặc vi phạm nhẹ nhưng thường xuyên.\n3. **Bậc 3: Đình chỉ học tập có thời hạn** - Áp dụng cho các vi phạm nghiêm trọng hơn.\n4. **Bậc 4: Buộc thôi học** - Áp dụng cho các hành vi vi phạm nghiêm trọng hoặc tái phạm nhiều lần.\n\nQuy trình xử lý kỷ luật sẽ được thực hiện theo từng bậc, với các bước và thủ tục cụ thể được quy định trong tài liệu chính sách của trường.\n\nNguồn: [Quy chế công tác sinh viên VinUni](https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Quy-che-cong-tac-sinh-vien_24.12.2025_VIE.pdf) (Trang 8-9).",
+      "answer": "Sinh viên VinUni có thể bị xử lý kỷ luật ở các mức độ sau:\n\n1. **Bậc 1: Khiển trách** - Áp dụng cho sinh viên lần đầu vi phạm ở mức độ nhẹ.\n2. **Bậc 2: Cảnh cáo** - Áp dụng cho sinh viên đã từng bị khiển trách và tái phạm, hoặc vi phạm nhẹ nhưng thường xuyên.\n3. **Bậc 3: Đình chỉ học tập có thời hạn** - Áp dụng cho những vi phạm nghiêm trọng hơn.\n4. **Bậc 4: Buộc thôi học** - Áp dụng cho những vi phạm rất nghiêm trọng.\n\nQuy trình xử lý kỷ luật sẽ được thực hiện theo từng bậc vi phạm, với sự tham gia của Phòng Công tác sinh viên và Hội đồng khen thưởng và kỷ luật sinh viên.\n\nNguồn: [Quy chế công tác sinh viên VinUni](https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Quy-che-cong-tac-sinh-vien_24.12.2025_VIE.pdf) (Trang 8-9).",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Quy-che-cong-tac-sinh-vien_24.12.2025_VIE.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Quy-che-cong-tac-sinh-vien_24.12.2025_VIE.pdf",
@@ -834,7 +816,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Bộ Quy tắc ứng xử của sinh viên VinUni áp dụng cho tất cả sinh viên đang theo học tại Trường Đại học VinUni. Quy tắc này có hiệu lực trong suốt thời gian sinh viên theo học, bao gồm cả thời gian nghỉ hè và nghỉ giữa các học kỳ. Tất cả sinh viên đều được yêu cầu tuân thủ và phát huy các giá trị cốt lõi của trường.\n\nNguồn: [Bộ Quy chế Công tác Sinh viên VinUni](https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Quy-che-cong-tac-sinh-vien_24.12.2025_VIE.pdf) (trang 4).",
+      "answer": "Bộ Quy tắc ứng xử của sinh viên VinUni áp dụng cho tất cả sinh viên đang theo học tại Trường Đại học VinUni, bao gồm cả thời gian nghỉ hè và nghỉ giữa các học kỳ. Tất cả sinh viên đều được yêu cầu tuân thủ bộ quy tắc này và phát huy các giá trị cốt lõi của trường mọi lúc, mọi nơi.\n\nNguồn: [Bộ Quy chế Công tác Sinh viên VinUni](https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Quy-che-cong-tac-sinh-vien_24.12.2025_VIE.pdf) (trang 4).",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Quy-che-cong-tac-sinh-vien_24.12.2025_VIE.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Quy-che-cong-tac-sinh-vien_24.12.2025_VIE.pdf",
@@ -853,10 +835,11 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The listed tuition fee per academic year for the Bachelor of Nursing program at VinUniversity is **349,650,000 VND**.\n\n**Source:** [Financial Regulations and Tariff (for student)](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
+      "answer": "The listed tuition fee per academic year for the Bachelor of Nursing program is **349,650,000 VND**.\n\n**Source:** [VinUniversity Tuition Rates and Fees](https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/)",
       "citations": [
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/20200907_BN_CurriculumFramework_Cohort-2020.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/20240827_BN_CurriculumFramework_Cohort-2024.pdf",
         "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/"
       ]
@@ -869,10 +852,12 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The listed tuition fee per credit for the Bachelor of Nursing program at VinUniversity is **9,780,000 VND**.\n\n**Source:** [Financial Regulations and Tariff (for student)](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
+      "answer": "The listed tuition fee per credit for the Bachelor of Nursing program is **9,780,000 VND**.\n\n**Source:** [Tuition Rates and Fees](https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/)",
       "citations": [
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/20200907_BN_CurriculumFramework_Cohort-2020.pdf",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/20240827_BN_CurriculumFramework_Cohort-2024.pdf",
         "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/"
       ]
     },
@@ -884,11 +869,14 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The listed tuition fee per academic year for other Bachelor programs at VinUni is **815,850,000 VND**. This fee applies to programs with a standard duration of 4 years.\n\n**Source:** [VinUni Financial Regulations and Tariff](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
+      "answer": "The listed tuition fee per academic year for other Bachelor programs at VinUni is **815,850,000 VND**. \n\n**Source:** [VinUni Tuition Rates and Fees](https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/)",
       "citations": [
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
-        "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://policy.vinuni.edu.vn/all-policies/integrated-degree-programs-procedure/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/"
       ]
     },
@@ -900,15 +888,15 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Học phí niêm yết mỗi học kỳ của các chương trình Cử nhân khác tại VinUni là 407,925,000 VND. Đây là mức học phí áp dụng cho các chương trình Cử nhân khác ngoài chương trình Cử nhân Điều dưỡng.\n\n- **Học phí mỗi học kỳ**: 407,925,000 VND\n- **Học phí mỗi năm**: 815,850,000 VND\n- **Học phí mỗi tín chỉ**: 27,195,000 VND\n\nNguồn: [VinUni Tuition Rates and Fees](https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/)",
+      "answer": "Học phí niêm yết mỗi học kỳ của các chương trình Cử nhân khác tại VinUni là 407,925,000 VND.\n\nNguồn: [VinUni Financial Regulations](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Quy-che-cong-tac-sinh-vien_24.12.2025_VIE.pdf",
-        "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Quy-che-cong-tac-sinh-vien_24.12.2025_VIE.pdf",
+        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://vinuni.edu.vn/vi/aid/career-services-vn/",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
-        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
-        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
+        "https://vinuni.edu.vn/vi/ve-vinuni-2/",
+        "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/"
       ]
     },
@@ -920,7 +908,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": false,
-      "answer": "Học phí niêm yết theo tín chỉ của chương trình Cử nhân tiêu chuẩn tại VinUni là 9,780,000 VND cho mỗi tín chỉ. \n\nNguồn: [Chính sách tài chính và biểu phí cho sinh viên](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
+      "answer": "Học phí niêm yết theo tín chỉ của chương trình Cử nhân tiêu chuẩn là 9,780,000 VND/tín chỉ.\n\nNguồn: [Quy định tài chính và biểu phí cho sinh viên](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
       "citations": [
         "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
@@ -935,13 +923,13 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "VinUni student tuition fees are listed in Vietnamese Dong (VND). For example, the listed tuition fee is 932,400,000 VND per year.\n\nNguồn: [Financial Regulations and Tariff (for student)](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
+      "answer": "VinUni student tuition fees are listed in Vietnamese Dong (VND).\n\nNguồn: [VinUni Financial Regulations](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
       "citations": [
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
-        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
-        "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/"
       ]
     },
@@ -953,14 +941,13 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The overdue fine for a normal item at the VinUni library is **10,000 VND per day per document**.\n\n**Source**: [VinUni Financial Regulations](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
+      "answer": "The overdue fine for a normal item at the VinUni library is 10,000 VND per day overdue per document.\n\n**Source:** [VinUni Financial Regulations](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
       "citations": [
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://policy.vinuni.edu.vn/all-policies/library-policies-for-users/",
         "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
         "https://experience.vinuni.edu.vn/student-life-support/library/",
-        "https://policy.vinuni.edu.vn/all-policies/library-policies-for-users/",
-        "https://policy.vinuni.edu.vn/all-policies/facility-usage-regulations-including-facilities-for-rent/",
+        "https://vinuni.edu.vn/vi/student_life/sinh-vien-quoc-te/",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/"
       ]
     },
@@ -972,49 +959,47 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The listed tuition fee per academic year for the Doctor of Medicine program at VinUniversity is **815,850,000 VND**.\n\n**Source:** [VinUniversity Tuition Rates and Fees](https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/)",
+      "answer": "The listed tuition fee per academic year for the Doctor of Medicine program is **815,850,000 VND**.\n\n**Source:** [VinUniversity Tuition Rates and Fees](https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/)",
       "citations": [
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
-        "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/",
-        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/"
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
+        "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/"
       ]
     },
     {
       "id": "fin-nursing-tuition-year-vi",
       "category": "financial",
       "question": "Học phí niêm yết mỗi năm học của chương trình Cử nhân Điều dưỡng là bao nhiêu?",
-      "facts_ok": false,
+      "facts_ok": true,
       "citation_ok": true,
       "refusal_ok": true,
-      "passed": false,
-      "answer": "Học phí niêm yết mỗi năm học của chương trình Cử nhân Điều dưỡng tại VinUni là **932,400,000 VND**. \n\nNguồn: [VinUni Financial Regulations](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
+      "passed": true,
+      "answer": "Học phí niêm yết mỗi năm học của chương trình Cử nhân Điều dưỡng là 349,650,000 VND.\n\nNguồn: [VinUni Financial Regulations and Tariff](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
       "citations": [
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/vF.250812_BAP_25-29_Curriculum-Framework.pdf",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/vF.250812_BAE_24-28_Curriculum-Framework.pdf",
-        "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/chinh-sach-quy-dinh/",
         "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/",
-        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/"
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
+        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
+        "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/"
       ]
     },
     {
       "id": "fin-nursing-tuition-credit-vi",
       "category": "financial",
       "question": "Học phí niêm yết theo tín chỉ của chương trình Cử nhân Điều dưỡng là bao nhiêu?",
-      "facts_ok": false,
+      "facts_ok": true,
       "citation_ok": true,
       "refusal_ok": true,
-      "passed": false,
-      "answer": "Học phí niêm yết cho chương trình Cử nhân Điều dưỡng tại VinUni là 113.636.100 VND mỗi học kỳ và 227.272.200 VND mỗi năm.\n\nNguồn: [VinUni Tuition Rates and Fees](https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/)",
+      "passed": true,
+      "answer": "Học phí niêm yết theo tín chỉ của chương trình Cử nhân Điều dưỡng là 9,780,000 VND/ tín chỉ.\n\nNguồn: [VinUni Financial Regulations and Tariff](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
       "citations": [
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/vF.250812_BAP_25-29_Curriculum-Framework.pdf",
-        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/vF.250812_BAE_24-28_Curriculum-Framework.pdf",
-        "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/chinh-sach-quy-dinh/",
+        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
         "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/",
-        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/"
+        "https://registrar.vinuni.edu.vn/vi/2026/04/06/thong-bao-ve-xet-tot-nghiep-dai-hoc-nam-hoc-2026/",
+        "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/chinh-sach-quy-dinh/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/"
       ]
     },
     {
@@ -1025,10 +1010,12 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The listed tuition fee per credit for standard Bachelor programs at VinUni is **27,195,000 VND**. This applies to most Bachelor programs, excluding the Bachelor of Nursing, which has a different fee structure.\n\n**Source:** [VinUni Tuition Rates and Fees](https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/)",
+      "answer": "The listed tuition fee per credit for the standard Bachelor program at VinUni is **27,195,000 VND**.\n\n**Source:** [VinUni Financial Regulations and Tariff](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
       "citations": [
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
-        "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://policy.vinuni.edu.vn/all-policies/integrated-degree-programs-procedure/",
         "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/"
@@ -1038,19 +1025,19 @@
       "id": "fin-other-bachelor-year-vi",
       "category": "financial",
       "question": "Học phí niêm yết mỗi năm học của các chương trình Cử nhân khác tại VinUni là bao nhiêu?",
-      "facts_ok": false,
+      "facts_ok": true,
       "citation_ok": true,
       "refusal_ok": true,
-      "passed": false,
-      "answer": "Học phí niêm yết mỗi năm học của các chương trình Cử nhân tại VinUni như sau:\n\n1. **Chương trình Cử nhân Điều dưỡng**: 349,650,000 VND/năm.\n2. **Chương trình Cử nhân Kinh doanh**: 349,650,000 VND/năm.\n3. **Chương trình Cử nhân Kỹ thuật**: 349,650,000 VND/năm.\n4. **Chương trình Cử nhân Khoa học Máy tính**: 349,650,000 VND/năm.\n5. **Chương trình Cử nhân Khoa học Sức khỏe**: 349,650,000 VND/năm.\n\nHọc phí này bao gồm các khoản phí đào tạo, phí cơ sở vật chất, hỗ trợ công nghệ thông tin và các hoạt động sinh viên.\n\nNguồn: [VinUni Financial Regulations](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
+      "passed": true,
+      "answer": "Học phí niêm yết mỗi năm học của các chương trình Cử nhân khác tại VinUni là 815,850,000 VND.\n\nNguồn: [VinUni Financial Regulations and Tariff](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
       "citations": [
-        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Quy-che-cong-tac-sinh-vien_24.12.2025_VIE.pdf",
-        "https://vinuni.edu.vn/vi/vinlead-emerging-kien-tao-the-he-lanh-dao-tuong-la/",
-        "https://vinuni.edu.vn/wp-content/uploads/2020/07/VinUniversitys-Post-graduate-study-support-Research-opportunity.pdf",
-        "https://vinuni.edu.vn/vi/aid/career-services-vn/",
+        "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://vinuni.edu.vn/vi/ve-vinuni-2/",
         "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2023/05/230515_VUNI_Quy-che-dao-tao-Tien-si.pdf",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/"
       ]
     },
@@ -1059,19 +1046,19 @@
       "category": "financial",
       "question": "Học phí niêm yết mỗi năm học của chương trình Doctor of Medicine tại VinUni là bao nhiêu?",
       "facts_ok": true,
-      "citation_ok": false,
+      "citation_ok": true,
       "refusal_ok": true,
-      "passed": false,
-      "answer": "Học phí niêm yết mỗi năm học của chương trình Doctor of Medicine tại VinUni là 815,850,000 VNĐ.\n\nNguồn: [Tuition Rates and Fees](https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/)",
+      "passed": true,
+      "answer": "Học phí niêm yết mỗi năm học của chương trình Doctor of Medicine tại VinUni là 815,850,000 VND.\n\nNguồn: [VinUni Tuition Rates and Fees](https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/)",
       "citations": [
+        "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/MD_Cohort-2021_CurriculumFramework_AY25.26_Final.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/Cohort-2025_CurriculumFramework_AY25.26_Final.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2023/05/230515_VUNI_Quy-che-dao-tao-Tien-si.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/Cohort-2025_CurriculumFramework_AY25.26_Final.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/MD_Cohort-2024_CurriculumFramework_AY25.26_-Final.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/MD_Cohort-2022_CurriculumFramework_AY25.26_-Final.pdf",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/MD_Cohort-2023_CurriculumFramework_AY25.26_-Final.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/Cohort-2020_-CurriculumFramework_AY25.26_Final.pdf",
-        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
-        "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/"
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/Cohort-2025_CurriculumFramework_AY25.26_Final.pdf",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/"
       ]
     },
     {
@@ -1084,13 +1071,13 @@
       "passed": true,
       "answer": "The listed tuition fee per semester for other Bachelor programs at VinUni is **407,925,000 VND**. This applies to programs with a standard duration of 4 years.\n\n**Source:** [VinUni Tuition Rates and Fees](https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/)",
       "citations": [
-        "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/",
-        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
-        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://policy.vinuni.edu.vn/all-policies/integrated-degree-programs-procedure/",
-        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/"
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
+        "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/"
       ]
     },
     {
@@ -1105,10 +1092,10 @@
       "citations": [
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/Appendix-II_Off-Campus-Residential-Policy.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Quy-che-cong-tac-sinh-vien_24.12.2025_VIE.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/Appendix-I_On-Campus-Residential-Policy.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Quy-che-cong-tac-sinh-vien_24.12.2025_VIE.pdf",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/Appendix-II_Off-Campus-Residential-Policy.pdf",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/"
       ]
     },
@@ -1116,12 +1103,19 @@
       "id": "fin-library-overdue-fine-vi",
       "category": "financial",
       "question": "Phí phạt trả trễ mỗi ngày cho một tài liệu thường tại thư viện VinUni là bao nhiêu?",
-      "facts_ok": true,
+      "facts_ok": false,
       "citation_ok": true,
       "refusal_ok": true,
-      "passed": true,
-      "answer": "Phí phạt trả trễ cho một tài liệu thường tại thư viện VinUni là 10,000 VND mỗi ngày cho mỗi tài liệu quá hạn.\n\nNguồn: [VinUni Financial Regulations](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
+      "passed": false,
+      "answer": "Xin lỗi, mình chưa tìm thấy thông tin chính thức đủ rõ trong dữ liệu hiện có để trả lời chắc chắn. Bạn nên kiểm tra các nguồn chính thức dưới đây hoặc liên hệ đơn vị phụ trách để xác nhận.\n\nNguồn chính thức nên tham khảo:\n- [Student Gateway](https://vinuni.edu.vn/student-gateway/)\n- [Academic Calendar](https://vinuni.edu.vn/academic-calendar/)\n- [VinUni Policy Library](https://policy.vinuni.edu.vn/)\n- [Office of University Registrar](https://registrar.vinuni.edu.vn/)",
       "citations": [
+        "https://vinuni.edu.vn/vi/hoi-dong-truong/",
+        "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/yeu-cau-cap-bang-diem-va-chung-nhan/",
+        "https://experience.vinuni.edu.vn/wp-content/uploads/sites/20/2025/11/International-Student-Welcome-Guide-1.pdf",
+        "https://vinuni.edu.vn/wp-content/uploads/2025/04/Special-Offers-AID-SAM-OP.pdf",
+        "https://vinuni.edu.vn/vi/giai-quyet-thach-thuc-thuc-thi-vai-tro-cua-vinuni-trong-viec-hien-thuc-muc-tieu-nang-suat-nhan-to-tong-hop-tfp-cua-viet-nam/",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Quy-che-cong-tac-sinh-vien_24.12.2025_VIE.pdf",
+        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/"
       ]
     },
@@ -1133,7 +1127,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The course drop deadline for Fall 2026 is **October 9, 2026**.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "The course drop deadline for Fall 2026 is **October 9, 2026**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -1147,11 +1141,10 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Hạn hủy môn (Course Drop Deadline) cho học kỳ Fall 2026 là vào ngày 9 tháng 10 năm 2026.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Hạn hủy môn của học kỳ Fall 2026 là ngày 9 tháng 10 năm 2026.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
-        "https://registrar.vinuni.edu.vn/vi/2025/12/15/thong-bao-chinh-thuc-ve-lich-dang-ky-mon-hoc-ky-spring-2026/"
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
     },
     {
@@ -1162,10 +1155,12 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The listed tuition fee per credit for the Bachelor of Nursing program at VinUniversity is **9,780,000 VND**.\n\n**Source:** [Financial Regulations and Tariff (for student)](https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/)",
+      "answer": "The listed tuition fee per credit for the Bachelor of Nursing program is **9,780,000 VND**.\n\n**Source:** [VinUniversity Tuition Rates and Fees](https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/)",
       "citations": [
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/20200907_BN_CurriculumFramework_Cohort-2020.pdf",
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/20240827_BN_CurriculumFramework_Cohort-2024.pdf",
         "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/"
       ]
     },
@@ -1188,15 +1183,14 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": false,
-      "answer": "The VinUni leave of absence and withdrawal procedure is applicable to **VinUniversity Students, Staff, and Faculty**. This procedure provides a structured process for students who need to take a temporary leave of absence from their studies or permanently withdraw from their academic programs.\n\n**Source**: [Procedure for Requesting a Leave of Absence, Withdrawal and Return from a Leave of Absence](https://policy.vinuni.edu.vn/all-policies/procedure-for-requesting-a-leave-of-absence-withdrawal-and-return-from-a-leave-of-absence/) (Policy Code: VUNI.54).",
+      "answer": "The VinUni leave of absence and withdrawal procedure is applicable to **VinUniversity Students, Staff, and Faculty**. This procedure provides a structured process for students who need to take a temporary leave of absence from their studies or permanently withdraw from their academic programs.\n\n**Source:** [Procedure for Requesting a Leave of Absence, Withdrawal and Return from a Leave of Absence](https://policy.vinuni.edu.vn/all-policies/procedure-for-requesting-a-leave-of-absence-withdrawal-and-return-from-a-leave-of-absence/) (Policy Code: VUNI.54).",
       "citations": [
         "https://policy.vinuni.edu.vn/all-policies/procedure-for-requesting-a-leave-of-absence-withdrawal-and-return-from-a-leave-of-absence/",
         "https://policy.vinuni.edu.vn/all-policies/procedure-for-requesting-a-leave-of-absence-withdrawal-and-return-from-a-leave-of-absence/",
         "https://policy.vinuni.edu.vn/all-policies/guidance-for-fitness-to-study-procedures/",
         "https://policy.vinuni.edu.vn/all-policies/procedure-for-requesting-a-leave-of-absence-withdrawal-and-return-from-a-leave-of-absence/",
         "https://policy.vinuni.edu.vn/all-policies/academic-regulations-for-full-time-undergraduate-programs/",
-        "https://policy.vinuni.edu.vn/all-policies/guidance-for-fitness-to-study-procedures/",
-        "https://policy.vinuni.edu.vn/all-policies/procedure-for-requesting-a-leave-of-absence-withdrawal-and-return-from-a-leave-of-absence/"
+        "https://policy.vinuni.edu.vn/all-policies/guidance-for-fitness-to-study-procedures/"
       ]
     },
     {
@@ -1207,7 +1201,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The first step a student takes to request a leave of absence at VinUni is to fill in the Leave of Absence or Withdrawal form. After completing the form, the student should consult with an academic advisor to express their request and receive advice. The completed form can then be sent via email to the Office of University Registrar or submitted in person.\n\n**Source:** [Procedure for Requesting a Leave of Absence, Withdrawal and Return from a Leave of Absence](https://policy.vinuni.edu.vn/all-policies/procedure-for-requesting-a-leave-of-absence-withdrawal-and-return-from-a-leave-of-absence/) (Policy Code: VUNI.54).",
+      "answer": "The first step a student takes to request a leave of absence at VinUni is to fill in the Leave of Absence or Withdrawal form. After completing the form, the student should consult with their academic advisor to express their request and receive advice. The completed form can then be sent via email to the Office of University Registrar or submitted in person.\n\n**Source:** [Procedure for Requesting a Leave of Absence, Withdrawal and Return from a Leave of Absence](https://policy.vinuni.edu.vn/all-policies/procedure-for-requesting-a-leave-of-absence-withdrawal-and-return-from-a-leave-of-absence/) (Policy Code: VUNI.54).",
       "citations": [
         "https://policy.vinuni.edu.vn/all-policies/academic-regulations-for-full-time-undergraduate-programs/",
         "https://policy.vinuni.edu.vn/all-policies/academic-regulations-for-full-time-undergraduate-programs/",
@@ -1226,7 +1220,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": false,
-      "answer": "The purpose of the leave of absence (LOA) procedure for VinUni students is to provide a structured process for those who need to temporarily leave their studies or permanently withdraw from their academic programs. This procedure aims to ensure clarity, fairness, and consistency in managing such requests while offering appropriate support and guidance to students throughout the process.\n\n### Key Points:\n- **Structured Process**: Ensures that students can navigate their leave or withdrawal in an organized manner.\n- **Support and Guidance**: Provides students with the necessary assistance during their decision-making process.\n- **Fairness and Consistency**: Aims to treat all requests equitably and in accordance with university regulations.\n\nFor more detailed information, you can refer to the official document [here](https://policy.vinuni.edu.vn/all-policies/procedure-for-requesting-a-leave-of-absence-withdrawal-and-return-from-a-leave-of-absence/).\n\n**Source**: Procedure for Requesting a Leave of Absence, Withdrawal and Return from a Leave of Absence (Policy Code: VUNI.54).",
+      "answer": "The purpose of the leave of absence (LOA) procedure for VinUni students is to provide a structured process for those who need to temporarily leave their studies or permanently withdraw from their academic programs. This procedure aims to ensure clarity, fairness, and consistency in managing such requests while offering appropriate support and guidance to students throughout the process.\n\n### Key Points:\n- **Structured Process**: It outlines the steps students must follow to request a leave or withdrawal.\n- **Support and Guidance**: It ensures students receive the necessary support during their absence.\n- **Clarity and Fairness**: The procedure is designed to be clear and fair to all students.\n\nFor more detailed information, you can refer to the official document [here](https://policy.vinuni.edu.vn/all-policies/procedure-for-requesting-a-leave-of-absence-withdrawal-and-return-from-a-leave-of-absence/).\n\n**Source**: Procedure for Requesting a Leave of Absence, Withdrawal and Return from a Leave of Absence (Policy Code: VUNI.54).",
       "citations": [
         "https://policy.vinuni.edu.vn/all-policies/procedure-for-requesting-a-leave-of-absence-withdrawal-and-return-from-a-leave-of-absence/",
         "https://policy.vinuni.edu.vn/all-policies/procedure-for-requesting-a-leave-of-absence-withdrawal-and-return-from-a-leave-of-absence/",
@@ -1244,7 +1238,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The Medical Doctor program attendance policy applies to Year 1, 2, and 3 students enrolled in the MD program at VinUniversity.\n\n**Source:** [Attendance Policy at Medical Doctor Program](https://policy.vinuni.edu.vn/all-policies/attendance-policy-at-medical-doctor-program/) (POL-CHS-001-V2.0)",
+      "answer": "The Medical Doctor program attendance policy applies to Year 1, Year 2, and Year 3 students enrolled in the MD program at VinUniversity.\n\n**Source:** [Attendance Policy at Medical Doctor Program](https://policy.vinuni.edu.vn/all-policies/attendance-policy-at-medical-doctor-program/) (POL-CHS-001-V2.0)",
       "citations": [
         "https://policy.vinuni.edu.vn/all-policies/attendance-policy-at-medical-doctor-program/",
         "https://policy.vinuni.edu.vn/all-policies/academic-regulations-for-full-time-undergraduate-programs/",
@@ -1264,7 +1258,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Yes, VinUniversity has a Student Academic Integrity Policy that outlines the principles and expectations regarding academic integrity within the university community. This policy includes definitions, responsibilities, and potential sanctions for violations of academic integrity.\n\nYou can refer to the full policy document here: [Student Academic Integrity Policy](https://policy.vinuni.edu.vn/all-policies/student-academic-integrity/) (Policy Code: VUNI.14).\n\n**Source:** VinUniversity Policy Document.",
+      "answer": "Yes, VinUniversity has a Student Academic Integrity Policy that outlines the principles and expectations regarding academic integrity within the university community. This policy includes definitions, responsibilities of students and faculty, and the consequences of violations.\n\nYou can refer to the full policy document here: [Student Academic Integrity Policy](https://policy.vinuni.edu.vn/all-policies/student-academic-integrity/).\n\n**Source:** VinUniversity Student Academic Integrity Policy (VUNI.14)",
       "citations": [
         "https://policy.vinuni.edu.vn/all-policies/student-academic-integrity/",
         "https://policy.vinuni.edu.vn/all-policies/student-academic-integrity/",
@@ -1283,7 +1277,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "You can find VinUni's policy on sexual misconduct and how it is handled in the \"Sexual Misconduct and Response Guideline.\" This guideline outlines the framework for addressing sexual misconduct within the VinUni community, including support for those affected and procedures for reporting incidents.\n\n### Key Points:\n- **Purpose**: To raise awareness, provide support, encourage prevention, and ensure transparency in handling sexual misconduct.\n- **Disclosure and Reporting**: Individuals can disclose incidents to designated persons within the community, such as the Dean of Student Experience or trusted faculty members. Reports can be made anonymously, but identifying oneself is encouraged for thorough investigations.\n- **Confidentiality**: All reports are handled with sensitivity and confidentiality.\n\nFor more detailed information, you can access the full guideline [here](https://policy.vinuni.edu.vn/all-policies/sexual-misconduct-and-response/).\n\n### Source:\n- VinUniversity Sexual Misconduct and Response Guideline (GDL-VINO-003-V1.0) [Link](https://policy.vinuni.edu.vn/all-policies/sexual-misconduct-and-response/)",
+      "answer": "You can find VinUni's policy on sexual misconduct and how it is handled in the \"Sexual Misconduct and Response Guideline.\" This document outlines the framework for addressing sexual misconduct, including raising awareness, providing support, and ensuring transparency in the response process.\n\n### Key Points:\n- **Purpose**: The guideline aims to raise awareness about sexual misconduct, provide support to affected individuals, and encourage collective responsibility for prevention.\n- **Disclosure and Reporting**: Individuals can disclose incidents to designated persons within the VinUni community, such as the Dean of Student Experience or trusted faculty members. Reports can be made anonymously, but identifying oneself is encouraged for thorough investigations.\n- **Confidentiality**: All reports are handled with sensitivity and confidentiality.\n\nFor more detailed information, you can access the full guideline [here](https://policy.vinuni.edu.vn/all-policies/sexual-misconduct-and-response/).\n\n### Source:\n- VinUni Sexual Misconduct and Response Guideline (GDL-VINO-003-V1.0) [Link](https://policy.vinuni.edu.vn/all-policies/sexual-misconduct-and-response/)",
       "citations": [
         "https://policy.vinuni.edu.vn/all-policies/sexual-misconduct-and-response/",
         "https://policy.vinuni.edu.vn/all-policies/sexual-misconduct-and-response/",
@@ -1307,10 +1301,10 @@
       "citations": [
         "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/tam-nghi-hoc-thoi-hoc-hoc-lai/",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Quy-che-cong-tac-sinh-vien_24.12.2025_VIE.pdf",
-        "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/tam-nghi-hoc-thoi-hoc-hoc-lai/",
-        "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/yeu-cau-cap-bang-diem-va-chung-nhan/",
         "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/bieu-mau-don-tu/",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Quy-che-cong-tac-sinh-vien_24.12.2025_VIE.pdf",
+        "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/tot-nghiep/",
+        "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/yeu-cau-cap-bang-diem-va-chung-nhan/",
+        "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/tam-nghi-hoc-thoi-hoc-hoc-lai/",
         "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/bieu-mau-don-tu/",
         "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/tam-nghi-hoc-thoi-hoc-hoc-lai/"
       ]
@@ -1433,12 +1427,12 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Yes, the VinUni library offers a room booking service. There are 19 rooms available for booking online, and reservations are on a first-come, first-served basis. Bookings can be made by groups of two or more, and the maximum booking period is 2 hours per session, with a limit of 2 sessions per day and 4 sessions per week. Reservations can be made on the same day or up to one week in advance. \n\nFor more details, you can visit the [VinUni Library Room Booking page](https://library.vinuni.edu.vn/room-booking/).\n\n**Source:** [VinUni Library Room Booking](https://library.vinuni.edu.vn/room-booking/)",
+      "answer": "Yes, the VinUni library offers a room booking service. There are 19 rooms available for booking online, which can be reserved on a first-come, first-served basis. Bookings can be made by groups of two or more, and the maximum booking period is 2 hours per session, with a limit of 2 sessions per day and 4 sessions per week across all rooms. Reservations can be made on the same day or up to one week in advance.\n\nFor more details, you can visit the [VinUni Library Room Booking page](https://library.vinuni.edu.vn/room-booking/).\n\n**Source:** [VinUni Library Room Booking](https://library.vinuni.edu.vn/room-booking/)",
       "citations": [
         "https://policy.vinuni.edu.vn/all-policies/library-policies-for-users/",
         "https://library.vinuni.edu.vn/room-booking/",
         "https://experience.vinuni.edu.vn/resources/",
-        "https://vinuni.edu.vn/vi/campus-services-vi/",
+        "https://vinuni.edu.vn/wp-content/uploads/2025/04/Special-Offers-AID-SAM-OP.pdf",
         "https://vinuni.edu.vn/student-gateway/",
         "https://library.vinuni.edu.vn/services/e-bookstore/",
         "https://vinuni.edu.vn/vi/hoi-dong-truong/"
@@ -1452,15 +1446,16 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The VinUni library provides a variety of learning and research support services, including:\n\n1. **Learning Support**: This includes access to educational multimedia development, literacy programs, and AI service agents to assist students in their studies.\n\n2. **Research Support**: The library offers mentorship for research projects, access to databases and journals, and support for university research outputs. Alumni can also apply for research funding and collaborate with faculty on research projects.\n\n3. **Room Booking**: Students can reserve study rooms within the library for group work or individual study.\n\n4. **E-Bookstore**: The library facilitates access to VinUni books and scholarly publications online, promoting academic publishing and knowledge sharing.\n\n5. **Digital Scholarship Showcase**: This service highlights the research outputs of the university, making them accessible to a wider audience.\n\nFor more detailed information, you can visit the [VinUni Library website](https://library.vinuni.edu.vn/services/e-bookstore/).\n\n**Source**: [VinUni Library Services](https://library.vinuni.edu.vn/services/e-bookstore/)",
+      "answer": "The VinUni library provides a variety of learning and research support services, including:\n\n1. **Access to Resources**: Students can access a wide range of library resources, databases, journals, and digital scholarship showcases.\n\n2. **Learning Support**: This includes educational multimedia development, literacy programs, and assistance with course materials.\n\n3. **Research Support**: The library offers research mentorship and support for academic projects, including access to research outputs and opportunities for participation in scientific research.\n\n4. **Room Booking**: Students can reserve study rooms and spaces within the library for group work or individual study.\n\n5. **E-Bookstore**: The library provides an e-bookstore for students to access digital books and resources.\n\n6. **Copy and Print Services**: Facilities for copying and printing are available to support students' academic needs.\n\nFor more detailed information, you can visit the [VinUni Library Services page](https://library.vinuni.edu.vn/services/e-bookstore/).\n\n**Source**: [VinUni Library Services](https://library.vinuni.edu.vn/services/e-bookstore/)",
       "citations": [
+        "https://policy.vinuni.edu.vn/all-policies/student-affairs-regulations-code-of-conduct/",
+        "https://library.vinuni.edu.vn/services/e-bookstore/",
+        "https://policy.vinuni.edu.vn/all-policies/bylaws-regulation-on-university-organization-and-operation/",
+        "https://vinuni.edu.vn/vi/hoi-dong-truong/",
+        "https://experience.vinuni.edu.vn/new-students/oasis-program/o-orientation/",
         "https://library.vinuni.edu.vn/room-booking/",
-        "https://library.vinuni.edu.vn/services/e-bookstore/",
-        "https://vinuni.edu.vn/vi/campus-services-vi/",
-        "https://vinuni.edu.vn/wp-content/uploads/2025/04/Dich-vu-va-tai-nguyen-AID-IT.pdf",
-        "https://vinuni.edu.vn/wp-content/uploads/2020/07/VinUniversitys-Post-graduate-study-support-Research-opportunity.pdf",
-        "https://library.vinuni.edu.vn/services/e-bookstore/",
-        "https://vinuni.edu.vn/vi/hoi-dong-truong/"
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/12/VU_CTSV02_Student-Code-of-Conduct_24.12.2025.pdf",
+        "https://policy.vinuni.edu.vn/all-policies/regulation-for-library-management/"
       ]
     },
     {
@@ -1471,7 +1466,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "VinUni students can access databases and journals through the university library. Here are some key resources:\n\n1. **Library Website**: The main library page provides access to various databases and journals. Students need to sign in with their VinUni ID to access these resources. You can visit the library at [VinUni Library](https://library.vinuni.edu.vn/).\n\n2. **E-Bookstore**: The library also features an E-Bookstore where students can find digital resources. More information can be found [here](https://library.vinuni.edu.vn/services/e-bookstore/).\n\n3. **Room Booking**: Students can book study rooms and access other library services through the library's room booking system. Details are available [here](https://library.vinuni.edu.vn/room-booking/).\n\nFor further assistance, students can reach out to library staff or check the library's online resources.\n\n**Source**: [VinUni Library](https://library.vinuni.edu.vn/)",
+      "answer": "VinUni students can access databases and journals through the university's library resources. Here are some key points:\n\n1. **Library Website**: Students can visit the [VinUni Library](https://library.vinuni.edu.vn/) to find various resources, including databases and journals.\n\n2. **E-Bookstore**: The library also offers an [E-Bookstore](https://library.vinuni.edu.vn/services/e-bookstore/) where students can access digital books and other materials.\n\n3. **Research Support**: The library provides research support services, which may include access to academic journals and databases relevant to students' studies.\n\nFor more detailed information, students should log in with their VinUni ID to access specific resources available to them.\n\n**Source**: [VinUni Library](https://library.vinuni.edu.vn/)",
       "citations": [
         "https://library.vinuni.edu.vn/services/e-bookstore/",
         "https://experience.vinuni.edu.vn/student-life-support/library/",
@@ -1487,16 +1482,16 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The office that handles academic registry and degree audits at VinUniversity is the **Registrar's Office**. This office is responsible for maintaining the integrity of student academic records, managing course registrations, and overseeing graduation certification among other academic services.\n\nFor more information, you can visit their official page: [Registrar's Office](https://vinuni.edu.vn/registrar/).\n\n**Source:** [VinUni Registrar](https://vinuni.edu.vn/registrar/)",
+      "answer": "The office that handles academic registry and degree audits at VinUniversity is the **Registrar's Office**. This office is responsible for managing student records, course registration, academic calendars, graduation reviews, and official documents.\n\n**Contact Information:**\n- **Location:** Room I114\n- **Email:** connect-registrar@vinuni.edu.vn\n- **Phone:** +84 – 2471 089 779, ext: 9004\n\nFor more details, you can visit the [Registrar's Office page](https://vinuni.edu.vn/registrar/).\n\n**Source:** [VinUni Registrar](https://vinuni.edu.vn/registrar/)",
       "citations": [
-        "https://registrar.vinuni.edu.vn/vi/trang-chu/",
-        "https://vinuni.edu.vn/vi/quan-he-doi-tac-toan-cau/",
-        "https://vinuni.edu.vn/vi/ve-vinuni-2/",
-        "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/thoi-khoa-bieu-dang-ky-hoc-phan/",
-        "https://registrar.vinuni.edu.vn/academics/forms-petitions/",
+        "https://experience.vinuni.edu.vn/wp-content/uploads/sites/20/2025/11/International-Student-Welcome-Guide-1.pdf",
         "https://vinuni.edu.vn/registrar/",
-        "https://registrar.vinuni.edu.vn/vi/2026/01/27/thong-bao-ve-lo-trinh-xet-tot-nghiep-dai-hoc-nam-2026/",
-        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/"
+        "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/thoi-khoa-bieu-dang-ky-hoc-phan/",
+        "https://registrar.vinuni.edu.vn/faqs/",
+        "https://policy.vinuni.edu.vn/all-policies/integrated-degree-programs-procedure/",
+        "https://registrar.vinuni.edu.vn/academics/forms-petitions/",
+        "https://registrar.vinuni.edu.vn/vi/trang-chu/",
+        "https://registrar.vinuni.edu.vn/wp-content/uploads/sites/22/2026/04/Degree-Audit_CHS_BN_Cohort22_Template.xlsx"
       ]
     },
     {
@@ -1507,7 +1502,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Yes, VinUni students can request course books from the library. They can borrow general books and course reserve books, which are available for short-term use. To borrow a book, students can use the self-check machines or the circulation desk in the library.\n\nFor course reserve books, the borrowing time is limited to 2 hours per item. Students are advised to return or renew the books before the due time to avoid late fees.\n\n**Source:** [Library Access & Services Policy](https://policy.vinuni.edu.vn/all-policies/library-policies-for-users/)",
+      "answer": "Yes, VinUni students can request course books from the library. They can borrow general books and course reserve books, which are available for short-term use. To borrow a book, students can use the self-check machines or visit the circulation desk in the library.\n\nFor course reserve books, the borrowing time is limited to 2 hours per item. It's important to return or renew the books before the due time to avoid late fees.\n\n**Source:** [Library Access & Services Policy](https://policy.vinuni.edu.vn/all-policies/library-policies-for-users/)",
       "citations": [
         "https://policy.vinuni.edu.vn/all-policies/regulation-for-library-management/",
         "https://library.vinuni.edu.vn/room-booking/",
@@ -1523,18 +1518,19 @@
       "id": "unans-future-tuition-en",
       "category": "unanswerable",
       "question": "Exactly what will VinUni undergraduate tuition be in the year 2031?",
-      "facts_ok": false,
+      "facts_ok": true,
       "citation_ok": true,
-      "refusal_ok": false,
-      "passed": false,
-      "answer": "As of now, the tuition fees for undergraduate programs at VinUniversity are as follows:\n\n1. **Bachelor of Nursing**: 349,650,000 VND/year\n2. **Doctor of Medicine**: 815,850,000 VND/year\n3. **Other Bachelor Programs**: 815,850,000 VND/year\n\nThese fees are applicable for the current academic year and may be subject to change in the future. Unfortunately, there is no specific information available regarding the tuition fees for the year 2031.\n\nFor the most accurate and updated information, please refer to the official VinUniversity website or financial regulations page.\n\n**Nguồn**: [VinUniversity Tuition Rates and Fees](https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/)",
+      "refusal_ok": true,
+      "passed": true,
+      "answer": "Sorry, I could not find sufficiently clear official information in the available data to answer confidently. Please check the official sources below or contact the responsible office for confirmation.\n\nOfficial sources to check:\n- [Student Gateway](https://vinuni.edu.vn/student-gateway/)\n- [Academic Calendar](https://vinuni.edu.vn/academic-calendar/)\n- [VinUni Policy Library](https://policy.vinuni.edu.vn/)\n- [Office of University Registrar](https://registrar.vinuni.edu.vn/)",
       "citations": [
-        "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/08/vF.250812_BAP_23-27_Curriculum-Framework-1.pdf",
-        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://experience.vinuni.edu.vn/new-students/tuition-rates-and-fees/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
+        "https://policy.vinuni.edu.vn/all-policies/integrated-degree-programs-procedure/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
+        "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/",
         "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff-for-student-2/"
       ]
     },
@@ -1549,13 +1545,13 @@
       "answer": "Sorry, I could not find sufficiently clear official information in the available data to answer confidently. Please check the official sources below or contact the responsible office for confirmation.\n\nOfficial sources to check:\n- [Student Gateway](https://vinuni.edu.vn/student-gateway/)\n- [Academic Calendar](https://vinuni.edu.vn/academic-calendar/)\n- [VinUni Policy Library](https://policy.vinuni.edu.vn/)\n- [Office of University Registrar](https://registrar.vinuni.edu.vn/)",
       "citations": [
         "https://experience.vinuni.edu.vn/wp-content/uploads/sites/20/2025/11/International-Student-Welcome-Guide-1.pdf",
+        "https://vinuni.edu.vn/student-gateway/",
+        "https://policy.vinuni.edu.vn/all-policies/alumni-policy/",
         "https://experience.vinuni.edu.vn/wp-content/uploads/sites/20/2025/11/International-Student-Welcome-Guide-1.pdf",
         "https://experience.vinuni.edu.vn/student-life-support/library/",
-        "https://vinuni.edu.vn/wp-content/uploads/2025/04/Dich-vu-va-tai-nguyen-AID-IT.pdf",
         "https://experience.vinuni.edu.vn/wp-content/uploads/sites/20/2025/11/International-Student-Welcome-Guide-1.pdf",
-        "https://policy.vinuni.edu.vn/all-policies/alumni-policy/",
-        "https://vinuni.edu.vn/student-gateway/",
-        "https://experience.vinuni.edu.vn/wp-content/uploads/sites/20/2025/11/International-Student-Welcome-Guide-1.pdf"
+        "https://experience.vinuni.edu.vn/wp-content/uploads/sites/20/2025/11/International-Student-Welcome-Guide-1.pdf",
+        "https://vinuni.edu.vn/vi/hoi-dong-truong/"
       ]
     },
     {
@@ -1599,7 +1595,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Instruction for Fall 2026 begins on **September 21, 2026**.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Instruction for Fall 2026 begins on **September 21, 2026**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -1627,7 +1623,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The course drop deadline for Fall 2026 is **October 9, 2026**.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "The course drop deadline for Fall 2026 is **October 9, 2026**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -1641,10 +1637,11 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Hạn cuối để sinh viên hủy môn trong học kỳ Fall 2026 là ngày **9 tháng 10 năm 2026**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Hạn cuối để sinh viên hủy môn trong học kỳ Fall 2026 là ngày 9 tháng 10 năm 2026.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://registrar.vinuni.edu.vn/vi/2026/05/25/thong-bao-chinh-thuc-dang-ky-mon-hoc-hoc-ky-summer-2026/",
+        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
         "https://registrar.vinuni.edu.vn/vi/2025/12/15/thong-bao-chinh-thuc-ve-lich-dang-ky-mon-hoc-ky-spring-2026/",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
@@ -1671,7 +1668,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Hạn cuối để thực hiện việc Add, Transfer Credit và Independent Study cho học kỳ Fall 2026 là ngày **1 tháng 10 năm 2026**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Hạn cuối để thực hiện Add, Transfer Credit và Independent Study trong học kỳ Fall 2026 là **ngày 1 tháng 10 năm 2026**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -1685,7 +1682,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The final exam schedule for Fall 2026 will be released on December 7, 2026. \n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "The Fall 2026 final exam schedule will be released on December 7, 2026.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -1695,11 +1692,11 @@
       "id": "calendar-fall-final-schedule-vi",
       "category": "calendar",
       "question": "Lịch thi cuối kỳ Fall 2026 được công bố vào ngày nào?",
-      "facts_ok": false,
+      "facts_ok": true,
       "citation_ok": true,
       "refusal_ok": true,
-      "passed": false,
-      "answer": "Lịch thi cuối kỳ cho học kỳ Fall 2026 sẽ diễn ra từ ngày 7 đến 18 tháng 6 năm 2027. \n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "passed": true,
+      "answer": "Lịch thi cuối kỳ Fall 2026 sẽ được công bố vào ngày 7 tháng 12 năm 2026.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -1727,10 +1724,9 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Thời gian đăng ký môn cho học kỳ Spring 2027 sẽ diễn ra từ ngày 24 tháng 12 năm 2026 đến ngày 8 tháng 1 năm 2027.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Thời gian đăng ký môn cho học kỳ Spring 2027 diễn ra từ ngày 24 tháng 12 năm 2026 đến ngày 8 tháng 1 năm 2027.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
-        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
     },
@@ -1759,7 +1755,6 @@
       "answer": "Ngày giảng dạy cuối cùng của học kỳ Fall 2026 là ngày 31 tháng 12 năm 2026.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
-        "https://registrar.vinuni.edu.vn/vi/2026/05/25/thong-bao-chinh-thuc-dang-ky-mon-hoc-hoc-ky-summer-2026/",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
     },
@@ -1771,7 +1766,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The final exam period for Fall 2026 is scheduled from January 11 to January 22, 2027. \n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "The final exam period for Fall 2026 is scheduled from January 11 to January 22, 2027.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -1785,7 +1780,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Kỳ thi cuối kỳ cho học kỳ Fall 2026 sẽ diễn ra từ ngày 11 đến 22 tháng 1 năm 2027.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Kỳ thi cuối kỳ của học kỳ Fall 2026 sẽ diễn ra từ ngày 11 đến 22 tháng 1 năm 2027.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -1799,7 +1794,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Instruction for Spring 2027 at VinUni begins on **February 15, 2027**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Instruction for Spring 2027 begins on **February 15, 2027**.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -1827,7 +1822,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The course drop deadline for Spring 2027 is **March 5, 2027**.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "The course drop deadline for Spring 2027 is March 5, 2027.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -1841,11 +1836,9 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Hạn cuối để hủy môn học trong học kỳ Spring 2027 là ngày 5 tháng 3 năm 2027.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Hạn cuối hủy môn của học kỳ Spring 2027 là ngày 5 tháng 3 năm 2027.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
-        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/10/BSEE_FRM7_Curriculum-Framework_20250815_V2025_ForIntake6.pdf",
         "https://registrar.vinuni.edu.vn/vi/2026/05/25/thong-bao-chinh-thuc-dang-ky-mon-hoc-hoc-ky-summer-2026/",
         "https://registrar.vinuni.edu.vn/vi/2025/12/15/thong-bao-chinh-thuc-ve-lich-dang-ky-mon-hoc-ky-spring-2026/",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -1876,8 +1869,7 @@
       "answer": "Ngày giảng dạy cuối cùng của học kỳ Spring 2027 là ngày 28 tháng 5 năm 2027.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/10/BSEE_FRM7_Curriculum-Framework_20250815_V2025_ForIntake6.pdf",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/10/BSME_FRM7_Curriculum-Framework_20250815_V2025_ForIntake6.pdf"
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
     },
     {
@@ -1888,7 +1880,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Instruction for Summer 2027 begins on **July 5, 2027**.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Instruction for Summer 2027 begins on **July 5, 2027**.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -1904,7 +1896,6 @@
       "passed": true,
       "answer": "Học kỳ Summer 2027 bắt đầu giảng dạy vào ngày 5 tháng 7 năm 2027.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
     },
@@ -1926,11 +1917,11 @@
       "id": "calendar-summer-final-exams-vi",
       "category": "calendar",
       "question": "Kỳ thi cuối kỳ Summer 2027 diễn ra khi nào?",
-      "facts_ok": false,
+      "facts_ok": true,
       "citation_ok": true,
       "refusal_ok": true,
-      "passed": false,
-      "answer": "Kỳ thi cuối kỳ của học kỳ Summer 2027 sẽ diễn ra từ ngày 16 đến 20 tháng 8 năm 2027. \n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "passed": true,
+      "answer": "Kỳ thi cuối kỳ của học kỳ Summer 2027 sẽ diễn ra từ ngày 23 đến 27 tháng 8 năm 2027.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
@@ -1943,7 +1934,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "The Independence Day break for the 2026-2027 academic year is tentatively scheduled from August 31 to September 2, 2026.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "The Independence Day break for the 2026-2027 academic calendar is tentatively scheduled from August 31 to September 2, 2026.\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -1957,7 +1948,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": true,
-      "answer": "Theo lịch năm học 2026-2027 dự kiến, ngày nghỉ Quốc khánh sẽ diễn ra từ 31 tháng 8 đến 2 tháng 9. Tuy nhiên, đây là thông tin dự kiến và có thể thay đổi.\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "Theo lịch năm học 2026-2027, ngày nghỉ Quốc khánh dự kiến sẽ diễn ra từ 31 tháng 8 đến 2 tháng 9. \n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -1971,7 +1962,7 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": false,
-      "answer": "The final exam period in June 2027 is scheduled from June 7 to June 18, and it is labeled as \"Fall'26\" in the source. \n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
+      "answer": "The final exam period in June 2027 is from June 7 to June 18, and the term label used is \"Fall'26.\"\n\n**Source:** [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
         "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -1985,11 +1976,9 @@
       "citation_ok": true,
       "refusal_ok": true,
       "passed": false,
-      "answer": "Xin lỗi, mình chưa tìm thấy thông tin chính thức đủ rõ trong dữ liệu hiện có để trả lời chắc chắn. Bạn nên kiểm tra các nguồn chính thức dưới đây hoặc liên hệ đơn vị phụ trách để xác nhận.\n\nNguồn chính thức nên tham khảo:\n- [Student Gateway](https://vinuni.edu.vn/student-gateway/)\n- [Academic Calendar](https://vinuni.edu.vn/academic-calendar/)\n- [VinUni Policy Library](https://policy.vinuni.edu.vn/)\n- [Office of University Registrar](https://registrar.vinuni.edu.vn/)",
+      "answer": "Kỳ thi cuối kỳ diễn ra từ ngày 7 đến 18 tháng 6 năm 2027, thuộc nhãn học kỳ \"Fall 2026-2027\".\n\nNguồn: [VinUni Academic Calendar](https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf)",
       "citations": [
-        "https://vinuni.edu.vn/vi/global_exchange/trao-doi-toan-cau/",
-        "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/chuyen-nganh/",
-        "https://policy.vinuni.edu.vn/wp-content/uploads/2023/05/230515_VUNI_Quy-che-dao-tao-Tien-si.pdf"
+        "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
       ]
     }
   ]

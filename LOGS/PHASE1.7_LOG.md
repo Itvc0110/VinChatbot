@@ -15,10 +15,12 @@ build on existing code; non-circular golden cases (validated vs source, not vs t
 > `baseline.json`. Part B: **adaptive retrieval deployed** (`ENABLE_ADAPTIVE_RETRIEVAL` default
 > **true**) — point-lookups read the full section + strict prompt; calendar drops query expansion
 > (precision), financial keeps it + a cross-lingual variant (recall). A/B (v3) **fixes the 1.6
-> calendar wrong-date AND the persistent VI→EN fee misses; guards 1.000**; overall is eval-noise-band
-> (0.846→0.854 this run; v1/v2 0.869/0.877 — single-run A/B can't separate them). Offline: ruff clean,
-> 117 passed (2 pre-existing chunker fails). Revert = `ENABLE_ADAPTIVE_RETRIEVAL=false`. Fast-follow:
-> multi-run eval averaging (noise) + ARCHITECTURE retrieval flow chart.
+> calendar wrong-date AND the persistent VI→EN fee misses; guards 1.000**. **Phase 1.8 (cross-lingual
+> VI↔EN expansion, all domains) added + confirmed:** full 130-case eval **0.885** (production config,
+> the best of the arc — calendar 0.929, financial 0.875, guards 1.000); `data/eval/baseline.json`
+> re-snapshotted to it. Offline: ruff clean, 118 passed (2 pre-existing chunker fails). Reverts:
+> `ENABLE_ADAPTIVE_RETRIEVAL=false` / `ENABLE_CROSSLINGUAL_EXPANSION=false`. ARCHITECTURE §2b flow
+> chart done. Open: multi-run eval averaging (single-run noise ~±3 cases).
 
 ---
 
@@ -300,10 +302,14 @@ vs the English calendar/tariff). ruff clean; 8 retrieval tests (incl. calendar-x
 mechanism. Losses: `summer-evaluation-vi` (eval-vs-exam near-tie) + `convocation-vi` (holiday refusal)
 — known hard patterns / noise, not cross-lingual harm. **→ delivered (kept default-on).**
 
-**Full 130-case eval: deferred (user, 2026-06-16)** — validated on the calendar subset + offline tests
-(ruff, 118 passed); the broad-dataset confirmation (prose/financial/guards no-regression, re-baseline)
-is the open item before 1.8 is considered fully validated. Cross-lingual is gated + one-flag revert
-(`ENABLE_CROSSLINGUAL_EXPANSION=false`) if needed.
+**Full 130-case eval (2026-06-17, production config) — `eval_20260616T171904Z.json`, `--diff` vs
+shipped v3:** overall **0.854 → 0.885 (+6/−2)** — the **best of the whole 1.6/1.7/1.8 arc**. Guards
+1.000; calendar 0.893→0.929; **financial 0.750→0.875** (cross-lingual recovered the VI fee cases
+`fin-medicine-tuition-year-vi` + `fin-other-bachelor-year-vi`); multiturn 0.75→1.0. Losses:
+`calendar-summer-grade-release-en` (hard persistent) + `pol-loa-applicability` (policy LOA, known-flaky
+1/7). **Decision: Phase 1.8 CONFIRMED — cross-lingual kept default-on.** Re-snapshotted
+`data/eval/baseline.json` to this run (new production reference, 0.885). Watch-item: cross-lingual on
+prose occasionally churns the flaky policy LOA cases (noise-level; revert = `ENABLE_CROSSLINGUAL_EXPANSION=false`).
 
 **Open follow-ups (not blocking):**
 - **Eval-rigor:** multi-run averaging / lower-variance harness — the ±3-case noise prevents confident
