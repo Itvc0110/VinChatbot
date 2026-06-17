@@ -80,7 +80,7 @@ unchanged.
 - `max_variants` 2 → 1 (independent config knob; smaller recall hit, halves expansion+rerank).
 - Per-turn rerank/result cache for repeated queries.
 - Adaptive skip of expansion+rerank for simple lookups → ties to Adaptive-RAG in
-  [../FUTURE_IMPROVEMENTS.md](../FUTURE_IMPROVEMENTS.md) §B.
+  [../UPDATE_PLAN.md](../UPDATE_PLAN.md) §B.
 
 ## Risks
 - Reranking the fused pool vs per-variant shifts ranking → **must A/B**; mitigated by flag + fallback.

@@ -20,7 +20,7 @@ don't rebuild.
 > email/phone masking (**1.5b**). Verified live (4 turns → traces in Langfuse Cloud, `flush()`
 > confirmed) with **no eval regression: overall 0.930 ≥ 0.919, guards 1.000**
 > (report `eval_20260615T165804Z.json`). New dep: `langfuse` (optional `observability` extra).
-> **1.5c** (Prometheus/Grafana + alerts + SLO + feedback endpoint) → [../FUTURE_IMPROVEMENTS.md](../FUTURE_IMPROVEMENTS.md) §H.
+> **1.5c** (Prometheus/Grafana + alerts + SLO + feedback endpoint) → [../UPDATE_PLAN.md](../UPDATE_PLAN.md) §H.
 > Full detail in **§ Execution log** below.
 
 ---
@@ -110,7 +110,7 @@ Biggest observability jump for least code.
 **Decision (2026-06-15): Phase 1.5 closes at 1.5a + 1.5b.** The full SRE stack (Prometheus `/metrics`,
 Grafana dashboards, ≥3 alerts + SLO/error-budget, readiness probe, `POST /chat/feedback`) is **real
 infra beyond a Phase-1 project's needs** — Langfuse already covers per-call latency/cost/token
-dashboards. Moved to [../FUTURE_IMPROVEMENTS.md](../FUTURE_IMPROVEMENTS.md) §H (Phase 1.5c) with its
+dashboards. Moved to [../UPDATE_PLAN.md](../UPDATE_PLAN.md) §H (Phase 1.5c) with its
 config (`ENABLE_METRICS`, `SLACK_WEBHOOK_URL`) and scope intact.
 
 ---
@@ -242,7 +242,7 @@ the cost driver (PHASE1.4 finding). One-off `scripts/_smoke_langfuse.py` used th
 `sys.stdout.reconfigure("utf-8")` for ad-hoc scripts (the app's JSON logs use `ensure_ascii=False`
 and logging handles encoding errors gracefully).
 
-**1.5c deferred** to [../FUTURE_IMPROVEMENTS.md](../FUTURE_IMPROVEMENTS.md) §H. **Phase 1.5 = DONE
+**1.5c deferred** to [../UPDATE_PLAN.md](../UPDATE_PLAN.md) §H. **Phase 1.5 = DONE
 (a + b).**
 
 **No-regression eval (report `eval_20260615T165804Z.json`, 86 cases, gpt-4o-mini, serving collection).**
