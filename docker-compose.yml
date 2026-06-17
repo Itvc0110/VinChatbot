@@ -18,6 +18,9 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # Baked into the Next.js routes manifest at build time (see frontend/Dockerfile).
+        BACKEND_URL: http://backend:8000
     environment:
       - BACKEND_URL=http://backend:8000
     expose:

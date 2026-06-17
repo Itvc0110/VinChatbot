@@ -9,6 +9,11 @@ RUN npm ci
 
 FROM node:20-slim AS build
 WORKDIR /app
+# next.config.js resolves rewrites() at build time and bakes the destination into the
+# routes manifest, so BACKEND_URL must be present HERE (not just at runtime) or the
+# proxy falls back to localhost:8000 and /api/chat fails with ECONNREFUSED.
+ARG BACKEND_URL=http://backend:8000
+ENV BACKEND_URL=$BACKEND_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY . ./
 RUN npm run build
