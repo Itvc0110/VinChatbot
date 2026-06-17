@@ -43,4 +43,6 @@ export interface ChatMessage {
   error?: string;
   // assistant-only: the user stopped the request mid-flight (neutral, not an error).
   cancelled?: boolean;
+  // assistant-only: answer is currently being revealed token-by-token (verify-then-reveal).
+  streaming?: boolean;
 }

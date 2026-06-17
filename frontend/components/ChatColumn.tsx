@@ -50,12 +50,6 @@ export function ChatColumn({
             onCiteClick={onCiteClick}
           />
         ))}
-        {busy && (
-          <div className="msg assistant">
-            <div className="role">VinChatbot</div>
-            <div className="thinking">Thinking…</div>
-          </div>
-        )}
         <div ref={endRef} />
       </div>
       <Composer onSend={onSend} onStop={onStop} busy={busy} />

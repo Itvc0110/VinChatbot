@@ -27,12 +27,24 @@ function RouteList({ routes }: { routes: OfficialRoute[] }) {
   );
 }
 
+function SourceSkeleton() {
+  return (
+    <div className="src-skeleton" aria-hidden="true">
+      <div className="skel-line w-70" />
+      <div className="skel-line w-90" />
+      <div className="skel-line w-40" />
+    </div>
+  );
+}
+
 export function SourcesPanel({
   latest,
   citeFocus,
+  busy = false,
 }: {
   latest: ChatMessage | null;
   citeFocus: CiteFocus | null;
+  busy?: boolean;
 }) {
   const { t } = useI18n();
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -51,8 +63,25 @@ export function SourcesPanel({
 
   let inner: React.ReactNode;
 
-  if (!latest) {
-    inner = <div className="panel-empty">{t.emptyHint}</div>;
+  // While a request is in flight, show what we're doing: retrieving sources.
+  if (busy) {
+    inner = (
+      <div role="status" aria-label={t.retrieving}>
+        <div className="panel-count">{t.retrieving}</div>
+        <SourceSkeleton />
+        <SourceSkeleton />
+        <SourceSkeleton />
+      </div>
+    );
+  } else if (!latest) {
+    inner = (
+      <div className="panel-empty">
+        <span className="panel-empty-illo" aria-hidden="true">
+          🔎
+        </span>
+        {t.emptyHint}
+      </div>
+    );
   } else if (latest.error) {
     inner = <div className="panel-note">{t.errorNote}</div>;
   } else if (latest.cancelled) {

@@ -11,6 +11,9 @@ export interface Strings {
   statusReady: string;
   login: string;
   langName: { en: string; vi: string };
+  themeLight: string;
+  themeDark: string;
+  retrieving: string;
 
   welcomeGreeting: string;
   welcomeIntro: string;
@@ -19,6 +22,7 @@ export interface Strings {
 
   paneConversation: string;
   paneSources: string;
+  sourcesLabel: string;
 
   placeholder: string;
   send: string;
@@ -78,6 +82,9 @@ const en: Strings = {
   statusReady: "Ready to help",
   login: "Log in",
   langName: { en: "EN", vi: "VI" },
+  themeLight: "Switch to light mode",
+  themeDark: "Switch to dark mode",
+  retrieving: "Searching official sources…",
 
   welcomeGreeting: "Hi! I'm VinChatbot",
   welcomeIntro:
@@ -92,6 +99,7 @@ const en: Strings = {
 
   paneConversation: "Conversation",
   paneSources: "Sources & grounding",
+  sourcesLabel: "Sources:",
 
   placeholder: "Ask about academics, deadlines, fees, services… (EN or VI)",
   send: "Send",
@@ -161,6 +169,9 @@ const vi: Strings = {
   statusReady: "Sẵn sàng hỗ trợ",
   login: "Đăng nhập",
   langName: { en: "EN", vi: "VI" },
+  themeLight: "Chuyển sang nền sáng",
+  themeDark: "Chuyển sang nền tối",
+  retrieving: "Đang tìm trong nguồn chính thức…",
 
   welcomeGreeting: "Xin chào! Mình là VinChatbot",
   welcomeIntro:
@@ -175,6 +186,7 @@ const vi: Strings = {
 
   paneConversation: "Hội thoại",
   paneSources: "Nguồn & căn cứ",
+  sourcesLabel: "Nguồn:",
 
   placeholder: "Hỏi về học vụ, hạn chót, học phí, dịch vụ… (Anh hoặc Việt)",
   send: "Gửi",

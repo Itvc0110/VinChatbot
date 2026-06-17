@@ -9,6 +9,11 @@ const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
     return [
+      // Order matters: the more specific /stream rule must precede the catch-all /chat.
+      {
+        source: "/api/chat/stream",
+        destination: `${BACKEND_URL}/chat/stream`,
+      },
       {
         source: "/api/chat",
         destination: `${BACKEND_URL}/chat`,

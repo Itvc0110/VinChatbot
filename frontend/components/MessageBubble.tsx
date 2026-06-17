@@ -184,6 +184,30 @@ export function MessageBubble({
     );
   }
 
+  // Streaming placeholder: thinking dots until the first token, then the live answer
+  // with a blinking caret. The verified ChatResponse (meta + citations) lands on `done`.
+  if (message.streaming) {
+    return (
+      <div className="msg assistant">
+        <div className="role">
+          <BotAvatar /> VinChatbot
+        </div>
+        {message.text ? (
+          <div className="body">
+            {renderInline(message.text, "stream")}
+            <span className="stream-caret" aria-hidden="true" />
+          </div>
+        ) : (
+          <div className="thinking" role="status" aria-label={t.retrieving}>
+            <span className="tdot" />
+            <span className="tdot" />
+            <span className="tdot" />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const resp = message.response;
   const state = resp ? deriveState(resp) : null;
   const { body } = resp
@@ -206,6 +230,7 @@ export function MessageBubble({
       <FormattedBody text={body} />
       {showCites && (
         <div className="cite-markers">
+          <span className="cite-markers-label">{t.sourcesLabel}</span>
           {resp!.citations.map((_, i) => (
             <button
               key={i}

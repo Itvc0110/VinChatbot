@@ -2,8 +2,9 @@
 
 import { useMemo, useRef, useState } from "react";
 import type { ChatMessage } from "@/lib/types";
-import { postChat } from "@/lib/api";
+import { postChat, postChatStream } from "@/lib/api";
 import { LanguageProvider, type Lang } from "@/lib/i18n";
+import { ThemeProvider } from "@/lib/theme";
 import { Header } from "@/components/Header";
 import { WelcomeState } from "@/components/WelcomeState";
 import { ChatColumn } from "@/components/ChatColumn";
@@ -42,32 +43,74 @@ export default function Page() {
     return null;
   }, [messages]);
 
+  // Update one assistant message in place (by id).
+  function patchMessage(id: string, patch: Partial<ChatMessage>) {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, ...patch } : m))
+    );
+  }
+
   async function ask(text: string) {
     const controller = new AbortController();
     abortRef.current = controller;
     setBusy(true);
+
+    // Add the assistant placeholder up front; it shows thinking dots until the first
+    // token, then fills in as the verified answer streams in.
+    const assistantId = nextId();
+    setMessages((prev) => [
+      ...prev,
+      { id: assistantId, role: "assistant", text: "", streaming: true },
+    ]);
+    let streamed = false;
+
     try {
-      const resp = await postChat(
+      const resp = await postChatStream(
         { message: text, conversation_id: conversationId },
-        controller.signal
+        {
+          signal: controller.signal,
+          onDelta: (chunk) => {
+            streamed = true;
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId ? { ...m, text: m.text + chunk } : m
+              )
+            );
+          },
+        }
       );
-      setMessages((prev) => [
-        ...prev,
-        { id: nextId(), role: "assistant", text: resp.answer, response: resp },
-      ]);
+      patchMessage(assistantId, {
+        text: resp.answer,
+        response: resp,
+        streaming: false,
+      });
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        // User stopped it — neutral placeholder, not an error.
-        setMessages((prev) => [
-          ...prev,
-          { id: nextId(), role: "assistant", text: "", cancelled: true },
-        ]);
+        patchMessage(assistantId, { text: "", cancelled: true, streaming: false });
+      } else if (!streamed) {
+        // Streaming endpoint unreachable/failed before any token — fall back to the
+        // plain JSON contract so the answer still arrives.
+        try {
+          const resp = await postChat(
+            { message: text, conversation_id: conversationId },
+            controller.signal
+          );
+          patchMessage(assistantId, {
+            text: resp.answer,
+            response: resp,
+            streaming: false,
+          });
+        } catch (err2) {
+          if (err2 instanceof DOMException && err2.name === "AbortError") {
+            patchMessage(assistantId, { text: "", cancelled: true, streaming: false });
+          } else {
+            const msg = err2 instanceof Error ? err2.message : "Something went wrong.";
+            patchMessage(assistantId, { text: "", error: msg, streaming: false });
+          }
+        }
       } else {
         const msg = err instanceof Error ? err.message : "Something went wrong.";
-        setMessages((prev) => [
-          ...prev,
-          { id: nextId(), role: "assistant", text: "", error: msg },
-        ]);
+        patchMessage(assistantId, { text: "", error: msg, streaming: false });
       }
     } finally {
       abortRef.current = null;
@@ -125,9 +168,10 @@ export default function Page() {
   const started = messages.length > 0;
 
   return (
-    <LanguageProvider lang={lang}>
-      <div className="app">
-        <Header lang={lang} onSetLang={setLang} />
+    <ThemeProvider>
+      <LanguageProvider lang={lang}>
+        <div className="app">
+          <Header lang={lang} onSetLang={setLang} />
         {!started ? (
           <WelcomeState onSend={handleSend} />
         ) : (
@@ -144,10 +188,15 @@ export default function Page() {
               onEditLast={handleEditLast}
               onCiteClick={handleCiteClick}
             />
-            <SourcesPanel latest={latestAssistant} citeFocus={citeFocus} />
+            <SourcesPanel
+              latest={latestAssistant}
+              citeFocus={citeFocus}
+              busy={busy}
+            />
           </div>
         )}
-      </div>
-    </LanguageProvider>
+        </div>
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }

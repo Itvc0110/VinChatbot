@@ -45,8 +45,20 @@ export function SourceCard({
         <span className="src-caret">{expanded ? "▾" : "▸"}</span>
       </button>
       {c.source_url && (
-        <a className="url" href={c.source_url} target="_blank" rel="noreferrer">
-          {c.source_url}
+        <a
+          className="url"
+          href={c.source_url}
+          target="_blank"
+          rel="noreferrer"
+          title={c.source_url}
+        >
+          <svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true"
+            fill="none" stroke="currentColor" strokeWidth="2"
+            strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            <path d="M15 3h6v6M10 14 21 3" />
+          </svg>
+          {host}
         </a>
       )}
       {c.excerpt && (
