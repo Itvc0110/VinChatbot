@@ -28,12 +28,6 @@ function todayShort(): ScheduleDay {
   return DAY_ORDER[(new Date().getDay() + 6) % 7];
 }
 
-const SUGGESTED = [
-  "What deadlines do I have this week?",
-  "When is my next class?",
-  "How much tuition do I still need to pay?",
-];
-
 export default function StudentDashboardPage() {
   const { p } = usePortal();
   const { user } = useAuth();
@@ -57,7 +51,7 @@ export default function StudentDashboardPage() {
         </h2>
         {profile.status === "success" && (
           <p className="greeting-sub">
-            {profile.data.program} · Year {profile.data.year} · Student ID{" "}
+            {profile.data.program} · {p.year} {profile.data.year} · {p.dash.studentId}{" "}
             {profile.data.student_id}
           </p>
         )}
@@ -91,7 +85,7 @@ export default function StudentDashboardPage() {
             <StatCard
               label={p.tuitionStatus}
               value={formatVnd(t.balance_vnd)}
-              hint={`${formatVnd(t.total_paid_vnd)} paid of ${formatVnd(t.total_charged_vnd)}`}
+              hint={p.dash.paidOf(formatVnd(t.total_paid_vnd), formatVnd(t.total_charged_vnd))}
               tone={t.balance_vnd > 0 ? "gold" : "success"}
               icon={<IconWallet size={18} />}
             />
@@ -108,7 +102,7 @@ export default function StudentDashboardPage() {
               <StatCard
                 label={p.upcomingDeadlines}
                 value={thisWeek.length}
-                hint="due in the next 7 days"
+                hint={p.dash.dueNext7}
                 tone={thisWeek.length > 0 ? "warning" : "success"}
                 icon={<IconClock size={18} />}
               />
@@ -119,9 +113,9 @@ export default function StudentDashboardPage() {
         <AsyncBoundary state={profile} onRetry={profile.reload} rows={1}>
           {(pr) => (
             <StatCard
-              label="GPA · Credits"
+              label={p.dash.gpaCredits}
               value={pr.gpa.toFixed(2)}
-              hint={`${pr.credits_earned} / ${pr.credits_required} credits earned`}
+              hint={p.dash.creditsEarned(pr.credits_earned, pr.credits_required)}
               tone="default"
               icon={<IconCap size={18} />}
             />
@@ -146,13 +140,13 @@ export default function StudentDashboardPage() {
                   items = all.filter((s) => s.day === day);
                 }
               }
-              if (items.length === 0) return <EmptyState title="No classes scheduled." />;
+              if (items.length === 0) return <EmptyState title={p.dash.noClasses} />;
               const sorted = [...items].sort((a, b) => a.start.localeCompare(b.start));
               return (
                 <>
                   {day !== today && (
                     <p className="td-sub" style={{ marginTop: -4 }}>
-                      No classes today — showing next class day ({day}).
+                      {p.dash.nextClassDay(p.dayFull[day])}
                     </p>
                   )}
                   {sorted.map((s) => (
@@ -191,7 +185,7 @@ export default function StudentDashboardPage() {
 
       <SectionHeader title={p.suggestedQuestions} />
       <div className="qchips">
-        {SUGGESTED.map((q) => (
+        {p.dash.suggested.map((q) => (
           <button key={q} className="qchip" onClick={() => go(q)}>
             <IconChat size={14} /> {q}
           </button>

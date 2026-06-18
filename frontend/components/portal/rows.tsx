@@ -51,7 +51,7 @@ export function DeadlineRow({ d }: { d: Deadline }) {
         </div>
       </div>
       <div className="list-row-aside">
-        <Badge tone={KIND_TONE[d.kind]}>{d.kind}</Badge>
+        <Badge tone={KIND_TONE[d.kind]}>{p.enums.deadlineKind[d.kind]}</Badge>
         <Badge tone={tone}>{label}</Badge>
         {d.source_url && (
           <a

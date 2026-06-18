@@ -26,6 +26,7 @@ const STATUS_TONE: Record<SourceStatus, BadgeTone> = {
 };
 
 export default function SourcesPage() {
+  const { p, lang } = usePortal();
   const sources = useAsync(getKnowledgeSources, []);
   const [toast, setToast] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -34,10 +35,10 @@ export default function SourcesPage() {
     setBusyId(s.id);
     try {
       const r = await recrawlSource(s.url);
-      setToast(`Re-crawled “${s.name}” — ${r.indexed_chunks} chunks indexed.`);
+      setToast(p.admin.recrawled(s.name, r.indexed_chunks));
       sources.reload();
     } catch {
-      setToast("Re-crawl failed. Check the backend is running.");
+      setToast(p.admin.recrawlFailed);
     } finally {
       setBusyId(null);
     }
@@ -47,10 +48,10 @@ export default function SourcesPage() {
     setBusyId(s.id);
     try {
       await disableSource(s.id);
-      setToast(`Disabled “${s.name}”.`);
+      setToast(p.admin.disabled(s.name));
       sources.reload();
     } catch {
-      setToast("Couldn't disable the source.");
+      setToast(p.admin.disableFailed);
     } finally {
       setBusyId(null);
     }
@@ -59,38 +60,38 @@ export default function SourcesPage() {
   return (
     <div className="page-inner">
       <SectionHeader
-        title="All sources"
+        title={p.admin.allSources}
         action={
           <Link className="btn btn-primary btn-sm" href="/admin/upload">
-            <IconUpload size={14} /> Add source
+            <IconUpload size={14} /> {p.admin.addSource}
           </Link>
         }
       />
       <AsyncBoundary
         state={sources}
         onRetry={sources.reload}
-        errorLabel="Couldn't load sources from the backend."
+        errorLabel={p.admin.loadSourcesError}
       >
         {(list) =>
           list.length === 0 ? (
             <EmptyState
               icon={<IconDatabase size={28} />}
-              title="No sources indexed"
-              description="Upload a document or crawl a URL to populate the knowledge base."
+              title={p.admin.noSourcesTitle}
+              description={p.admin.noSourcesDesc}
             />
           ) : (
             <div className="table-wrap">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Source name</th>
-                    <th>Type</th>
-                    <th>Category</th>
-                    <th>Status</th>
-                    <th>Chunks</th>
-                    <th>Last crawled</th>
-                    <th>Last indexed</th>
-                    <th>Actions</th>
+                    <th>{p.admin.colSourceName}</th>
+                    <th>{p.admin.colType}</th>
+                    <th>{p.admin.colCategory}</th>
+                    <th>{p.admin.colStatus}</th>
+                    <th>{p.admin.colChunks}</th>
+                    <th>{p.admin.colLastCrawled}</th>
+                    <th>{p.admin.colLastIndexed}</th>
+                    <th>{p.admin.colActions}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -99,48 +100,48 @@ export default function SourcesPage() {
                       <td>
                         <div className="td-strong">{s.name}</div>
                         <div className="td-sub">
-                          {s.is_official ? "Official · " : ""}
+                          {s.is_official ? `${p.admin.official} · ` : ""}
                           {s.url}
                         </div>
                       </td>
                       <td>
                         <Badge tone="neutral">{s.type.toUpperCase()}</Badge>
                       </td>
-                      <td>{s.category}</td>
+                      <td>{p.enums.category[s.category] ?? s.category}</td>
                       <td>
-                        <Badge tone={STATUS_TONE[s.status]}>{s.status}</Badge>
+                        <Badge tone={STATUS_TONE[s.status]}>{p.enums.sourceStatus[s.status]}</Badge>
                       </td>
                       <td>{s.chunk_count}</td>
                       <td className="td-sub">
-                        {s.last_crawled_at ? relativeTime(s.last_crawled_at) : "—"}
+                        {s.last_crawled_at ? relativeTime(s.last_crawled_at, lang) : "—"}
                       </td>
                       <td className="td-sub">
-                        {s.last_indexed_at ? relativeTime(s.last_indexed_at) : "—"}
+                        {s.last_indexed_at ? relativeTime(s.last_indexed_at, lang) : "—"}
                       </td>
                       <td>
                         <div className="row-actions">
                           <a className="btn btn-ghost btn-sm" href={s.url} target="_blank" rel="noreferrer">
-                            View
+                            {p.view}
                           </a>
                           <button
                             className="btn btn-outline btn-sm"
                             disabled={busyId === s.id || s.status === "disabled"}
                             onClick={() => recrawl(s)}
                           >
-                            {busyId === s.id ? "…" : "Re-crawl"}
+                            {busyId === s.id ? "…" : p.admin.recrawl}
                           </button>
                           <button
                             className="btn btn-ghost btn-sm"
-                            onClick={() => setToast(`“${s.name}” has ${s.chunk_count} indexed chunks.`)}
+                            onClick={() => setToast(p.admin.chunksInfo(s.name, s.chunk_count))}
                           >
-                            Chunks
+                            {p.admin.chunks}
                           </button>
                           <button
                             className="btn btn-ghost btn-sm"
                             disabled={busyId === s.id || s.status === "disabled"}
                             onClick={() => disable(s)}
                           >
-                            Disable
+                            {p.admin.disable}
                           </button>
                         </div>
                       </td>
@@ -153,8 +154,7 @@ export default function SourcesPage() {
         }
       </AsyncBoundary>
       <p className="td-sub" style={{ marginTop: 12 }}>
-        Live data from <code>GET /sources</code>; re-crawl posts to <code>/ingest/run</code>. Falls
-        back to demo rows when the backend is offline.
+        {p.admin.sourcesNote}
       </p>
 
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}

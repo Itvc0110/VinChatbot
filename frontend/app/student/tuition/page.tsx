@@ -23,7 +23,7 @@ const STATUS_TONE: Record<TuitionItemStatus, BadgeTone> = {
 };
 
 export default function StudentTuitionPage() {
-  const { lang } = usePortal();
+  const { p, lang } = usePortal();
   const tuition = useAsync(getTuitionStatus, []);
   const locale = lang === "vi" ? "vi-VN" : "en-US";
 
@@ -38,21 +38,21 @@ export default function StudentTuitionPage() {
             <>
               <div className="grid grid-3" style={{ marginBottom: 20 }}>
                 <StatCard
-                  label="Total charged"
+                  label={p.tui.totalCharged}
                   value={formatVnd(t.total_charged_vnd)}
                   tone="default"
                   icon={<IconWallet size={18} />}
                 />
-                <StatCard label="Paid to date" value={formatVnd(t.total_paid_vnd)} tone="success" />
+                <StatCard label={p.tui.paidToDate} value={formatVnd(t.total_paid_vnd)} tone="success" />
                 <StatCard
-                  label="Outstanding balance"
+                  label={p.tui.outstanding}
                   value={formatVnd(t.balance_vnd)}
                   hint={
                     t.next_due_at
-                      ? `Next ${formatVnd(t.next_due_amount_vnd ?? 0)} due ${formatDate(
-                          t.next_due_at,
-                          locale
-                        )}`
+                      ? p.tui.nextDue(
+                          formatVnd(t.next_due_amount_vnd ?? 0),
+                          formatDate(t.next_due_at, locale)
+                        )
                       : undefined
                   }
                   tone={t.balance_vnd > 0 ? "gold" : "success"}
@@ -68,8 +68,8 @@ export default function StudentTuitionPage() {
                     fontSize: "var(--fs-sm)",
                   }}
                 >
-                  <span className="kv-key">Payment progress</span>
-                  <span className="td-strong">{pct}% paid</span>
+                  <span className="kv-key">{p.tui.paymentProgress}</span>
+                  <span className="td-strong">{p.tui.pctPaid(pct)}</span>
                 </div>
                 <div className="progress success">
                   <span style={{ width: `${pct}%` }} />
@@ -78,11 +78,12 @@ export default function StudentTuitionPage() {
 
               {t.next_due_at && t.balance_vnd > 0 && (
                 <div className="route-card" style={{ marginBottom: 20 }}>
-                  <h3>💳 Next payment due</h3>
+                  <h3>{p.tui.nextPaymentTitle}</h3>
                   <p>
-                    {formatVnd(t.next_due_amount_vnd ?? 0)} is due on{" "}
-                    <strong>{formatDate(t.next_due_at, locale)}</strong>. Pay via the VinUni
-                    Student Financial Services portal to avoid a late fee.
+                    {p.tui.nextPaymentBody(
+                      formatVnd(t.next_due_amount_vnd ?? 0),
+                      formatDate(t.next_due_at, locale)
+                    )}
                   </p>
                   <a
                     className="btn btn-primary btn-sm"
@@ -90,21 +91,21 @@ export default function StudentTuitionPage() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Go to payment portal
+                    {p.tui.goToPortal}
                   </a>
                 </div>
               )}
 
-              <SectionHeader title="Statement of account" />
+              <SectionHeader title={p.tui.statement} />
               <div className="table-wrap">
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Item</th>
-                      <th>Term</th>
-                      <th>Amount</th>
-                      <th>Status</th>
-                      <th>Date</th>
+                      <th>{p.tui.colItem}</th>
+                      <th>{p.tui.colTerm}</th>
+                      <th>{p.tui.colAmount}</th>
+                      <th>{p.tui.colStatus}</th>
+                      <th>{p.tui.colDate}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -114,13 +115,15 @@ export default function StudentTuitionPage() {
                         <td>{item.term}</td>
                         <td>{formatVnd(item.amount_vnd)}</td>
                         <td>
-                          <Badge tone={STATUS_TONE[item.status]}>{item.status}</Badge>
+                          <Badge tone={STATUS_TONE[item.status]}>
+                            {p.enums.tuitionItemStatus[item.status]}
+                          </Badge>
                         </td>
                         <td className="td-sub">
                           {item.paid_at
-                            ? `Paid ${formatDate(item.paid_at, locale)}`
+                            ? p.tui.paidOn(formatDate(item.paid_at, locale))
                             : item.due_at
-                            ? `Due ${formatDate(item.due_at, locale)}`
+                            ? p.tui.dueOn(formatDate(item.due_at, locale))
                             : "—"}
                         </td>
                       </tr>

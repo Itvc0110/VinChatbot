@@ -29,14 +29,6 @@ import { formatVnd, formatDate } from "@/lib/format";
 let counter = 0;
 const nextId = () => `m${Date.now()}-${counter++}`;
 
-const SUGGESTED = [
-  "What deadlines do I have this week?",
-  "When is my next class?",
-  "How much tuition do I still need to pay?",
-  "What is the course withdrawal process?",
-  "Are there any student events this week?",
-];
-
 function buildPersonalContext(
   profile: StudentProfile | null,
   schedule: ClassSession[],
@@ -188,12 +180,12 @@ function ChatView() {
           if (err2 instanceof DOMException && err2.name === "AbortError") {
             patchMessage(assistantId, { text: "", cancelled: true, streaming: false });
           } else {
-            const msg = err2 instanceof Error ? err2.message : "Something went wrong.";
+            const msg = err2 instanceof Error ? err2.message : p.somethingWrong;
             patchMessage(assistantId, { text: "", error: msg, streaming: false });
           }
         }
       } else {
-        const msg = err instanceof Error ? err.message : "Something went wrong.";
+        const msg = err instanceof Error ? err.message : p.somethingWrong;
         patchMessage(assistantId, { text: "", error: msg, streaming: false });
       }
     } finally {
@@ -268,7 +260,7 @@ function ChatView() {
       <>
         {m.personalized && (
           <div style={{ marginTop: 8 }}>
-            <span className="personal-tag">✦ Personalized answer</span>
+            <span className="personal-tag">✦ {p.personalizedAnswer}</span>
           </div>
         )}
         <AnswerActions
@@ -282,9 +274,9 @@ function ChatView() {
                 body: m.response!.answer,
                 origin_question: question,
               });
-              setToast(`Forwarded to admin — ticket ${ticket.id} created.`);
+              setToast(p.forwardedOk(ticket.id));
             } catch {
-              setToast("Couldn't forward right now. Try again.");
+              setToast(p.forwardFailed);
             }
           }}
           onToast={setToast}
@@ -330,7 +322,7 @@ function ChatView() {
           onEditLast={handleEditLast}
           onCiteClick={handleCiteClick}
           renderActions={renderActions}
-          composerChips={SUGGESTED}
+          composerChips={p.chatSuggested}
         />
         <SourcesPanel latest={latestAssistant} citeFocus={citeFocus} busy={busy} />
       </div>

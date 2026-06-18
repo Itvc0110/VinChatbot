@@ -41,16 +41,18 @@ export function formatDateTime(iso: string, locale = "en-US"): string {
 }
 
 // "2 days ago" / "in 3 days" / "today" — for last-crawled, last-updated chips.
-export function relativeTime(iso: string, now: Date = new Date()): string {
+export function relativeTime(iso: string, lang: "en" | "vi" = "en", now: Date = new Date()): string {
+  const vi = lang === "vi";
   const diff = new Date(iso).getTime() - now.getTime();
   const days = Math.round(diff / MS_PER_DAY);
   if (days === 0) {
     const hours = Math.round(diff / 3_600_000);
-    if (hours === 0) return "just now";
-    return hours < 0 ? `${-hours}h ago` : `in ${hours}h`;
+    if (hours === 0) return vi ? "vừa xong" : "just now";
+    if (hours < 0) return vi ? `${-hours} giờ trước` : `${-hours}h ago`;
+    return vi ? `sau ${hours} giờ` : `in ${hours}h`;
   }
-  if (days < 0) return `${-days}d ago`;
-  return `in ${days}d`;
+  if (days < 0) return vi ? `${-days} ngày trước` : `${-days}d ago`;
+  return vi ? `sau ${days} ngày` : `in ${days}d`;
 }
 
 export function initials(name: string): string {

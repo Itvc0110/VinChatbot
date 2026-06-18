@@ -9,15 +9,6 @@ import type { ScheduleDay } from "@/lib/portalTypes";
 import { IconCalendar } from "@/components/shell/icons";
 
 const DAY_ORDER: ScheduleDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const DAY_FULL: Record<ScheduleDay, string> = {
-  Mon: "Monday",
-  Tue: "Tuesday",
-  Wed: "Wednesday",
-  Thu: "Thursday",
-  Fri: "Friday",
-  Sat: "Saturday",
-  Sun: "Sunday",
-};
 
 export default function StudentSchedulePage() {
   const { p } = usePortal();
@@ -28,14 +19,14 @@ export default function StudentSchedulePage() {
     <div className="page-inner">
       <div className="grid cols-2-1">
         <Card>
-          <SectionHeader title="Weekly class schedule" />
+          <SectionHeader title={p.sched.weekly} />
           <AsyncBoundary state={schedule} onRetry={schedule.reload}>
             {(all) =>
               all.length === 0 ? (
                 <EmptyState
                   icon={<IconCalendar size={28} />}
-                  title="No classes on file"
-                  description="Your registered classes will appear here."
+                  title={p.sched.noClassesTitle}
+                  description={p.sched.noClassesDesc}
                 />
               ) : (
                 <>
@@ -45,7 +36,7 @@ export default function StudentSchedulePage() {
                       .sort((a, b) => a.start.localeCompare(b.start));
                     return (
                       <div key={day}>
-                        <div className="day-head">{DAY_FULL[day]}</div>
+                        <div className="day-head">{p.dayFull[day]}</div>
                         {items.map((s) => (
                           <ClassSessionRow key={s.id} s={s} />
                         ))}

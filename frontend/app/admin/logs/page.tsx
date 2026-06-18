@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge, SectionHeader, type BadgeTone } from "@/components/ui/primitives";
+import { usePortal } from "@/lib/portalI18n";
 
 // System Logs — a lightweight operational feed (crawls, indexing, guardrail events).
 // [MOCK] TODO backend contract: GET /admin/logs -> { ts, level, source, message }[]
@@ -23,17 +24,18 @@ const LOGS: { ts: string; level: Level; source: string; message: string }[] = [
 ];
 
 export default function LogsPage() {
+  const { p } = usePortal();
   return (
     <div className="page-inner">
-      <SectionHeader title="Recent system events" />
+      <SectionHeader title={p.admin.recentEvents} />
       <div className="table-wrap">
         <table className="data-table">
           <thead>
             <tr>
-              <th>Time</th>
-              <th>Level</th>
-              <th>Source</th>
-              <th>Message</th>
+              <th>{p.admin.colTime}</th>
+              <th>{p.admin.colLevel}</th>
+              <th>{p.admin.colSource}</th>
+              <th>{p.admin.colMessage}</th>
             </tr>
           </thead>
           <tbody>
@@ -41,7 +43,7 @@ export default function LogsPage() {
               <tr key={i}>
                 <td className="td-sub mono">{l.ts}</td>
                 <td>
-                  <Badge tone={LEVEL_TONE[l.level]}>{l.level}</Badge>
+                  <Badge tone={LEVEL_TONE[l.level]}>{p.enums.logLevel[l.level]}</Badge>
                 </td>
                 <td className="mono td-sub">{l.source}</td>
                 <td>{l.message}</td>
@@ -51,8 +53,7 @@ export default function LogsPage() {
         </table>
       </div>
       <p className="td-sub" style={{ marginTop: 12 }}>
-        Demo feed. The backend already emits structured logs (request IDs via{" "}
-        <code>core/observability</code>); wire <code>GET /admin/logs</code> to stream them here.
+        {p.admin.logsNote}
       </p>
     </div>
   );

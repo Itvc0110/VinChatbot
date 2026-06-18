@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Citation } from "@/lib/types";
+import { useI18n } from "@/lib/i18n";
 
 export type SourceVariant = "grounded" | "unverified";
 
@@ -16,6 +17,7 @@ export function SourceCard({
   highlighted?: boolean;
   cardRef?: (el: HTMLDivElement | null) => void;
 }) {
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   let host = c.source_url;
   try {
@@ -37,10 +39,10 @@ export function SourceCard({
         className="src-title-btn"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
-        title="Show the full passage"
+        title={t.showPassage}
       >
         <span className="title">
-          {index + 1}. {c.title || host || "Untitled source"}
+          {index + 1}. {c.title || host || t.untitledSource}
         </span>
         <span className="src-caret">{expanded ? "▾" : "▸"}</span>
       </button>
@@ -68,7 +70,7 @@ export function SourceCard({
       )}
       <div className="src-meta">
         {variant === "unverified" && (
-          <span className="tag tag-warn">unverified</span>
+          <span className="tag tag-warn">{t.unverifiedTag}</span>
         )}
         {c.section && <span className="tag">{c.section}</span>}
         {typeof c.page_number === "number" && (

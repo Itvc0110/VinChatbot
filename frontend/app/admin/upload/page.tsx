@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, Badge, Toast } from "@/components/ui/primitives";
 import { uploadKnowledgeSource, type IngestRunResponse } from "@/lib/api";
+import { usePortal } from "@/lib/portalI18n";
 import type { SourceCategory } from "@/lib/portalTypes";
 import { IconUpload, IconCheck } from "@/components/shell/icons";
 
@@ -33,6 +34,7 @@ Spring Semester 2026
   ...`;
 
 export default function UploadPage() {
+  const { p } = usePortal();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -62,17 +64,17 @@ export default function UploadPage() {
       setResult(r);
       setStep(4);
     } catch {
-      setToast("Indexing failed. Check the backend.");
+      setToast(p.admin.indexFailed);
     } finally {
       setWorking(false);
     }
   }
 
   const steps: { n: Step; label: string }[] = [
-    { n: 1, label: "Source" },
-    { n: 2, label: "Preview" },
-    { n: 3, label: "Approve" },
-    { n: 4, label: "Indexed" },
+    { n: 1, label: p.admin.stepSource },
+    { n: 2, label: p.admin.stepPreview },
+    { n: 3, label: p.admin.stepApprove },
+    { n: 4, label: p.admin.stepIndexed },
   ];
 
   return (
@@ -94,12 +96,12 @@ export default function UploadPage() {
           <div className="form-grid">
             <div className="field">
               <label className="field-label" htmlFor="u-title">
-                Source title
+                {p.admin.sourceTitle}
               </label>
               <input
                 id="u-title"
                 className="input"
-                placeholder="e.g. Academic Calendar 2025–2026"
+                placeholder={p.admin.sourceTitlePlaceholder}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
@@ -108,7 +110,7 @@ export default function UploadPage() {
             <div className="grid grid-2">
               <div className="field">
                 <label className="field-label" htmlFor="u-type">
-                  Source type
+                  {p.admin.sourceType}
                 </label>
                 <select
                   id="u-type"
@@ -120,14 +122,14 @@ export default function UploadPage() {
                     setFile(null);
                   }}
                 >
-                  <option value="url">Official URL</option>
+                  <option value="url">{p.admin.optUrl}</option>
                   <option value="pdf">PDF</option>
                   <option value="docx">DOCX</option>
                 </select>
               </div>
               <div className="field">
                 <label className="field-label" htmlFor="u-cat">
-                  Category
+                  {p.admin.category}
                 </label>
                 <select
                   id="u-cat"
@@ -137,7 +139,7 @@ export default function UploadPage() {
                 >
                   {CATEGORIES.map((c) => (
                     <option key={c} value={c}>
-                      {c}
+                      {p.enums.category[c] ?? c}
                     </option>
                   ))}
                 </select>
@@ -147,18 +149,16 @@ export default function UploadPage() {
             {isUrl ? (
               <div className="field">
                 <label className="field-label" htmlFor="u-url">
-                  Official URL
+                  {p.admin.officialUrl}
                 </label>
                 <input
                   id="u-url"
                   className="input"
-                  placeholder="https://vinuni.edu.vn/…"
+                  placeholder={p.admin.urlPlaceholder}
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                 />
-                <span className="field-hint">
-                  URLs crawl + index through the live <code>/ingest/run</code> pipeline.
-                </span>
+                <span className="field-hint">{p.admin.urlHint}</span>
               </div>
             ) : (
               <div
@@ -172,10 +172,10 @@ export default function UploadPage() {
                   <IconUpload size={26} />
                 </span>
                 <div className="dz-title">
-                  {file ? file.name : `Upload ${sourceType.toUpperCase()} file`}
+                  {file ? file.name : p.admin.uploadFile(sourceType.toUpperCase())}
                 </div>
                 <div className="dz-sub">
-                  {file ? `${(file.size / 1024).toFixed(0)} KB selected` : "Click to choose a file"}
+                  {file ? p.admin.kbSelected(Number((file.size / 1024).toFixed(0))) : p.admin.clickToChoose}
                 </div>
                 <input
                   ref={fileRef}
@@ -188,7 +188,7 @@ export default function UploadPage() {
             )}
 
             <button className="btn btn-primary" disabled={!hasInput} onClick={() => setStep(2)}>
-              Extract & preview
+              {p.admin.extractPreview}
             </button>
           </div>
         </Card>
@@ -197,16 +197,16 @@ export default function UploadPage() {
       {step === 2 && (
         <Card className="pad-lg">
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-            <strong>Extracted text preview</strong>
-            <Badge tone="info">{category}</Badge>
+            <strong>{p.admin.extractedPreview}</strong>
+            <Badge tone="info">{p.enums.category[category] ?? category}</Badge>
           </div>
           <div className="extract-preview">{SAMPLE_EXTRACT}</div>
           <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
             <button className="btn btn-outline" onClick={() => setStep(1)}>
-              Back
+              {p.back}
             </button>
             <button className="btn btn-primary" onClick={() => setStep(3)}>
-              Looks good — continue
+              {p.admin.looksGood}
             </button>
           </div>
         </Card>
@@ -214,34 +214,34 @@ export default function UploadPage() {
 
       {step === 3 && (
         <Card className="pad-lg">
-          <strong>Approve for chatbot</strong>
+          <strong>{p.admin.approveForChatbot}</strong>
           <div style={{ marginTop: 12 }}>
             <div className="kv">
-              <span className="kv-key">Title</span>
+              <span className="kv-key">{p.admin.fTitle}</span>
               <span className="kv-val">{title}</span>
             </div>
             <div className="kv">
-              <span className="kv-key">Source</span>
+              <span className="kv-key">{p.admin.fSource}</span>
               <span className="kv-val">{isUrl ? url : file?.name}</span>
             </div>
             <div className="kv">
-              <span className="kv-key">Type</span>
+              <span className="kv-key">{p.admin.fType}</span>
               <span className="kv-val">{sourceType.toUpperCase()}</span>
             </div>
             <div className="kv">
-              <span className="kv-key">Category</span>
-              <span className="kv-val">{category}</span>
+              <span className="kv-key">{p.admin.category}</span>
+              <span className="kv-val">{p.enums.category[category] ?? category}</span>
             </div>
           </div>
           <p className="field-hint" style={{ marginTop: 12 }}>
-            Approving indexes this source into the vector store so the chatbot can cite it.
+            {p.admin.approveHint}
           </p>
           <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
             <button className="btn btn-outline" onClick={() => setStep(2)} disabled={working}>
-              Back
+              {p.back}
             </button>
             <button className="btn btn-primary" onClick={index} disabled={working}>
-              {working ? "Indexing…" : "Approve & index"}
+              {working ? p.admin.indexing : p.admin.approveIndex}
             </button>
           </div>
         </Card>
@@ -252,10 +252,13 @@ export default function UploadPage() {
           <span className="empty-icon" style={{ color: "var(--success)", display: "inline-flex" }}>
             <IconCheck size={32} />
           </span>
-          <h3 style={{ margin: "8px 0 4px" }}>Indexed into the knowledge base</h3>
+          <h3 style={{ margin: "8px 0 4px" }}>{p.admin.indexedTitle}</h3>
           <p className="field-hint">
-            {result.crawled_documents} document(s) processed · {result.indexed_chunks} chunks indexed ·{" "}
-            {result.skipped_documents} skipped.
+            {p.admin.indexedResult(
+              result.crawled_documents,
+              result.indexed_chunks,
+              result.skipped_documents
+            )}
           </p>
           <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 16 }}>
             <button
@@ -268,10 +271,10 @@ export default function UploadPage() {
                 setResult(null);
               }}
             >
-              Add another
+              {p.admin.addAnother}
             </button>
             <button className="btn btn-primary" onClick={() => router.push("/admin/sources")}>
-              View sources
+              {p.admin.viewSources}
             </button>
           </div>
         </Card>

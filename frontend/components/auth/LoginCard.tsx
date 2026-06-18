@@ -71,7 +71,7 @@ export function LoginCard() {
       <button
         className="btn btn-outline login-sso"
         onClick={() => signIn("student")}
-        title="Demo: signs in as the student account"
+        title={p.login.ssoHint}
       >
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
           strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

@@ -2,9 +2,11 @@
 
 import { AsyncBoundary, Card, SectionHeader, StatCard } from "@/components/ui/primitives";
 import { useAsync } from "@/lib/useAsync";
+import { usePortal } from "@/lib/portalI18n";
 import { getAnalytics } from "@/lib/api";
 
 export default function AnalyticsPage() {
+  const { p } = usePortal();
   const analytics = useAsync(getAnalytics, []);
 
   return (
@@ -17,20 +19,20 @@ export default function AnalyticsPage() {
             <>
               <div className="grid grid-3" style={{ marginBottom: 20 }}>
                 <StatCard
-                  label="Total questions (7 days)"
+                  label={p.admin.totalQuestions7d}
                   value={a.total_questions.toLocaleString()}
                   tone="default"
                 />
                 <StatCard
-                  label="Verified answer rate"
+                  label={p.admin.verifiedRate}
                   value={`${Math.round(a.verified_rate * 100)}%`}
                   tone="success"
                 />
-                <StatCard label="Average confidence" value={a.avg_confidence.toFixed(2)} tone="gold" />
+                <StatCard label={p.admin.avgConfidence} value={a.avg_confidence.toFixed(2)} tone="gold" />
               </div>
 
               <Card className="pad-lg" style={{ marginBottom: 20 }}>
-                <SectionHeader title="Questions per day" />
+                <SectionHeader title={p.admin.questionsPerDay} />
                 <div className="bars">
                   {a.questions_per_day.map((d) => {
                     const h = (d.total / maxTotal) * 100;
@@ -55,16 +57,16 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="legend">
                   <span>
-                    <i style={{ background: "var(--primary)" }} /> Verified
+                    <i style={{ background: "var(--primary)" }} /> {p.admin.verified}
                   </span>
                   <span>
-                    <i style={{ background: "var(--warning)" }} /> Unanswered
+                    <i style={{ background: "var(--warning)" }} /> {p.admin.unanswered}
                   </span>
                 </div>
               </Card>
 
               <Card className="pad-lg">
-                <SectionHeader title="Top topics" />
+                <SectionHeader title={p.admin.topTopics} />
                 {a.top_topics.map((t) => (
                   <div className="topic-row" key={t.topic}>
                     <span className="td-strong">{t.topic}</span>

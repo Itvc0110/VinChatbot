@@ -47,6 +47,9 @@ export interface Strings {
   degradedCheck: string;
   relatedUnverified: (n: number) => string;
   unverifiedNote: string;
+  unverifiedTag: string;
+  showPassage: string;
+  untitledSource: string;
 
   // state chip
   chip: { grounded: string; conversational: string; refusal: string; degraded: string };
@@ -132,6 +135,9 @@ const en: Strings = {
   relatedUnverified: (n) => `Related — unverified (${n})`,
   unverifiedNote:
     "Retrieved but not confirmed to support an answer. Treat as leads, not facts.",
+  unverifiedTag: "unverified",
+  showPassage: "Show the full passage",
+  untitledSource: "Untitled source",
 
   chip: {
     grounded: "Grounded in sources",
@@ -219,6 +225,9 @@ const vi: Strings = {
   relatedUnverified: (n) => `Liên quan — chưa xác minh (${n})`,
   unverifiedNote:
     "Được truy xuất nhưng chưa xác nhận là căn cứ cho câu trả lời. Xem như gợi ý, không phải dữ kiện.",
+  unverifiedTag: "chưa xác minh",
+  showPassage: "Xem toàn bộ đoạn trích",
+  untitledSource: "Nguồn chưa có tiêu đề",
 
   chip: {
     grounded: "Có căn cứ nguồn",
