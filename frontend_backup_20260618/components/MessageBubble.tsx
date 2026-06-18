@@ -142,7 +142,6 @@ export function MessageBubble({
   onRetry,
   onEdit,
   onCiteClick,
-  extraActions,
 }: {
   message: ChatMessage;
   conversationId: string;
@@ -151,9 +150,6 @@ export function MessageBubble({
   onRetry?: () => void;
   onEdit?: (text: string) => void;
   onCiteClick?: (idx: number) => void;
-  // Portal-only: action buttons (Add to calendar / Set reminder / Forward to admin…)
-  // rendered under a completed assistant answer. Built by the chat page per message.
-  extraActions?: React.ReactNode;
 }) {
   const { t } = useI18n();
 
@@ -248,7 +244,6 @@ export function MessageBubble({
         </div>
       )}
       {resp && <AssistantMeta response={resp} />}
-      {extraActions}
       {resp && (
         <div className="bubble-actions">
           <FlagForm

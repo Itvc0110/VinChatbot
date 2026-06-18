@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
-import { Providers } from "./providers";
 import "./globals.css";
-import "./portal.css";
 
 // Inter with the `vietnamese` subset so diacritics (ế, ữ, ợ, Đ…) render crisply.
 const inter = Inter({
@@ -19,9 +17,8 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "VinUni Student Copilot",
-  description:
-    "24/7 AI student support for VinUni — verified, source-cited answers about academics, schedules, deadlines, tuition, events and student services.",
+  title: "VinChatbot — Academic Q&A",
+  description: "Source-grounded answers about VinUni academics and services.",
 };
 
 export default function RootLayout({
@@ -35,9 +32,7 @@ export default function RootLayout({
         {/* Apply the saved/OS theme before paint to avoid a flash of the wrong theme. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body>
-        <Providers>{children}</Providers>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

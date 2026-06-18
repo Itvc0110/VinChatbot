@@ -30,16 +30,6 @@ export interface ChatResponse {
   needs_human_review: boolean;
 }
 
-// Mirrors vinchatbot/app/schemas/document.py SourceSummary — returned by GET /sources.
-export interface SourceSummary {
-  source_url: string;
-  document_title: string;
-  document_type: string;
-  content_hash: string;
-  crawled_at: string;
-  chunk_count: number;
-}
-
 // UI-side message model.
 export type Role = "user" | "assistant";
 
@@ -55,7 +45,4 @@ export interface ChatMessage {
   cancelled?: boolean;
   // assistant-only: answer is currently being revealed token-by-token (verify-then-reveal).
   streaming?: boolean;
-  // assistant-only: answer was produced in "My Student Info" mode (personalized with the
-  // student's profile/schedule/deadlines/tuition context).
-  personalized?: boolean;
 }

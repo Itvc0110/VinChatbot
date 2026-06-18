@@ -6,17 +6,13 @@ export function Composer({
   onStop,
   busy,
   showChips = true,
-  chips,
 }: {
   onSend: (text: string) => void;
   onStop: () => void;
   busy: boolean;
   showChips?: boolean;
-  // Optional override for the quick-prompt chips (defaults to the i18n quickPrompts).
-  chips?: string[];
 }) {
   const { t } = useI18n();
-  const promptChips = chips ?? t.quickPrompts;
   const [value, setValue] = useState("");
   const taRef = useRef<HTMLTextAreaElement>(null);
   const trimmed = value.trim();
@@ -41,7 +37,7 @@ export function Composer({
     <div className="composer">
       {showChips && (
         <div className="chips">
-          {promptChips.map((p) => (
+          {t.quickPrompts.map((p) => (
             <button
               key={p}
               className="prompt-chip"

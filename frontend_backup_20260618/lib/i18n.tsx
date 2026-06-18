@@ -1,10 +1,8 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext } from "react";
 
 export type Lang = "en" | "vi";
-
-const LANG_STORAGE_KEY = "vinchatbot-lang";
 
 // UI chrome strings only. The *answer* language is auto-detected by the backend from the
 // user's message text (guardrails.answer_language) — this toggle does not change that.
@@ -255,47 +253,20 @@ const vi: Strings = {
 
 export const STRINGS: Record<Lang, Strings> = { en, vi };
 
-const I18nContext = createContext<{
-  lang: Lang;
-  t: Strings;
-  setLang: (l: Lang) => void;
-}>({
+const I18nContext = createContext<{ lang: Lang; t: Strings }>({
   lang: "en",
   t: en,
-  setLang: () => {},
 });
 
-// App-wide language provider. Self-managed (persists to localStorage) so the toggle in
-// the top bar switches UI chrome across every portal screen, not just one page.
 export function LanguageProvider({
-  initialLang = "en",
+  lang,
   children,
 }: {
-  initialLang?: Lang;
+  lang: Lang;
   children: React.ReactNode;
 }) {
-  const [lang, setLangState] = useState<Lang>(initialLang);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(LANG_STORAGE_KEY);
-      if (saved === "en" || saved === "vi") setLangState(saved);
-    } catch {
-      /* storage blocked — keep default */
-    }
-  }, []);
-
-  const setLang = (l: Lang) => {
-    setLangState(l);
-    try {
-      localStorage.setItem(LANG_STORAGE_KEY, l);
-    } catch {
-      /* ignore */
-    }
-  };
-
   return (
-    <I18nContext.Provider value={{ lang, t: STRINGS[lang], setLang }}>
+    <I18nContext.Provider value={{ lang, t: STRINGS[lang] }}>
       {children}
     </I18nContext.Provider>
   );

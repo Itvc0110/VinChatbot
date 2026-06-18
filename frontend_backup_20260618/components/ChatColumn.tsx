@@ -15,8 +15,6 @@ export function ChatColumn({
   onRetry,
   onEditLast,
   onCiteClick,
-  renderActions,
-  composerChips,
 }: {
   messages: ChatMessage[];
   busy: boolean;
@@ -28,9 +26,6 @@ export function ChatColumn({
   onRetry: (messageId: string) => void;
   onEditLast: (text: string) => void;
   onCiteClick: (idx: number) => void;
-  // Portal-only: builds the per-answer action row (calendar/reminder/forward).
-  renderActions?: (m: ChatMessage) => React.ReactNode;
-  composerChips?: string[];
 }) {
   const { t } = useI18n();
   const endRef = useRef<HTMLDivElement>(null);
@@ -53,12 +48,11 @@ export function ChatColumn({
             onRetry={m.error ? () => onRetry(m.id) : undefined}
             onEdit={m.id === lastUserId ? onEditLast : undefined}
             onCiteClick={onCiteClick}
-            extraActions={renderActions?.(m)}
           />
         ))}
         <div ref={endRef} />
       </div>
-      <Composer onSend={onSend} onStop={onStop} busy={busy} chips={composerChips} />
+      <Composer onSend={onSend} onStop={onStop} busy={busy} />
     </div>
   );
 }

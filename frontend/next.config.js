@@ -18,6 +18,15 @@ const nextConfig = {
         source: "/api/chat",
         destination: `${BACKEND_URL}/chat`,
       },
+      // Admin/knowledge endpoints proxied to FastAPI (GET /sources, POST /ingest/run).
+      {
+        source: "/api/sources",
+        destination: `${BACKEND_URL}/sources`,
+      },
+      {
+        source: "/api/ingest/run",
+        destination: `${BACKEND_URL}/ingest/run`,
+      },
     ];
   },
 };
