@@ -84,14 +84,34 @@ export interface TuitionStatus {
   items: TuitionLineItem[];
 }
 
-export type TicketStatus = "open" | "in_progress" | "answered" | "closed";
-export type TicketPriority = "low" | "normal" | "high";
+export type TicketStatus =
+  | "open"
+  | "in_progress"
+  | "waiting"
+  | "resolved"
+  | "closed";
+export type TicketPriority = "low" | "medium" | "high";
+export type TicketCategory =
+  | "academic"
+  | "schedule"
+  | "student_services"
+  | "technical"
+  | "other";
+
+// One entry in a ticket's conversation thread (student question / admin reply / system note).
+export interface TicketMessage {
+  id: string;
+  author: "student" | "admin" | "system";
+  body: string;
+  created_at: string;
+}
 
 export interface SupportTicket {
   id: string;
   subject: string;
   body: string;
   department: string;
+  category: TicketCategory;
   status: TicketStatus;
   priority: TicketPriority;
   created_at: string;
@@ -99,6 +119,65 @@ export interface SupportTicket {
   // Set when the ticket was forwarded from a chat answer the bot couldn't verify.
   origin_question?: string;
   resolution?: string;
+  // Conversation history (student question + admin responses), if any.
+  messages?: TicketMessage[];
+  // A source/citation attached to the ticket by an admin, if any.
+  source_title?: string;
+  source_url?: string;
+  // Frontend-only visibility flags. The backend has no permanent-delete endpoint, so
+  // "archive" and "delete" are modelled as state the UI filters on (see lib/api.ts).
+  archived?: boolean;
+  deleted?: boolean;
+}
+
+// ---- Notifications ----------------------------------------------------------
+
+export type NotificationType =
+  | "academic"
+  | "schedule"
+  | "deadline"
+  | "event"
+  | "student_services"
+  | "system";
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  created_at: string; // ISO datetime
+  read: boolean;
+  important: boolean;
+  archived?: boolean;
+  // Optional related official source or an in-app action.
+  source_title?: string;
+  source_url?: string;
+  action_label?: string;
+  action_href?: string;
+}
+
+// ---- Calendar ---------------------------------------------------------------
+
+export type CalendarEventType =
+  | "class"
+  | "deadline"
+  | "exam"
+  | "event"
+  | "reminder";
+
+export interface CalendarEvent {
+  id: string;
+  type: CalendarEventType;
+  title: string;
+  start: string; // ISO datetime
+  end?: string; // ISO datetime
+  all_day?: boolean;
+  location?: string;
+  course?: string; // course code / title
+  category?: string; // free-text category label
+  description?: string;
+  source_title?: string;
+  source_url?: string;
 }
 
 // ---- Admin ------------------------------------------------------------------

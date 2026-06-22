@@ -8,29 +8,33 @@ export function ChatColumn({
   messages,
   busy,
   conversationId,
-  latestAssistantId,
   lastUserId,
   onSend,
   onStop,
   onRetry,
   onEditLast,
-  onCiteClick,
+  onOpenSources,
   renderActions,
   composerChips,
+  note,
+  showHead = true,
 }: {
   messages: ChatMessage[];
   busy: boolean;
   conversationId: string;
-  latestAssistantId: string | null;
   lastUserId: string | null;
   onSend: (text: string) => void;
   onStop: () => void;
   onRetry: (messageId: string) => void;
   onEditLast: (text: string) => void;
-  onCiteClick: (idx: number) => void;
+  // Open the shared source drawer for message `messageId`, focused on citation `idx`.
+  onOpenSources: (messageId: string, idx: number) => void;
   // Portal-only: builds the per-answer action row (calendar/reminder/forward).
   renderActions?: (m: ChatMessage) => React.ReactNode;
   composerChips?: string[];
+  // Subtle helper text shown under the composer (e.g. the privacy note).
+  note?: string;
+  showHead?: boolean;
 }) {
   const { t } = useI18n();
   const endRef = useRef<HTMLDivElement>(null);
@@ -41,24 +45,23 @@ export function ChatColumn({
 
   return (
     <div className="pane chat">
-      <div className="pane-head">{t.paneConversation}</div>
+      {showHead && <div className="pane-head">{t.paneConversation}</div>}
       <div className="messages">
         {messages.map((m) => (
           <MessageBubble
             key={m.id}
             message={m}
             conversationId={conversationId}
-            isLatestAssistant={m.id === latestAssistantId}
             isLastUser={m.id === lastUserId}
             onRetry={m.error ? () => onRetry(m.id) : undefined}
             onEdit={m.id === lastUserId ? onEditLast : undefined}
-            onCiteClick={onCiteClick}
+            onOpenSources={(idx) => onOpenSources(m.id, idx)}
             extraActions={renderActions?.(m)}
           />
         ))}
         <div ref={endRef} />
       </div>
-      <Composer onSend={onSend} onStop={onStop} busy={busy} chips={composerChips} />
+      <Composer onSend={onSend} onStop={onStop} busy={busy} chips={composerChips} note={note} />
     </div>
   );
 }

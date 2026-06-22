@@ -7,6 +7,7 @@ export function Composer({
   busy,
   showChips = true,
   chips,
+  note,
 }: {
   onSend: (text: string) => void;
   onStop: () => void;
@@ -14,6 +15,8 @@ export function Composer({
   showChips?: boolean;
   // Optional override for the quick-prompt chips (defaults to the i18n quickPrompts).
   chips?: string[];
+  // Subtle helper text shown under the field (privacy note).
+  note?: string;
 }) {
   const { t } = useI18n();
   const promptChips = chips ?? t.quickPrompts;
@@ -84,6 +87,7 @@ export function Composer({
         )}
       </div>
       {tooLong && <div className="input-warn">{t.tooLong(value.length)}</div>}
+      {note && <p className="composer-note">{note}</p>}
     </div>
   );
 }

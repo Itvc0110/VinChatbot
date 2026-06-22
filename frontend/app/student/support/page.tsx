@@ -1,87 +1,130 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AsyncBoundary,
   Card,
+  PageHeader,
   SectionHeader,
-  Badge,
   EmptyState,
   Toast,
-  type BadgeTone,
 } from "@/components/ui/primitives";
+import {
+  TicketFilters,
+  DEFAULT_TICKET_FILTERS,
+  type TicketFilterState,
+} from "@/components/tickets/TicketFilters";
+import { TicketList, type TicketHandlers } from "@/components/tickets/TicketList";
+import { TicketDetailDrawer } from "@/components/tickets/TicketDetailDrawer";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal, DEPARTMENTS } from "@/lib/portalI18n";
-import { getSupportTickets, forwardToAdmin } from "@/lib/api";
-import { formatDateTime } from "@/lib/format";
-import type { SupportTicket, TicketStatus } from "@/lib/portalTypes";
+import {
+  getSupportTickets,
+  forwardToAdmin,
+  archiveSupportTicket,
+  restoreSupportTicket,
+  deleteSupportTicket,
+} from "@/lib/api";
+import type { SupportTicket, TicketStatus, TicketCategory } from "@/lib/portalTypes";
 import { IconTicket } from "@/components/shell/icons";
 
-const STATUS_TONE: Record<TicketStatus, BadgeTone> = {
-  open: "info",
-  in_progress: "warning",
-  answered: "success",
-  closed: "neutral",
-};
+const CATEGORIES: TicketCategory[] = [
+  "academic",
+  "schedule",
+  "student_services",
+  "technical",
+  "other",
+];
 
-function TicketCard({ t }: { t: SupportTicket }) {
-  const { p, lang } = usePortal();
-  const locale = lang === "vi" ? "vi-VN" : "en-US";
-  return (
-    <Card style={{ marginBottom: 12 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <span className="td-sub mono">{t.id}</span>
-            <Badge tone={STATUS_TONE[t.status]}>{p.enums.ticketStatus[t.status]}</Badge>
-            {t.priority === "high" && <Badge tone="danger">{p.sup.highPriority}</Badge>}
-          </div>
-          <div className="list-row-title" style={{ marginTop: 6 }}>
-            {t.subject}
-          </div>
-          <div className="list-row-sub">
-            {p.enums.department[t.department] ?? t.department} ·{" "}
-            {p.sup.opened(formatDateTime(t.created_at, locale))}
-          </div>
-        </div>
-      </div>
-      <p style={{ fontSize: "var(--fs-sm)", color: "var(--muted-foreground)", margin: "10px 0 0" }}>
-        {t.body}
-      </p>
-      {t.origin_question && (
-        <p className="td-sub" style={{ marginTop: 8 }}>
-          ↳ {p.forwardedFromChat}: “{t.origin_question}”
-        </p>
-      )}
-      {t.resolution && (
-        <div className="route-card" style={{ marginTop: 10 }}>
-          <h3>✓ {p.sup.resolution}</h3>
-          <p style={{ margin: 0 }}>{t.resolution}</p>
-        </div>
-      )}
-    </Card>
-  );
+function matchesVisibility(t: SupportTicket, vis: TicketFilterState["visibility"]): boolean {
+  if (vis === "deleted") return !!t.deleted;
+  if (vis === "archived") return !!t.archived && !t.deleted;
+  return !t.archived && !t.deleted;
 }
 
 export default function StudentSupportPage() {
   const { p } = usePortal();
-  const tickets = useAsync(getSupportTickets, []);
+  const loaded = useAsync(getSupportTickets, []);
+  const [items, setItems] = useState<SupportTicket[] | null>(null);
+  const [filters, setFilters] = useState<TicketFilterState>(DEFAULT_TICKET_FILTERS);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+
+  // new-request form
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [department, setDepartment] = useState(DEPARTMENTS[0]);
+  const [category, setCategory] = useState<TicketCategory>("academic");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (loaded.status === "success") setItems((cur) => cur ?? loaded.data);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded.status]);
+
+  const all = items ?? [];
+
+  function patch(id: string, p2: Partial<SupportTicket>) {
+    setItems((cur) =>
+      (cur ?? []).map((t) =>
+        t.id === id ? { ...t, ...p2, updated_at: new Date().toISOString() } : t
+      )
+    );
+  }
+
+  const handlers: TicketHandlers = {
+    onView: (t) => setSelectedId(t.id),
+    onArchive: (t) => {
+      patch(t.id, { archived: true });
+      archiveSupportTicket(t.id).catch(() => setToast(p.tickets.actionFailed));
+      setToast(p.tickets.archivedToast);
+    },
+    onRestore: (t) => {
+      patch(t.id, { archived: false, deleted: false });
+      restoreSupportTicket(t.id).catch(() => setToast(p.tickets.actionFailed));
+      setToast(p.tickets.restoredToast);
+    },
+    onDelete: (t) => {
+      patch(t.id, { deleted: true });
+      deleteSupportTicket(t.id).catch(() => setToast(p.tickets.actionFailed));
+      setToast(p.tickets.deletedToast);
+      if (selectedId === t.id) setSelectedId(null);
+    },
+  };
+
+  // Status update is frontend-only (no backend route yet).
+  const onSetStatus = (t: SupportTicket, status: TicketStatus) => patch(t.id, { status });
+
+  const visible = all
+    .filter((t) => matchesVisibility(t, filters.visibility))
+    .filter((t) => filters.status === "all" || t.status === filters.status)
+    .filter((t) => filters.priority === "all" || t.priority === filters.priority)
+    .filter((t) => filters.category === "all" || t.category === filters.category)
+    .filter((t) => {
+      const q = filters.search.trim().toLowerCase();
+      if (!q) return true;
+      return [t.subject, t.body, t.id, t.origin_question]
+        .filter(Boolean)
+        .some((s) => (s as string).toLowerCase().includes(q));
+    });
+
+  const selected = all.find((t) => t.id === selectedId) ?? null;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!subject.trim() || !body.trim()) return;
     setSubmitting(true);
     try {
-      const ticket = await forwardToAdmin({ subject: subject.trim(), body: body.trim(), department });
+      const ticket = await forwardToAdmin({
+        subject: subject.trim(),
+        body: body.trim(),
+        department,
+        category,
+      });
+      setItems((cur) => [ticket, ...(cur ?? [])]);
       setToast(p.sup.ticketCreated(ticket.id, p.enums.department[department] ?? department));
       setSubject("");
       setBody("");
-      tickets.reload();
     } catch {
       setToast(p.sup.submitFailed);
     } finally {
@@ -91,23 +134,23 @@ export default function StudentSupportPage() {
 
   return (
     <div className="page-inner">
-      <div className="grid cols-2-1">
+      <PageHeader title={p.tickets.title} />
+      <TicketFilters value={filters} onChange={setFilters} />
+
+      <div className="grid cols-2-1" style={{ marginTop: 16 }}>
         <div>
-          <SectionHeader title={p.sup.yourTickets} />
-          <AsyncBoundary state={tickets} onRetry={tickets.reload}>
-            {(list) =>
-              list.length === 0 ? (
+          <AsyncBoundary state={loaded} onRetry={loaded.reload}>
+            {() =>
+              all.length === 0 ? (
                 <EmptyState
                   icon={<IconTicket size={28} />}
                   title={p.sup.noTicketsTitle}
                   description={p.sup.noTicketsDesc}
                 />
+              ) : visible.length === 0 ? (
+                <EmptyState icon={<IconTicket size={28} />} title={p.tickets.noMatch} />
               ) : (
-                <>
-                  {list.map((t) => (
-                    <TicketCard key={t.id} t={t} />
-                  ))}
-                </>
+                <TicketList items={visible} handlers={handlers} />
               )
             }
           </AsyncBoundary>
@@ -146,6 +189,23 @@ export default function StudentSupportPage() {
               </select>
             </div>
             <div className="field">
+              <label className="field-label" htmlFor="t-cat">
+                {p.tickets.categoryLabel}
+              </label>
+              <select
+                id="t-cat"
+                className="select"
+                value={category}
+                onChange={(e) => setCategory(e.target.value as TicketCategory)}
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {p.enums.ticketCategory[c]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
               <label className="field-label" htmlFor="t-body">
                 {p.sup.details}
               </label>
@@ -167,6 +227,15 @@ export default function StudentSupportPage() {
           </form>
         </Card>
       </div>
+
+      <TicketDetailDrawer
+        ticket={selected}
+        onClose={() => setSelectedId(null)}
+        onSetStatus={onSetStatus}
+        onArchive={handlers.onArchive}
+        onRestore={handlers.onRestore}
+        onDelete={handlers.onDelete}
+      />
 
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
     </div>

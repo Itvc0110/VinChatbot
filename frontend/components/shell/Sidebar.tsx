@@ -9,7 +9,7 @@ import {
   IconGrid,
   IconChat,
   IconCalendar,
-  IconWallet,
+  IconBell,
   IconTicket,
   IconShield,
   IconDatabase,
@@ -39,7 +39,7 @@ export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => v
     { href: "/student/dashboard", label: p.nav.dashboard, icon: <IconGrid /> },
     { href: "/student/chat", label: p.nav.chat, icon: <IconChat /> },
     { href: "/student/schedule", label: p.nav.schedule, icon: <IconCalendar /> },
-    { href: "/student/tuition", label: p.nav.tuition, icon: <IconWallet /> },
+    { href: "/student/notifications", label: p.nav.notifications, icon: <IconBell /> },
     { href: "/student/support", label: p.nav.tickets, icon: <IconTicket /> },
   ];
 

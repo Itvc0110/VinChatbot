@@ -4,12 +4,7 @@ import { useState } from "react";
 import type { ChatResponse } from "@/lib/types";
 import { deriveState } from "@/lib/responseState";
 import { usePortal } from "@/lib/portalI18n";
-import {
-  IconExternal,
-  IconCalendar,
-  IconBell,
-  IconArrow,
-} from "@/components/shell/icons";
+import { IconCalendar, IconBell, IconArrow } from "@/components/shell/icons";
 
 // Builds and downloads a minimal .ics so "Add to calendar" produces a real file.
 function downloadIcs(title: string, description: string) {
@@ -42,13 +37,11 @@ function downloadIcs(title: string, description: string) {
 export function AnswerActions({
   question,
   response,
-  onViewSource,
   onForward,
   onToast,
 }: {
   question: string;
   response: ChatResponse;
-  onViewSource: () => void;
   onForward: () => void;
   onToast: (msg: string) => void;
 }) {
@@ -56,9 +49,9 @@ export function AnswerActions({
   const [reminded, setReminded] = useState(false);
   const [forwarded, setForwarded] = useState(false);
   const state = deriveState(response);
-  const hasSources = response.citations.length > 0;
 
-  // For conversational replies there's nothing actionable.
+  // For conversational replies there's nothing actionable. Source access lives in the
+  // per-answer citation list (ChatCitationList), so there's no "View source" here.
   if (state === "conversational") return null;
 
   const handleForward = () => {
@@ -69,11 +62,6 @@ export function AnswerActions({
 
   return (
     <div className="answer-actions">
-      {hasSources && (
-        <button className="answer-action" onClick={onViewSource}>
-          <IconExternal size={13} /> {p.actViewSource}
-        </button>
-      )}
       <button
         className="answer-action"
         onClick={() => downloadIcs(question, response.answer)}

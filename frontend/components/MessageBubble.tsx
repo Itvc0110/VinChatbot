@@ -1,10 +1,16 @@
 import React, { useState } from "react";
 import type { ChatMessage } from "@/lib/types";
 import { deriveState } from "@/lib/responseState";
-import { splitOfficialSources } from "@/lib/officialSources";
 import { useI18n } from "@/lib/i18n";
-import { AssistantMeta } from "./AssistantMeta";
+import { ChatCitationList } from "./ChatCitationList";
 import { FlagForm } from "./FlagForm";
+
+// Optional inline-citation wiring: turns [1], [2]… in the answer text into clickable
+// markers that open the source panel for that exact source.
+interface CiteOpts {
+  count: number;
+  onCite: (idx: number) => void;
+}
 
 function BotAvatar() {
   return (
@@ -19,15 +25,20 @@ function BotAvatar() {
   );
 }
 
-// Minimal, safe inline formatter: turns [text](url) into links and **x** into bold.
+// Minimal, safe inline formatter: turns [text](url) into links, **x** into bold, and a
+// bare [n] into a clickable citation marker (when `cite` is provided and n is in range).
 // No dangerouslySetInnerHTML. Good enough for baseline; a full markdown lib is deferred.
-function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
+function renderInline(
+  text: string,
+  keyPrefix: string,
+  cite?: CiteOpts
+): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
-  const linkRe = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|\*\*([^*]+)\*\*/g;
+  const re = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)|\*\*([^*]+)\*\*|\[(\d{1,3})\]/g;
   let last = 0;
   let m: RegExpExecArray | null;
   let i = 0;
-  while ((m = linkRe.exec(text)) !== null) {
+  while ((m = re.exec(text)) !== null) {
     if (m.index > last) nodes.push(text.slice(last, m.index));
     if (m[1] && m[2]) {
       nodes.push(
@@ -37,6 +48,22 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
       );
     } else if (m[3]) {
       nodes.push(<strong key={`${keyPrefix}-b${i}`}>{m[3]}</strong>);
+    } else if (m[4]) {
+      const n = parseInt(m[4], 10);
+      if (cite && n >= 1 && n <= cite.count) {
+        nodes.push(
+          <button
+            key={`${keyPrefix}-c${i}`}
+            className="inline-cite"
+            title={`Source ${n}`}
+            onClick={() => cite.onCite(n - 1)}
+          >
+            [{n}]
+          </button>
+        );
+      } else {
+        nodes.push(m[0]);
+      }
     }
     last = m.index + m[0].length;
     i++;
@@ -45,13 +72,13 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
   return nodes;
 }
 
-function FormattedBody({ text }: { text: string }) {
+function FormattedBody({ text, cite }: { text: string; cite?: CiteOpts }) {
   const lines = text.split("\n");
   return (
     <div className="body">
       {lines.map((line, idx) => (
         <React.Fragment key={idx}>
-          {renderInline(line, `ln${idx}`)}
+          {renderInline(line, `ln${idx}`, cite)}
           {idx < lines.length - 1 ? "\n" : null}
         </React.Fragment>
       ))}
@@ -137,20 +164,19 @@ function UserBubble({
 export function MessageBubble({
   message,
   conversationId,
-  isLatestAssistant,
   isLastUser,
   onRetry,
   onEdit,
-  onCiteClick,
+  onOpenSources,
   extraActions,
 }: {
   message: ChatMessage;
   conversationId: string;
-  isLatestAssistant: boolean;
   isLastUser: boolean;
   onRetry?: () => void;
   onEdit?: (text: string) => void;
-  onCiteClick?: (idx: number) => void;
+  // Open the shared source drawer for this answer, focused on citation `idx`.
+  onOpenSources?: (idx: number) => void;
   // Portal-only: action buttons (Add to calendar / Set reminder / Forward to admin…)
   // rendered under a completed assistant answer. Built by the chat page per message.
   extraActions?: React.ReactNode;
@@ -165,7 +191,7 @@ export function MessageBubble({
     return (
       <div className="msg assistant error">
         <div className="role">
-          <BotAvatar /> VinChatbot
+          <BotAvatar /> Vinnie
         </div>
         <div className="body">{message.error}</div>
         {onRetry && (
@@ -181,7 +207,7 @@ export function MessageBubble({
     return (
       <div className="msg assistant cancelled">
         <div className="role">
-          <BotAvatar /> VinChatbot
+          <BotAvatar /> Vinnie
         </div>
         <div className="body muted">{t.cancelledShort}</div>
       </div>
@@ -194,7 +220,7 @@ export function MessageBubble({
     return (
       <div className="msg assistant">
         <div className="role">
-          <BotAvatar /> VinChatbot
+          <BotAvatar /> Vinnie
         </div>
         {message.text ? (
           <div className="body">
@@ -214,47 +240,38 @@ export function MessageBubble({
 
   const resp = message.response;
   const state = resp ? deriveState(resp) : null;
-  const { body } = resp
-    ? splitOfficialSources(resp.answer)
-    : { body: message.text };
+  const text = resp ? resp.answer : message.text;
 
-  // Inline citation markers only on the LATEST grounded answer — that's the one the
-  // panel currently reflects, so the scroll target exists.
-  const showCites =
-    isLatestAssistant &&
-    state === "grounded" &&
-    resp !== undefined &&
-    resp.citations.length > 0;
+  const hasCites = !!resp && resp.citations.length > 0;
+  const cite: CiteOpts | undefined = hasCites
+    ? { count: resp!.citations.length, onCite: (idx) => onOpenSources?.(idx) }
+    : undefined;
 
   return (
     <div className="msg assistant">
       <div className="role">
-        <BotAvatar /> VinChatbot
+        <BotAvatar /> Vinnie
       </div>
-      <FormattedBody text={body} />
-      {showCites && (
-        <div className="cite-markers">
-          <span className="cite-markers-label">{t.sourcesLabel}</span>
-          {resp!.citations.map((_, i) => (
-            <button
-              key={i}
-              className="cite-marker"
-              title={`Jump to source ${i + 1}`}
-              onClick={() => onCiteClick?.(i)}
-            >
-              [{i + 1}]
-            </button>
-          ))}
-        </div>
+      {/* Answer text with inline clickable [n] citations. A refusal simply reads as the
+          answer itself — no extra "declined" box. */}
+      <FormattedBody text={text} cite={cite} />
+
+      {/* Citations attached directly under the answer they support (every answer). */}
+      {hasCites && (
+        <ChatCitationList
+          citations={resp!.citations}
+          unverified={state !== "grounded"}
+          onOpen={(idx) => onOpenSources?.(idx)}
+        />
       )}
-      {resp && <AssistantMeta response={resp} />}
+
       {extraActions}
       {resp && (
         <div className="bubble-actions">
           <FlagForm
             conversationId={conversationId}
             messageId={message.id}
-            answerExcerpt={body.slice(0, 300)}
+            answerExcerpt={text.slice(0, 300)}
           />
         </div>
       )}

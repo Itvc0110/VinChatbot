@@ -4,6 +4,8 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { TopBar } from "@/components/shell/TopBar";
+import { ChatProvider } from "@/lib/chat";
+import { FloatingVinnieButton } from "@/components/chat/FloatingVinnieButton";
 import { usePortal } from "@/lib/portalI18n";
 import type { Role } from "@/lib/auth";
 
@@ -29,6 +31,7 @@ function usePageMeta(role: Role): { title: string; subtitle: string } {
     "/student/dashboard": p.nav.dashboard,
     "/student/chat": p.nav.chat,
     "/student/schedule": p.nav.schedule,
+    "/student/notifications": p.nav.notifications,
     "/student/tuition": p.nav.tuition,
     "/student/support": p.nav.tickets,
   };
@@ -44,10 +47,12 @@ export function RoleShell({ role, children }: { role: Role; children: React.Reac
   const { p } = usePortal();
   const { title, subtitle } = usePageMeta(role);
 
-  // The chat screen manages its own full-height 3-column layout.
+  // The chat screen manages its own full-height layout.
   const flush = pathname.startsWith("/student/chat");
+  // Floating Vinnie bubble: across student pages, but NOT on the full chat page itself.
+  const showFloatingVinnie = role === "student" && !flush;
 
-  return (
+  const shell = (
     <div className={`shell shell-${role}`}>
       <div className={`sidebar-wrap ${mobileOpen ? "open" : ""}`}>
         <Sidebar role={role} onNavigate={() => setMobileOpen(false)} />
@@ -71,4 +76,16 @@ export function RoleShell({ role, children }: { role: Role; children: React.Reac
       </div>
     </div>
   );
+
+  // Students get the shared ChatProvider so the full page + floating bubble are one
+  // conversation that survives route changes. Admin pages don't mount it.
+  if (role === "student") {
+    return (
+      <ChatProvider>
+        {shell}
+        {showFloatingVinnie && <FloatingVinnieButton />}
+      </ChatProvider>
+    );
+  }
+  return shell;
 }

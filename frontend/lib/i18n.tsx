@@ -26,6 +26,18 @@ export interface Strings {
   paneSources: string;
   sourcesLabel: string;
 
+  // per-answer citations + source drawer (sources are hidden until opened)
+  sourcesBtn: string;
+  sourcesBtnCount: (n: number) => string;
+  noVerifiedTitle: string;
+  noVerifiedBody: string;
+  privacyNote: string;
+  drawerTitle: string;
+  srcClose: string;
+  srcOpen: string;
+  srcOfficial: string;
+  srcType: { pdf: string; url: string; database: string; official: string };
+
   placeholder: string;
   send: string;
   stop: string;
@@ -105,6 +117,18 @@ const en: Strings = {
   paneConversation: "Conversation",
   paneSources: "Sources & grounding",
   sourcesLabel: "Sources:",
+
+  sourcesBtn: "Sources",
+  sourcesBtnCount: (n) => `Sources (${n})`,
+  noVerifiedTitle: "No official source to cite.",
+  noVerifiedBody: "Vinnie declined to answer rather than guess.",
+  privacyNote:
+    "Vinnie may use your student profile, schedule, notifications, and official VinUni sources when needed.",
+  drawerTitle: "Sources for this answer",
+  srcClose: "Close",
+  srcOpen: "Open source",
+  srcOfficial: "Official",
+  srcType: { pdf: "PDF", url: "URL", database: "Database", official: "Official page" },
 
   placeholder: "Ask about academics, deadlines, fees, services… (EN or VI)",
   send: "Send",
@@ -195,6 +219,18 @@ const vi: Strings = {
   paneConversation: "Hội thoại",
   paneSources: "Nguồn & căn cứ",
   sourcesLabel: "Nguồn:",
+
+  sourcesBtn: "Nguồn",
+  sourcesBtnCount: (n) => `Nguồn (${n})`,
+  noVerifiedTitle: "Không có nguồn đối chiếu chính thức.",
+  noVerifiedBody: "Vinnie đã từ chối trả lời thay vì đoán.",
+  privacyNote:
+    "Vinnie có thể dùng hồ sơ sinh viên, lịch học, thông báo và nguồn chính thức của VinUni khi cần.",
+  drawerTitle: "Nguồn cho câu trả lời này",
+  srcClose: "Đóng",
+  srcOpen: "Mở nguồn",
+  srcOfficial: "Chính thức",
+  srcType: { pdf: "PDF", url: "URL", database: "Cơ sở dữ liệu", official: "Trang chính thức" },
 
   placeholder: "Hỏi về học vụ, hạn chót, học phí, dịch vụ… (Anh hoặc Việt)",
   send: "Gửi",

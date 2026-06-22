@@ -13,6 +13,10 @@ import type {
   DeadlineKind,
   TuitionItemStatus,
   TicketStatus,
+  TicketPriority,
+  TicketCategory,
+  NotificationType,
+  CalendarEventType,
   SourceStatus,
   SourceCategory,
   QuestionFailureReason,
@@ -33,6 +37,7 @@ export interface PortalStrings {
     dashboard: string;
     chat: string;
     schedule: string;
+    notifications: string;
     tuition: string;
     tickets: string;
     adminDashboard: string;
@@ -87,13 +92,105 @@ export interface PortalStrings {
   dueToday: string;
   overdue: string;
 
-  // chat mode toggle
+  // chat mode toggle (toggle removed; kept for back-compat with existing strings)
   modeGeneral: string;
   modePersonal: string;
   modeHint: string;
   personalizedAnswer: string;
   chatSuggested: string[];
   somethingWrong: string;
+
+  // notifications screen
+  notif: {
+    title: string;
+    markAllRead: string;
+    markRead: string;
+    markUnread: string;
+    markImportant: string;
+    unmarkImportant: string;
+    archive: string;
+    delete: string;
+    deleteConfirm: string;
+    confirmDelete: string;
+    cancel: string;
+    unreadCount: (n: number) => string;
+    emptyTitle: string;
+    emptyDesc: string;
+    noMatch: string;
+    loadError: string;
+    actionFailed: string;
+    related: string;
+    filters: {
+      all: string;
+      unread: string;
+      important: string;
+      academic: string;
+      schedule: string;
+      deadline: string;
+      event: string;
+      system: string;
+    };
+  };
+
+  // calendar screen
+  cal: {
+    title: string;
+    today: string;
+    prev: string;
+    next: string;
+    week: string;
+    month: string;
+    searchPlaceholder: string;
+    allTypes: string;
+    upcoming: string;
+    noUpcoming: string;
+    noEvents: string;
+    addReminder: string;
+    reminderAdded: string;
+    location: string;
+    course: string;
+    category: string;
+    description: string;
+    source: string;
+    time: string;
+    allDay: string;
+    close: string;
+    moreEvents: (n: number) => string;
+    loadError: string;
+  };
+
+  // support tickets screen (list + detail)
+  tickets: {
+    title: string;
+    searchPlaceholder: string;
+    statusLabel: string;
+    priorityLabel: string;
+    categoryLabel: string;
+    visibilityLabel: string;
+    all: string;
+    created: string;
+    updated: string;
+    viewDetail: string;
+    archive: string;
+    restore: string;
+    delete: string;
+    deleteConfirm: string;
+    confirmDelete: string;
+    cancel: string;
+    conversation: string;
+    originalQuestion: string;
+    attachedSource: string;
+    noMatch: string;
+    actionFailed: string;
+    archivedToast: string;
+    restoredToast: string;
+    deletedToast: string;
+    close: string;
+    you: string;
+    staff: string;
+    systemAuthor: string;
+    vis: { active: string; archived: string; deleted: string };
+  };
 
   // answer actions
   actViewSource: string;
@@ -313,6 +410,10 @@ export interface PortalStrings {
     deadlineKind: Record<DeadlineKind, string>;
     tuitionItemStatus: Record<TuitionItemStatus, string>;
     ticketStatus: Record<TicketStatus, string>;
+    ticketPriority: Record<TicketPriority, string>;
+    ticketCategory: Record<TicketCategory, string>;
+    notificationType: Record<NotificationType, string>;
+    eventType: Record<CalendarEventType, string>;
     sourceStatus: Record<SourceStatus, string>;
     questionStatus: Record<QuestionStatus, string>;
     questionPriority: Record<QuestionPriority, string>;
@@ -342,8 +443,9 @@ const en: PortalStrings = {
   adminPortal: "Admin",
   nav: {
     dashboard: "Dashboard",
-    chat: "Ask AI",
-    schedule: "My Schedule",
+    chat: "Ask Vinnie",
+    schedule: "Calendar",
+    notifications: "Notifications",
     tuition: "Tuition & Fees",
     tickets: "Support Tickets",
     adminDashboard: "Admin Dashboard",
@@ -400,11 +502,101 @@ const en: PortalStrings = {
   chatSuggested: [
     "What deadlines do I have this week?",
     "When is my next class?",
-    "How much tuition do I still need to pay?",
+    "Show my notifications",
+    "What events are happening this week?",
+    "How do I submit a support request?",
     "What is the course withdrawal process?",
-    "Are there any student events this week?",
   ],
   somethingWrong: "Something went wrong.",
+
+  notif: {
+    title: "Notifications",
+    markAllRead: "Mark all read",
+    markRead: "Mark as read",
+    markUnread: "Mark as unread",
+    markImportant: "Mark important",
+    unmarkImportant: "Remove important",
+    archive: "Archive",
+    delete: "Delete",
+    deleteConfirm: "Delete this notification? This can't be undone.",
+    confirmDelete: "Delete",
+    cancel: "Cancel",
+    unreadCount: (n) => (n === 1 ? "1 unread" : `${n} unread`),
+    emptyTitle: "You're all caught up",
+    emptyDesc: "New notifications about deadlines, schedule, and events will appear here.",
+    noMatch: "No notifications match this filter.",
+    loadError: "Couldn't load notifications.",
+    actionFailed: "Action failed. Try again.",
+    related: "Related",
+    filters: {
+      all: "All",
+      unread: "Unread",
+      important: "Important",
+      academic: "Academic",
+      schedule: "Schedule",
+      deadline: "Deadline",
+      event: "Event",
+      system: "System",
+    },
+  },
+
+  cal: {
+    title: "Calendar",
+    today: "Today",
+    prev: "Previous",
+    next: "Next",
+    week: "Week",
+    month: "Month",
+    searchPlaceholder: "Search events…",
+    allTypes: "All types",
+    upcoming: "Upcoming",
+    noUpcoming: "Nothing coming up.",
+    noEvents: "No events match your filters.",
+    addReminder: "Add reminder",
+    reminderAdded: "Reminder added ✓",
+    location: "Location",
+    course: "Course",
+    category: "Category",
+    description: "Description",
+    source: "Source",
+    time: "Time",
+    allDay: "All day",
+    close: "Close",
+    moreEvents: (n) => `+${n} more`,
+    loadError: "Couldn't load the calendar.",
+  },
+
+  tickets: {
+    title: "Support tickets",
+    searchPlaceholder: "Search tickets…",
+    statusLabel: "Status",
+    priorityLabel: "Priority",
+    categoryLabel: "Category",
+    visibilityLabel: "Visibility",
+    all: "All",
+    created: "Created",
+    updated: "Updated",
+    viewDetail: "View detail",
+    archive: "Hide / archive",
+    restore: "Restore",
+    delete: "Delete",
+    deleteConfirm: "Remove this ticket? It moves to Deleted and is hidden from your active list.",
+    confirmDelete: "Remove",
+    cancel: "Cancel",
+    conversation: "Conversation",
+    originalQuestion: "Original question",
+    attachedSource: "Attached source",
+    noMatch: "No tickets match your filters.",
+    actionFailed: "Action failed. Try again.",
+    archivedToast: "Ticket archived.",
+    restoredToast: "Ticket restored.",
+    deletedToast: "Ticket removed.",
+    close: "Close",
+    you: "You",
+    staff: "Staff",
+    systemAuthor: "System",
+    vis: { active: "Active", archived: "Hidden / Archived", deleted: "Deleted" },
+  },
   actViewSource: "View source",
   actAddCalendar: "Add to calendar",
   actSetReminder: "Set reminder",
@@ -432,7 +624,7 @@ const en: PortalStrings = {
     suggested: [
       "What deadlines do I have this week?",
       "When is my next class?",
-      "How much tuition do I still need to pay?",
+      "What events are happening this week?",
     ],
   },
 
@@ -629,7 +821,36 @@ const en: PortalStrings = {
       administrative: "administrative",
     },
     tuitionItemStatus: { paid: "paid", due: "due", overdue: "overdue", upcoming: "upcoming" },
-    ticketStatus: { open: "open", in_progress: "in progress", answered: "answered", closed: "closed" },
+    ticketStatus: {
+      open: "open",
+      in_progress: "in progress",
+      waiting: "waiting",
+      resolved: "resolved",
+      closed: "closed",
+    },
+    ticketPriority: { low: "low", medium: "medium", high: "high" },
+    ticketCategory: {
+      academic: "Academic",
+      schedule: "Schedule",
+      student_services: "Student Services",
+      technical: "Technical",
+      other: "Other",
+    },
+    notificationType: {
+      academic: "Academic",
+      schedule: "Schedule",
+      deadline: "Deadline",
+      event: "Event",
+      student_services: "Student Services",
+      system: "System",
+    },
+    eventType: {
+      class: "Class",
+      deadline: "Deadline",
+      exam: "Exam",
+      event: "Event",
+      reminder: "Reminder",
+    },
     sourceStatus: {
       indexed: "indexed",
       crawling: "crawling",
@@ -674,6 +895,7 @@ const vi: PortalStrings = {
     dashboard: "Tổng quan",
     chat: "Hỏi AI",
     schedule: "Lịch học",
+    notifications: "Thông báo",
     tuition: "Học phí",
     tickets: "Yêu cầu hỗ trợ",
     adminDashboard: "Bảng quản trị",
@@ -730,11 +952,101 @@ const vi: PortalStrings = {
   chatSuggested: [
     "Tuần này tôi có những hạn chót nào?",
     "Lớp học tiếp theo của tôi khi nào?",
-    "Tôi còn phải đóng bao nhiêu học phí?",
+    "Xem thông báo của tôi",
+    "Tuần này có sự kiện gì?",
+    "Làm sao để gửi yêu cầu hỗ trợ?",
     "Quy trình rút môn học như thế nào?",
-    "Tuần này có sự kiện sinh viên nào không?",
   ],
   somethingWrong: "Đã có lỗi xảy ra.",
+
+  notif: {
+    title: "Thông báo",
+    markAllRead: "Đánh dấu đã đọc tất cả",
+    markRead: "Đánh dấu đã đọc",
+    markUnread: "Đánh dấu chưa đọc",
+    markImportant: "Đánh dấu quan trọng",
+    unmarkImportant: "Bỏ quan trọng",
+    archive: "Lưu trữ",
+    delete: "Xóa",
+    deleteConfirm: "Xóa thông báo này? Không thể hoàn tác.",
+    confirmDelete: "Xóa",
+    cancel: "Hủy",
+    unreadCount: (n) => `${n} chưa đọc`,
+    emptyTitle: "Bạn đã xem hết",
+    emptyDesc: "Thông báo mới về hạn chót, lịch học và sự kiện sẽ hiển thị ở đây.",
+    noMatch: "Không có thông báo nào khớp bộ lọc này.",
+    loadError: "Không tải được thông báo.",
+    actionFailed: "Thao tác thất bại. Thử lại nhé.",
+    related: "Liên quan",
+    filters: {
+      all: "Tất cả",
+      unread: "Chưa đọc",
+      important: "Quan trọng",
+      academic: "Học vụ",
+      schedule: "Lịch học",
+      deadline: "Hạn chót",
+      event: "Sự kiện",
+      system: "Hệ thống",
+    },
+  },
+
+  cal: {
+    title: "Lịch",
+    today: "Hôm nay",
+    prev: "Trước",
+    next: "Sau",
+    week: "Tuần",
+    month: "Tháng",
+    searchPlaceholder: "Tìm sự kiện…",
+    allTypes: "Tất cả loại",
+    upcoming: "Sắp tới",
+    noUpcoming: "Chưa có gì sắp tới.",
+    noEvents: "Không có sự kiện nào khớp bộ lọc.",
+    addReminder: "Thêm nhắc nhở",
+    reminderAdded: "Đã thêm nhắc nhở ✓",
+    location: "Địa điểm",
+    course: "Môn học",
+    category: "Danh mục",
+    description: "Mô tả",
+    source: "Nguồn",
+    time: "Thời gian",
+    allDay: "Cả ngày",
+    close: "Đóng",
+    moreEvents: (n) => `+${n} nữa`,
+    loadError: "Không tải được lịch.",
+  },
+
+  tickets: {
+    title: "Yêu cầu hỗ trợ",
+    searchPlaceholder: "Tìm phiếu…",
+    statusLabel: "Trạng thái",
+    priorityLabel: "Ưu tiên",
+    categoryLabel: "Danh mục",
+    visibilityLabel: "Hiển thị",
+    all: "Tất cả",
+    created: "Tạo lúc",
+    updated: "Cập nhật",
+    viewDetail: "Xem chi tiết",
+    archive: "Ẩn / lưu trữ",
+    restore: "Khôi phục",
+    delete: "Xóa",
+    deleteConfirm: "Gỡ phiếu này? Phiếu sẽ chuyển sang mục Đã xóa và ẩn khỏi danh sách đang hoạt động.",
+    confirmDelete: "Gỡ",
+    cancel: "Hủy",
+    conversation: "Hội thoại",
+    originalQuestion: "Câu hỏi gốc",
+    attachedSource: "Nguồn đính kèm",
+    noMatch: "Không có phiếu nào khớp bộ lọc.",
+    actionFailed: "Thao tác thất bại. Thử lại nhé.",
+    archivedToast: "Đã lưu trữ phiếu.",
+    restoredToast: "Đã khôi phục phiếu.",
+    deletedToast: "Đã gỡ phiếu.",
+    close: "Đóng",
+    you: "Bạn",
+    staff: "Cán bộ",
+    systemAuthor: "Hệ thống",
+    vis: { active: "Đang hoạt động", archived: "Ẩn / Lưu trữ", deleted: "Đã xóa" },
+  },
   actViewSource: "Xem nguồn",
   actAddCalendar: "Thêm vào lịch",
   actSetReminder: "Đặt nhắc nhở",
@@ -762,7 +1074,7 @@ const vi: PortalStrings = {
     suggested: [
       "Tuần này tôi có những hạn chót nào?",
       "Lớp học tiếp theo của tôi khi nào?",
-      "Tôi còn phải đóng bao nhiêu học phí?",
+      "Tuần này có sự kiện gì?",
     ],
   },
 
@@ -959,7 +1271,36 @@ const vi: PortalStrings = {
       administrative: "hành chính",
     },
     tuitionItemStatus: { paid: "đã đóng", due: "đến hạn", overdue: "quá hạn", upcoming: "sắp tới" },
-    ticketStatus: { open: "mở", in_progress: "đang xử lý", answered: "đã trả lời", closed: "đã đóng" },
+    ticketStatus: {
+      open: "mở",
+      in_progress: "đang xử lý",
+      waiting: "chờ phản hồi",
+      resolved: "đã xử lý",
+      closed: "đã đóng",
+    },
+    ticketPriority: { low: "thấp", medium: "trung bình", high: "cao" },
+    ticketCategory: {
+      academic: "Học vụ",
+      schedule: "Lịch học",
+      student_services: "Dịch vụ sinh viên",
+      technical: "Kỹ thuật",
+      other: "Khác",
+    },
+    notificationType: {
+      academic: "Học vụ",
+      schedule: "Lịch học",
+      deadline: "Hạn chót",
+      event: "Sự kiện",
+      student_services: "Dịch vụ sinh viên",
+      system: "Hệ thống",
+    },
+    eventType: {
+      class: "Lớp học",
+      deadline: "Hạn chót",
+      exam: "Thi",
+      event: "Sự kiện",
+      reminder: "Nhắc nhở",
+    },
     sourceStatus: {
       indexed: "đã lập chỉ mục",
       crawling: "đang thu thập",

@@ -17,10 +17,10 @@ import {
   getStudentProfile,
   getStudentSchedule,
   getStudentDeadlines,
-  getTuitionStatus,
+  getStudentNotifications,
 } from "@/lib/api";
-import { formatVnd, daysUntil } from "@/lib/format";
-import { IconArrow, IconWallet, IconClock, IconCap, IconChat } from "@/components/shell/icons";
+import { daysUntil } from "@/lib/format";
+import { IconArrow, IconBell, IconClock, IconCap, IconChat } from "@/components/shell/icons";
 import type { ScheduleDay } from "@/lib/portalTypes";
 
 const DAY_ORDER: ScheduleDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -37,7 +37,7 @@ export default function StudentDashboardPage() {
   const profile = useAsync(getStudentProfile, []);
   const schedule = useAsync(getStudentSchedule, []);
   const deadlines = useAsync(getStudentDeadlines, []);
-  const tuition = useAsync(getTuitionStatus, []);
+  const notifications = useAsync(getStudentNotifications, []);
 
   const go = (q: string) => router.push(`/student/chat?q=${encodeURIComponent(q)}`);
   const name = user?.name ?? (profile.status === "success" ? profile.data.preferred_name : "");
@@ -80,16 +80,19 @@ export default function StudentDashboardPage() {
       </div>
 
       <div className="grid grid-3" style={{ marginBottom: 8 }}>
-        <AsyncBoundary state={tuition} onRetry={tuition.reload} rows={1}>
-          {(t) => (
-            <StatCard
-              label={p.tuitionStatus}
-              value={formatVnd(t.balance_vnd)}
-              hint={p.dash.paidOf(formatVnd(t.total_paid_vnd), formatVnd(t.total_charged_vnd))}
-              tone={t.balance_vnd > 0 ? "gold" : "success"}
-              icon={<IconWallet size={18} />}
-            />
-          )}
+        <AsyncBoundary state={notifications} onRetry={notifications.reload} rows={1}>
+          {(list) => {
+            const unread = list.filter((n) => !n.read && !n.archived).length;
+            return (
+              <StatCard
+                label={p.nav.notifications}
+                value={unread}
+                hint={p.notif.unreadCount(unread)}
+                tone={unread > 0 ? "warning" : "success"}
+                icon={<IconBell size={18} />}
+              />
+            );
+          }}
         </AsyncBoundary>
 
         <AsyncBoundary state={deadlines} onRetry={deadlines.reload} rows={1}>

@@ -2,13 +2,17 @@ import type { ChatRequest, ChatResponse, SourceSummary } from "./types";
 import type {
   AdminStats,
   AnalyticsOverview,
+  CalendarEvent,
   ClassSession,
   Deadline,
   KnowledgeSource,
+  Notification,
   ResolveQuestionPayload,
+  ScheduleDay,
   SourceCategory,
   StudentProfile,
   SupportTicket,
+  TicketCategory,
   TuitionStatus,
   UnansweredQuestion,
 } from "./portalTypes";
@@ -16,7 +20,10 @@ import {
   MOCK_ADMIN_STATS,
   MOCK_ANALYTICS,
   MOCK_DEADLINES,
+  MOCK_EVENTS,
+  MOCK_NOTIFICATIONS,
   MOCK_PROFILE,
+  MOCK_REMINDERS,
   MOCK_SCHEDULE,
   MOCK_SOURCES,
   MOCK_TICKETS,
@@ -182,6 +189,7 @@ export async function forwardToAdmin(input: {
   subject: string;
   body: string;
   department?: string;
+  category?: TicketCategory;
   origin_question?: string;
 }): Promise<SupportTicket> {
   const now = new Date().toISOString();
@@ -190,13 +198,155 @@ export async function forwardToAdmin(input: {
     subject: input.subject,
     body: input.body,
     department: input.department ?? "Student Services",
+    category: input.category ?? "other",
     status: "open",
-    priority: "normal",
+    priority: "medium",
     created_at: now,
     updated_at: now,
     origin_question: input.origin_question,
+    messages: [{ id: "m1", author: "student", body: input.body, created_at: now }],
   };
+  // Prepend so the new ticket shows at the top of the list on the next fetch.
+  MOCK_TICKETS.unshift(ticket);
   return delay(ticket, 400);
+}
+
+// [MOCK] TODO backend contract: GET /tickets/{id} -> SupportTicket
+export async function getSupportTicketDetail(ticketId: string): Promise<SupportTicket> {
+  const found = MOCK_TICKETS.find((t) => t.id === ticketId);
+  if (!found) throw new Error(`Ticket ${ticketId} not found`);
+  return delay({ ...found });
+}
+
+// Ticket visibility mutations. The backend has no permanent-delete endpoint, so archive
+// and delete are modelled as frontend state on the ticket (filtered by the visibility
+// control). These mutate the in-memory demo store so the change persists across reloads.
+// [MOCK] TODO backend contract: PATCH /tickets/{id} { archived } -> SupportTicket
+function patchTicket(ticketId: string, patch: Partial<SupportTicket>): SupportTicket {
+  const t = MOCK_TICKETS.find((x) => x.id === ticketId);
+  if (!t) throw new Error(`Ticket ${ticketId} not found`);
+  Object.assign(t, patch, { updated_at: new Date().toISOString() });
+  return { ...t };
+}
+
+export async function archiveSupportTicket(ticketId: string): Promise<SupportTicket> {
+  return delay(patchTicket(ticketId, { archived: true }), 250);
+}
+
+export async function restoreSupportTicket(ticketId: string): Promise<SupportTicket> {
+  return delay(patchTicket(ticketId, { archived: false, deleted: false }), 250);
+}
+
+// [MOCK] TODO backend contract: DELETE /tickets/{id} -> { ok: true }
+// No permanent delete exists; modelled as a "deleted" visibility state instead.
+export async function deleteSupportTicket(ticketId: string): Promise<SupportTicket> {
+  return delay(patchTicket(ticketId, { deleted: true }), 250);
+}
+
+// ---- Notifications ----------------------------------------------------------
+// [MOCK] TODO backend contract: GET /students/me/notifications -> Notification[]
+export async function getStudentNotifications(): Promise<Notification[]> {
+  return delay(MOCK_NOTIFICATIONS.map((n) => ({ ...n })));
+}
+
+function patchNotification(id: string, patch: Partial<Notification>): Notification {
+  const n = MOCK_NOTIFICATIONS.find((x) => x.id === id);
+  if (!n) throw new Error(`Notification ${id} not found`);
+  Object.assign(n, patch);
+  return { ...n };
+}
+
+// [MOCK] TODO backend contract: PATCH /notifications/{id} { read } -> Notification
+export async function markNotificationRead(id: string, read = true): Promise<Notification> {
+  return delay(patchNotification(id, { read }), 150);
+}
+
+// [MOCK] TODO backend contract: PATCH /notifications/{id} { important } -> Notification
+export async function markNotificationImportant(
+  id: string,
+  important: boolean
+): Promise<Notification> {
+  return delay(patchNotification(id, { important }), 150);
+}
+
+// [MOCK] TODO backend contract: PATCH /notifications/{id} { archived: true } -> Notification
+export async function archiveNotification(id: string): Promise<Notification> {
+  return delay(patchNotification(id, { archived: true }), 150);
+}
+
+// [MOCK] TODO backend contract: DELETE /notifications/{id} -> { ok: true }
+export async function deleteNotification(id: string): Promise<{ ok: true }> {
+  const idx = MOCK_NOTIFICATIONS.findIndex((x) => x.id === id);
+  if (idx >= 0) MOCK_NOTIFICATIONS.splice(idx, 1);
+  return delay({ ok: true } as const, 150);
+}
+
+// ---- Calendar ---------------------------------------------------------------
+// [MOCK] TODO backend contract: GET /students/me/calendar?from=&to= -> CalendarEvent[]
+// Merges recurring classes (MOCK_SCHEDULE, expanded to dates in [from, to]) with one-off
+// deadlines/exams (MOCK_DEADLINES), campus events (MOCK_EVENTS) and personal reminders
+// (MOCK_REMINDERS) into a single dated feed the calendar grid renders.
+const DAY_INDEX: Record<ScheduleDay, number> = {
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+  Sun: 0,
+};
+
+function expandClass(s: ClassSession, from: Date, to: Date): CalendarEvent[] {
+  const out: CalendarEvent[] = [];
+  const target = DAY_INDEX[s.day];
+  const d = new Date(from);
+  d.setHours(0, 0, 0, 0);
+  for (; d <= to; d.setDate(d.getDate() + 1)) {
+    if (d.getDay() !== target) continue;
+    const [sh, sm] = s.start.split(":").map(Number);
+    const [eh, em] = s.end.split(":").map(Number);
+    const start = new Date(d);
+    start.setHours(sh, sm, 0, 0);
+    const end = new Date(d);
+    end.setHours(eh, em, 0, 0);
+    out.push({
+      id: `${s.id}-${start.toISOString().slice(0, 10)}`,
+      type: "class",
+      title: s.course_title,
+      start: start.toISOString(),
+      end: end.toISOString(),
+      location: `${s.room}, ${s.building}`,
+      course: s.course_code,
+      category: "Class",
+      description: `Instructor: ${s.instructor}`,
+    });
+  }
+  return out;
+}
+
+export async function getStudentCalendar(
+  from?: string,
+  to?: string
+): Promise<CalendarEvent[]> {
+  // Default window: 6 weeks back to 10 weeks ahead, enough for any month/week view.
+  const start = from ? new Date(from) : new Date(Date.now() - 42 * 86_400_000);
+  const end = to ? new Date(to) : new Date(Date.now() + 70 * 86_400_000);
+
+  const classes = MOCK_SCHEDULE.flatMap((s) => expandClass(s, start, end));
+  const deadlines: CalendarEvent[] = MOCK_DEADLINES.map((d) => ({
+    id: d.id,
+    type: d.kind === "exam" ? "exam" : "deadline",
+    title: d.title,
+    start: d.due_at,
+    course: d.course_code,
+    category: d.kind === "exam" ? "Exam" : "Deadline",
+    source_title: d.source_title,
+    source_url: d.source_url,
+  }));
+  const events = MOCK_EVENTS.map((e) => ({ ...e }));
+  const reminders = MOCK_REMINDERS.map((e) => ({ ...e }));
+
+  return delay([...classes, ...deadlines, ...events, ...reminders]);
 }
 
 // ---- Knowledge sources (admin) ---------------------------------------------
