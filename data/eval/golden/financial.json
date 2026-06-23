@@ -6,63 +6,100 @@
       "id": "fin-nursing-tuition-year-en",
       "language": "en",
       "question": "What is the listed tuition fee per academic year for the Bachelor of Nursing program?",
-      "required_facts": ["349,650,000"],
-      "expected_source": "financial-regulations-and-tariff-for-student",
+      "required_facts": [
+        "349,650,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "expects_refusal": false
     },
     {
       "id": "fin-nursing-tuition-credit-en",
       "language": "en",
       "question": "What is the listed tuition fee per credit for the Bachelor of Nursing program?",
-      "required_facts": ["9,780,000"],
-      "expected_source": "financial-regulations-and-tariff-for-student",
+      "required_facts": [
+        "9,780,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "expects_refusal": false
     },
     {
       "id": "fin-other-bachelor-year-en",
       "language": "en",
       "question": "What is the listed tuition fee per academic year for other Bachelor programs at VinUni?",
-      "required_facts": ["815,850,000"],
-      "expected_source": "financial-regulations-and-tariff-for-student",
+      "required_facts": [
+        "815,850,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "expects_refusal": false
     },
     {
       "id": "fin-other-bachelor-semester-vi",
       "language": "vi",
       "question": "Học phí niêm yết mỗi học kỳ của các chương trình Cử nhân khác tại VinUni là bao nhiêu?",
-      "required_facts": ["407,925,000"],
-      "expected_source": "financial-regulations-and-tariff-for-student",
+      "required_facts": [
+        "407,925,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "expects_refusal": false
     },
     {
       "id": "fin-standard-credit-vi",
       "language": "vi",
       "question": "Học phí niêm yết theo tín chỉ của chương trình Cử nhân tiêu chuẩn là bao nhiêu?",
-      "required_facts": ["27,195,000"],
-      "expected_source": "financial-regulations-and-tariff-for-student",
+      "required_facts": [
+        "27,195,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "expects_refusal": false
     },
     {
       "id": "fin-currency-en",
       "language": "en",
       "question": "In what currency are VinUni student tuition fees listed?",
-      "required_facts": ["VND"],
-      "expected_source": "financial-regulations-and-tariff-for-student",
+      "required_facts": [
+        "VND"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "expects_refusal": false
     },
     {
       "id": "fin-library-overdue-fine-en",
       "language": "en",
       "question": "What is the VinUni library overdue fine for a normal item per day?",
-      "required_facts": ["10,000"],
+      "required_facts": [
+        "10,000"
+      ],
       "expects_refusal": false
     },
     {
       "id": "fin-medicine-tuition-year-en",
       "language": "en",
       "question": "What is the listed tuition fee per academic year for the Doctor of Medicine program?",
-      "required_facts": ["815,850,000"],
-      "expected_source": "financial-regulations-and-tariff-for-student",
+      "required_facts": [
+        "815,850,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "expects_refusal": false
     },
     {
@@ -70,9 +107,16 @@
       "language": "vi",
       "held_out": true,
       "question": "Học phí niêm yết mỗi năm học của chương trình Cử nhân Điều dưỡng là bao nhiêu?",
-      "required_facts": ["349,650,000"],
-      "forbidden_facts": ["815,850,000"],
-      "expected_source": "financial-regulations-and-tariff-for-student",
+      "required_facts": [
+        "349,650,000"
+      ],
+      "forbidden_facts": [
+        "815,850,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "expects_refusal": false
     },
     {
@@ -80,9 +124,16 @@
       "language": "vi",
       "held_out": true,
       "question": "Học phí niêm yết theo tín chỉ của chương trình Cử nhân Điều dưỡng là bao nhiêu?",
-      "required_facts": ["9,780,000"],
-      "forbidden_facts": ["27,195,000"],
-      "expected_source": "financial-regulations-and-tariff-for-student",
+      "required_facts": [
+        "9,780,000"
+      ],
+      "forbidden_facts": [
+        "27,195,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "expects_refusal": false
     },
     {
@@ -90,9 +141,16 @@
       "language": "en",
       "held_out": true,
       "question": "What is the listed tuition fee per credit for the standard Bachelor program at VinUni?",
-      "required_facts": ["27,195,000"],
-      "forbidden_facts": ["9,780,000"],
-      "expected_source": "financial-regulations-and-tariff-for-student",
+      "required_facts": [
+        "27,195,000"
+      ],
+      "forbidden_facts": [
+        "9,780,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "expects_refusal": false
     },
     {
@@ -100,9 +158,16 @@
       "language": "vi",
       "held_out": true,
       "question": "Học phí niêm yết mỗi năm học của các chương trình Cử nhân khác tại VinUni là bao nhiêu?",
-      "required_facts": ["815,850,000"],
-      "forbidden_facts": ["349,650,000"],
-      "expected_source": "financial-regulations-and-tariff-for-student",
+      "required_facts": [
+        "815,850,000"
+      ],
+      "forbidden_facts": [
+        "349,650,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "expects_refusal": false
     },
     {
@@ -110,9 +175,16 @@
       "language": "vi",
       "held_out": true,
       "question": "Học phí niêm yết mỗi năm học của chương trình Doctor of Medicine tại VinUni là bao nhiêu?",
-      "required_facts": ["815,850,000"],
-      "forbidden_facts": ["349,650,000"],
-      "expected_source": "financial-regulations-and-tariff-for-student",
+      "required_facts": [
+        "815,850,000"
+      ],
+      "forbidden_facts": [
+        "349,650,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "expects_refusal": false
     },
     {
@@ -120,9 +192,16 @@
       "language": "en",
       "held_out": true,
       "question": "What is the listed tuition fee per semester for other Bachelor programs at VinUni?",
-      "required_facts": ["407,925,000"],
-      "forbidden_facts": ["815,850,000"],
-      "expected_source": "financial-regulations-and-tariff-for-student",
+      "required_facts": [
+        "407,925,000"
+      ],
+      "forbidden_facts": [
+        "815,850,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "expects_refusal": false
     },
     {
@@ -130,8 +209,13 @@
       "language": "vi",
       "held_out": true,
       "question": "Học phí của sinh viên VinUni được niêm yết bằng đơn vị tiền tệ nào?",
-      "required_facts": ["VND"],
-      "expected_source": "financial-regulations-and-tariff-for-student",
+      "required_facts": [
+        "VND"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "expects_refusal": false
     },
     {
@@ -139,7 +223,9 @@
       "language": "vi",
       "held_out": true,
       "question": "Phí phạt trả trễ mỗi ngày cho một tài liệu thường tại thư viện VinUni là bao nhiêu?",
-      "required_facts": ["10,000"],
+      "required_facts": [
+        "10,000"
+      ],
       "expects_refusal": false
     }
   ]

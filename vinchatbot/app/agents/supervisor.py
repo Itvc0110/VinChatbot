@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 
 from vinchatbot.app.agents.guardrails import normalize_for_matching
-from vinchatbot.app.agents.prompts import SUPERVISOR_SYSTEM
+from vinchatbot.app.agents.prompts import SUPERVISOR_SYSTEM, SUPERVISOR_SYSTEM_V2
 from vinchatbot.app.core.config import Settings, get_settings
+from vinchatbot.app.core.observability import record_llm_usage
 from vinchatbot.app.llm.openrouter_chat import build_chat_model
 
 logger = logging.getLogger(__name__)
@@ -36,19 +38,36 @@ _POLICY_TERMS = (
 )
 
 
-def classify_intent_heuristic(message: str) -> str:
+def _intent_scores(message: str) -> dict[str, int]:
     normalized = normalize_for_matching(message)
 
     def hits(terms: tuple[str, ...]) -> int:
         return sum(1 for term in terms if term.strip() and term.strip() in normalized)
 
-    scores = {
+    return {
         "calendar": hits(_CALENDAR_TERMS),
         "financial": hits(_FINANCIAL_TERMS),
         "policy": hits(_POLICY_TERMS),
     }
+
+
+def classify_intent_heuristic(message: str) -> str:
+    scores = _intent_scores(message)
     best = max(scores, key=lambda key: scores[key])
     return best if scores[best] > 0 else "services"
+
+
+def classify_intent_confident(message: str) -> str | None:
+    """Deterministic high-confidence routing (Phase 1.23c): return an intent ONLY when the keyword signal is
+    strong and unambiguous — the winning category has >=2 hits AND a clear lead over the runner-up. Otherwise
+    None → let the (hardened) LLM decide. Keeps the LLM out of obviously-keyworded routings; the LLM cache
+    covers determinism for the rest."""
+    scores = _intent_scores(message)
+    ranked = sorted(scores.values(), reverse=True)
+    top, second = ranked[0], ranked[1]
+    if top >= 2 and top > second:
+        return max(scores, key=lambda key: scores[key])
+    return None
 
 
 def _parse_intent(content: str) -> str | None:
@@ -66,15 +85,29 @@ async def route_intent(message: str, settings: Settings | None = None, model=Non
     """Return one of INTENTS for the given message."""
 
     settings = settings or get_settings()
+    router_v2 = getattr(settings, "enable_router_v2", False)
+    # Router v2 (1.23c): deterministic-first — a strong, unambiguous keyword signal routes WITHOUT the LLM.
+    if router_v2:
+        confident = classify_intent_confident(message)
+        if confident is not None:
+            return confident
     if not settings.openrouter_api_key:
         return classify_intent_heuristic(message)
+    system = SUPERVISOR_SYSTEM_V2 if router_v2 else SUPERVISOR_SYSTEM
     try:
-        model = model or build_chat_model(settings)
+        model = model or build_chat_model(settings, temperature=0.0)
+        started = time.perf_counter()
         response = await model.ainvoke(
             [
-                {"role": "system", "content": SUPERVISOR_SYSTEM},
+                {"role": "system", "content": system},
                 {"role": "user", "content": message},
             ]
+        )
+        record_llm_usage(
+            "supervisor",
+            settings.openrouter_chat_model,
+            response,
+            (time.perf_counter() - started) * 1000,
         )
         content = response.content if isinstance(response.content, str) else str(response.content)
         return _parse_intent(content) or classify_intent_heuristic(message)

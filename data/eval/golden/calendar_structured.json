@@ -1,0 +1,35 @@
+{
+  "name": "vinuni_calendar_structured_lookup",
+  "description": "Cases that exercise the deterministic structured calendar lookup (CODEX P0): cross-academic-year disambiguation (the same event in a DIFFERENT year must not leak the AY2026-27 date) and honest no-data for an un-ingested year (the lookup MISSes -> vector finds nothing -> graceful degradation). Added with the feature per the 'golden cases with features' rule.",
+  "source": "VinUni Academic Calendar PDFs (AY24-25 + AY26-27)",
+  "cases": [
+    {
+      "id": "calendar-xay-convocation-2425-en",
+      "question": "When is Convocation Day in the 2024-2025 academic calendar?",
+      "required_facts": ["September 21, 2024"],
+      "forbidden_facts": ["September 26, 2026"],
+      "expected_source": ["academic-calendar_ay24-25", "vinuni-academic-calendar_ay24-25"],
+      "language": "en"
+    },
+    {
+      "id": "calendar-xay-convocation-2425-vi",
+      "question": "Ngày Convocation trong lịch năm học 2024-2025 là ngày nào?",
+      "required_facts": ["21 tháng 9 năm 2024"],
+      "forbidden_facts": ["26 tháng 9 năm 2026"],
+      "expected_source": ["academic-calendar_ay24-25", "vinuni-academic-calendar_ay24-25"],
+      "language": "vi"
+    },
+    {
+      "id": "calendar-nodata-fall2030-en",
+      "question": "When does Fall 2030 instruction begin according to the academic calendar?",
+      "expects_refusal": true,
+      "language": "en"
+    },
+    {
+      "id": "calendar-nodata-fall2030-vi",
+      "question": "Theo lịch học, học kỳ Fall 2030 bắt đầu giảng dạy vào ngày nào?",
+      "expects_refusal": true,
+      "language": "vi"
+    }
+  ]
+}

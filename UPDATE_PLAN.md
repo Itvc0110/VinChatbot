@@ -1,13 +1,14 @@
 # VinChatbot — Update Plan / Roadmap (single source of truth)
 
-> Canonical engineering roadmap **and** AI-depth backlog — the single source of truth (the former
-> separate future-improvements backlog was merged in on **2026-06-17**, all content kept). Pairs with
-> [PRD.md](PRD.md) / [BRIEF.md](BRIEF.md)
-> / [worklog.md](worklog.md) (submission). Per-sub-phase logs live in [LOGS/](LOGS/). Supersedes the
-> scattered backlog in [todo.md](todo.md). Last updated: 2026-06-17.
+> Canonical engineering roadmap **and** AI-depth backlog — the single source of truth. The former separate
+> backlog (2026-06-17) and the detailed Track-A/B execution plan (`NEXT_UPDATES_PLAN.md`) are **consolidated
+> into this file** (2026-06-23, all content kept). **Current detailed state + remaining Track-A/B + deferrals:
+> [LOGS/SESSION_CLOSEOUT.md](LOGS/SESSION_CLOSEOUT.md)**; per-sub-phase logs in [LOGS/](LOGS/PHASE1.27_LOG.md).
+> Pairs with [PRD.md](PRD.md) / [BRIEF.md](BRIEF.md) / [WORKLOG.md](WORKLOG.md) (submission). **Baseline:
+> 0.968/188 golden** ([data/eval/baseline.json](data/eval/baseline.json)); guards 1.000. Last updated: 2026-06-23.
 
 > **Phase scheme (major phase = a big change):** **Phase 1 — core RAG chatbot (DONE, sub-phases
-> 1.0–1.8)** · **Phase 2 — personalization** · **Phase 3 — product & platform**.
+> 1.0–1.27)** · **Phase 2 — personalization** · **Phase 3 — product & platform**.
 
 Ordering principle: **make it correct and measurable before making it smart.** Every (sub-)phase
 ends with a check you can run. Legend: 🔴 blocking bug · 🟠 quality gap · 🟢 new capability.
@@ -16,10 +17,10 @@ ends with a check you can run. Legend: 🔴 blocking bug · 🟠 quality gap · 
 
 ## Phase 1 — Core RAG chatbot (DONE — eval-gated; logs in `LOGS/`)
 
-Built and validated end-to-end (crawl → ingest → chat → eval). **Current production: 0.885 on the
-130-case golden set** (`data/eval/baseline.json`), plain-text pipeline, `gpt-4o-mini`, Qdrant Cloud
-`vinuni_documents` (~7,957 points); guards (adversarial/safety/unanswerable) 1.000. Full narrative in
-[worklog.md](worklog.md).
+Built and validated end-to-end (crawl → ingest → chat → eval). **Current: 0.968 on the 188-case golden set**
+(`data/eval/baseline.json`), plain-text pipeline, `gpt-4o-mini`, Qdrant Cloud `vinuni_full_e5` (e5-large,
+1024-d, ~10,967 points); guards (adversarial/safety/unanswerable) 1.000. Full narrative in
+[WORKLOG.md](WORKLOG.md); current state in [LOGS/SESSION_CLOSEOUT.md](LOGS/SESSION_CLOSEOUT.md).
 
 - ✅ **1.0 — Foundation** ([PHASE1.0_LOG.md](LOGS/PHASE1.0_LOG.md)): 761-doc corpus, LangGraph
   supervisor→4 specialists, two-tier CI, eval harness. **0.472**.
@@ -43,6 +44,23 @@ Built and validated end-to-end (crawl → ingest → chat → eval). **Current p
   calendar drops paraphrase expansion). Fixed the 1.6 calendar wrong-date. Baseline 0.846.
 - ✅ **1.8 — Cross-lingual expansion** (logged in PHASE1.7_LOG.md): bidirectional **VI↔EN** query
   variant, all domains. Production **0.885** — best of the arc; recovered VI→EN fee misses; guards 1.000.
+
+### Phase 1.13–1.27 — quality arc (e5 embeddings → structured lookup → determinism → list mode)
+> Per-phase detail in `LOGS/PHASE1.1x–1.27_LOG.md`; current state + deferrals in `LOGS/SESSION_CLOSEOUT.md`.
+> Conventions: every behavior `ENABLE_*`-gated + fail-open, guards stay 1.000, one eval at a time, promote
+> only winners, log every update (incl. rejections). Baseline climbed 0.885 → **0.968/188**.
+- ✅ **1.13/1.14** e5-large embeddings (`vinuni_full_e5`, 1024-d) — best VI↔EN; **1.19–1.21** deterministic
+  **structured lookup** (calendar+fee) + **policy doc-pin**; **1.20** cross-lingual policy escalation.
+- ✅ **1.22** eval de-noise (`--runs N`, stable-vs-noisy); **1.23a/b** determinism + **Redis LLM/rerank cache**
+  (`ENABLE_LLM_CACHE`); **1.23c router-v2 REJECTED**, **1.23d over-fetch SHELVED**.
+- ✅ **1.24** policy ingest **auto-index** + long-tail golden; **1.25 Phase A** output-guard hardening
+  (de-obfuscated secret scan, `resolve_output_decision`) shipped; **1.25 Phase B critic REJECTED** (gated off,
+  kept for future security).
+- ✅ **1.27a/b** **list mode** (`ENABLE_LIST_MODE`): fee-matrix + calendar aggregation for "all/each" questions.
+- ⏸ **DEFERRED** (paused for teammate merge): **1.26/A5** refusal & don't-over-refuse (restricted_data hybrid
+  → `record-privacy-vi`; soft-scope A/B; clarification → merge) — plan `LOGS/PHASE1.26_PLAN.md`; **1.27c**
+  cross-domain fan-out; **1.28/A7** contextual retrieval; multi-question decomposition (ReAct covers it) +
+  output PII scan; **Track B perf** (1.29 async, B2 semantic cache). Resume order in `SESSION_CLOSEOUT.md`.
 
 ---
 
@@ -416,8 +434,11 @@ live"` + `ruff` green, scratch-collection discipline, **one eval at a time** (le
   [ ] remaining (1.5c): Prometheus `/metrics` + Grafana; ≥3 alerts + SLO/error-budget; readiness probe;
   feedback endpoint
 - [~] **Retrieval:** [x] fuse-rerank-once (1.6); adaptive point-lookup router + full-section (1.7);
-  cross-lingual VI↔EN (1.8) — [ ] remaining: structured calendar/fee lookup + better extraction;
-  calendar-source boost; contextual chunks; off-category penalty
+  cross-lingual VI↔EN (1.8); structured calendar lookup (1.19 Stage 1); cross-lingual policy escalation
+  (1.20 Lever 1); deterministic policy doc-pin (1.21/1.21b) — [ ] remaining: fee structured lookup A/B
+  (1.19 Stage 2); **ingest-time policy topic index — generality/upload-coverage fix for the doc-pin
+  ([Phase 1.24 plan](LOGS/PHASE1.24_PLAN.md))**; universal magnet down-weighting backstop; contextual
+  chunks; off-category penalty; calendar-source boost
 - [ ] **Cost:** Gemini 2.5 Flash-Lite A/B; embedding content-hash cache; prompt/hot-Q&A cache; skip-OCR pixels
 - [ ] **Agents:** complexity gate + iteration budget; reflection step
 - [ ] **Data:** index-time near-dup dedup; quality filter; VN OCR; table/spreadsheet→structured records;
@@ -428,3 +449,378 @@ live"` + `ruff` green, scratch-collection discipline, **one eval at a time** (le
 - [ ] **Platform (Phase 3, teammates):** auth/roles; chat-history; admin doc mgmt + source registry;
   frontend; SSE; Docker+deploy; readiness probe; rate limiting
 - [ ] **Stretch:** mock student DB personalization; auto-ticket; deadline reminders; GraphRAG
+
+---
+
+## Appendix — CODEX backlog (consolidated from CODEX_IDEAS.md, 2026-06-23)
+
+> Folded here so all update ideas live in one file. **Status:** most P0/P1 items were SHIPPED or DEFERRED in
+> the Phase 1.19–1.27 arc — eval ledger, structured calendar/fee lookup, prompt/response caching = **done**;
+> retrieval planner, contextual retrieval, embedding/rerank A/B = **deferred** (A7/Track B). See
+> [LOGS/SESSION_CLOSEOUT.md](LOGS/SESSION_CLOSEOUT.md) for current state. Original backlog preserved below.
+
+
+## Summary
+
+This backlog is quality-first, but it also ranks ideas by latency and money cost.
+
+Current architecture is strong for an MVP: FastAPI API layer, LangGraph supervisor and
+specialists, LangChain tools, Qdrant hybrid retrieval, OpenRouter chat/embedding/rerank,
+and guardrails. The main architecture improvement is to evolve it into a measured,
+tiered RAG system:
+
+1. Deterministic shortcuts and structured lookup first.
+2. Retrieval and rerank second.
+3. Agent reasoning only when needed.
+4. Observability around every expensive step.
+
+The goal is not just "faster." It is higher correctness, fewer unnecessary model calls,
+lower p95 latency, lower eval/reingest cost, and clearer failure diagnosis.
+
+## Current Architecture Notes
+
+- API flow: `/chat` runs pre-agent guardrails, then `VinUniAgentService`.
+- Agent flow: `START -> supervisor -> one specialist -> END`, with calendar, policy,
+  financial, and services ReAct agents.
+- Retrieval flow: agent tools expand queries, fuse variants, rerank once, then Qdrant
+  hybrid retrieval finalizes with dynamic-k, parent-section expansion, metadata boosts,
+  and lost-in-the-middle reordering.
+- Current baseline is `0.923 / 130`, with weaker categories around calendar point
+  lookups and policy conduct.
+- Current update status: Phase 1.13 calendar correctness and Phase 1.18 guard precision
+  are in progress; Phase 1.14 embedding A/B, Phase 1.15 caching/async, Phase 1.16
+  multi-domain reasoning, and Phase 1.17 agent-decided expansion are still pending.
+
+## Architecture Advice
+
+### Split Knowledge Access From Agent Reasoning
+
+Calendar dates, tuition rows, policy codes, source freshness, and known official links
+should live behind deterministic lookup/query services. The agent should call them
+instead of rediscovering them through vector search every turn.
+
+This is especially important for calendar and financial questions because many rows are
+near-identical. Vector retrieval can easily surface a neighboring date or fee. A
+structured lookup layer can apply exact filters for academic year, term, event type,
+program, fee type, and source.
+
+### Add A Retrieval Orchestration Layer
+
+Query expansion, point-lookup decisions, RRF, rerank, parent-section expansion, and
+metadata boosts are currently spread across tools, retriever, and context helpers. A
+`RetrievalPlanner` or `RetrievalOrchestrator` would make this easier to test and tune.
+
+Suggested responsibility:
+
+- Classify retrieval mode: structured point lookup, policy prose, services, comparison,
+  wide list, or clarification.
+- Choose query expansion: none, date variants, cross-lingual, paraphrase, or agent-decided.
+- Execute retrieval through one interface.
+- Record retrieval metrics: candidate count, rerank count, selected k, source mix,
+  latency, and cache status.
+- Return evidence chunks plus a structured trace for eval and debugging.
+
+### Make Cost And Latency First-Class Product Metrics
+
+Current cost tracking is useful but partial. The architecture should meter each expensive
+step: guardrail, supervisor, query expansion, retrieval, rerank, specialist LLM, output
+scan, token usage, cache hits, and p50/p95 latency.
+
+This matters because cost-saving work is otherwise guesswork. The system should know
+which step is expensive before optimizing it.
+
+### Use FastAPI Lifespan For Warm Startup
+
+Build and cache the agent graph, Qdrant clients, sparse embedding object, reusable HTTP
+clients, and optional tracing callbacks during startup. This avoids paying cold
+initialization during the first real chat turn and gives one clean place to close clients
+on shutdown.
+
+Reference: https://fastapi.tiangolo.com/advanced/events/
+
+### Prefer Structured Correctness Before Model Upgrades
+
+The weakest current area is exact calendar point lookup. A bigger model may make prose
+answers nicer, but it will not reliably fix wrong neighboring rows. Structured calendar
+and fee lookup should come before defaulting to larger chat models.
+
+## Prioritized Backlog
+
+### P0: Full Eval Plus Cost/Latency Ledger
+
+Expand `scripts/run_eval.py` to record answer score, retrieval recall, citation source
+match, token usage, rerank count, model calls, cache status, and latency per phase.
+
+Why:
+
+- Prevents speed improvements that secretly hurt quality.
+- Makes cost-saving measurable.
+- Turns eval into the scoreboard for every later idea.
+
+Acceptance target:
+
+- Every live eval report includes quality, latency, and estimated cost fields per case.
+- Every optimization can be compared against `data/eval/baseline.json`.
+
+### P0: Structured Calendar And Fee Lookup
+
+Finish Phase 1.13 by making calendar events and fee rows queryable as structured records.
+Route exact date, amount, deadline, tuition, penalty, scholarship, term, and academic-year
+questions there before vector search.
+
+Why:
+
+- Directly attacks the weakest current category.
+- Reduces hallucinated neighboring dates/amounts.
+- Saves tokens by returning compact exact evidence.
+
+Acceptance target:
+
+- `calendar_pointlookup >= 0.950`.
+- No regression in financial, citation, or safety categories.
+
+### P0: Reduce Unnecessary Agent Calls
+
+Keep pure time questions, greetings, unsupported requests, guardrail responses, and simple
+source/listing requests out of the agent path. Add deterministic handlers for high-confidence
+facts and official links.
+
+Why:
+
+- Saves model calls.
+- Reduces latency.
+- Reduces nondeterminism.
+
+Acceptance target:
+
+- Common non-RAG requests return without building or invoking the agent.
+- Eval records show fewer model calls for shortcut cases.
+
+### P1: Retrieval Planner
+
+Centralize retrieval-mode selection behind a planner. The planner should decide between
+structured lookup, point lookup, wide retrieval, comparison retrieval, policy prose,
+services retrieval, or clarification.
+
+Why:
+
+- Supports Phase 1.16 multi-domain reasoning and Phase 1.17 agent-decided expansion.
+- Keeps retrieval behavior testable instead of scattered across tools and prompts.
+
+Acceptance target:
+
+- Unit tests cover planner decisions for calendar, financial, policy, services,
+  multi-domain, and ambiguous questions.
+
+### P1: Contextual Retrieval Index
+
+Add short document/section context to chunks before embedding and BM25 indexing, especially
+for calendar and policy chunks.
+
+Why:
+
+- Ambiguous chunks often lack year, program, policy, or section context when embedded alone.
+- Contextual retrieval can improve recall without needing a larger chat model.
+
+Reference: https://www.anthropic.com/engineering/contextual-retrieval
+
+Acceptance target:
+
+- Retrieval recall improves on held-out calendar/policy cases.
+- No regression in citation quality or answer faithfulness.
+
+### P1: Embedding And Rerank A/B
+
+Compare current OpenRouter `openai/text-embedding-3-small` against stronger multilingual
+embedding options. Test cross-lingual expansion on/off for each candidate.
+
+Candidates:
+
+- Current baseline: `openai/text-embedding-3-small`.
+- Higher-quality OpenAI embedding model if available through the chosen provider.
+- Cohere Embed v4 or another strong multilingual model.
+- BGE-M3 if local/open-source deployment becomes attractive.
+
+Why:
+
+- Better multilingual embeddings may reduce translation/expansion calls.
+- Fewer expansion calls can save both money and latency.
+
+Reference: https://docs.cohere.com/docs/cohere-embed
+
+Acceptance target:
+
+- Winner improves retrieval recall and eval pass rate without increasing p95 latency beyond
+  an agreed threshold.
+
+### P1: Prompt And Response Caching
+
+Use provider-supported caching where possible, especially for repeated deterministic evals,
+multi-turn sessions, and stable system prompts.
+
+Ideas:
+
+- Use OpenRouter `session_id` for provider stickiness and prompt-cache benefits in multi-turn
+  workflows.
+- Consider OpenRouter response caching for deterministic repeated requests.
+- Add local TTL cache for query expansion, cross-lingual translation, rerank inputs, and
+  structured lookup results.
+
+Why:
+
+- Repeated evals and common questions are expensive if every step is recomputed.
+- Query expansion and rerank are good cache candidates because they are deterministic at
+  temperature 0.
+
+Reference: https://openrouter.ai/docs/guides/features/response-caching
+
+Acceptance target:
+
+- Repeated deterministic prompts show cache hits.
+- Freshness-sensitive tests can bypass or clear caches.
+- No cached answer is returned after the indexed source version changes.
+
+### P2: Streaming And Perceived Latency
+
+Add a streaming chat path so users see answer tokens earlier while the backend still does
+the same correctness checks.
+
+Why:
+
+- Streaming improves perceived speed even when total backend latency is unchanged.
+- Useful once answer quality is stable.
+
+Reference: https://docs.langchain.com/langsmith/streaming
+
+Acceptance target:
+
+- Streaming endpoint or mode emits tokens progressively.
+- Final response still includes citations and safety checks.
+
+### P2: Qdrant Native Hybrid Query Experiments
+
+Test Qdrant Query API prefetch/RRF instead of doing all dense/sparse fusion in Python.
+
+Why:
+
+- May reduce client-side round trips and simplify retrieval code.
+- Gives more native control over multi-stage dense and sparse search.
+
+Reference: https://qdrant.tech/documentation/search/hybrid-queries/
+
+Acceptance target:
+
+- Same or better retrieval quality on golden cases.
+- Lower retrieval-stage latency on repeated eval runs.
+
+### P2: Offline Batch Cost Cuts
+
+Move offline-heavy work to batch jobs where possible: eval judging, embedding experiments,
+large reindex jobs, and non-urgent data enrichment.
+
+Why:
+
+- Batch APIs can lower cost for non-interactive workloads.
+- Keeps online chat path focused on user latency.
+
+Reference: https://developers.openai.com/api/docs/guides/batch
+
+Acceptance target:
+
+- Batch path can run without changing online chat behavior.
+- Offline results are linked back to eval reports and source versions.
+
+### P3: Vector Storage Optimization
+
+Only after recall metrics exist, test Qdrant quantization for memory and search-speed
+improvements.
+
+Why:
+
+- Quantization can improve memory and speed, but it can also hurt recall.
+- It should be gated behind retrieval-quality metrics.
+
+Reference: https://qdrant.tech/documentation/manage-data/quantization/
+
+Acceptance target:
+
+- Quantized collection preserves retrieval recall within the chosen tolerance.
+- Search latency or memory footprint improves enough to justify the tradeoff.
+
+## Suggested Interface And Config Additions
+
+- `ENABLE_RESPONSE_CACHE`
+- `CACHE_TTL_SECONDS`
+- `OPENROUTER_SESSION_ID_MODE`
+- `RETRIEVAL_PLANNER_MODE`
+- `ENABLE_STRUCTURED_LOOKUP_FIRST`
+- `ENABLE_EVAL_COST_LEDGER`
+- `ENABLE_STREAMING_CHAT`
+
+Suggested eval report fields:
+
+- `latency_ms_by_stage`
+- `model_calls`
+- `tokens_by_stage`
+- `estimated_cost_usd`
+- `cache_hit`
+- `rerank_calls`
+- `retrieval_mode`
+- `structured_lookup_used`
+- `retrieval_candidate_count`
+- `retrieval_selected_k`
+
+No public `/chat` schema change is required immediately. If debugging metadata is exposed,
+put it behind a development-only flag.
+
+## Test And Acceptance Plan
+
+Offline gate:
+
+```powershell
+py -m pytest -m "not live" -q
+```
+
+Live eval gate:
+
+```powershell
+py scripts/run_eval.py --min-pass 0.923 --diff data/eval/baseline.json
+```
+
+Quality gates:
+
+- No regression in safety, refusal, citation, or faithfulness categories.
+- `calendar_pointlookup >= 0.950`.
+- `policy_conduct >= 0.950`.
+- Overall pass rate stays at or above the current baseline.
+
+Performance gates:
+
+- Record p50 and p95 latency before optimization.
+- Record estimated cost per eval run before optimization.
+- Every cost-saving change must show no quality regression.
+
+Cache gates:
+
+- Repeated deterministic eval prompts should show cache hits where enabled.
+- Freshness-sensitive tests must be able to bypass or clear caches.
+- Cache keys must include source/index version when answer content depends on indexed data.
+
+## Research Anchors
+
+- Anthropic Contextual Retrieval: https://www.anthropic.com/engineering/contextual-retrieval
+- RAGAS evaluation metrics: https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/
+- Qdrant hybrid Query API: https://qdrant.tech/documentation/search/hybrid-queries/
+- Qdrant quantization: https://qdrant.tech/documentation/manage-data/quantization/
+- Cohere Embed v4 multilingual docs: https://docs.cohere.com/docs/cohere-embed
+- OpenAI Batch API: https://developers.openai.com/api/docs/guides/batch
+- LangGraph streaming: https://docs.langchain.com/langsmith/streaming
+- FastAPI lifespan: https://fastapi.tiangolo.com/advanced/events/
+- OpenRouter response caching: https://openrouter.ai/docs/guides/features/response-caching
+
+## Assumptions
+
+- Quality remains the primary ranking criterion.
+- Cost saving means both money cost and user time/latency.
+- Architecture changes should be implemented incrementally, not as one large rewrite.
+- Existing dirty worktree changes are preserved and not touched by this document.

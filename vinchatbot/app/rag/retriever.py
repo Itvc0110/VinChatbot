@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -15,10 +16,20 @@ from vinchatbot.app.rag.context import (
 from vinchatbot.app.rag.reranker import OpenRouterReranker
 from vinchatbot.app.schemas.document import DocumentChunk, DocumentMetadata
 from vinchatbot.app.storage.qdrant_store import (
+    QDRANT_KEYWORD_PAYLOAD_FIELDS,
     ensure_qdrant_payload_indexes,
     qdrant_location_kwargs,
 )
 from vinchatbot.app.storage.vector_metadata import restore_document_metadata
+
+logger = logging.getLogger(__name__)
+
+# Filter keys we can safely send to Qdrant — only those backed by a keyword payload index. A model
+# can invent a filter key (e.g. "semester"); without an index Qdrant returns 400 and the turn 503s,
+# so we silently drop unindexed keys instead. Derived from the single source of truth in qdrant_store.
+_INDEXED_FILTER_KEYS = frozenset(
+    field.split("metadata.", 1)[1] for field in QDRANT_KEYWORD_PAYLOAD_FIELDS
+)
 
 
 @dataclass(frozen=True)
@@ -26,6 +37,23 @@ class RetrievedChunk:
     text: str
     metadata: DocumentMetadata
     score: float | None = None
+
+
+# Determinism hardening (Phase A2a). Rerank scores come from a hosted neural model and carry small
+# run-to-run float jitter; rounding to this granularity absorbs it so the rerank ORDER, the
+# reactive-expansion trigger, and the dynamic-k cutoff are reproducible (genuinely-different scores stay
+# distinct). Tunable: coarsen if a multi-run still shows retrieval-edge noise.
+_SCORE_NDIGITS = 3
+
+
+def _round_score(score: float | None) -> float | None:
+    return round(score, _SCORE_NDIGITS) if score is not None else None
+
+
+def stable_rerank_order(reranked: list) -> list:
+    """Deterministic rerank order: score DESC (rounded to _SCORE_NDIGITS to absorb provider float jitter),
+    ties broken by original index ASC. Pure function — unit-testable without the retriever."""
+    return sorted(reranked, key=lambda item: (-(_round_score(item.score) or 0.0), item.index))
 
 
 class Retriever(Protocol):
@@ -245,22 +273,41 @@ class QdrantHybridRetriever:
         filters: dict[str, Any] | None,
         limit: int,
     ) -> list[RetrievedChunk]:
-        """Vector/BM25 candidate fetch — no rerank, no post-processing (`score=None`)."""
+        """Vector/BM25 candidate fetch — no rerank, no post-processing (`score=None`).
+
+        Phase 1.23a: Qdrant hybrid (dense+sparse) returns the same candidate SET in a non-deterministic
+        ORDER for near-tied scores. That drift breaks downstream reproducibility — it shuffles the rerank
+        `documents` list (→ rerank cache-key miss) and the final answer context (→ answer cache miss), and
+        it's a real eval-noise source. So we fetch WITH scores and sort by (rounded score DESC, chunk_id) →
+        a reproducible relevance order (RRF still gets relevance-ranked lists; rerank sees a stable input).
+        Score is kept None on the chunk (candidates remain pre-rerank, as before)."""
         search_filter = self._to_qdrant_filter(filters or {}) if self.backend == "qdrant" else (filters or None)
         candidate_k = (
             max(self.settings.retrieval_candidate_k, limit)
             if self.settings.enable_dynamic_k
             else max(limit * 3, limit)
         )
-        docs = await self.vector_store.asimilarity_search(query, k=candidate_k, filter=search_filter)
-        return [
-            RetrievedChunk(
-                text=doc.page_content,
-                metadata=restore_document_metadata(doc.metadata),
-                score=None,
+        # Phase 1.23d: over-fetch then deterministically truncate so approximate-search SET jitter at the
+        # candidate_k boundary lands in the discarded tail (margin 0 = off = fetch exactly candidate_k = no-op).
+        margin = max(0, getattr(self.settings, "retrieval_overfetch_margin", 0))
+        scored = await self.vector_store.asimilarity_search_with_score(
+            query, k=candidate_k + margin, filter=search_filter
+        )
+        chunks = [
+            (
+                RetrievedChunk(
+                    text=doc.page_content,
+                    metadata=restore_document_metadata(doc.metadata),
+                    score=None,
+                ),
+                float(score),
             )
-            for doc in docs
+            for doc, score in scored
         ]
+        chunks.sort(key=lambda cs: (-_round_score(cs[1]), cs[0].metadata.chunk_id))
+        if margin:
+            chunks = chunks[:candidate_k]
+        return [chunk for chunk, _ in chunks]
 
     async def _finalize(
         self,
@@ -279,8 +326,10 @@ class QdrantHybridRetriever:
         # Rerank the whole candidate pool, then build a relevance-descending chunk list.
         reranked = await self.reranker.rerank(query, [chunk.text for chunk in chunks], top_n=len(chunks))
         if reranked:
-            ranked = sorted(reranked, key=lambda item: item.score, reverse=True)
-            ordered = [(chunks[item.index], item.score) for item in ranked if item.index < len(chunks)]
+            # Phase A2a: deterministic order (rounded score DESC, ties by index ASC) and round the STORED
+            # score so the downstream reactive-expansion trigger + dynamic-k cutoff don't flip on float jitter.
+            ranked = stable_rerank_order(reranked)
+            ordered = [(chunks[item.index], _round_score(item.score)) for item in ranked if item.index < len(chunks)]
         else:
             ordered = [(chunk, chunk.score) for chunk in chunks]
 
@@ -372,11 +421,16 @@ class QdrantHybridRetriever:
         except ImportError as exc:
             raise RuntimeError("Install qdrant-client to use metadata filters.") from exc
 
-        conditions = [
-            FieldCondition(key=f"metadata.{key}", match=MatchValue(value=value))
-            for key, value in filters.items()
-            if value
-        ]
+        conditions = []
+        for key, value in filters.items():
+            if not value:
+                continue
+            if key not in _INDEXED_FILTER_KEYS:
+                # Unindexed key (often a model-invented filter like "semester") would make Qdrant
+                # 400 → 503. Drop it; the query text still carries the constraint for retrieval.
+                logger.debug("Dropping unindexed filter key %r.", key)
+                continue
+            conditions.append(FieldCondition(key=f"metadata.{key}", match=MatchValue(value=value)))
         if not conditions:
             return None
         return Filter(must=conditions)

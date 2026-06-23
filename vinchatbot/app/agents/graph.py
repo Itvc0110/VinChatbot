@@ -57,7 +57,9 @@ def build_agent_graph(
 
     settings = settings or get_settings()
     needs_model = specialists is None or supervisor_router is None
-    model = build_chat_model(settings) if needs_model else None
+    # One shared model for routing + answer generation; temp=0 (settings.llm_temperature) makes both
+    # deterministic so the same question yields the same answer (Phase 1.11 consistency fix).
+    model = build_chat_model(settings, temperature=settings.llm_temperature) if needs_model else None
     specialists = specialists or build_specialists(retriever, settings, model=model)
 
     async def supervisor_node(state: VinUniState) -> dict:
@@ -70,7 +72,12 @@ def build_agent_graph(
 
     def make_specialist_node(agent: Any):
         async def node(state: VinUniState) -> dict:
-            result = await agent.ainvoke({"messages": state["messages"]})
+            # Bounded ReAct loop (Phase 1.17): cap super-steps so an agent-decided cross_lingual retry
+            # can't spiral, while leaving room for native-search → retry → detail → answer.
+            result = await agent.ainvoke(
+                {"messages": state["messages"]},
+                config={"recursion_limit": settings.agent_recursion_limit},
+            )
             return {"messages": result["messages"]}
 
         return node

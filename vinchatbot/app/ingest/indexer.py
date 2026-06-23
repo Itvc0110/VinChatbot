@@ -33,14 +33,16 @@ def chunks_to_langchain_documents(chunks: Iterable[DocumentChunk], compact_metad
     ]
 
 
-def index_chunks(chunks: list[DocumentChunk], settings: Settings | None = None) -> int:
+def index_chunks(
+    chunks: list[DocumentChunk], settings: Settings | None = None, recreate: bool = False
+) -> int:
     if not chunks:
         return 0
 
     settings = settings or get_settings()
     backend = settings.vector_store_backend.lower().strip()
     if backend == "qdrant":
-        return _index_qdrant_chunks(chunks, settings)
+        return _index_qdrant_chunks(chunks, settings, recreate=recreate)
     if backend == "chroma":
         return _index_chroma_chunks(chunks, settings)
     if backend == "pinecone":
@@ -51,7 +53,9 @@ def index_chunks(chunks: list[DocumentChunk], settings: Settings | None = None) 
     )
 
 
-def _index_qdrant_chunks(chunks: list[DocumentChunk], settings: Settings) -> int:
+def _index_qdrant_chunks(
+    chunks: list[DocumentChunk], settings: Settings, recreate: bool = False
+) -> int:
     try:
         from langchain_qdrant import QdrantVectorStore, RetrievalMode
     except ImportError as exc:
@@ -67,6 +71,12 @@ def _index_qdrant_chunks(chunks: list[DocumentChunk], settings: Settings) -> int
     sparse_embedding = build_sparse_embeddings()
 
     collection_exists = _qdrant_collection_exists(settings.qdrant_collection, location_kwargs)
+    if recreate and collection_exists:
+        # Clean re-index: drop the collection so it is rebuilt from ONLY the current chunks. Removes
+        # stale points accumulated across past ingests (Phase 1.13 prereq — the collection is never
+        # otherwise cleared). Pair with QDRANT_COLLECTION=<scratch> to avoid touching production.
+        _delete_qdrant_collection(settings.qdrant_collection, location_kwargs)
+        collection_exists = False
     if collection_exists:
         try:
             vector_store = QdrantVectorStore.from_existing_collection(
@@ -187,6 +197,21 @@ def _parent_doc_ids(chunks: list[DocumentChunk]) -> list[str]:
 
 def _qdrant_point_ids(chunks: list[DocumentChunk]) -> list[str]:
     return [str(uuid5(NAMESPACE_URL, chunk.metadata.chunk_id)) for chunk in chunks]
+
+
+def _delete_qdrant_collection(collection_name: str, location_kwargs: dict[str, Any]) -> None:
+    try:
+        from qdrant_client import QdrantClient
+    except ImportError as exc:
+        raise RuntimeError("Install qdrant-client to use Qdrant indexing.") from exc
+
+    client = None
+    try:
+        client = QdrantClient(**location_kwargs)
+        client.delete_collection(collection_name=collection_name)
+    finally:
+        if client is not None:
+            client.close()
 
 
 def _qdrant_collection_exists(collection_name: str, location_kwargs: dict[str, Any]) -> bool:

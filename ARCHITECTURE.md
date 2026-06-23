@@ -4,14 +4,22 @@ Visual reference for how data and a chat turn move through the system. Diagrams 
 Mermaid (render in GitHub and the VS Code Mermaid preview). Pairs with [PRD.md](PRD.md) /
 [UPDATE_PLAN.md](UPDATE_PLAN.md).
 
-> State (2026-06-16, post-Phase 1.7): the flows, multi-agent routing, layered guards, and module
-> map below match the current code. The layered safety guard (OpenAI omni-moderation) is **live**;
-> the Phase 1.4 faithfulness output-gate fix is in §2. Serving pipeline is **plain-text** (markdown
-> OFF) on **`gpt-4o-mini`**. Retrieval now includes **Phase 1.6 fuse→rerank-once** and **Phase 1.7
-> adaptive point-lookup routing** (`ENABLE_ADAPTIVE_RETRIEVAL=true`): point-lookups read the **full
-> section** (the parent-doc machinery, previously gated off, is now used for them) + a strict
-> extraction prompt. Full detail in **§2b**. See [PHASE1.6_LOG.md](LOGS/PHASE1.6_LOG.md) /
-> [PHASE1.7_LOG.md](LOGS/PHASE1.7_LOG.md).
+> State (2026-06-23, post-Phase 1.27): the flows, multi-agent routing, layered guards, and module map
+> below match the current code. Serving is **plain-text** on **`gpt-4o-mini`**. Major additions since
+> Phase 1.7 (all `ENABLE_*`-flag-gated + fail-open; see [LOGS/SESSION_CLOSEOUT.md](LOGS/SESSION_CLOSEOUT.md)
+> for the full done/deferred state and [UPDATE_PLAN.md](UPDATE_PLAN.md) for the roadmap):
+> - **Deterministic structured lookup** (calendar + fee) runs BEFORE vector search — exact-row match for
+>   point-lookups, **list mode** (Phase 1.27) returns the full fee matrix / all matching calendar events for
+>   "all/each" questions (§2b). `ENABLE_STRUCTURED_LOOKUP`, `ENABLE_LIST_MODE`.
+> - **Policy doc-pin + ingest auto-index** (Phase 1.21/1.24): a confidently-matched policy question pins its
+>   canonical all-policies page by `source_url`; cross-lingual escalation forces the EN variant for VI policy
+>   questions (`ENABLE_POLICY_DOC_PIN`, `ENABLE_POLICY_AUTO_INDEX`, `ENABLE_CROSSLINGUAL_POLICY`).
+> - **Determinism + exact-match Redis cache** of LLM + rerank calls (Phase 1.23): reproducible runs + cheaper
+>   re-runs, fail-open (`ENABLE_LLM_CACHE`, `ENABLE_RERANK_CACHE`).
+> - **Output-guard unification** (Phase 1.25 Phase A): `resolve_output_decision` (secret-leak incl.
+>   de-obfuscated/zero-width + citation/degrade + faithfulness), logged reasons (§3). The LLM output-audit
+>   critic was rejected and is kept inert (`ENABLE_OUTPUT_AUDIT=false`).
+> - Baseline: **0.968/188** golden ([data/eval/baseline.json](data/eval/baseline.json)); guards 1.000.
 
 ---
 
@@ -98,6 +106,24 @@ reading + a strict extraction prompt**, with a domain split on query expansion (
 precision; financial ON + a cross-lingual English variant for recall). Toggles:
 `ENABLE_RERANK_AFTER_FUSION`, `ENABLE_ADAPTIVE_RETRIEVAL` (both default **true**; set either `false`
 to revert).
+
+**Deterministic layers that run BEFORE / around vector search** (added Phase 1.19–1.27, each flag-gated +
+fail-open → any miss falls through to the vector path byte-identically):
+- **Structured lookup** ([structured_lookup.py](vinchatbot/app/rag/structured_lookup.py)) — for
+  calendar/financial turns, a pure dict/regex record match on the USER's raw question returns the ONE exact
+  row (date/fee) — never the adjacent near-row vector leaks. **List mode** (Phase 1.27, `is_list_lookup` +
+  `ENABLE_LIST_MODE`): "all/each/compare" questions return the **full fee matrix** (`_match_fee`) or **all
+  matching calendar events** (`_match_calendar`) deterministically, and widen the vector path
+  (`RETRIEVAL_LIST_MAX_K`) + enumerate. Built by `scripts/build_structured_index.py` →
+  `data/processed/structured_records.json`.
+- **Policy doc-pin** ([policy_lookup.py](vinchatbot/app/rag/policy_lookup.py)) — a confident single-topic
+  policy match pins that canonical all-policies page by `source_url` (gap-proof doc selection). The curated
+  17-topic map (precedence) + an **ingest auto-index** (title fallback for the other ~138 pages, built by
+  `scripts/build_policy_topic_index.py`). VI policy questions also force an EN translation variant
+  (cross-lingual escalation) so the often-EN canonical doc is RRF-fused in.
+- **Exact-match cache** ([cache.py](vinchatbot/app/core/cache.py)) — LLM responses (via
+  `langchain` `set_llm_cache`) + rerank scores, keyed on the full prompt/content + `CACHE_VERSION`, in Redis.
+  Reproducible runs (kills run-to-run noise on exact repeats) + cost cuts; fail-open (any Redis error → miss).
 
 ```mermaid
 flowchart TD
@@ -215,15 +241,26 @@ flowchart TD
     scope -->|allow| allow
 ```
 
+The above is the **input** guard (`resolve_guardrail_decision`). The **output** guard
+(`resolve_output_decision`, Phase 1.25/A4, always-on) runs on the generated answer in `vinuni_agent.chat`:
+(1) **sensitive-output / secret-leak** — markers + key/token patterns, scanned on the raw **and**
+de-obfuscated/zero-width-stripped answer; (2) **graceful-degradation** when there are no citations or an
+"unknown-answer" marker; (3) **faithfulness** — numeric/date/year grounding against the retrieved evidence.
+Each returns a logged `OutputAuditDecision(action, reason)`; the bypass paths (time fast-path, conversational)
+get the secret scan too. The **LLM output-audit critic** (`output_audit.py`, `ENABLE_OUTPUT_AUDIT`) is wired
+but **rejected/off** (over-degraded correct answers) — kept for a future security use.
+
 ## 4. Module map
 
 | Area | Modules |
 |------|---------|
 | API | `app/main.py`, `app/api/routes_chat.py`, `app/api/routes_ingest.py` |
-| Agents | `agents/graph.py`, `supervisor.py`, `specialists.py`, `prompts.py`, `tools.py`, `vinuni_agent.py` |
-| Guards | `agents/guardrails.py` (regex/deobf/faithfulness), `agents/llm_guard.py` (injection/scope), `agents/safety_guard.py` (omni-moderation/Llama Guard) |
-| RAG | `rag/retriever.py`, `rag/reranker.py`, `rag/context.py` (LITM/dedup/dynamic-k), `rag/query_engineering.py`, `rag/citations.py` |
+| Agents | `agents/graph.py`, `supervisor.py`, `specialists.py`, `prompts.py`, `tools.py`, `vinuni_agent.py`, `agents/output_audit.py` (critic, gated off) |
+| Guards | `agents/guardrails.py` (input `resolve_guardrail_decision` + output `resolve_output_decision`: regex/deobf/secret/faithfulness), `agents/llm_guard.py` (injection/scope), `agents/safety_guard.py` (omni-moderation/Llama Guard) |
+| RAG | `rag/retriever.py`, `rag/reranker.py`, `rag/context.py` (LITM/dedup/dynamic-k), `rag/query_engineering.py` (`is_point_lookup`/`is_list_lookup`), `rag/structured_lookup.py` (calendar+fee deterministic + list mode), `rag/policy_lookup.py` (doc-pin + auto-index), `rag/citations.py` |
+| Core | `core/config.py` (all `ENABLE_*` flags), `core/cache.py` (Redis LLM+rerank cache), `core/observability.py` (per-stage ledger) |
 | Ingest | `ingest/crawler.py`, `parsers.py`, `normalizer.py`, `chunker.py`, `indexer.py`, `assets.py`, `ocr.py` |
 | Storage | `storage/qdrant_store.py`, `storage/vector_metadata.py` |
 | LLM/embeddings | `llm/openrouter_chat.py`, `embeddings/openrouter_embeddings.py` |
-| Eval | `scripts/run_eval.py`, `data/eval/golden/*.json` |
+| Eval | `scripts/run_eval.py` (`--runs N`, ledger, confidently-wrong), `data/eval/golden/*.json`, `data/eval/baseline.json` |
+| Index build | `scripts/build_structured_index.py` (calendar+fee records), `scripts/build_policy_topic_index.py` (policy auto-index) |

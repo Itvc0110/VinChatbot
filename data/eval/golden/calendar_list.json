@@ -1,0 +1,39 @@
+{
+  "name": "vinuni_calendar_list_mode",
+  "description": "Phase 1.27b list-mode: multi-ROW calendar questions ('all X deadlines for the year') that exercise the deterministic calendar aggregation (structured_lookup._match_calendar with list_mode → ALL matching events, not the single point match). Each lists BOTH of the year's deadlines of one type in required_facts (real AY2026-27 dates), with the OTHER deadline type's dates as forbidden_facts so a wrong-type or partial/single answer fails. Added with the feature per the 'golden cases with features' rule; measures the calendar list-mode gain (these MISS the point path when the flag is off).",
+  "source": "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
+  "cases": [
+    {
+      "id": "callist-add-transfer-all-en",
+      "question": "What are all the Add/Transfer Credit deadlines in the 2026-2027 academic year?",
+      "required_facts": ["October 1, 2026|1 tháng 10 năm 2026", "February 26, 2027|26 tháng 2 năm 2027"],
+      "forbidden_facts": ["October 9, 2026", "March 5, 2027"],
+      "expected_source": ["vinuni-academic-calendar", "academic-calendar"],
+      "language": "en"
+    },
+    {
+      "id": "callist-add-transfer-all-vi",
+      "question": "Liệt kê tất cả các hạn chót Add/Transfer Credit trong năm học 2026-2027.",
+      "required_facts": ["1 tháng 10 năm 2026|October 1, 2026", "26 tháng 2 năm 2027|February 26, 2027"],
+      "forbidden_facts": ["9 tháng 10 năm 2026", "5 tháng 3 năm 2027"],
+      "expected_source": ["vinuni-academic-calendar", "academic-calendar"],
+      "language": "vi"
+    },
+    {
+      "id": "callist-course-drop-all-en",
+      "question": "List all course drop deadlines for the 2026-2027 academic year.",
+      "required_facts": ["October 9, 2026|9 tháng 10 năm 2026", "March 5, 2027|5 tháng 3 năm 2027"],
+      "forbidden_facts": ["October 1, 2026", "February 26, 2027"],
+      "expected_source": ["vinuni-academic-calendar", "academic-calendar"],
+      "language": "en"
+    },
+    {
+      "id": "callist-course-drop-all-vi",
+      "question": "Liệt kê tất cả các hạn chót hủy môn học (course drop) trong năm học 2026-2027.",
+      "required_facts": ["9 tháng 10 năm 2026|October 9, 2026", "5 tháng 3 năm 2027|March 5, 2027"],
+      "forbidden_facts": ["1 tháng 10 năm 2026", "26 tháng 2 năm 2027"],
+      "expected_source": ["vinuni-academic-calendar", "academic-calendar"],
+      "language": "vi"
+    }
+  ]
+}

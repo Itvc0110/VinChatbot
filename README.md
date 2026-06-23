@@ -10,8 +10,12 @@ Backend MVP cho chatbot hỗ trợ sinh viên VinUni bằng RAG + ReAct agent.
 - LangChain `create_agent` chạy ReAct tool loop trên LangGraph.
 - `conversation_id` trong request được dùng làm LangGraph `thread_id` để giữ short-term context.
 - OpenRouter dùng cho chat, embeddings và rerank.
-- Qdrant dùng hybrid dense + sparse retrieval.
-- Ngôn ngữ trả lời mặc định là tiếng Việt.
+- Qdrant dùng hybrid dense + sparse retrieval; có **structured lookup** xác định (lịch/học phí) chạy TRƯỚC
+  vector cho point-lookup, và **list mode** trả về toàn bộ ma trận học phí / mọi sự kiện lịch cho câu hỏi
+  "tất cả/mỗi" (các tính năng đều `ENABLE_*`-gated, fail-open).
+- Guard 2 lớp: **input** (`resolve_guardrail_decision`) và **output** (`resolve_output_decision`: rò rỉ
+  secret + grounding). Cache Redis (LLM + rerank) để tái lập kết quả và giảm chi phí.
+- Ngôn ngữ trả lời mặc định là tiếng Việt. Trạng thái/lộ trình: [LOGS/SESSION_CLOSEOUT.md](LOGS/SESSION_CLOSEOUT.md).
 
 ## Cài đặt
 

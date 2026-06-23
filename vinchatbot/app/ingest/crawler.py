@@ -758,6 +758,9 @@ def _is_policy_allowed_path(path: str) -> bool:
         or path.startswith("/publication/")
         or path.startswith("/publication-public/")
         or path.startswith("/wp-content/uploads/")
+        # Calendar pages on the policy domain are in-scope content (e.g. the AY2025-26 academic
+        # calendar survives only as /vinuni-academic-calendar — its PDF path was overwritten).
+        or "calendar" in path
     )
 
 

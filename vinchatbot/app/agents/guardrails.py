@@ -42,6 +42,21 @@ class GuardrailDecision:
         return self.action == "allow"
 
 
+# Output-side decision (Phase 1.25/A4): the post-answer mirror of GuardrailDecision. Unifies the
+# previously-inline output checks (sensitive-output / grounding) into one decision carrying a logged reason.
+OutputAuditAction = Literal["allow", "sensitive_output_blocked", "graceful_degradation"]
+
+
+@dataclass(frozen=True)
+class OutputAuditDecision:
+    action: OutputAuditAction
+    reason: str
+
+    @property
+    def allowed(self) -> bool:
+        return self.action == "allow"
+
+
 INJECTION_PATTERNS = (
     re.compile(
         r"\b(ignore|disregard|forget|override|bypass)\b.{0,100}"
@@ -139,6 +154,16 @@ SCOPE_TERMS = (
     "lop hoc",
     "calendar",
     "lich hoc",
+    "nam hoc",
+    "event",
+    "events",
+    "su kien",
+    "holiday",
+    "holidays",
+    "ngay le",
+    "nghi le",
+    "commemoration",
+    "gio to",
     "semester",
     "hoc ky",
     "fall",
@@ -191,6 +216,36 @@ SCOPE_TERMS = (
     "bao luu",
     "withdrawal",
     "student gateway",
+    # Broader student-life topics (Phase 1.18 guard-precision: these were missing, so legitimate
+    # questions about them were over-refused). Accent-less VI forms; plurals auto via _contains_term.
+    "internship",
+    "thuc tap",
+    "career",
+    "nghe nghiep",
+    "counseling",
+    "counselling",
+    "mental health",
+    "tu van",
+    "tam ly",
+    "club",
+    "cau lac bo",
+    "housing",
+    "nha o",
+    "wifi",
+    "internet",
+    "cong nghe thong tin",
+    "transcript",
+    "bang diem",
+    "the sinh vien",
+    "clinic",
+    "healthcare",
+    "health",
+    "y te",
+    "suc khoe",
+    "parking",
+    "bai do xe",
+    "insurance",
+    "bao hiem",
 )
 
 GRAY_SCOPE_PATTERNS = (
@@ -322,6 +377,7 @@ async def resolve_guardrail_decision(
 ) -> GuardrailDecision:
     settings = settings or get_settings()
     decision = assess_chat_input(message, filter_values)
+    soft_scope = getattr(settings, "enable_soft_scope", False)
 
     # Confident regex outcomes return immediately: hard blocks, greetings, and confident
     # allows. Only the non-confident outcomes (gray zone / out-of-scope) consult the APIs,
@@ -334,10 +390,11 @@ async def resolve_guardrail_decision(
                 return safety
         return decision
 
-    # Non-confident: a custom scope_router (test/override) owns the decision; otherwise run
-    # the content-safety tier, then the injection/scope classifier.
+    # Non-confident (scope-uncertain). Security tiers still run; in soft-scope mode the SCOPE verdict
+    # is downgraded to allow (off-topic is then refused downstream by graceful-degradation), but
+    # injection/restricted/abusive verdicts from the safety + classifier tiers are kept as hard blocks.
     if scope_router is not None:
-        return await scope_router(message)
+        return _soften_scope(await scope_router(message), soft_scope)
 
     safety = await _run_safety_guard(message, settings)
     if not safety.allowed:
@@ -347,15 +404,26 @@ async def resolve_guardrail_decision(
         try:
             from vinchatbot.app.agents.llm_guard import classify_with_llm
 
-            return await classify_with_llm(message, settings=settings)
+            return _soften_scope(await classify_with_llm(message, settings=settings), soft_scope)
         except Exception:
             pass
 
-    # No model tier available: keep the prior lenient behavior for ambiguous queries.
-    if decision.action == "needs_scope_router":
+    # No model tier available: lenient for ambiguous gray-zone queries, and (soft-scope) for off-topic.
+    if decision.action == "needs_scope_router" or soft_scope:
         return GuardrailDecision(
             action="allow",
-            reason="No model guard available; allowing ambiguous VinUni-context query.",
+            reason="Soft-scope/ambiguous: allowed; off-topic handled by graceful-degradation.",
+        )
+    return decision
+
+
+def _soften_scope(decision: GuardrailDecision, soft_scope: bool) -> GuardrailDecision:
+    """In soft-scope mode, downgrade a SCOPE refusal to allow (off-topic is refused downstream via
+    graceful-degradation). Security verdicts (injection/restricted/abusive) are left untouched."""
+    if soft_scope and decision.action == "out_of_scope":
+        return GuardrailDecision(
+            action="allow",
+            reason="Soft-scope: off-topic allowed; refused downstream if no sources found.",
         )
     return decision
 
@@ -380,7 +448,7 @@ async def route_gray_scope_with_model(
             reason="No router API key; allowing ambiguous VinUni-context query.",
         )
 
-    model = build_chat_model(settings)
+    model = build_chat_model(settings, temperature=0.0)
     response = await model.ainvoke(
         [
             {
@@ -473,9 +541,34 @@ def should_gracefully_degrade(answer: str, citations: list[Citation]) -> bool:
     return any(marker in normalized for marker in UNKNOWN_ANSWER_MARKERS)
 
 
+# Leaked-secret VALUE patterns (Phase 1.18 output-guard hardening): catch an answer that echoes an
+# actual key/token/connection-string, not just the literal config marker words. Deliberately specific
+# (sk- prefixes, Bearer, `api_key=…`, creds-in-URL) so legit student answers never false-positive.
+_SECRET_OUTPUT_PATTERNS = (
+    re.compile(r"sk-or-v1-[a-z0-9]{16,}", re.IGNORECASE),
+    re.compile(r"sk-proj-[A-Za-z0-9_-]{16,}"),
+    re.compile(r"\bbearer\s+[A-Za-z0-9._\-]{20,}", re.IGNORECASE),
+    re.compile(
+        r"\b(api[_-]?key|secret[_-]?key|access[_-]?token|client[_-]?secret)\b\s*[:=]\s*\S{6,}",
+        re.IGNORECASE,
+    ),
+    re.compile(r"postgres(?:ql)?://[^\s:@/]+:[^\s:@/]+@", re.IGNORECASE),
+)
+
+
 def contains_sensitive_output(answer: str) -> bool:
-    normalized = answer.lower()
-    return any(marker in normalized for marker in SENSITIVE_OUTPUT_MARKERS)
+    # Phase 1.25/A4: defend against disguised leaks (mirrors the INPUT side's deobfuscate).
+    zw_stripped = _ZERO_WIDTH_RE.sub("", answer)
+    # Config MARKER words benefit from leetspeak folding ("p4ssw0rd" -> "password") and zero-width stripping.
+    for normalized in (answer.lower(), zw_stripped.lower(), deobfuscate(answer).lower()):
+        if any(marker in normalized for marker in SENSITIVE_OUTPUT_MARKERS):
+            return True
+    # Secret VALUE patterns are digit-bearing (sk-or-v1-…, bearer tokens), so leet-folding would CORRUPT
+    # them — scan the raw and the zero-width-stripped forms only (the latter closes "sk-or-v1-ab<zwsp>cd…").
+    for variant in (answer, zw_stripped):
+        if any(pattern.search(variant) for pattern in _SECRET_OUTPUT_PATTERNS):
+            return True
+    return False
 
 
 _FACT_TOKEN_RE = re.compile(r"\d[\d.,/-]*\d")
@@ -503,23 +596,85 @@ def _grounding_body(answer: str) -> str:
     return text
 
 
+def _canon_numbers(text: str) -> str:
+    """Collapse in-number thousand separators so VI "10.000" == EN "10,000" == "10000" when grounding.
+    Without this a correct VI answer ("10.000 đồng") was scored unfaithful vs an EN source ("10,000 VND")
+    and wrongly degraded to a refusal (Phase 1.13b)."""
+    return re.sub(r"(?<=\d)[.,](?=\d)", "", text)
+
+
 def assess_faithfulness(answer: str, retrieved_texts: list[str]) -> bool:
     """Conservative output grounding check.
 
     If the answer asserts numeric/date/amount facts but the retrieved evidence shares none
-    of them, treat it as unfaithful. Lenient by design (any overlap passes) so differing
-    date/number formatting between answer and source does not over-trigger degradation.
-    Citation/source metadata (policy codes, URLs) is excluded so it is not mistaken for a
-    claim. Returns True when the answer is considered grounded (or there is nothing to check).
+    of them, treat it as unfaithful. Lenient by design (any overlap passes) and number-format
+    agnostic (10.000 / 10,000 / 10000 compare equal) so differing VI↔EN date/number formatting
+    between answer and source does not over-trigger degradation. Citation/source metadata
+    (policy codes, URLs) is excluded so it is not mistaken for a claim. Returns True when the
+    answer is considered grounded (or there is nothing to check).
     """
 
     if not retrieved_texts:
         return True  # the citation-presence guard already covers the no-evidence case
-    answer_facts = {token for token in _FACT_TOKEN_RE.findall(normalize_for_matching(_grounding_body(answer)))}
+    body = _canon_numbers(normalize_for_matching(_grounding_body(answer)))
+    answer_facts = {token for token in _FACT_TOKEN_RE.findall(body)}
     if not answer_facts:
         return True
-    evidence = normalize_for_matching(" \n ".join(retrieved_texts))
+    evidence = _canon_numbers(normalize_for_matching(" \n ".join(retrieved_texts)))
+    # Year-grounding (Phase 1.19): catch the "graft the asked year onto a retrieved different-year row"
+    # hallucination (e.g. answering "Fall 2030 → 21 Sep 2030" from a retrieved "Fall'26 → 21-Sep" chunk:
+    # the day "21" is in evidence so the lenient overlap below passes, but the year 2030 is fabricated).
+    # Conservative to avoid over-degrading correct answers: only applies when the evidence itself names
+    # year(s), and an asserted year is OK if it is in evidence OR within ±1 of an evidence year (so an
+    # academic-year label like "2026-2027" is fine when the chunk only names 2026). A year far from all
+    # evidence years (2030 vs {2026,2027}) is the fabrication we degrade.
+    answer_years = {int(y) for y in re.findall(r"20\d{2}", body)}
+    evidence_years = {int(y) for y in re.findall(r"20\d{2}", evidence)}
+    if answer_years and evidence_years:
+        grounded = all(
+            (str(y) in evidence) or any(abs(y - e) <= 1 for e in evidence_years)
+            for y in answer_years
+        )
+        if not grounded:
+            return False
     return any(fact in evidence for fact in answer_facts)
+
+
+def resolve_output_decision(
+    answer: str,
+    citations: list[Citation],
+    retrieved_texts: list[str],
+    *,
+    require_grounding: bool = True,
+) -> OutputAuditDecision:
+    """Deterministic post-answer guard cascade (Phase 1.25/A4) — the output mirror of
+    `resolve_guardrail_decision`. Unifies the previously-inline checks into one decision carrying a
+    logged reason. Order: (1) sensitive-output/secret leak (always, incl. de-obfuscated form); then,
+    when grounding applies, (2) no-citation / unknown-answer marker, (3) numeric/date grounding.
+
+    `require_grounding=False` for the bypass paths (pure-time fast path, conversational/capability
+    replies) — they legitimately have no citations, so only the secret scan applies.
+
+    Fail-closed by contract: the caller MUST treat any exception from this function as a degrade
+    (never serve an un-audited answer)."""
+    if contains_sensitive_output(answer):
+        return OutputAuditDecision(
+            "sensitive_output_blocked",
+            "Answer may disclose protected configuration or a secret value.",
+        )
+    if not require_grounding:
+        return OutputAuditDecision("allow", "No grounding required for this turn (bypass path).")
+    if should_gracefully_degrade(answer, citations):
+        return OutputAuditDecision(
+            "graceful_degradation",
+            "No supporting citation, or the answer is an unknown-answer/decline.",
+        )
+    if not assess_faithfulness(answer, retrieved_texts):
+        return OutputAuditDecision(
+            "graceful_degradation",
+            "Answer asserts numeric/date facts not grounded in the retrieved evidence.",
+        )
+    return OutputAuditDecision("allow", "Answer is citation-backed and grounded in the evidence.")
 
 
 def _message_content(message: object) -> str:
@@ -590,7 +745,11 @@ def deobfuscate(text: str) -> str:
             raw = base64.b64decode(padded, validate=False).decode("utf-8", "ignore")
         except Exception:
             continue
-        if len(raw) >= 4 and raw.isprintable():
+        # Only surface decoded text that ITSELF looks like an injection. Otherwise a benign long token
+        # (an ID, hash, or URL slug a user pastes) decodes to garbage and would spuriously match a rule.
+        if len(raw) >= 4 and raw.isprintable() and any(
+            pattern.search(normalize_for_matching(raw)) for pattern in INJECTION_PATTERNS
+        ):
             decoded.append(raw)
     return f"{folded} {' '.join(decoded)}".strip()
 
@@ -606,7 +765,10 @@ def scan_for_injection(text: str) -> bool:
 
 
 def _contains_term(normalized: str, term: str) -> bool:
-    return re.search(rf"(?<!\w){re.escape(term)}(?!\w)", normalized) is not None
+    # Allow a regular plural for longer English nouns ("event"->"events", "fee s"->"fees") without
+    # over-matching short Vietnamese tokens (e.g. "thi"->"this", "han"->"hans") or multi-word terms.
+    suffix = "s?" if term.isascii() and term.isalpha() and len(term) >= 4 else ""
+    return re.search(rf"(?<!\w){re.escape(term)}{suffix}(?!\w)", normalized) is not None
 
 
 # Accent-less Vietnamese hint words (matched on normalized tokens) so Vietnamese typed WITHOUT

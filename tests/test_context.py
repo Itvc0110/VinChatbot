@@ -81,6 +81,17 @@ def test_metadata_boost_rewards_policy_code_mention():
     assert out[0].id == "b"  # exact policy_code mention overtakes the higher base score
 
 
+def test_metadata_boost_disambiguates_academic_year_by_month():
+    # Phase 1.13: "tháng 6 năm 2026" → June 2026 → AY 2025-2026 (Sep→Aug). The exact-AY chunk must
+    # outrank the 2026-2027 chunk even though BOTH labels contain "2026" (the old substring bug).
+    items = [
+        _scored("ay2627", 0.8, academic_year="2026-2027"),
+        _scored("ay2526", 0.8, academic_year="2025-2026"),
+    ]
+    out = apply_metadata_boosts(items, "sự kiện tháng 6 năm 2026", enabled=True)
+    assert out[0].id == "ay2526"
+
+
 def test_metadata_boost_handles_frozen_retrievedchunk():
     # RetrievedChunk is a frozen dataclass; boosting must not mutate it in place.
     from vinchatbot.app.rag.retriever import RetrievedChunk
