@@ -4,7 +4,13 @@ import { useState } from "react";
 import type { ChatResponse } from "@/lib/types";
 import { deriveState } from "@/lib/responseState";
 import { usePortal } from "@/lib/portalI18n";
-import { IconCalendar, IconBell, IconArrow } from "@/components/shell/icons";
+import {
+  IconCalendar,
+  IconBell,
+  IconChat,
+  IconExternal,
+  IconTicket,
+} from "@/components/shell/icons";
 
 // Builds and downloads a minimal .ics so "Add to calendar" produces a real file.
 function downloadIcs(title: string, description: string) {
@@ -32,57 +38,70 @@ function downloadIcs(title: string, description: string) {
   URL.revokeObjectURL(url);
 }
 
-// Action row shown under a completed assistant answer. "Report issue" is handled by the
-// existing FlagForm rendered right below this in MessageBubble.
+// PLAN22.6.2 action row — a tidy hierarchy of next-step actions anchored to a completed
+// answer. Primary: Ask follow-up. Secondary: Open source (only if cited) + Prepare ticket
+// (opens the Review drawer; Vinnie NEVER auto-submits). Contextual: Add to calendar / Set
+// reminder appear ONLY when the answer is actually about a date/deadline/event/schedule, so
+// irrelevant actions don't clutter a plain or couldn't-answer reply. "Report issue" is the
+// existing FlagForm rendered below this in MessageBubble.
 export function AnswerActions({
   question,
   response,
-  onForward,
+  hasDateContext,
+  onPrepareTicket,
+  onAskFollowUp,
+  onOpenPolicy,
   onToast,
 }: {
   question: string;
   response: ChatResponse;
-  onForward: () => void;
+  hasDateContext: boolean;
+  onPrepareTicket: () => void;
+  onAskFollowUp: () => void;
+  // Present only when the answer has citations — opens the shared SourceDrawer.
+  onOpenPolicy?: () => void;
   onToast: (msg: string) => void;
 }) {
   const { p } = usePortal();
   const [reminded, setReminded] = useState(false);
-  const [forwarded, setForwarded] = useState(false);
   const state = deriveState(response);
 
   // For conversational replies there's nothing actionable. Source access lives in the
   // per-answer citation list (ChatCitationList), so there's no "View source" here.
   if (state === "conversational") return null;
 
-  const handleForward = () => {
-    if (forwarded) return;
-    setForwarded(true);
-    onForward();
-  };
-
   return (
     <div className="answer-actions">
-      <button
-        className="answer-action"
-        onClick={() => downloadIcs(question, response.answer)}
-      >
-        <IconCalendar size={13} /> {p.actAddCalendar}
+      <button className="answer-action primary" onClick={onAskFollowUp}>
+        <IconChat size={13} /> {p.actAskFollowUp}
       </button>
-      <button
-        className={`answer-action ${reminded ? "done" : ""}`}
-        onClick={() => {
-          setReminded(true);
-          onToast(`${p.actSetReminder} ✓`);
-        }}
-      >
-        <IconBell size={13} /> {p.actSetReminder}
+      {onOpenPolicy && (
+        <button className="answer-action" onClick={onOpenPolicy}>
+          <IconExternal size={13} /> {p.actOpenPolicy}
+        </button>
+      )}
+      <button className="answer-action" onClick={onPrepareTicket}>
+        <IconTicket size={13} /> {p.actPrepareTicket}
       </button>
-      <button
-        className={`answer-action ${forwarded ? "done" : ""}`}
-        onClick={handleForward}
-      >
-        <IconArrow size={13} /> {forwarded ? `${p.actForward} ✓` : p.actForward}
-      </button>
+      {hasDateContext && (
+        <>
+          <button
+            className="answer-action"
+            onClick={() => downloadIcs(question, response.answer)}
+          >
+            <IconCalendar size={13} /> {p.actAddCalendar}
+          </button>
+          <button
+            className={`answer-action ${reminded ? "done" : ""}`}
+            onClick={() => {
+              setReminded(true);
+              onToast(`${p.actSetReminder} ✓`);
+            }}
+          >
+            <IconBell size={13} /> {p.actSetReminder}
+          </button>
+        </>
+      )}
     </div>
   );
 }

@@ -7,15 +7,20 @@ import type {
   Deadline,
   KnowledgeSource,
   Notification,
+  NotificationType,
   ResolveQuestionPayload,
   ScheduleDay,
   SourceCategory,
   StudentProfile,
+  SuggestedQuestion,
   SupportTicket,
-  TicketCategory,
+  TicketDraft,
+  TicketStatus,
   TuitionStatus,
   UnansweredQuestion,
 } from "./portalTypes";
+import { generate as generateQuestions, rankForStudent } from "./suggestedQuestions";
+import type { Lang } from "./i18n";
 import {
   MOCK_ADMIN_STATS,
   MOCK_ANALYTICS,
@@ -78,7 +83,15 @@ export async function postChat(
 // answer + citations + meta. Falls back to nothing here — the caller handles fallback.
 export async function postChatStream(
   req: ChatRequest,
-  opts: { onDelta: (text: string) => void; signal?: AbortSignal }
+  opts: {
+    onDelta: (text: string) => void;
+    // Forward-compatible: fires for `event: status` (pre-reveal step) and `event: suggestions`
+    // (post-answer follow-ups) IF the backend ever emits them. No-ops today — the current
+    // backend sends only delta + done — so wiring these now costs nothing and is honest.
+    onStatus?: (step: string) => void;
+    onSuggestions?: (questions: string[]) => void;
+    signal?: AbortSignal;
+  }
 ): Promise<ChatResponse> {
   const res = await fetch("/api/chat/stream", {
     method: "POST",
@@ -116,6 +129,8 @@ export async function postChatStream(
     const data = JSON.parse(dataLines.join("\n"));
     if (event === "delta") opts.onDelta(data.text as string);
     else if (event === "done") final = data as ChatResponse;
+    else if (event === "status") opts.onStatus?.(data.step as string);
+    else if (event === "suggestions") opts.onSuggestions?.(data.questions as string[]);
     else if (event === "error") throw new Error(data.detail || "Stream error.");
   };
 
@@ -182,33 +197,95 @@ export async function getSupportTickets(): Promise<SupportTicket[]> {
   return delay([...MOCK_TICKETS]);
 }
 
+// PLAN22.6 — Vinnie NEVER auto-submits. The only path that creates an admin-visible ticket
+// is submitTicket(), reachable only from the explicit "Send to Admin" button after the
+// student has reviewed the draft. A draft is built in memory by chat.tsx and is never sent
+// here until submit, so there is no "create-on-forward" function anymore.
+//
 // [MOCK] TODO backend contract: POST /tickets
-//   body: { subject, body, department, origin_question? } -> SupportTicket
-// Used by the "Forward to admin" action on a chat answer and the New Ticket form.
-export async function forwardToAdmin(input: {
-  subject: string;
-  body: string;
-  department?: string;
-  category?: TicketCategory;
-  origin_question?: string;
-}): Promise<SupportTicket> {
+//   body: { subject, body, department, category, priority, source_conversation_id?,
+//           include_chat_context, included_context?, created_by_ai } -> SupportTicket
+//   The server stores it as status "submitted" + confirmed_by_user true, owns student_name
+//   (resolved from the session) and may set due_at/sla_hours from category+priority policy.
+export async function submitTicket(draft: TicketDraft): Promise<SupportTicket> {
   const now = new Date().toISOString();
+  // Demo SLA window: high → 24h, medium → 72h, low → 168h from submission.
+  const slaHours = draft.priority === "high" ? 24 : draft.priority === "medium" ? 72 : 168;
   const ticket: SupportTicket = {
     id: `TKT-${Math.floor(1000 + Math.random() * 9000)}`,
-    subject: input.subject,
-    body: input.body,
-    department: input.department ?? "Student Services",
-    category: input.category ?? "other",
-    status: "open",
-    priority: "medium",
+    subject: draft.subject.trim() || "Support request",
+    body: draft.body.trim(),
+    department: draft.department,
+    category: draft.category,
+    status: "submitted",
+    priority: draft.priority,
     created_at: now,
     updated_at: now,
-    origin_question: input.origin_question,
-    messages: [{ id: "m1", author: "student", body: input.body, created_at: now }],
+    submitted_at: now,
+    // New PLAN23.6.01 fields — server owns these for real; mocked here.
+    student_name: MOCK_PROFILE.full_name,
+    sla_hours: slaHours,
+    due_at: new Date(Date.now() + slaHours * 3_600_000).toISOString(),
+    confirmed_by_user: true,
+    created_by_ai: draft.origin_question != null,
+    // Privacy: the chat-context summary is attached ONLY when the student opted in.
+    include_chat_context: draft.include_chat_context,
+    included_context: draft.include_chat_context ? draft.context_preview : undefined,
+    source_conversation_id: draft.source_conversation_id,
+    origin_question: draft.origin_question,
+    messages: [{ id: "m1", author: "student", body: draft.body.trim(), created_at: now }],
   };
   // Prepend so the new ticket shows at the top of the list on the next fetch.
   MOCK_TICKETS.unshift(ticket);
   return delay(ticket, 400);
+}
+
+// [MOCK] No network in MVP — drafts live in ChatProvider React state only (privacy: an
+// unconfirmed, possibly sensitive draft must never be persisted to a DB or localStorage).
+// TODO backend contract (Phase 2): POST /tickets { status: "draft" } scoped to the student
+// (admin queries MUST never return drafts).
+export async function saveTicketDraft(draft: TicketDraft): Promise<TicketDraft> {
+  return delay({ ...draft }, 150);
+}
+
+// [MOCK] TODO backend contract: GET /admin/tickets?status&priority&category -> SupportTicket[]
+// The backend MUST enforce this draft/unconfirmed exclusion server-side (RBAC); the client
+// filter here is defense-in-depth, not the gate.
+export async function getAdminTickets(): Promise<SupportTicket[]> {
+  const visible = MOCK_TICKETS.filter(
+    (t) => t.status !== "draft" && t.confirmed_by_user === true
+  ).map((t) => ({ ...t }));
+  return delay(visible);
+}
+
+// [MOCK] TODO backend contract: GET /admin/tickets/{id} -> SupportTicket
+export async function getAdminTicketDetail(ticketId: string): Promise<SupportTicket> {
+  const found = MOCK_TICKETS.find(
+    (t) => t.id === ticketId && t.status !== "draft" && t.confirmed_by_user === true
+  );
+  if (!found) throw new Error(`Ticket ${ticketId} not found`);
+  return delay({ ...found });
+}
+
+// [MOCK] TODO backend contract: PATCH /admin/tickets/{id} { status } -> SupportTicket
+export async function updateTicketStatus(
+  ticketId: string,
+  status: TicketStatus
+): Promise<SupportTicket> {
+  return delay(patchTicket(ticketId, { status }), 200);
+}
+
+// [MOCK] TODO backend contract: POST /admin/tickets/{id}/messages { body } -> SupportTicket
+// Appends an admin reply to the ticket thread (visible to the student).
+export async function respondToTicket(ticketId: string, body: string): Promise<SupportTicket> {
+  const t = MOCK_TICKETS.find((x) => x.id === ticketId);
+  if (!t) throw new Error(`Ticket ${ticketId} not found`);
+  const now = new Date().toISOString();
+  const messages = [
+    ...(t.messages ?? []),
+    { id: `m${(t.messages?.length ?? 0) + 1}`, author: "admin" as const, body, created_at: now },
+  ];
+  return delay(patchTicket(ticketId, { messages, status: "waiting_for_student" }), 250);
 }
 
 // [MOCK] TODO backend contract: GET /tickets/{id} -> SupportTicket
@@ -245,8 +322,14 @@ export async function deleteSupportTicket(ticketId: string): Promise<SupportTick
 
 // ---- Notifications ----------------------------------------------------------
 // [MOCK] TODO backend contract: GET /students/me/notifications -> Notification[]
+// Students only see PUBLISHED notifications — admin drafts/archived are filtered out.
+// (Legacy rows without a status are treated as published.)
 export async function getStudentNotifications(): Promise<Notification[]> {
-  return delay(MOCK_NOTIFICATIONS.map((n) => ({ ...n })));
+  return delay(
+    MOCK_NOTIFICATIONS.filter((n) => (n.status ?? "published") === "published").map((n) => ({
+      ...n,
+    }))
+  );
 }
 
 function patchNotification(id: string, patch: Partial<Notification>): Notification {
@@ -279,6 +362,129 @@ export async function deleteNotification(id: string): Promise<{ ok: true }> {
   const idx = MOCK_NOTIFICATIONS.findIndex((x) => x.id === id);
   if (idx >= 0) MOCK_NOTIFICATIONS.splice(idx, 1);
   return delay({ ok: true } as const, 150);
+}
+
+// ---- Admin notifications + suggested questions (PLAN22.6) -------------------
+// [MOCK] TODO backend contract: GET /admin/notifications -> Notification[] (all statuses)
+export async function getAdminNotifications(): Promise<Notification[]> {
+  return delay(MOCK_NOTIFICATIONS.map((n) => ({ ...n })));
+}
+
+// [MOCK] TODO backend contract: POST /admin/notifications { ... } -> Notification
+// Admin authors a notification (optionally with reviewed/approved suggested questions). A
+// "published" notification with active questions immediately drives student suggestions.
+export async function createNotification(input: {
+  title: string;
+  message: string;
+  type: NotificationType;
+  priority?: Notification["priority"];
+  target_audience?: string[];
+  deadline?: string;
+  event_date?: string;
+  status?: Notification["status"];
+  suggested_questions?: SuggestedQuestion[];
+  source_title?: string;
+  source_url?: string;
+}): Promise<Notification> {
+  const now = new Date().toISOString();
+  const notification: Notification = {
+    id: `n-${Math.floor(1000 + Math.random() * 9000)}`,
+    type: input.type,
+    title: input.title.trim(),
+    message: input.message.trim(),
+    created_at: now,
+    updated_at: now,
+    read: false,
+    important: input.priority === "high" || input.priority === "urgent",
+    priority: input.priority,
+    target_audience: input.target_audience,
+    deadline: input.deadline,
+    event_date: input.event_date,
+    status: input.status ?? "draft",
+    created_by: "admin",
+    source_title: input.source_title,
+    source_url: input.source_url,
+    suggested_questions: input.suggested_questions,
+  };
+  MOCK_NOTIFICATIONS.unshift(notification);
+  return delay(notification, 300);
+}
+
+// [MOCK] TODO backend contract: PATCH /admin/notifications/{id} { ... } -> Notification
+export async function updateNotification(
+  id: string,
+  patch: Partial<Notification>
+): Promise<Notification> {
+  return delay(patchNotification(id, { ...patch, updated_at: new Date().toISOString() }), 200);
+}
+
+// [MOCK] TODO backend contract: POST /admin/notifications/{id}/publish -> Notification
+// Publishes the notification and activates its admin-approved suggested questions.
+export async function publishNotification(id: string): Promise<Notification> {
+  const n = MOCK_NOTIFICATIONS.find((x) => x.id === id);
+  if (!n) throw new Error(`Notification ${id} not found`);
+  const questions = (n.suggested_questions ?? []).map((q) => ({
+    ...q,
+    is_active: q.approved_by_admin,
+  }));
+  return delay(
+    patchNotification(id, {
+      status: "published",
+      suggested_questions: questions,
+      updated_at: new Date().toISOString(),
+    }),
+    250
+  );
+}
+
+// [MOCK] Rule-based for MVP — runs the lib/suggestedQuestions.ts template engine for the
+// notification's current deadline phase. Returns UNSAVED candidates for the admin to
+// review/edit/approve before publishing.
+// TODO backend contract (Phase 2): POST /admin/notifications/{id}/suggested-questions/generate (AI).
+export async function generateSuggestedQuestions(input: {
+  id?: string;
+  type: NotificationType;
+  title?: string;
+  message?: string;
+  deadline?: string;
+  event_date?: string;
+  lang?: Lang;
+}): Promise<SuggestedQuestion[]> {
+  const draft: Notification = {
+    id: input.id ?? `n-preview`,
+    type: input.type,
+    title: input.title ?? "",
+    message: input.message ?? "",
+    created_at: new Date().toISOString(),
+    read: false,
+    important: false,
+    deadline: input.deadline,
+    event_date: input.event_date,
+  };
+  return delay(generateQuestions(draft, new Date(), input.lang ?? "en"), 150);
+}
+
+// [MOCK] TODO backend contract: GET /students/me/suggested-questions?lang= -> SuggestedQuestion[]
+// Single source of truth: a PUBLISHED notification contributes timely questions when the admin
+// approved at least one for it. We (re)generate the questions for the notification's CURRENT
+// deadline phase IN THE SELECTED LANGUAGE (PLAN22.6.2 §5) — so suggestions always match the UI
+// language and stay time-aware — capped to how many the admin approved, then rank across all.
+export async function getActiveSuggestedQuestions(
+  lang: Lang = "en"
+): Promise<SuggestedQuestion[]> {
+  const now = new Date();
+  const published = MOCK_NOTIFICATIONS.filter((n) => (n.status ?? "published") === "published");
+  const notifById = new Map(published.map((n) => [n.id, n] as const));
+  const out: SuggestedQuestion[] = [];
+  for (const n of published) {
+    const approvedCount = (n.suggested_questions ?? []).filter(
+      (q) => q.approved_by_admin && q.is_active
+    ).length;
+    if (approvedCount === 0) continue;
+    const localized = generateQuestions(n, now, lang).slice(0, approvedCount);
+    out.push(...localized.map((q) => ({ ...q, approved_by_admin: true, is_active: true })));
+  }
+  return delay(rankForStudent(out, notifById, now));
 }
 
 // ---- Calendar ---------------------------------------------------------------

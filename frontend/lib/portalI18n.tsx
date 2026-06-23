@@ -41,6 +41,8 @@ export interface PortalStrings {
     tuition: string;
     tickets: string;
     adminDashboard: string;
+    adminTickets: string;
+    adminNotifications: string;
     sources: string;
     upload: string;
     questions: string;
@@ -99,6 +101,13 @@ export interface PortalStrings {
   personalizedAnswer: string;
   chatSuggested: string[];
   somethingWrong: string;
+  // conversation history (PLAN22.6.2 §2)
+  chatHistory: {
+    title: string;
+    newChat: string;
+    untitled: string;
+    empty: string;
+  };
 
   // notifications screen
   notif: {
@@ -128,6 +137,7 @@ export interface PortalStrings {
       schedule: string;
       deadline: string;
       event: string;
+      student_services: string;
       system: string;
     };
   };
@@ -190,6 +200,20 @@ export interface PortalStrings {
     staff: string;
     systemAuthor: string;
     vis: { active: string; archived: string; deleted: string };
+    // PLAN23.6.01 board
+    subtitle: string;
+    newTicket: string;
+    createIntro: string;
+    continueReview: string;
+    sortLabel: string;
+    sort: { updated_desc: string; created_desc: string; priority_desc: string; sla_asc: string };
+    dueSoon: string;
+    dueOn: (date: string) => string;
+    colEmpty: string;
+    colOpen: string;
+    colInProgress: string;
+    colWaiting: string;
+    colClosed: string;
   };
 
   // answer actions
@@ -201,6 +225,104 @@ export interface PortalStrings {
   forwardedFromChat: string;
   forwardedOk: (id: string) => string;
   forwardFailed: string;
+
+  // PLAN22.6 answer-action set (Vinnie never auto-submits a ticket)
+  actPrepareTicket: string;
+  actAskFollowUp: string;
+  actContactOffice: string;
+  actOpenPolicy: string;
+  askVinnieAbout: string;
+
+  // Review Ticket drawer (draft → review → send)
+  review: {
+    banner: string;
+    category: string;
+    office: string;
+    priority: string;
+    summary: string;
+    summaryPlaceholder: string;
+    description: string;
+    descriptionPlaceholder: string;
+    relatedContext: string;
+    noContext: string;
+    includeContext: string;
+    includeContextHelp: string;
+    attachments: string;
+    attachmentsLater: string;
+    cancel: string;
+    saveDraft: string;
+    sendToAdmin: string;
+    sending: string;
+    draftSaved: string;
+    submitted: (id: string) => string;
+    submitFailed: string;
+    close: string;
+  };
+
+  // Admin: submitted-ticket management
+  adminTickets: {
+    title: string;
+    subtitle: string;
+    colStudent: string;
+    colSubject: string;
+    colCategory: string;
+    colPriority: string;
+    colStatus: string;
+    colUpdated: string;
+    none: string;
+    noneDesc: string;
+    noMatch: string;
+    view: string;
+    fromChat: string;
+    includedContext: string;
+    respond: string;
+    respondPlaceholder: string;
+    sendReply: string;
+    statusUpdated: string;
+    replySent: string;
+    actionFailed: string;
+    // PLAN23.6.01 board + advanced filters
+    colWaitingStudent: string;
+    colResolved: string;
+    assigneeLabel: string;
+    unassigned: string;
+    assignedTo: string;
+    departmentLabel: string;
+    dateFrom: string;
+    dateTo: string;
+  };
+
+  // Admin: notification creation + suggested-question approval
+  adminNotif: {
+    title: string;
+    subtitle: string;
+    listHeading: string;
+    createHeading: string;
+    fTitle: string;
+    fTitlePlaceholder: string;
+    fMessage: string;
+    fMessagePlaceholder: string;
+    fCategory: string;
+    fPriority: string;
+    fAudience: string;
+    fEventDate: string;
+    fDeadline: string;
+    generate: string;
+    regenerate: string;
+    suggestedHeading: string;
+    suggestedHint: string;
+    noQuestions: string;
+    approve: string;
+    approved: string;
+    saveDraftBtn: string;
+    publish: string;
+    publishHint: string;
+    publishing: string;
+    draftCreated: string;
+    publishedToast: string;
+    actionFailed: string;
+    phase: Record<string, string>;
+  };
 
   // dashboard
   greetingMorning: string;
@@ -449,6 +571,8 @@ const en: PortalStrings = {
     tuition: "Tuition & Fees",
     tickets: "Support Tickets",
     adminDashboard: "Admin Dashboard",
+    adminTickets: "Support Tickets",
+    adminNotifications: "Notifications",
     sources: "Knowledge Sources",
     upload: "Upload Document",
     questions: "Unanswered Questions",
@@ -508,6 +632,12 @@ const en: PortalStrings = {
     "What is the course withdrawal process?",
   ],
   somethingWrong: "Something went wrong.",
+  chatHistory: {
+    title: "Conversations",
+    newChat: "New chat",
+    untitled: "New chat",
+    empty: "No past conversations yet.",
+  },
 
   notif: {
     title: "Notifications",
@@ -536,6 +666,7 @@ const en: PortalStrings = {
       schedule: "Schedule",
       deadline: "Deadline",
       event: "Event",
+      student_services: "Student Services",
       system: "System",
     },
   },
@@ -596,6 +727,24 @@ const en: PortalStrings = {
     staff: "Staff",
     systemAuthor: "System",
     vis: { active: "Active", archived: "Hidden / Archived", deleted: "Deleted" },
+    subtitle: "Track your requests and responses from VinUni support teams.",
+    newTicket: "New ticket",
+    createIntro: "Fill in the details, then review before it's sent to the support team.",
+    continueReview: "Continue to review",
+    sortLabel: "Sort",
+    sort: {
+      updated_desc: "Recently updated",
+      created_desc: "Newest",
+      priority_desc: "Priority",
+      sla_asc: "Due soonest",
+    },
+    dueSoon: "Due soon",
+    dueOn: (date) => `Due ${date}`,
+    colEmpty: "Nothing here.",
+    colOpen: "Open",
+    colInProgress: "In progress",
+    colWaiting: "Waiting",
+    colClosed: "Closed",
   },
   actViewSource: "View source",
   actAddCalendar: "Add to calendar",
@@ -605,6 +754,101 @@ const en: PortalStrings = {
   forwardedFromChat: "Forwarded from chat",
   forwardedOk: (id) => `Forwarded to admin — ticket ${id} created.`,
   forwardFailed: "Couldn't forward right now. Try again.",
+  actPrepareTicket: "Prepare support ticket",
+  actAskFollowUp: "Ask follow-up",
+  actContactOffice: "Contact office",
+  actOpenPolicy: "Open source",
+  askVinnieAbout: "Ask Vinnie about this",
+  review: {
+    banner: "Vinnie prepared a support ticket draft. Please review it before sending.",
+    category: "Category",
+    office: "Assigned office",
+    priority: "Priority",
+    summary: "Summary",
+    summaryPlaceholder: "Short summary of your issue",
+    description: "Description",
+    descriptionPlaceholder: "Describe your issue for the staff team",
+    relatedContext: "Related conversation context",
+    noContext: "No chat context attached.",
+    includeContext: "Include relevant chat context",
+    includeContextHelp:
+      "Only the short summary above is shared with staff — never your full chat history, GPA, or tuition.",
+    attachments: "Attachments",
+    attachmentsLater: "Attachments are coming soon.",
+    cancel: "Cancel",
+    saveDraft: "Save draft",
+    sendToAdmin: "Send to Admin",
+    sending: "Sending…",
+    draftSaved: "Draft saved. It stays private until you send it.",
+    submitted: (id) => `Ticket ${id} submitted to admin.`,
+    submitFailed: "Couldn't submit the ticket. Try again.",
+    close: "Close",
+  },
+  adminTickets: {
+    title: "Support tickets",
+    subtitle: "Tickets students have submitted for staff support.",
+    colStudent: "Student",
+    colSubject: "Subject",
+    colCategory: "Category",
+    colPriority: "Priority",
+    colStatus: "Status",
+    colUpdated: "Updated",
+    none: "No submitted tickets yet",
+    noneDesc: "Drafts students haven't sent are never shown here.",
+    noMatch: "No tickets match your filters.",
+    view: "Open",
+    fromChat: "Prepared from a chat conversation",
+    includedContext: "Chat context included by the student",
+    respond: "Respond to student",
+    respondPlaceholder: "Write a reply to the student…",
+    sendReply: "Send reply",
+    statusUpdated: "Status updated.",
+    replySent: "Reply sent to the student.",
+    actionFailed: "Action failed. Try again.",
+    colWaitingStudent: "Waiting for student",
+    colResolved: "Resolved",
+    assigneeLabel: "Assignee",
+    unassigned: "Unassigned",
+    assignedTo: "Assigned to",
+    departmentLabel: "Department",
+    dateFrom: "From",
+    dateTo: "To",
+  },
+  adminNotif: {
+    title: "Notifications",
+    subtitle: "Create announcements and approve the questions Vinnie suggests from them.",
+    listHeading: "Existing notifications",
+    createHeading: "Create notification",
+    fTitle: "Title",
+    fTitlePlaceholder: "e.g. Course drop deadline approaching",
+    fMessage: "Content",
+    fMessagePlaceholder: "What students need to know…",
+    fCategory: "Category",
+    fPriority: "Priority",
+    fAudience: "Target audience",
+    fEventDate: "Event date",
+    fDeadline: "Deadline",
+    generate: "Generate suggested questions",
+    regenerate: "Regenerate questions",
+    suggestedHeading: "Suggested questions",
+    suggestedHint: "Edit the wording and approve the ones students should see.",
+    noQuestions: "Generate questions from the category and dates above.",
+    approve: "Approve",
+    approved: "Approved",
+    saveDraftBtn: "Save as draft",
+    publish: "Publish notification",
+    publishHint: "Approve at least one question to publish.",
+    publishing: "Publishing…",
+    draftCreated: "Notification saved as draft.",
+    publishedToast: "Notification published — students will see it.",
+    actionFailed: "Action failed. Try again.",
+    phase: {
+      early: "Discovery",
+      near_deadline: "Action",
+      overdue: "Recovery",
+      active: "General",
+    },
+  },
   greetingMorning: "Welcome back",
   todaySchedule: "Today's schedule",
   upcomingDeadlines: "Upcoming deadlines",
@@ -822,9 +1066,10 @@ const en: PortalStrings = {
     },
     tuitionItemStatus: { paid: "paid", due: "due", overdue: "overdue", upcoming: "upcoming" },
     ticketStatus: {
-      open: "open",
-      in_progress: "in progress",
-      waiting: "waiting",
+      draft: "draft",
+      submitted: "submitted",
+      in_review: "in review",
+      waiting_for_student: "waiting for you",
       resolved: "resolved",
       closed: "closed",
     },
@@ -899,6 +1144,8 @@ const vi: PortalStrings = {
     tuition: "Học phí",
     tickets: "Yêu cầu hỗ trợ",
     adminDashboard: "Bảng quản trị",
+    adminTickets: "Yêu cầu hỗ trợ",
+    adminNotifications: "Thông báo",
     sources: "Nguồn tri thức",
     upload: "Tải tài liệu",
     questions: "Câu hỏi chưa trả lời",
@@ -958,6 +1205,12 @@ const vi: PortalStrings = {
     "Quy trình rút môn học như thế nào?",
   ],
   somethingWrong: "Đã có lỗi xảy ra.",
+  chatHistory: {
+    title: "Cuộc trò chuyện",
+    newChat: "Trò chuyện mới",
+    untitled: "Trò chuyện mới",
+    empty: "Chưa có cuộc trò chuyện nào.",
+  },
 
   notif: {
     title: "Thông báo",
@@ -986,6 +1239,7 @@ const vi: PortalStrings = {
       schedule: "Lịch học",
       deadline: "Hạn chót",
       event: "Sự kiện",
+      student_services: "Dịch vụ sinh viên",
       system: "Hệ thống",
     },
   },
@@ -1046,6 +1300,24 @@ const vi: PortalStrings = {
     staff: "Cán bộ",
     systemAuthor: "Hệ thống",
     vis: { active: "Đang hoạt động", archived: "Ẩn / Lưu trữ", deleted: "Đã xóa" },
+    subtitle: "Theo dõi yêu cầu và phản hồi từ các phòng ban hỗ trợ VinUni.",
+    newTicket: "Tạo phiếu",
+    createIntro: "Điền thông tin, sau đó xem lại trước khi gửi cho đội ngũ hỗ trợ.",
+    continueReview: "Tiếp tục xem lại",
+    sortLabel: "Sắp xếp",
+    sort: {
+      updated_desc: "Cập nhật gần đây",
+      created_desc: "Mới nhất",
+      priority_desc: "Ưu tiên",
+      sla_asc: "Sắp đến hạn nhất",
+    },
+    dueSoon: "Sắp đến hạn",
+    dueOn: (date) => `Hạn ${date}`,
+    colEmpty: "Chưa có phiếu nào.",
+    colOpen: "Mở",
+    colInProgress: "Đang xử lý",
+    colWaiting: "Chờ phản hồi",
+    colClosed: "Đã đóng",
   },
   actViewSource: "Xem nguồn",
   actAddCalendar: "Thêm vào lịch",
@@ -1055,6 +1327,101 @@ const vi: PortalStrings = {
   forwardedFromChat: "Chuyển từ hội thoại",
   forwardedOk: (id) => `Đã chuyển cho quản trị — đã tạo phiếu ${id}.`,
   forwardFailed: "Chưa chuyển được lúc này. Thử lại nhé.",
+  actPrepareTicket: "Soạn phiếu hỗ trợ",
+  actAskFollowUp: "Hỏi tiếp",
+  actContactOffice: "Liên hệ phòng ban",
+  actOpenPolicy: "Mở nguồn",
+  askVinnieAbout: "Hỏi Vinnie về việc này",
+  review: {
+    banner: "Vinnie đã soạn sẵn một phiếu hỗ trợ. Vui lòng xem lại trước khi gửi.",
+    category: "Danh mục",
+    office: "Phòng ban phụ trách",
+    priority: "Ưu tiên",
+    summary: "Tiêu đề",
+    summaryPlaceholder: "Tóm tắt ngắn gọn vấn đề của bạn",
+    description: "Mô tả",
+    descriptionPlaceholder: "Mô tả vấn đề để cán bộ hỗ trợ",
+    relatedContext: "Ngữ cảnh hội thoại liên quan",
+    noContext: "Không đính kèm ngữ cảnh hội thoại.",
+    includeContext: "Đính kèm ngữ cảnh hội thoại liên quan",
+    includeContextHelp:
+      "Chỉ phần tóm tắt ngắn ở trên được chia sẻ với cán bộ — không bao giờ gửi toàn bộ hội thoại, GPA hay học phí.",
+    attachments: "Tệp đính kèm",
+    attachmentsLater: "Tính năng đính kèm sẽ sớm có.",
+    cancel: "Hủy",
+    saveDraft: "Lưu nháp",
+    sendToAdmin: "Gửi cho quản trị",
+    sending: "Đang gửi…",
+    draftSaved: "Đã lưu nháp. Phiếu vẫn riêng tư cho đến khi bạn gửi.",
+    submitted: (id) => `Đã gửi phiếu ${id} cho quản trị.`,
+    submitFailed: "Chưa gửi được phiếu. Thử lại nhé.",
+    close: "Đóng",
+  },
+  adminTickets: {
+    title: "Yêu cầu hỗ trợ",
+    subtitle: "Các phiếu sinh viên đã gửi để được cán bộ hỗ trợ.",
+    colStudent: "Sinh viên",
+    colSubject: "Tiêu đề",
+    colCategory: "Danh mục",
+    colPriority: "Ưu tiên",
+    colStatus: "Trạng thái",
+    colUpdated: "Cập nhật",
+    none: "Chưa có phiếu nào được gửi",
+    noneDesc: "Bản nháp sinh viên chưa gửi sẽ không bao giờ hiển thị ở đây.",
+    noMatch: "Không có phiếu nào khớp bộ lọc.",
+    view: "Mở",
+    fromChat: "Soạn từ một cuộc hội thoại",
+    includedContext: "Sinh viên đã đính kèm ngữ cảnh hội thoại",
+    respond: "Phản hồi sinh viên",
+    respondPlaceholder: "Viết phản hồi cho sinh viên…",
+    sendReply: "Gửi phản hồi",
+    statusUpdated: "Đã cập nhật trạng thái.",
+    replySent: "Đã gửi phản hồi cho sinh viên.",
+    actionFailed: "Thao tác thất bại. Thử lại nhé.",
+    colWaitingStudent: "Chờ sinh viên",
+    colResolved: "Đã xử lý",
+    assigneeLabel: "Người phụ trách",
+    unassigned: "Chưa phân công",
+    assignedTo: "Phụ trách",
+    departmentLabel: "Phòng ban",
+    dateFrom: "Từ",
+    dateTo: "Đến",
+  },
+  adminNotif: {
+    title: "Thông báo",
+    subtitle: "Tạo thông báo và duyệt các câu hỏi Vinnie gợi ý từ thông báo đó.",
+    listHeading: "Thông báo hiện có",
+    createHeading: "Tạo thông báo",
+    fTitle: "Tiêu đề",
+    fTitlePlaceholder: "vd. Sắp đến hạn rút môn học",
+    fMessage: "Nội dung",
+    fMessagePlaceholder: "Điều sinh viên cần biết…",
+    fCategory: "Danh mục",
+    fPriority: "Ưu tiên",
+    fAudience: "Đối tượng",
+    fEventDate: "Ngày sự kiện",
+    fDeadline: "Hạn chót",
+    generate: "Tạo câu hỏi gợi ý",
+    regenerate: "Tạo lại câu hỏi",
+    suggestedHeading: "Câu hỏi gợi ý",
+    suggestedHint: "Chỉnh sửa nội dung và duyệt những câu sinh viên nên thấy.",
+    noQuestions: "Tạo câu hỏi từ danh mục và ngày tháng ở trên.",
+    approve: "Duyệt",
+    approved: "Đã duyệt",
+    saveDraftBtn: "Lưu nháp",
+    publish: "Đăng thông báo",
+    publishHint: "Duyệt ít nhất một câu hỏi để đăng.",
+    publishing: "Đang đăng…",
+    draftCreated: "Đã lưu thông báo dưới dạng nháp.",
+    publishedToast: "Đã đăng thông báo — sinh viên sẽ thấy.",
+    actionFailed: "Thao tác thất bại. Thử lại nhé.",
+    phase: {
+      early: "Khám phá",
+      near_deadline: "Hành động",
+      overdue: "Khắc phục",
+      active: "Chung",
+    },
+  },
   greetingMorning: "Chào mừng trở lại",
   todaySchedule: "Lịch học hôm nay",
   upcomingDeadlines: "Hạn chót sắp tới",
@@ -1272,9 +1639,10 @@ const vi: PortalStrings = {
     },
     tuitionItemStatus: { paid: "đã đóng", due: "đến hạn", overdue: "quá hạn", upcoming: "sắp tới" },
     ticketStatus: {
-      open: "mở",
-      in_progress: "đang xử lý",
-      waiting: "chờ phản hồi",
+      draft: "bản nháp",
+      submitted: "đã gửi",
+      in_review: "đang xem xét",
+      waiting_for_student: "chờ bạn phản hồi",
       resolved: "đã xử lý",
       closed: "đã đóng",
     },

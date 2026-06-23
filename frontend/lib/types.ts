@@ -55,6 +55,10 @@ export interface ChatMessage {
   cancelled?: boolean;
   // assistant-only: answer is currently being revealed token-by-token (verify-then-reveal).
   streaming?: boolean;
+  // assistant-only: a human-readable pre-reveal status step (e.g. "Generating verified
+  // answer…"). Only set if the backend emits `event: status`; today it stays undefined and
+  // the UI shows one honest "Searching official VinUni sources…" placeholder.
+  statusStep?: string;
   // assistant-only: answer was produced in "My Student Info" mode (personalized with the
   // student's profile/schedule/deadlines/tuition context).
   personalized?: boolean;

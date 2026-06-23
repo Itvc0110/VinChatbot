@@ -37,17 +37,18 @@ export function ChatCitationList({
         </svg>
         {t.sourcesBtnCount(citations.length)}
       </button>
+      {/* Compact, title-only chips. The section/excerpt/long raw text lives in the source
+          panel — never inline in the bubble — so a long citation can't break the layout. */}
       <div className="cite-chips">
         {citations.map((c, i) => (
           <button
             key={`${c.source_url}-${i}`}
             className={`cite-chip ${unverified ? "unverified" : ""}`}
             onClick={() => onOpen(i)}
-            title={c.title || c.source_url}
+            title={c.section ? `${c.title || hostOf(c.source_url)} · ${c.section}` : c.title || c.source_url}
           >
             <span className="cite-chip-n">[{i + 1}]</span>
             <span className="cite-chip-title">{c.title || hostOf(c.source_url)}</span>
-            {c.section && <span className="cite-chip-sec">· {c.section}</span>}
           </button>
         ))}
       </div>

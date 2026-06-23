@@ -4,6 +4,7 @@ import { deriveState } from "@/lib/responseState";
 import { useI18n } from "@/lib/i18n";
 import { ChatCitationList } from "./ChatCitationList";
 import { FlagForm } from "./FlagForm";
+import { StreamingStatus } from "./chat/StreamingStatus";
 
 // Optional inline-citation wiring: turns [1], [2]… in the answer text into clickable
 // markers that open the source panel for that exact source.
@@ -210,6 +211,11 @@ export function MessageBubble({
           <BotAvatar /> Vinnie
         </div>
         <div className="body muted">{t.cancelledShort}</div>
+        {onRetry && (
+          <button className="retry-btn" onClick={onRetry}>
+            {t.regenerate}
+          </button>
+        )}
       </div>
     );
   }
@@ -228,11 +234,7 @@ export function MessageBubble({
             <span className="stream-caret" aria-hidden="true" />
           </div>
         ) : (
-          <div className="thinking" role="status" aria-label={t.retrieving}>
-            <span className="tdot" />
-            <span className="tdot" />
-            <span className="tdot" />
-          </div>
+          <StreamingStatus statusStep={message.statusStep} />
         )}
       </div>
     );

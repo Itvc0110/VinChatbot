@@ -4,20 +4,30 @@ import { Suspense, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChatColumn } from "@/components/ChatColumn";
 import { SourceDrawer } from "@/components/SourceDrawer";
+import { ConversationRail } from "@/components/chat/ConversationRail";
 import { ConnectedAnswerActions } from "@/components/chat/ConnectedAnswerActions";
-import { Toast } from "@/components/ui/primitives";
 import { useChat } from "@/lib/chat";
 import { usePortal } from "@/lib/portalI18n";
 import { useI18n } from "@/lib/i18n";
+import { useAsync } from "@/lib/useAsync";
+import { getActiveSuggestedQuestions } from "@/lib/api";
 
 // Full "Ask Vinnie" page. The chat state lives in the shared ChatProvider (mounted in
 // RoleShell), so this page and the floating bubble are the SAME conversation. Sources are
 // hidden by default and open only when the user clicks an answer's Sources button / chip.
 function ChatView() {
-  const { p } = usePortal();
+  const { p, lang } = usePortal();
   const { t } = useI18n();
   const chat = useChat();
   const searchParams = useSearchParams();
+
+  // Notification-driven suggested prompts (PLAN22.6), localized to the UI language and
+  // falling back to the static set.
+  const suggested = useAsync(() => getActiveSuggestedQuestions(lang), [lang]);
+  const chips =
+    suggested.status === "success" && suggested.data.length > 0
+      ? suggested.data.map((q) => q.question_text)
+      : p.chatSuggested;
 
   // Register this surface so completed answers don't bump the floating-bubble unread badge.
   useEffect(() => chat.registerViewer(), []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -39,6 +49,7 @@ function ChatView() {
       {/* When a source is open the page splits in two: conversation + source panel.
           Closing the panel returns the conversation to full width. */}
       <div className="chat-body">
+        <ConversationRail />
         <div className="chat-full">
           <ChatColumn
             messages={chat.messages}
@@ -51,8 +62,10 @@ function ChatView() {
             onEditLast={chat.editLast}
             onOpenSources={chat.openSources}
             renderActions={(m) => <ConnectedAnswerActions message={m} />}
-            composerChips={p.chatSuggested}
+            composerChips={chips}
             note={t.privacyNote}
+            composerSeedText={chat.composerSeed?.text}
+            composerSeedNonce={chat.composerSeed?.nonce}
           />
         </div>
 
@@ -63,8 +76,6 @@ function ChatView() {
           onClose={chat.closeSources}
         />
       </div>
-
-      {chat.toast && <Toast message={chat.toast} onClose={() => chat.setToast(null)} />}
     </div>
   );
 }

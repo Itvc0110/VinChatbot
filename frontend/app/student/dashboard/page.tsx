@@ -18,6 +18,7 @@ import {
   getStudentSchedule,
   getStudentDeadlines,
   getStudentNotifications,
+  getActiveSuggestedQuestions,
 } from "@/lib/api";
 import { daysUntil } from "@/lib/format";
 import { IconArrow, IconBell, IconClock, IconCap, IconChat } from "@/components/shell/icons";
@@ -29,7 +30,7 @@ function todayShort(): ScheduleDay {
 }
 
 export default function StudentDashboardPage() {
-  const { p } = usePortal();
+  const { p, lang } = usePortal();
   const { user } = useAuth();
   const router = useRouter();
   const [draft, setDraft] = useState("");
@@ -38,6 +39,12 @@ export default function StudentDashboardPage() {
   const schedule = useAsync(getStudentSchedule, []);
   const deadlines = useAsync(getStudentDeadlines, []);
   const notifications = useAsync(getStudentNotifications, []);
+  // Notification-driven suggested questions (PLAN22.6), localized, falling back to the static set.
+  const suggested = useAsync(() => getActiveSuggestedQuestions(lang), [lang]);
+  const suggestedQs =
+    suggested.status === "success" && suggested.data.length > 0
+      ? suggested.data.map((q) => q.question_text)
+      : p.dash.suggested;
 
   const go = (q: string) => router.push(`/student/chat?q=${encodeURIComponent(q)}`);
   const name = user?.name ?? (profile.status === "success" ? profile.data.preferred_name : "");
@@ -188,7 +195,7 @@ export default function StudentDashboardPage() {
 
       <SectionHeader title={p.suggestedQuestions} />
       <div className="qchips">
-        {p.dash.suggested.map((q) => (
+        {suggestedQs.map((q) => (
           <button key={q} className="qchip" onClick={() => go(q)}>
             <IconChat size={14} /> {q}
           </button>

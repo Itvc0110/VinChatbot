@@ -23,6 +23,7 @@ import type {
   ClassSession,
   Deadline,
   StudentProfile,
+  TicketDraft,
   TuitionStatus,
 } from "@/lib/portalTypes";
 import {
@@ -32,9 +33,12 @@ import {
   getStudentSchedule,
   getStudentDeadlines,
   getTuitionStatus,
-  forwardToAdmin,
+  submitTicket,
+  saveTicketDraft,
 } from "@/lib/api";
+import { DEPARTMENTS } from "@/lib/portalI18n";
 import { usePortal } from "@/lib/portalI18n";
+import { friendlyError } from "@/lib/chatErrors";
 import { formatVnd, formatDate } from "@/lib/format";
 
 let counter = 0;
@@ -86,9 +90,49 @@ function buildPersonalContext(
   return lines.join("\n");
 }
 
+// Privacy-safe context for a support ticket: ONLY the triggering question + Vinnie's
+// answer, trimmed. Deliberately excludes buildPersonalContext() (name/GPA/tuition/schedule)
+// so no profile PII can leak into a ticket. Shown in the Review drawer and attached only if
+// the student keeps "include chat context" ticked.
+function shortSummary(question: string, answer: string): string {
+  const q = question.replace(/\s+/g, " ").trim().slice(0, 300);
+  const a = answer.replace(/\s+/g, " ").trim().slice(0, 600);
+  return `Question: ${q}\n\nVinnie's answer: ${a}`;
+}
+
+let draftCounter = 0;
+const nextDraftId = () => `draft-${Date.now()}-${draftCounter++}`;
+
+let convCounter = 0;
+const nextConvId = () => `c${Date.now()}-${convCounter++}`;
+const newThreadId = () => `web-${Math.random().toString(36).slice(2)}`;
+
+// A short topic title from the first user message (PLAN22.6.2 §2) — never a generic name.
+function titleOf(msgs: ChatMessage[]): string | null {
+  const firstUser = msgs.find((m) => m.role === "user");
+  if (!firstUser) return null;
+  const text = firstUser.text.replace(/\s+/g, " ").trim();
+  return text.length > 44 ? `${text.slice(0, 44)}…` : text;
+}
+
+interface ArchivedConversation {
+  id: string;
+  conversationId: string;
+  title: string | null;
+  messages: ChatMessage[];
+}
+
 export interface SourceFocus {
   idx: number;
   nonce: number;
+}
+
+// One item in the conversation-history list shown on the full chat page.
+export interface ConversationSummary {
+  id: string;
+  title: string | null; // null until the first user message gives it a topic
+  active: boolean;
+  empty: boolean;
 }
 
 interface ChatContextValue {
@@ -102,15 +146,36 @@ interface ChatContextValue {
   retry: (errorId: string) => void;
   editLast: (text: string) => void;
   questionFor: (assistantId: string) => string;
+  // Conversation history (PLAN22.6.2 §2). In-memory only — conversations are NOT persisted
+  // to storage, so sensitive student data never lingers across sessions.
+  conversations: ConversationSummary[];
+  activeConversationId: string;
+  newConversation: () => void;
+  switchConversation: (id: string) => void;
+  // "Ask follow-up": seeds + focuses the composer (shared across both chat surfaces).
+  composerSeed: { text: string; nonce: number } | null;
+  seedComposer: (text: string) => void;
   // shared source drawer (full page + floating widget point at the same one)
   sourceMessage: ChatMessage | null;
   sourceFocus: SourceFocus | null;
   openSources: (messageId: string, focusIdx?: number) => void;
   closeSources: () => void;
-  // forward-to-admin + transient toast
+  // transient toast
   toast: string | null;
   setToast: (msg: string | null) => void;
-  forward: (question: string, response: ChatResponse) => Promise<void>;
+  // Smart ticket draft (PLAN22.6): Vinnie prepares a draft → student reviews → sends. The
+  // draft lives here in React state only (never persisted) until the student submits.
+  ticketDraft: TicketDraft | null;
+  prepareDraftFromAnswer: (question: string, response: ChatResponse) => void;
+  prepareBlankDraft: (seed?: Partial<TicketDraft>) => void;
+  updateDraft: (patch: Partial<TicketDraft>) => void;
+  cancelDraft: () => void;
+  saveDraft: () => Promise<void>;
+  submitDraft: () => Promise<void>;
+  draftBusy: boolean;
+  // Bumps each time a ticket is successfully sent to admin (the single submit path), so any
+  // open ticket list (e.g. the support page) can refresh without a hard reload.
+  ticketsRevision: number;
   // floating-bubble unread badge: answers that arrived while no surface was open
   unread: number;
   registerViewer: () => () => void;
@@ -119,11 +184,16 @@ interface ChatContextValue {
 const ChatContext = createContext<ChatContextValue | null>(null);
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
-  const { p } = usePortal();
+  const { p, lang } = usePortal();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [ticketDraft, setTicketDraft] = useState<TicketDraft | null>(null);
+  const [draftBusy, setDraftBusy] = useState(false);
+  const [ticketsRevision, setTicketsRevision] = useState(0);
+  const [composerSeed, setComposerSeed] = useState<{ text: string; nonce: number } | null>(null);
+  const seedNonce = useRef(0);
   const [sourceMessageId, setSourceMessageId] = useState<string | null>(null);
   const [sourceFocus, setSourceFocus] = useState<SourceFocus | null>(null);
   const [unread, setUnread] = useState(0);
@@ -157,9 +227,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const conversationId = useRef<string>(
-    `web-${Math.random().toString(36).slice(2)}`
-  ).current;
+  // Active conversation: its messages live in `messages` above; past conversations are kept
+  // in `archived` (in-memory only). `conversationId` is the backend thread id of the active
+  // conversation, so each conversation has isolated agent memory.
+  const [conversationId, setConversationId] = useState<string>(() => newThreadId());
+  const [activeConvId, setActiveConvId] = useState<string>(() => nextConvId());
+  const [archived, setArchived] = useState<ArchivedConversation[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
   const latestAssistantId = useMemo(() => {
@@ -219,6 +292,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                 prev.map((m) => (m.id === assistantId ? { ...m, text: m.text + chunk } : m))
               );
             },
+            // No-op until the backend emits `event: status`; then the pre-reveal placeholder
+            // shows the real step instead of the default "Searching…" line.
+            onStatus: (step) => patchMessage(assistantId, { statusStep: step }),
           }
         );
         settle(assistantId, { text: resp.answer, response: resp, streaming: false });
@@ -236,20 +312,26 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             if (err2 instanceof DOMException && err2.name === "AbortError") {
               patchMessage(assistantId, { text: "", cancelled: true, streaming: false });
             } else {
-              const msg = err2 instanceof Error ? err2.message : p.somethingWrong;
-              patchMessage(assistantId, { text: "", error: msg, streaming: false });
+              patchMessage(assistantId, {
+                text: "",
+                error: friendlyError(err2, lang),
+                streaming: false,
+              });
             }
           }
         } else {
-          const msg = err instanceof Error ? err.message : p.somethingWrong;
-          patchMessage(assistantId, { text: "", error: msg, streaming: false });
+          patchMessage(assistantId, {
+            text: "",
+            error: friendlyError(err, lang),
+            streaming: false,
+          });
         }
       } finally {
         abortRef.current = null;
         setBusy(false);
       }
     },
-    [conversationId, patchMessage, settle, p]
+    [conversationId, patchMessage, settle, lang]
   );
 
   const send = useCallback(
@@ -319,20 +401,134 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setSourceFocus(null);
   }, []);
 
-  const forward = useCallback(
-    async (question: string, response: ChatResponse) => {
-      try {
-        const ticket = await forwardToAdmin({
-          subject: question.slice(0, 80) || "Forwarded question",
-          body: response.answer,
-          origin_question: question,
-        });
-        setToast(p.forwardedOk(ticket.id));
-      } catch {
-        setToast(p.forwardFailed);
-      }
+  // --- Smart ticket draft (review-before-send) -------------------------------
+  const prepareDraftFromAnswer = useCallback(
+    (question: string, response: ChatResponse) => {
+      setTicketDraft({
+        id: nextDraftId(),
+        subject: (question.trim().slice(0, 80) || "Support request"),
+        body: response.answer,
+        department: DEPARTMENTS[0],
+        category: "other",
+        priority: "medium",
+        include_chat_context: false,
+        source_conversation_id: conversationId,
+        origin_question: question,
+        context_preview: shortSummary(question, response.answer),
+      });
     },
-    [p]
+    [conversationId]
+  );
+
+  // `seed` lets a manual entry point (CreateTicketModal) pre-fill the draft before it hands
+  // off to the ReviewTicketDrawer — creation still flows through the single submit path.
+  const prepareBlankDraft = useCallback(
+    (seed?: Partial<TicketDraft>) => {
+      setTicketDraft({
+        id: nextDraftId(),
+        subject: "",
+        body: "",
+        department: DEPARTMENTS[0],
+        category: "academic",
+        priority: "medium",
+        include_chat_context: false,
+        source_conversation_id: conversationId,
+        context_preview: "",
+        ...seed,
+      });
+    },
+    [conversationId]
+  );
+
+  const updateDraft = useCallback((patch: Partial<TicketDraft>) => {
+    setTicketDraft((cur) => (cur ? { ...cur, ...patch } : cur));
+  }, []);
+
+  const cancelDraft = useCallback(() => {
+    setTicketDraft(null);
+    setDraftBusy(false);
+  }, []);
+
+  const saveDraft = useCallback(async () => {
+    if (!ticketDraft) return;
+    // No network in MVP — the draft already lives in state; this just confirms to the user.
+    await saveTicketDraft(ticketDraft);
+    setTicketDraft(null);
+    setToast(p.review.draftSaved);
+  }, [ticketDraft, p]);
+
+  const submitDraft = useCallback(async () => {
+    if (!ticketDraft || draftBusy) return;
+    setDraftBusy(true);
+    try {
+      const ticket = await submitTicket(ticketDraft);
+      setTicketDraft(null);
+      setTicketsRevision((r) => r + 1);
+      setToast(p.review.submitted(ticket.id));
+    } catch {
+      setToast(p.review.submitFailed);
+    } finally {
+      setDraftBusy(false);
+    }
+  }, [ticketDraft, draftBusy, p]);
+
+  const seedComposer = useCallback((text: string) => {
+    seedNonce.current += 1;
+    setComposerSeed({ text, nonce: seedNonce.current });
+  }, []);
+
+  // --- Conversation history -------------------------------------------------
+  // Archive the active conversation (only if it has messages) and reset to a fresh one.
+  const newConversation = useCallback(() => {
+    if (busy) return;
+    if (messages.length) {
+      setArchived((prev) => [
+        { id: activeConvId, conversationId, title: titleOf(messages), messages },
+        ...prev,
+      ]);
+    }
+    setMessages([]);
+    setConversationId(newThreadId());
+    setActiveConvId(nextConvId());
+    setSourceMessageId(null);
+    setSourceFocus(null);
+  }, [busy, messages, activeConvId, conversationId]);
+
+  // Restore an archived conversation, archiving the current one in its place.
+  const switchConversation = useCallback(
+    (id: string) => {
+      if (busy || id === activeConvId) return;
+      const target = archived.find((c) => c.id === id);
+      if (!target) return;
+      setArchived((prev) => {
+        const without = prev.filter((c) => c.id !== id);
+        return messages.length
+          ? [
+              { id: activeConvId, conversationId, title: titleOf(messages), messages },
+              ...without,
+            ]
+          : without;
+      });
+      setMessages(target.messages);
+      setConversationId(target.conversationId);
+      setActiveConvId(target.id);
+      setSourceMessageId(null);
+      setSourceFocus(null);
+    },
+    [busy, activeConvId, archived, messages, conversationId]
+  );
+
+  const conversations = useMemo<ConversationSummary[]>(
+    () => [
+      { id: activeConvId, title: titleOf(messages), active: true, empty: messages.length === 0 },
+      ...archived.map((c) => ({
+        id: c.id,
+        title: c.title,
+        active: false,
+        empty: c.messages.length === 0,
+      })),
+    ],
+    [activeConvId, messages, archived]
   );
 
   const registerViewer = useCallback(() => {
@@ -359,13 +555,27 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     retry,
     editLast,
     questionFor,
+    conversations,
+    activeConversationId: activeConvId,
+    newConversation,
+    switchConversation,
+    composerSeed,
+    seedComposer,
     sourceMessage,
     sourceFocus,
     openSources,
     closeSources,
     toast,
     setToast,
-    forward,
+    ticketDraft,
+    prepareDraftFromAnswer,
+    prepareBlankDraft,
+    updateDraft,
+    cancelDraft,
+    saveDraft,
+    submitDraft,
+    draftBusy,
+    ticketsRevision,
     unread,
     registerViewer,
   };

@@ -84,10 +84,14 @@ export interface TuitionStatus {
   items: TuitionLineItem[];
 }
 
+// PLAN22.6 ticket lifecycle. `draft` is the pre-submit state Vinnie prepares and the
+// student reviews; it is NEVER visible to admin. A ticket only becomes admin-visible once
+// the student explicitly submits it (status `submitted` + confirmed_by_user === true).
 export type TicketStatus =
-  | "open"
-  | "in_progress"
-  | "waiting"
+  | "draft"
+  | "submitted"
+  | "in_review"
+  | "waiting_for_student"
   | "resolved"
   | "closed";
 export type TicketPriority = "low" | "medium" | "high";
@@ -110,14 +114,38 @@ export interface SupportTicket {
   id: string;
   subject: string;
   body: string;
+  // PLAN22.6: `department` doubles as the "assigned office".
   department: string;
   category: TicketCategory;
   status: TicketStatus;
   priority: TicketPriority;
   created_at: string;
   updated_at: string;
+  // PLAN22.6 privacy/routing fields ---------------------------------------------------
+  // True ONLY once the student clicks "Send to Admin". Admin views filter on this so a
+  // draft (confirmed_by_user === false) can never be seen by staff.
+  confirmed_by_user: boolean;
+  // True when Vinnie prepared the draft from a chat answer (vs. the manual request form).
+  created_by_ai: boolean;
+  // The student's opt-in choice to attach a short chat-context summary.
+  include_chat_context: boolean;
+  // Links a submitted ticket back to the chat conversation it came from.
+  source_conversation_id?: string;
+  // The short relevant summary actually attached — present ONLY when include_chat_context
+  // was true at submit time. Never the full transcript, never profile/GPA/tuition.
+  included_context?: string;
+  // ISO timestamp set when the student submits the ticket to admin.
+  submitted_at?: string;
+  // Owner of the ticket (admin attribution).
+  student_id?: string;
   // Set when the ticket was forwarded from a chat answer the bot couldn't verify.
   origin_question?: string;
+  // PLAN23.6.01 SLA + assignment (all optional → a real backend omitting them degrades
+  // gracefully: no SLA icon, no admin meta line).
+  due_at?: string; // ISO first-response/resolution deadline → drives the overdue / due-soon icon
+  sla_hours?: number; // optional SLA window (hours from created_at)
+  assignee?: string; // assigned admin/staff display name (admin board/card/drawer)
+  student_name?: string; // ticket owner display name (admin board/card); student_id already exists
   resolution?: string;
   // Conversation history (student question + admin responses), if any.
   messages?: TicketMessage[];
@@ -130,6 +158,30 @@ export interface SupportTicket {
   deleted?: boolean;
 }
 
+// How the ticket board orders tickets within each status column (PLAN23.6.01 filters panel).
+export type TicketSort = "updated_desc" | "created_desc" | "priority_desc" | "sla_asc";
+
+// SLA health of a ticket relative to its due_at — drives the warning icon + color.
+export type SlaState = "ok" | "due_soon" | "overdue";
+
+// Frontend-only editable buffer the Review Ticket drawer binds to. It is held in
+// ChatProvider React state and NEVER persisted (no DB, no localStorage) until the student
+// explicitly submits — at which point api.submitTicket turns it into a SupportTicket.
+export interface TicketDraft {
+  id: string;
+  subject: string;
+  body: string;
+  department: string;
+  category: TicketCategory;
+  priority: TicketPriority;
+  include_chat_context: boolean;
+  source_conversation_id?: string;
+  origin_question?: string;
+  // A short, reviewable summary (question + answer) shown in the drawer and attached only
+  // if the student keeps "include chat context" ticked. Built by shortSummary() in chat.tsx.
+  context_preview: string;
+}
+
 // ---- Notifications ----------------------------------------------------------
 
 export type NotificationType =
@@ -140,8 +192,12 @@ export type NotificationType =
   | "student_services"
   | "system";
 
+export type NotificationPriority = "low" | "medium" | "high" | "urgent";
+export type NotificationStatus = "draft" | "published" | "archived";
+
 export interface Notification {
   id: string;
+  // `type` doubles as the PLAN22.6 "category" (academic|schedule|deadline|event|…).
   type: NotificationType;
   title: string;
   message: string;
@@ -154,6 +210,38 @@ export interface Notification {
   source_url?: string;
   action_label?: string;
   action_href?: string;
+  // PLAN22.6 admin-authored fields (all optional so existing rows keep compiling) -------
+  priority?: NotificationPriority;
+  target_audience?: string[];
+  deadline?: string; // ISO — drives time-aware suggested-question phase
+  event_date?: string; // ISO
+  start_date?: string; // ISO
+  end_date?: string; // ISO
+  status?: NotificationStatus;
+  created_by?: string;
+  updated_at?: string;
+  // Admin-approved suggested questions generated for this notification.
+  suggested_questions?: SuggestedQuestion[];
+}
+
+// Which "deadline phase" a notification is in relative to today — drives whether Vinnie
+// suggests discovery, action, or recovery questions. See lib/suggestedQuestions.ts.
+export type SuggestedQuestionPhase = "early" | "near_deadline" | "overdue" | "active";
+
+// A timely question Vinnie can suggest, generated (rule-based for MVP) from a notification
+// and approved by an admin before it reaches students.
+export interface SuggestedQuestion {
+  id: string;
+  notification_id: string;
+  question_text: string;
+  category: NotificationType;
+  trigger_phase: SuggestedQuestionPhase;
+  score: number;
+  created_by_ai: boolean;
+  approved_by_admin: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 // ---- Calendar ---------------------------------------------------------------

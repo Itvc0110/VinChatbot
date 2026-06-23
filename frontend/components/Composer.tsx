@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 
 export function Composer({
@@ -8,6 +8,8 @@ export function Composer({
   showChips = true,
   chips,
   note,
+  seedText,
+  seedNonce,
 }: {
   onSend: (text: string) => void;
   onStop: () => void;
@@ -17,12 +19,28 @@ export function Composer({
   chips?: string[];
   // Subtle helper text shown under the field (privacy note).
   note?: string;
+  // "Ask follow-up": when seedNonce changes, set the field to seedText and focus it.
+  seedText?: string;
+  seedNonce?: number;
 }) {
   const { t } = useI18n();
   const promptChips = chips ?? t.quickPrompts;
   const [value, setValue] = useState("");
   const taRef = useRef<HTMLTextAreaElement>(null);
   const trimmed = value.trim();
+
+  // Apply a follow-up seed (and focus) whenever the nonce changes.
+  useEffect(() => {
+    if (seedNonce === undefined) return;
+    setValue(seedText ?? "");
+    const ta = taRef.current;
+    if (ta) {
+      ta.focus();
+      ta.style.height = "auto";
+      ta.style.height = `${ta.scrollHeight}px`;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seedNonce]);
 
   // Auto-grow the textarea up to its CSS max-height, then let it scroll.
   const autoGrow = (el: HTMLTextAreaElement) => {

@@ -65,10 +65,16 @@ export function SourceCard({
         <span className="src-caret">{expanded ? "▾" : "▸"}</span>
       </button>
 
+      {/* Status labels never contradict: a grounded official source reads "Official source";
+          an unverified one reads "Needs confirmation" — we don't show a green ✓ on a source
+          the answer couldn't actually be grounded on. */}
       <div className="src-tags">
         <span className={`tag tag-type tag-type-${type}`}>{t.srcType[type]}</span>
-        {variant === "unverified" && <span className="tag tag-warn">{t.unverifiedTag}</span>}
-        {isOfficial && <span className="tag tag-official">✓ {t.srcOfficial}</span>}
+        {variant === "unverified" ? (
+          <span className="tag tag-warn">{t.unverifiedTag}</span>
+        ) : (
+          isOfficial && <span className="tag tag-official">✓ {t.srcOfficial}</span>
+        )}
         {c.section && <span className="tag">{c.section}</span>}
         {typeof c.page_number === "number" && <span className="tag">p.{c.page_number}</span>}
       </div>

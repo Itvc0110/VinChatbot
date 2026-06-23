@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { Notification, NotificationType } from "@/lib/portalTypes";
 import { Badge, type BadgeTone } from "@/components/ui/primitives";
 import { usePortal } from "@/lib/portalI18n";
 import { relativeTime } from "@/lib/format";
-import { IconBell, IconCheck, IconExternal } from "@/components/shell/icons";
+import { IconBell, IconChat, IconCheck, IconExternal } from "@/components/shell/icons";
 
 const TYPE_TONE: Record<NotificationType, BadgeTone> = {
   academic: "info",
@@ -77,8 +78,19 @@ function NotificationItem({ n, h }: { n: Notification; h: NotificationHandlers }
         <div className="notif-title">{n.title}</div>
         <p className="notif-message">{n.message}</p>
 
-        {(n.source_url || n.action_href) && (
+        {(n.source_url || n.action_href || (n.suggested_questions?.length ?? 0) > 0) && (
           <div className="notif-links">
+            {/* Notification-to-Question: jump into Vinnie pre-loaded with a timely question. */}
+            {n.suggested_questions && n.suggested_questions.length > 0 && (
+              <Link
+                className="notif-action"
+                href={`/student/chat?q=${encodeURIComponent(
+                  n.suggested_questions[0].question_text
+                )}`}
+              >
+                <IconChat size={12} /> {p.askVinnieAbout}
+              </Link>
+            )}
             {n.action_href && (
               <a className="notif-action" href={n.action_href}>
                 {n.action_label ?? p.view} <IconExternal size={12} />

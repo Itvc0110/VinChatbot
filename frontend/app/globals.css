@@ -478,6 +478,19 @@ textarea::placeholder {
   color: var(--accent);
   font-size: 10px;
   font-weight: 700;
+  flex: 0 0 auto;
+}
+/* Couldn't-ground answers: a neutral warning mark, not a misleading green check. */
+.trust-mark.warn {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+.drawer-sub {
+  display: block;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--warning);
+  margin-top: 1px;
 }
 
 /* ---------- chat ---------- */
@@ -632,6 +645,17 @@ textarea::placeholder {
     opacity: 1;
     transform: translateY(-3px);
   }
+}
+
+/* pre-reveal status: dots + one honest line ("Searching official VinUni sources…") */
+.stream-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.stream-status-label {
+  color: var(--muted-foreground);
+  font-size: var(--fs-sm);
 }
 
 /* ---------- chips (state + confidence) ---------- */
@@ -924,6 +948,13 @@ textarea::placeholder {
 .prompt-chip:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+/* per-answer follow-up suggestion chips (under a settled answer) */
+.followups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
 }
 .composer-field {
   display: flex;

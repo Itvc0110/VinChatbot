@@ -45,6 +45,8 @@ export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => v
 
   const adminNav: NavItem[] = [
     { href: "/admin/dashboard", label: p.nav.adminDashboard, icon: <IconShield /> },
+    { href: "/admin/tickets", label: p.nav.adminTickets, icon: <IconTicket /> },
+    { href: "/admin/notifications", label: p.nav.adminNotifications, icon: <IconBell /> },
     { href: "/admin/sources", label: p.nav.sources, icon: <IconDatabase /> },
     { href: "/admin/upload", label: p.nav.upload, icon: <IconUpload /> },
     { href: "/admin/unanswered", label: p.nav.questions, icon: <IconInbox /> },

@@ -10,6 +10,7 @@ export type NotifFilter =
   | "schedule"
   | "deadline"
   | "event"
+  | "student_services"
   | "system";
 
 const ORDER: NotifFilter[] = [
@@ -20,6 +21,7 @@ const ORDER: NotifFilter[] = [
   "schedule",
   "deadline",
   "event",
+  "student_services",
   "system",
 ];
 

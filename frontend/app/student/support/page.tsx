@@ -1,40 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  AsyncBoundary,
-  Card,
-  PageHeader,
-  SectionHeader,
-  EmptyState,
-  Toast,
-} from "@/components/ui/primitives";
+import { AsyncBoundary, PageHeader, EmptyState, Toast } from "@/components/ui/primitives";
 import {
   TicketFilters,
   DEFAULT_TICKET_FILTERS,
   type TicketFilterState,
 } from "@/components/tickets/TicketFilters";
-import { TicketList, type TicketHandlers } from "@/components/tickets/TicketList";
+import { TicketBoard } from "@/components/tickets/TicketBoard";
+import { type TicketHandlers } from "@/components/tickets/TicketCard";
 import { TicketDetailDrawer } from "@/components/tickets/TicketDetailDrawer";
+import { CreateTicketModal } from "@/components/tickets/CreateTicketModal";
 import { useAsync } from "@/lib/useAsync";
-import { usePortal, DEPARTMENTS } from "@/lib/portalI18n";
+import { usePortal } from "@/lib/portalI18n";
+import { useChat } from "@/lib/chat";
 import {
   getSupportTickets,
-  forwardToAdmin,
+  updateTicketStatus,
   archiveSupportTicket,
   restoreSupportTicket,
   deleteSupportTicket,
 } from "@/lib/api";
-import type { SupportTicket, TicketStatus, TicketCategory } from "@/lib/portalTypes";
+import type { SupportTicket, TicketStatus } from "@/lib/portalTypes";
 import { IconTicket } from "@/components/shell/icons";
-
-const CATEGORIES: TicketCategory[] = [
-  "academic",
-  "schedule",
-  "student_services",
-  "technical",
-  "other",
-];
 
 function matchesVisibility(t: SupportTicket, vis: TicketFilterState["visibility"]): boolean {
   if (vis === "deleted") return !!t.deleted;
@@ -44,23 +32,26 @@ function matchesVisibility(t: SupportTicket, vis: TicketFilterState["visibility"
 
 export default function StudentSupportPage() {
   const { p } = usePortal();
+  const { ticketsRevision } = useChat();
   const loaded = useAsync(getSupportTickets, []);
   const [items, setItems] = useState<SupportTicket[] | null>(null);
   const [filters, setFilters] = useState<TicketFilterState>(DEFAULT_TICKET_FILTERS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  // new-request form
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
-  const [department, setDepartment] = useState(DEPARTMENTS[0]);
-  const [category, setCategory] = useState<TicketCategory>("academic");
-  const [submitting, setSubmitting] = useState(false);
-
+  // Mirror loaded tickets into local state on every successful load (initial + reload).
+  // All mutations also persist to the shared store, so a reload re-syncs cleanly.
   useEffect(() => {
-    if (loaded.status === "success") setItems((cur) => cur ?? loaded.data);
+    if (loaded.status === "success") setItems(loaded.data);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded.status]);
+
+  // A ticket was just sent to admin (via the global Review drawer) — refresh so it appears.
+  useEffect(() => {
+    if (ticketsRevision > 0) loaded.reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticketsRevision]);
 
   const all = items ?? [];
 
@@ -92,8 +83,10 @@ export default function StudentSupportPage() {
     },
   };
 
-  // Status update is frontend-only (no backend route yet).
-  const onSetStatus = (t: SupportTicket, status: TicketStatus) => patch(t.id, { status });
+  const onSetStatus = (t: SupportTicket, status: TicketStatus) => {
+    patch(t.id, { status });
+    updateTicketStatus(t.id, status).catch(() => setToast(p.tickets.actionFailed));
+  };
 
   const visible = all
     .filter((t) => matchesVisibility(t, filters.visibility))
@@ -110,123 +103,38 @@ export default function StudentSupportPage() {
 
   const selected = all.find((t) => t.id === selectedId) ?? null;
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!subject.trim() || !body.trim()) return;
-    setSubmitting(true);
-    try {
-      const ticket = await forwardToAdmin({
-        subject: subject.trim(),
-        body: body.trim(),
-        department,
-        category,
-      });
-      setItems((cur) => [ticket, ...(cur ?? [])]);
-      setToast(p.sup.ticketCreated(ticket.id, p.enums.department[department] ?? department));
-      setSubject("");
-      setBody("");
-    } catch {
-      setToast(p.sup.submitFailed);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   return (
     <div className="page-inner">
-      <PageHeader title={p.tickets.title} />
-      <TicketFilters value={filters} onChange={setFilters} />
+      <PageHeader
+        title={p.tickets.title}
+        description={p.tickets.subtitle}
+        actions={
+          <button className="btn btn-primary" onClick={() => setCreating(true)}>
+            + {p.tickets.newTicket}
+          </button>
+        }
+      />
 
-      <div className="grid cols-2-1" style={{ marginTop: 16 }}>
-        <div>
-          <AsyncBoundary state={loaded} onRetry={loaded.reload}>
-            {() =>
-              all.length === 0 ? (
-                <EmptyState
-                  icon={<IconTicket size={28} />}
-                  title={p.sup.noTicketsTitle}
-                  description={p.sup.noTicketsDesc}
-                />
-              ) : visible.length === 0 ? (
-                <EmptyState icon={<IconTicket size={28} />} title={p.tickets.noMatch} />
-              ) : (
-                <TicketList items={visible} handlers={handlers} />
-              )
-            }
-          </AsyncBoundary>
-        </div>
+      <TicketFilters value={filters} onChange={setFilters} variant="student" />
 
-        <Card as="section" className="pad-lg">
-          <SectionHeader title={p.sup.newRequest} />
-          <form className="form-grid" onSubmit={submit}>
-            <div className="field">
-              <label className="field-label" htmlFor="t-subject">
-                {p.sup.subject}
-              </label>
-              <input
-                id="t-subject"
-                className="input"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder={p.sup.subjectPlaceholder}
-              />
-            </div>
-            <div className="field">
-              <label className="field-label" htmlFor="t-dept">
-                {p.sup.department}
-              </label>
-              <select
-                id="t-dept"
-                className="select"
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-              >
-                {DEPARTMENTS.map((d) => (
-                  <option key={d} value={d}>
-                    {p.enums.department[d] ?? d}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label className="field-label" htmlFor="t-cat">
-                {p.tickets.categoryLabel}
-              </label>
-              <select
-                id="t-cat"
-                className="select"
-                value={category}
-                onChange={(e) => setCategory(e.target.value as TicketCategory)}
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {p.enums.ticketCategory[c]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label className="field-label" htmlFor="t-body">
-                {p.sup.details}
-              </label>
-              <textarea
-                id="t-body"
-                className="textarea"
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                placeholder={p.sup.detailsPlaceholder}
-              />
-            </div>
-            <button
-              className="btn btn-primary"
-              type="submit"
-              disabled={submitting || !subject.trim() || !body.trim()}
-            >
-              {submitting ? p.sup.submitting : p.sup.submit}
-            </button>
-          </form>
-        </Card>
-      </div>
+      <AsyncBoundary state={loaded} onRetry={loaded.reload}>
+        {() =>
+          all.length === 0 ? (
+            <EmptyState
+              icon={<IconTicket size={28} />}
+              title={p.sup.noTicketsTitle}
+              description={p.sup.noTicketsDesc}
+            />
+          ) : (
+            <TicketBoard
+              variant="student"
+              items={visible}
+              handlers={handlers}
+              sort={filters.sort}
+            />
+          )
+        }
+      </AsyncBoundary>
 
       <TicketDetailDrawer
         ticket={selected}
@@ -236,6 +144,8 @@ export default function StudentSupportPage() {
         onRestore={handlers.onRestore}
         onDelete={handlers.onDelete}
       />
+
+      <CreateTicketModal open={creating} onClose={() => setCreating(false)} />
 
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
     </div>

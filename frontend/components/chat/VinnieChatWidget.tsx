@@ -5,21 +5,29 @@ import Link from "next/link";
 import { ChatColumn } from "@/components/ChatColumn";
 import { SourceDrawer } from "@/components/SourceDrawer";
 import { ConnectedAnswerActions } from "./ConnectedAnswerActions";
-import { Toast } from "@/components/ui/primitives";
 import { useChat } from "@/lib/chat";
 import { usePortal } from "@/lib/portalI18n";
 import { useI18n } from "@/lib/i18n";
+import { useAsync } from "@/lib/useAsync";
+import { getActiveSuggestedQuestions } from "@/lib/api";
 import { IconChat } from "@/components/shell/icons";
 
 // Compact chat panel anchored bottom-right (full-screen sheet on mobile). Shares the same
 // conversation + source drawer as the full Ask Vinnie page via useChat().
 export function VinnieChatWidget({ onClose }: { onClose: () => void }) {
-  const { p } = usePortal();
+  const { p, lang } = usePortal();
   const { t } = useI18n();
   const chat = useChat();
 
   // Mark the widget as an open surface (clears the unread badge while it's visible).
   useEffect(() => chat.registerViewer(), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Notification-driven suggested prompts (top 3), localized, falling back to the static set.
+  const suggested = useAsync(() => getActiveSuggestedQuestions(lang), [lang]);
+  const chips =
+    suggested.status === "success" && suggested.data.length > 0
+      ? suggested.data.map((q) => q.question_text)
+      : p.chatSuggested;
 
   return (
     <div className="vinnie-widget" role="dialog" aria-label="Vinnie">
@@ -68,9 +76,11 @@ export function VinnieChatWidget({ onClose }: { onClose: () => void }) {
         onEditLast={chat.editLast}
         onOpenSources={chat.openSources}
         renderActions={(m) => <ConnectedAnswerActions message={m} />}
-        composerChips={p.chatSuggested.slice(0, 3)}
+        composerChips={chips.slice(0, 3)}
         note={t.privacyNote}
         showHead={false}
+        composerSeedText={chat.composerSeed?.text}
+        composerSeedNonce={chat.composerSeed?.nonce}
       />
 
       <SourceDrawer
@@ -78,8 +88,6 @@ export function VinnieChatWidget({ onClose }: { onClose: () => void }) {
         focus={chat.sourceFocus}
         onClose={chat.closeSources}
       />
-
-      {chat.toast && <Toast message={chat.toast} onClose={() => chat.setToast(null)} />}
     </div>
   );
 }

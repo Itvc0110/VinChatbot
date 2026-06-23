@@ -51,7 +51,8 @@ export function SourceDrawer({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const cardVariant = resp && deriveState(resp) === "grounded" ? "grounded" : "unverified";
+  const grounded = !!resp && deriveState(resp) === "grounded";
+  const cardVariant = grounded ? "grounded" : "unverified";
   cardRefs.current = [];
 
   return (
@@ -69,10 +70,13 @@ export function SourceDrawer({
         aria-label={t.drawerTitle}
       >
         <div className="source-drawer-head">
-          <span className="trust-mark" aria-hidden="true">
-            ✓
+          <span className={`trust-mark ${grounded ? "" : "warn"}`} aria-hidden="true">
+            {grounded ? "✓" : "!"}
           </span>
-          <span className="source-drawer-title">{t.drawerTitle}</span>
+          <span className="source-drawer-title">
+            {grounded ? t.drawerTitle : t.drawerTitleUnverified}
+            {!grounded && <span className="drawer-sub">{t.confidenceLow}</span>}
+          </span>
           <button
             className="source-drawer-close"
             onClick={onClose}

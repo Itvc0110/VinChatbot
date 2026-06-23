@@ -16,6 +16,8 @@ export interface Strings {
   themeLight: string;
   themeDark: string;
   retrieving: string;
+  generating: string;
+  regenerate: string;
 
   welcomeGreeting: string;
   welcomeIntro: string;
@@ -33,6 +35,8 @@ export interface Strings {
   noVerifiedBody: string;
   privacyNote: string;
   drawerTitle: string;
+  drawerTitleUnverified: string;
+  confidenceLow: string;
   srcClose: string;
   srcOpen: string;
   srcOfficial: string;
@@ -101,7 +105,9 @@ const en: Strings = {
   langName: { en: "EN", vi: "VI" },
   themeLight: "Switch to light mode",
   themeDark: "Switch to dark mode",
-  retrieving: "Searching official sources…",
+  retrieving: "Searching official VinUni sources…",
+  generating: "Generating verified answer…",
+  regenerate: "Regenerate",
 
   welcomeGreeting: "Hi! I'm VinChatbot",
   welcomeIntro:
@@ -125,9 +131,11 @@ const en: Strings = {
   privacyNote:
     "Vinnie may use your student profile, schedule, notifications, and official VinUni sources when needed.",
   drawerTitle: "Sources for this answer",
+  drawerTitleUnverified: "Retrieved sources",
+  confidenceLow: "Answer confidence: Low",
   srcClose: "Close",
   srcOpen: "Open source",
-  srcOfficial: "Official",
+  srcOfficial: "Official source",
   srcType: { pdf: "PDF", url: "URL", database: "Database", official: "Official page" },
 
   placeholder: "Ask about academics, deadlines, fees, services… (EN or VI)",
@@ -159,7 +167,7 @@ const en: Strings = {
   relatedUnverified: (n) => `Related — unverified (${n})`,
   unverifiedNote:
     "Retrieved but not confirmed to support an answer. Treat as leads, not facts.",
-  unverifiedTag: "unverified",
+  unverifiedTag: "Needs confirmation",
   showPassage: "Show the full passage",
   untitledSource: "Untitled source",
 
@@ -203,7 +211,9 @@ const vi: Strings = {
   langName: { en: "EN", vi: "VI" },
   themeLight: "Chuyển sang nền sáng",
   themeDark: "Chuyển sang nền tối",
-  retrieving: "Đang tìm trong nguồn chính thức…",
+  retrieving: "Đang tìm trong nguồn chính thức VinUni…",
+  generating: "Đang tạo câu trả lời đã xác minh…",
+  regenerate: "Tạo lại",
 
   welcomeGreeting: "Xin chào! Mình là VinChatbot",
   welcomeIntro:
@@ -227,9 +237,11 @@ const vi: Strings = {
   privacyNote:
     "Vinnie có thể dùng hồ sơ sinh viên, lịch học, thông báo và nguồn chính thức của VinUni khi cần.",
   drawerTitle: "Nguồn cho câu trả lời này",
+  drawerTitleUnverified: "Nguồn tham khảo",
+  confidenceLow: "Độ tin cậy câu trả lời: Thấp",
   srcClose: "Đóng",
   srcOpen: "Mở nguồn",
-  srcOfficial: "Chính thức",
+  srcOfficial: "Nguồn chính thức",
   srcType: { pdf: "PDF", url: "URL", database: "Cơ sở dữ liệu", official: "Trang chính thức" },
 
   placeholder: "Hỏi về học vụ, hạn chót, học phí, dịch vụ… (Anh hoặc Việt)",
@@ -261,7 +273,7 @@ const vi: Strings = {
   relatedUnverified: (n) => `Liên quan — chưa xác minh (${n})`,
   unverifiedNote:
     "Được truy xuất nhưng chưa xác nhận là căn cứ cho câu trả lời. Xem như gợi ý, không phải dữ kiện.",
-  unverifiedTag: "chưa xác minh",
+  unverifiedTag: "Cần xác nhận",
   showPassage: "Xem toàn bộ đoạn trích",
   untitledSource: "Nguồn chưa có tiêu đề",
 

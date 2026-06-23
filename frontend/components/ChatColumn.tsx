@@ -18,6 +18,8 @@ export function ChatColumn({
   composerChips,
   note,
   showHead = true,
+  composerSeedText,
+  composerSeedNonce,
 }: {
   messages: ChatMessage[];
   busy: boolean;
@@ -29,12 +31,15 @@ export function ChatColumn({
   onEditLast: (text: string) => void;
   // Open the shared source drawer for message `messageId`, focused on citation `idx`.
   onOpenSources: (messageId: string, idx: number) => void;
-  // Portal-only: builds the per-answer action row (calendar/reminder/forward).
+  // Portal-only: builds the per-answer action row (calendar/reminder/prepare-ticket/…).
   renderActions?: (m: ChatMessage) => React.ReactNode;
   composerChips?: string[];
   // Subtle helper text shown under the composer (e.g. the privacy note).
   note?: string;
   showHead?: boolean;
+  // "Ask follow-up" seed forwarded to the Composer.
+  composerSeedText?: string;
+  composerSeedNonce?: number;
 }) {
   const { t } = useI18n();
   const endRef = useRef<HTMLDivElement>(null);
@@ -53,7 +58,7 @@ export function ChatColumn({
             message={m}
             conversationId={conversationId}
             isLastUser={m.id === lastUserId}
-            onRetry={m.error ? () => onRetry(m.id) : undefined}
+            onRetry={m.error || m.cancelled ? () => onRetry(m.id) : undefined}
             onEdit={m.id === lastUserId ? onEditLast : undefined}
             onOpenSources={(idx) => onOpenSources(m.id, idx)}
             extraActions={renderActions?.(m)}
@@ -61,7 +66,15 @@ export function ChatColumn({
         ))}
         <div ref={endRef} />
       </div>
-      <Composer onSend={onSend} onStop={onStop} busy={busy} chips={composerChips} note={note} />
+      <Composer
+        onSend={onSend}
+        onStop={onStop}
+        busy={busy}
+        chips={composerChips}
+        note={note}
+        seedText={composerSeedText}
+        seedNonce={composerSeedNonce}
+      />
     </div>
   );
 }

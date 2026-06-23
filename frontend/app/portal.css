@@ -907,6 +907,18 @@ table.data-table {
   border-color: color-mix(in srgb, var(--success) 30%, transparent);
   background: var(--success-bg);
 }
+/* Primary action (Ask follow-up) — the one emphasised next step. */
+.answer-action.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.answer-action.primary:hover {
+  background: var(--accent-strong, var(--accent));
+  border-color: var(--accent-strong, var(--accent));
+  color: #fff;
+  filter: brightness(1.05);
+}
 
 /* personalized banner inside a user/answer */
 .personal-tag {
@@ -1565,16 +1577,19 @@ table.data-table {
   gap: 6px;
   font-size: var(--fs-xs);
   font-weight: 600;
-  border: 1px solid var(--accent-border);
-  background: var(--accent-tint);
-  color: var(--accent);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted-foreground);
   border-radius: var(--radius-pill);
   padding: 5px 12px;
   cursor: pointer;
-  transition: background var(--dur) var(--ease);
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
 }
 .cite-sources-btn:hover {
-  background: var(--accent-tint-strong);
+  background: var(--accent-tint);
+  color: var(--accent);
+  border-color: var(--accent-border);
 }
 .cite-chips {
   display: flex;
@@ -1585,7 +1600,9 @@ table.data-table {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  max-width: 320px;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
   font-size: var(--fs-xs);
   border: 1px solid var(--border);
   background: var(--surface-2);
@@ -1613,10 +1630,6 @@ table.data-table {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 220px;
-}
-.cite-chip-sec {
-  color: var(--faint);
-  white-space: nowrap;
 }
 
 /* no verified data state */
@@ -2451,13 +2464,24 @@ table.data-table {
 .ticket-filters {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
+}
+/* Override the global `.input/.select { width:100% }` so each control sizes to its content
+   and they sit side-by-side on ONE row instead of stacking vertically. */
+.ticket-filters .select {
+  width: auto;
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+.ticket-filters .input {
+  width: auto;
 }
 .ticket-search {
   flex: 1 1 220px;
   min-width: 180px;
 }
-.ticket-filters .select {
+.ticket-filters input[type="date"] {
   flex: 0 0 auto;
 }
 .ticket-list {
@@ -2587,7 +2611,98 @@ table.data-table {
   flex-wrap: wrap;
 }
 
+/* ---------- PLAN23.6.01 ticket board ---------- */
+/* Large filters panel: a card wrapping the control row + an optional header. */
+.ticket-filters-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.ticket-filters-panel .ticket-filters {
+  margin: 0;
+}
+/* Status-grouped board: N columns on desktop (scrolls horizontally if too narrow),
+   collapses to a single vertical stack on mobile (see responsive block). */
+.ticket-board {
+  display: grid;
+  grid-template-columns: repeat(var(--ticket-cols, 4), minmax(248px, 1fr));
+  gap: 14px;
+  align-items: start;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.ticket-col {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 96px;
+}
+.ticket-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px;
+  font-weight: 700;
+  font-size: var(--fs-sm);
+}
+.ticket-col-count {
+  font-size: var(--fs-xs);
+  color: var(--faint);
+  background: var(--surface-3);
+  border-radius: var(--radius-pill);
+  padding: 1px 9px;
+}
+.ticket-col-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* The empty-state primitive sits tight inside a column. */
+.ticket-col .empty-state {
+  padding: 18px 8px;
+}
+/* SLA / overdue marker shown on cards + in the detail drawer. */
+.ticket-sla {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+.ticket-sla.overdue {
+  color: var(--sla-overdue, var(--danger));
+}
+.ticket-sla.due-soon {
+  color: var(--sla-due-soon, var(--warning));
+}
+/* Admin-only meta line on a card (student + assignee). */
+.ticket-meta-admin {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: var(--fs-xs);
+  color: var(--muted-foreground);
+}
+.ticket-meta-admin .unassigned {
+  color: var(--faint);
+  font-style: italic;
+}
+
 /* ---------- responsive ---------- */
+@media (max-width: 860px) {
+  .ticket-board {
+    grid-template-columns: 1fr; /* vertical sections on mobile */
+  }
+}
+/* ---------- responsive (existing) ---------- */
 @media (max-width: 900px) {
   .cal-layout {
     grid-template-columns: 1fr;
@@ -2619,4 +2734,182 @@ table.data-table {
     right: 16px;
     bottom: 16px;
   }
+}
+
+/* ---- PLAN22.6: Review Ticket drawer + suggested-question review ---- */
+.review-banner {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  color: var(--foreground);
+}
+.review-context {
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  color: var(--muted-foreground);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  max-height: 160px;
+  overflow: auto;
+}
+.review-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.review-check input {
+  margin-top: 3px;
+}
+.review-check-help {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-xs);
+  color: var(--muted-foreground);
+}
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+.sq-review {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.sq-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.sq-row .input {
+  flex: 1;
+  min-width: 180px;
+}
+
+/* ---- PLAN22.6.2 §2: conversation-history rail (full Ask Vinnie page) ---- */
+.convo-rail {
+  flex: 0 0 248px;
+  width: 248px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  min-height: 0;
+}
+.convo-rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 14px 10px;
+}
+.convo-rail-title {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+.convo-new {
+  white-space: nowrap;
+}
+.convo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.convo-item {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: var(--fs-sm);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.convo-item:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--foreground);
+}
+.convo-item.active {
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-weight: 600;
+  cursor: default;
+}
+.convo-empty {
+  padding: 4px 14px;
+  font-size: var(--fs-xs);
+  color: var(--faint);
+}
+@media (max-width: 900px) {
+  .convo-rail {
+    display: none;
+  }
+}
+
+/* ---- PLAN22.6.2 §7: polished, unobtrusive scrollbars (not debug UI) ---- */
+.messages,
+.source-drawer-body,
+.detail-body,
+.convo-list,
+.table-wrap {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong, var(--border)) transparent;
+}
+.messages::-webkit-scrollbar,
+.source-drawer-body::-webkit-scrollbar,
+.detail-body::-webkit-scrollbar,
+.convo-list::-webkit-scrollbar,
+.table-wrap::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.messages::-webkit-scrollbar-thumb,
+.source-drawer-body::-webkit-scrollbar-thumb,
+.detail-body::-webkit-scrollbar-thumb,
+.convo-list::-webkit-scrollbar-thumb,
+.table-wrap::-webkit-scrollbar-thumb {
+  background: var(--border-strong, var(--border));
+  border-radius: 8px;
+}
+.messages::-webkit-scrollbar-thumb:hover,
+.source-drawer-body::-webkit-scrollbar-thumb:hover,
+.detail-body::-webkit-scrollbar-thumb:hover,
+.convo-list::-webkit-scrollbar-thumb:hover,
+.table-wrap::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+.messages::-webkit-scrollbar-track,
+.source-drawer-body::-webkit-scrollbar-track,
+.detail-body::-webkit-scrollbar-track,
+.convo-list::-webkit-scrollbar-track,
+.table-wrap::-webkit-scrollbar-track {
+  background: transparent;
 }

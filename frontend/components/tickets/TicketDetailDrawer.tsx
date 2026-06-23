@@ -1,14 +1,20 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { SupportTicket, TicketStatus } from "@/lib/portalTypes";
 import { Badge } from "@/components/ui/primitives";
 import { usePortal } from "@/lib/portalI18n";
 import { formatDateTime } from "@/lib/format";
-import { IconExternal } from "@/components/shell/icons";
-import { STATUS_TONE, PRIORITY_TONE } from "./TicketList";
+import { IconExternal, IconAlert, IconClock } from "@/components/shell/icons";
+import { STATUS_TONE, PRIORITY_TONE, slaState } from "./TicketBadge";
 
-const STATUSES: TicketStatus[] = ["open", "in_progress", "waiting", "resolved", "closed"];
+const STATUSES: TicketStatus[] = [
+  "submitted",
+  "in_review",
+  "waiting_for_student",
+  "resolved",
+  "closed",
+];
 
 export function TicketDetailDrawer({
   ticket,
@@ -17,6 +23,8 @@ export function TicketDetailDrawer({
   onArchive,
   onRestore,
   onDelete,
+  mode = "student",
+  onRespond,
 }: {
   ticket: SupportTicket | null;
   onClose: () => void;
@@ -24,10 +32,14 @@ export function TicketDetailDrawer({
   onArchive: (t: SupportTicket) => void;
   onRestore: (t: SupportTicket) => void;
   onDelete: (t: SupportTicket) => void;
+  // "admin" shows a Respond box + hides the student-only archive/delete controls.
+  mode?: "student" | "admin";
+  onRespond?: (t: SupportTicket, body: string) => void;
 }) {
   const { p, lang } = usePortal();
   const locale = lang === "vi" ? "vi-VN" : "en-US";
   const open = !!ticket;
+  const [reply, setReply] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -73,7 +85,36 @@ export function TicketDetailDrawer({
                   {p.enums.ticketPriority[ticket.priority]}
                 </Badge>
                 <span className="ticket-cat">{p.enums.ticketCategory[ticket.category]}</span>
+                {(() => {
+                  const sla = slaState(ticket);
+                  if (sla === "ok") return null;
+                  const overdue = sla === "overdue";
+                  return (
+                    <span className={`ticket-sla ${overdue ? "overdue" : "due-soon"}`}>
+                      {overdue ? <IconAlert size={13} /> : <IconClock size={13} />}
+                      {overdue ? p.overdue : p.tickets.dueSoon}
+                      {ticket.due_at && ` · ${p.tickets.dueOn(formatDateTime(ticket.due_at, locale))}`}
+                    </span>
+                  );
+                })()}
               </div>
+
+              {mode === "admin" && (
+                <div className="ticket-meta-admin">
+                  {ticket.student_name && (
+                    <span>
+                      {p.adminTickets.colStudent}: {ticket.student_name}
+                    </span>
+                  )}
+                  <span>
+                    {p.adminTickets.departmentLabel}:{" "}
+                    {p.enums.department[ticket.department] ?? ticket.department}
+                  </span>
+                  <span className={ticket.assignee ? "" : "unassigned"}>
+                    {p.adminTickets.assignedTo}: {ticket.assignee ?? p.adminTickets.unassigned}
+                  </span>
+                </div>
+              )}
 
               {ticket.origin_question && (
                 <div className="ticket-origin">
@@ -127,6 +168,39 @@ export function TicketDetailDrawer({
                 </div>
               )}
 
+              {mode === "admin" && ticket.include_chat_context && ticket.included_context && (
+                <div className="ticket-origin" style={{ marginTop: 12 }}>
+                  <div className="field-label">{p.adminTickets.includedContext}</div>
+                  <pre className="review-context">{ticket.included_context}</pre>
+                </div>
+              )}
+
+              {mode === "admin" && onRespond && (
+                <div style={{ marginTop: 14 }}>
+                  <label className="field-label" htmlFor="ticket-reply">
+                    {p.adminTickets.respond}
+                  </label>
+                  <textarea
+                    id="ticket-reply"
+                    className="textarea"
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                    placeholder={p.adminTickets.respondPlaceholder}
+                  />
+                  <button
+                    className="btn btn-outline btn-sm"
+                    style={{ marginTop: 8 }}
+                    disabled={!reply.trim()}
+                    onClick={() => {
+                      onRespond(ticket, reply.trim());
+                      setReply("");
+                    }}
+                  >
+                    {p.adminTickets.sendReply}
+                  </button>
+                </div>
+              )}
+
               <div className="ticket-detail-actions">
                 <label className="field-label" htmlFor="ticket-status">
                   {p.tickets.statusLabel}
@@ -144,24 +218,26 @@ export function TicketDetailDrawer({
                   ))}
                 </select>
 
-                <div className="ticket-detail-buttons">
-                  {ticket.deleted ? (
-                    <button className="btn btn-outline btn-sm" onClick={() => onRestore(ticket)}>
-                      {p.tickets.restore}
+                {mode === "student" && (
+                  <div className="ticket-detail-buttons">
+                    {ticket.deleted ? (
+                      <button className="btn btn-outline btn-sm" onClick={() => onRestore(ticket)}>
+                        {p.tickets.restore}
+                      </button>
+                    ) : ticket.archived ? (
+                      <button className="btn btn-outline btn-sm" onClick={() => onRestore(ticket)}>
+                        {p.tickets.restore}
+                      </button>
+                    ) : (
+                      <button className="btn btn-outline btn-sm" onClick={() => onArchive(ticket)}>
+                        {p.tickets.archive}
+                      </button>
+                    )}
+                    <button className="btn btn-sm btn-danger-soft" onClick={() => onDelete(ticket)}>
+                      {p.tickets.delete}
                     </button>
-                  ) : ticket.archived ? (
-                    <button className="btn btn-outline btn-sm" onClick={() => onRestore(ticket)}>
-                      {p.tickets.restore}
-                    </button>
-                  ) : (
-                    <button className="btn btn-outline btn-sm" onClick={() => onArchive(ticket)}>
-                      {p.tickets.archive}
-                    </button>
-                  )}
-                  <button className="btn btn-sm btn-danger-soft" onClick={() => onDelete(ticket)}>
-                    {p.tickets.delete}
-                  </button>
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           </>

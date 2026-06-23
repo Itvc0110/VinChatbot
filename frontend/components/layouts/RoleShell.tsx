@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/shell/Sidebar";
 import { TopBar } from "@/components/shell/TopBar";
 import { ChatProvider } from "@/lib/chat";
 import { FloatingVinnieButton } from "@/components/chat/FloatingVinnieButton";
+import { StudentChatOverlays } from "@/components/chat/StudentChatOverlays";
 import { usePortal } from "@/lib/portalI18n";
 import type { Role } from "@/lib/auth";
 
@@ -17,6 +18,8 @@ function usePageMeta(role: Role): { title: string; subtitle: string } {
   if (role === "admin") {
     const map: Record<string, string> = {
       "/admin/dashboard": p.nav.adminDashboard,
+      "/admin/tickets": p.nav.adminTickets,
+      "/admin/notifications": p.nav.adminNotifications,
       "/admin/sources": p.nav.sources,
       "/admin/upload": p.nav.upload,
       "/admin/unanswered": p.nav.questions,
@@ -84,6 +87,7 @@ export function RoleShell({ role, children }: { role: Role; children: React.Reac
       <ChatProvider>
         {shell}
         {showFloatingVinnie && <FloatingVinnieButton />}
+        <StudentChatOverlays />
       </ChatProvider>
     );
   }
