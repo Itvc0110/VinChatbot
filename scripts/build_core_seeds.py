@@ -18,8 +18,18 @@ from vinchatbot.app.core.config import get_settings
 from vinchatbot.app.ingest.crawler import SEED_URLS
 
 # Core documents we explicitly want even if discovery misses them.
+# Academic calendars — one PDF per academic year. NOTE: the canonical /2025/06/ path is OVERWRITTEN
+# each year (currently serves AY2026-27); historical years live at their own dated PDF paths, and
+# AY2025-26 survives only as an HTML page (its PDF path was overwritten). Each doc's true academic_year
+# is inferred at ingest from its own title text ("2024 - 2025 ACADEMIC CALENDAR"), not the URL.
 CORE_DOC_URLS = [
-    "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",
+    "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf",  # AY2026-27 (current)
+    "https://policy.vinuni.edu.vn/vinuni-academic-calendar",  # AY2025-26 (HTML; PDF path overwritten)
+    "https://vinuni.edu.vn/wp-content/uploads/2020/07/VinUni-Academic-Calendar_AY24-25_vF.pdf",  # AY2024-25
+    "https://vinuni.edu.vn/wp-content/uploads/2024/01/VinUni-AcademicCalendar_23-24_VF.pdf",  # AY2023-24
+    "https://vinuni.edu.vn/wp-content/uploads/2022/08/VinUni-AcademicCalendar22-23.pdf",  # AY2022-23
+    "https://vinuni.edu.vn/wp-content/uploads/2022/02/VinUni-AcademicCalendar21-22-updated.pdf",  # AY2021-22
+    "https://vinuni.edu.vn/registrar/academic-calendar/",  # registrar calendar hub (discovers latest)
 ]
 
 

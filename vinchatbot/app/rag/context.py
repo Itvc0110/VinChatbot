@@ -8,12 +8,68 @@ from __future__ import annotations
 
 import dataclasses
 import re
+import unicodedata
 from collections.abc import Callable
+from datetime import datetime
 from typing import Any, TypeVar
+
+from vinchatbot.app.core.timeutils import current_academic_context
+from vinchatbot.app.rag.query_engineering import extract_month_years
 
 T = TypeVar("T")
 
 _TERM_WORDS = ("fall", "spring", "summer")
+
+# Topic-targeted canonical preference (Phase 1.20 redesign). The canonical boost lifts the dedicated
+# all-policies detail page over VI governance "magnet" PDFs (VU_TS03/VU_HT03) that the multilingual
+# reranker's same-language bias floats above the (often EN) canonical page for VI queries. To avoid the
+# blanket version's EN regressions (boosting EVERY policy_html demoted the correct doc for off-topic
+# queries), the lift is GATED on a topic match between the query and the page title. These generic
+# structural words must NOT count as a match, else every policy title overlaps every policy query.
+# Accent-less + bilingual (we fold diacritics before comparing).
+_CANONICAL_TOPIC_BOOST = 1.25
+_CANONICAL_STOPWORDS = frozenset(
+    {
+        # EN structural / policy-domain words
+        "policy", "policies", "guideline", "guidelines", "procedure", "procedures",
+        "regulation", "regulations", "rule", "rules", "management", "request", "requests",
+        "form", "forms", "information", "service", "services", "general", "office",
+        "student", "students", "university", "vinuni", "academic", "affairs", "program",
+        "guide", "guidance", "support",
+        # question / function words EN
+        "and", "or", "of", "for", "the", "to", "in", "on", "at", "by", "with", "about",
+        "how", "what", "who", "whom", "when", "where", "which", "why", "is", "are", "do",
+        "does", "can", "may", "my", "your", "you",
+        # VI structural / function words (accent-less; đ folded to d)
+        "chinh", "sach", "quy", "dinh", "huong", "dan", "thu", "tuc", "sinh", "vien",
+        "dai", "hoc", "truong", "ve", "cua", "cho", "la", "co", "duoc", "nao", "gi",
+        "nhu", "khi", "tai", "va", "hoac", "trong", "cac", "nhung", "mot", "ap", "dung",
+        "doi", "tuong", "nguoi", "lam", "bao", "nhieu",
+    }
+)
+
+
+def _fold(text: str) -> str:
+    """Lowercase + strip Vietnamese diacritics (đ->d) so VI/EN tokens compare on a common base."""
+    decomposed = unicodedata.normalize("NFD", (text or "").lower())
+    stripped = "".join(ch for ch in decomposed if unicodedata.category(ch) != "Mn")
+    return stripped.replace("đ", "d")
+
+
+def _salient_terms(text: str) -> set[str]:
+    """Content tokens of `text` for topic matching: folded, length>=3, minus structural stopwords."""
+    return {
+        tok
+        for tok in re.findall(r"[a-z0-9]+", _fold(text))
+        if len(tok) >= 3 and tok not in _CANONICAL_STOPWORDS
+    }
+
+
+def _topic_matches_title(topic_terms: str, title: str) -> bool:
+    """True when the query's salient terms share a content word with the doc title — the gate that
+    keeps the canonical boost TOPIC-TARGETED (only the on-topic canonical page is lifted), not blanket."""
+    title_terms = _salient_terms(title)
+    return bool(title_terms and (_salient_terms(topic_terms) & title_terms))
 
 
 def _rescore(item: Any, value: float) -> Any:
@@ -140,7 +196,19 @@ def apply_metadata_boosts(
         return chunks
     hints = hints or {}
     q = query.lower()
-    year = (re.search(r"20\d{2}", q) or [None])[0] if re.search(r"20\d{2}", q) else None
+    year_match = re.search(r"20\d{2}", q)
+    year = year_match.group(0) if year_match else None
+    # Phase 1.13: if the query names a month+year, derive the INTENDED academic year (Sep→Aug) so we can
+    # boost the exact AY — fixing the "2026" ⊂ "2026-2027" AND "2025-2026" ambiguity (June 2026 belongs
+    # to AY 2025-2026, not 2026-2027). Falls back to the bare-year substring when only a year is given.
+    intended_ay = None
+    month_years = extract_month_years(query)
+    if month_years:
+        month, yr = month_years[0]
+        try:
+            intended_ay = current_academic_context(datetime(yr, month, 1))[0]
+        except Exception:
+            intended_ay = None
     query_terms = {t for t in _TERM_WORDS if t in q}
 
     rescored: list[Any] = []
@@ -159,7 +227,25 @@ def apply_metadata_boosts(
             factor *= 1.1
         if hints.get("subcategory") and getattr(md, "subcategory", None) == hints["subcategory"]:
             factor *= 1.1
-        if year and (getattr(md, "academic_year", None) or "") and year in md.academic_year:
+        # Topic-targeted canonical preference (Phase 1.20 redesign): lift the dedicated all-policies
+        # detail page (policy_html / financial_policy) over governance-reg PDFs ONLY when its title's
+        # topic overlaps the query — restoring the on-topic canonical page the multilingual reranker's
+        # same-language bias demoted below VI "magnet" PDFs after RRF fusion. `topic_terms` carries the
+        # cross-lingual variants (Lever 1's EN translation) so a VI query matches the EN canonical title;
+        # falls back to the raw query (EN native). Title-gating means OFF-topic canonical pages are NOT
+        # boosted — fixing the blanket version's EN regressions (intern/escalation/conduct).
+        if hints.get("prefer_canonical") and getattr(md, "document_type", None) in (
+            "policy_html",
+            "financial_policy",
+        ):
+            topic = hints.get("topic_terms") or query
+            if _topic_matches_title(topic, getattr(md, "document_title", None) or ""):
+                factor *= _CANONICAL_TOPIC_BOOST
+        md_ay = getattr(md, "academic_year", None) or ""
+        if intended_ay and md_ay:
+            if md_ay == intended_ay:  # exact AY match (month+year disambiguated) — strong
+                factor *= 1.2
+        elif year and md_ay and year in md_ay:  # bare-year fallback (can't disambiguate the AY)
             factor *= 1.1
         if query_terms and getattr(md, "term", None) and any(t in md.term.lower() for t in query_terms):
             factor *= 1.1

@@ -539,6 +539,32 @@ def parse_spreadsheet_bytes(
 DATE_PATTERN = DATE_TEXT_PATTERN
 
 
+# A dated line becomes a calendar event only if it also names an academic-calendar concept.
+# Broadened in Phase 1.13: the old gate (instruction/deadline/drop/add/exam/holiday/term) silently
+# dropped "Course Evaluation Period", "Commencement", "Orientation", "Registration", "Reading Days"
+# and most Vietnamese holidays (Giỗ Tổ / Quốc Khánh) → those events lost their reshaped absolute
+# date and stayed vulnerable to the year-confusion bug. The DATE_PATTERN requirement still filters
+# out footer/note lines, so a generous concept list is safe here.
+_CALENDAR_EVENT_KEYWORDS: tuple[str, ...] = (
+    # EN — event types / milestones
+    "instruction", "class", "deadline", "drop", "add", "withdraw", "exam", "midterm", "final",
+    "evaluation", "assessment", "registration", "enrollment", "enrolment", "orientation",
+    "commencement", "graduation", "convocation", "holiday", "recess", "vacation", "reading",
+    "makeup", "make-up", "census", "defense", "thesis", "semester", "term", "fall", "spring",
+    "summer", "winter", "tet", "lunar", "new year", "independence", "reunification",
+    "national day", "commemoration", "festival", "ceremony", "move-in", "check-in",
+    # end-of-term result cycle (Phase 1.13b — these rows ("Marking + Appeal + Grade release",
+    # "Gradebook submission", schedule/timetable releases) were silently dropped, so grade-release
+    # point-lookups had no structured event to match.
+    "marking", "appeal", "grade", "release", "result", "gradebook", "timetable", "schedule",
+    # VN
+    "học kỳ", "kỳ thi", "hạn", "nghỉ", "lễ", "khai giảng", "tốt nghiệp", "đăng ký",
+    "tựu trường", "bắt đầu", "kết thúc", "thi", "đánh giá", "giỗ tổ", "quốc khánh", "tết",
+    "dự kiến", "rút môn", "hủy môn", "học phần", "chấm điểm", "phúc khảo", "công bố điểm",
+    "điểm", "lịch thi", "thời khóa biểu",
+)
+
+
 def extract_calendar_events(raw: RawDocument) -> list[CalendarEvent]:
     events: list[CalendarEvent] = []
     academic_year = raw.metadata.get("academic_year")
@@ -557,38 +583,28 @@ def extract_calendar_events(raw: RawDocument) -> list[CalendarEvent]:
         if not match:
             continue
         lowered = stripped.lower()
-        if not any(
-            keyword in lowered
-            for keyword in [
-                "instruction",
-                "deadline",
-                "drop",
-                "add",
-                "exam",
-                "holiday",
-                "spring",
-                "fall",
-                "summer",
-                "học kỳ",
-                "kỳ thi",
-                "hạn",
-            ]
-        ):
+        if not any(keyword in lowered for keyword in _CALENDAR_EVENT_KEYWORDS):
             continue
-        term = term_hint
+        explicit_term = None
         if "fall" in lowered:
-            term = "Fall"
+            explicit_term = "Fall"
         elif "spring" in lowered:
-            term = "Spring"
+            explicit_term = "Spring"
         elif "summer" in lowered:
-            term = "Summer"
+            explicit_term = "Summer"
+        term = explicit_term or term_hint
         date_text = match.group("date")
         date_start_iso, date_end_iso = normalize_date_range(date_text, raw.metadata.get("academic_year"))
+        event_type = infer_event_type(stripped)
+        # Fill a MISSING term for end-of-term events (e.g. "Marking + Appeal + Grade release" carries no
+        # term label) from the start month, so "Spring grade release" maps to the June row, not Fall's.
+        if not explicit_term and event_type in _END_OF_TERM_TYPES and date_start_iso:
+            term = _term_from_month(date_start_iso) or term
         events.append(
             CalendarEvent(
                 event_name=stripped,
                 date_start=date_text,
-                event_type=infer_event_type(stripped),
+                event_type=event_type,
                 date_text_original=date_text,
                 date_start_iso=date_start_iso,
                 date_end_iso=date_end_iso,
@@ -1247,7 +1263,10 @@ def _date_token_to_iso(token: str, academic_year_bounds: tuple[int, int] | None)
         start_year, end_year = academic_year_bounds
         year = start_year if month >= 9 else end_year
     else:
-        year = 2025 if month >= 9 else 2026
+        # No explicit year in the token and no academic-year context → don't guess. The old
+        # hardcoded 2025/2026 silently mislabeled events from other years (Phase 1.13). A
+        # missing ISO date just means the chunk falls back to its academic-year label.
+        return None
     return f"{year:04d}-{month:02d}-{int(match.group('day')):02d}"
 
 
@@ -1260,12 +1279,54 @@ def _academic_year_bounds(academic_year: str | None) -> tuple[int, int] | None:
     return None
 
 
+_AY_RANGE_RE = re.compile(r"(20\d{2})\s*[-–/]\s*(20\d{2})")
+_AY_SHORT_RE = re.compile(r"\bAY\s*'?(\d{2})\s*[-–/]\s*'?(\d{2})\b", re.IGNORECASE)
+
+
+def _consecutive_ay(haystack: str) -> str | None:
+    """First '20xx-20yy' where yy == xx+1 — a real academic year, not an incidental range
+    such as a '2020-2025' copyright span."""
+    for match in _AY_RANGE_RE.finditer(haystack):
+        start, end = int(match.group(1)), int(match.group(2))
+        if end == start + 1:
+            return f"{start}-{end}"
+    return None
+
+
 def infer_academic_year(text: str, url: str) -> str | None:
-    match = re.search(r"(20\d{2})\s*[-/]\s*(20\d{2})", f"{text} {url}")
-    if match:
-        return f"{match.group(1)}-{match.group(2)}"
-    if "2025" in text and "2026" in text:
-        return "2025-2026"
+    """Best-effort academic year for a calendar doc, hardened against mislabeling (Phase 1.13).
+
+    Priority: (1) a consecutive year-range in the TITLE region (near an 'academic calendar' /
+    'academic year' cue, else the first 400 chars) — that's the doc's OWN academic year; (2) a
+    short 'AY24-25' form in the text or URL; (3) a consecutive range anywhere in the body;
+    (4) a 'NN-NN' year hint in the URL path. Returns None when nothing confident is found —
+    it never guesses a hardcoded year (the old `"2025" in text and "2026" in text` coin-flip
+    mislabeled every event when both years merely appeared somewhere in the doc).
+    """
+    lowered = text.lower()
+    for cue in ("academic calendar", "academic year"):
+        idx = lowered.find(cue)
+        if idx != -1:
+            found = _consecutive_ay(text[max(0, idx - 60): idx + 120])
+            if found:
+                return found
+    found = _consecutive_ay(text[:400])
+    if found:
+        return found
+    for source in (text, url):
+        match = _AY_SHORT_RE.search(source)
+        if match:
+            start, end = 2000 + int(match.group(1)), 2000 + int(match.group(2))
+            if end == start + 1:
+                return f"{start}-{end}"
+    found = _consecutive_ay(text)
+    if found:
+        return found
+    url_short = re.search(r"\D(\d{2})[-_](\d{2})\D", f" {url} ")
+    if url_short:
+        start, end = 2000 + int(url_short.group(1)), 2000 + int(url_short.group(2))
+        if end == start + 1:
+            return f"{start}-{end}"
     return None
 
 
@@ -1277,13 +1338,48 @@ def infer_event_type(text: str) -> str:
         return "add_transfer_deadline"
     if "instruction begins" in lowered:
         return "instruction_begins"
-    if "exam" in lowered:
+    # End-of-term cycle — distinguished so point-lookups don't confuse these near-identical rows
+    # (Phase 1.13b): grade release ≠ evaluation ≠ exam-schedule-release ≠ exam period.
+    if "marking" in lowered or "appeal" in lowered or "grade release" in lowered:
+        return "grade_release"
+    if "evaluation" in lowered:
+        return "evaluation_period"
+    if ("exam" in lowered or "lịch thi" in lowered) and ("schedule" in lowered or "release" in lowered):
+        return "exam_schedule_release"
+    if "exam" in lowered or "kỳ thi" in lowered:
         return "exam_period"
+    if "timetable" in lowered:
+        return "timetable_release"
+    if "gradebook" in lowered:
+        return "gradebook"
     if "holiday" in lowered or "tet" in lowered or "lunar" in lowered:
         return "holiday"
     if "registration" in lowered or "enrollment" in lowered:
         return "registration"
     return "academic_event"
+
+
+# End-of-term event types whose calendar rows often omit the term label; the term is inferred from the
+# start month so e.g. "Spring grade release" maps to the June row, not Fall's January row.
+_END_OF_TERM_TYPES = frozenset(
+    {"grade_release", "evaluation_period", "exam_period", "exam_schedule_release"}
+)
+
+
+def _term_from_month(iso_date: str) -> str | None:
+    """Map an end-of-term event's start month to its term (VinUni: Fall exams ~Dec-Feb, Spring ~May-Jul,
+    Summer ~Aug-Sep). Only used to FILL a missing term, never to override a label printed in the source."""
+    match = re.match(r"\d{4}-(\d{2})", iso_date or "")
+    if not match:
+        return None
+    month = int(match.group(1))
+    if month in (12, 1, 2):
+        return "Fall"
+    if month in (5, 6, 7):
+        return "Spring"
+    if month in (8, 9):
+        return "Summer"
+    return None
 
 
 def infer_fee_type(text: str) -> str:

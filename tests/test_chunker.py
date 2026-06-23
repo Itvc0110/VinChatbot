@@ -1,8 +1,41 @@
 import io
 
-from vinchatbot.app.ingest.chunker import ChunkingConfig, chunk_document
+from vinchatbot.app.ingest.chunker import (
+    ChunkingConfig,
+    _calendar_event_to_text,
+    chunk_document,
+)
 from vinchatbot.app.ingest.parsers import parse_docx
 from vinchatbot.app.schemas.document import RawDocument
+
+
+def test_calendar_event_chunk_leads_with_absolute_month_year():
+    # Phase 1.13: the chunk must lead with the ABSOLUTE month+year (both languages) derived from the ISO
+    # date, not the ambiguous "2026-2027" + "15-Jun" — that was the June-2026-returns-June-2027 bug.
+    text = _calendar_event_to_text(
+        {
+            "event_name": "Summer final exams",
+            "academic_year": "2026-2027",
+            "term": "Summer",
+            "date_start_iso": "2027-06-15",
+            "date_end_iso": "2027-06-19",
+            "date_text_original": "15-Jun",
+            "event_type": "exam",
+        }
+    )
+    assert "June 2027" in text  # absolute EN form (matches a 1.12 date-normalized query variant)
+    assert "tháng 6 năm 2027" in text  # absolute VI form
+    assert text.index("June 2027") < text.index("Summer final exams")  # it LEADS the chunk
+    assert "2026-2027" in text  # AY label retained, just no longer the headline
+
+
+def test_calendar_event_chunk_falls_back_without_iso():
+    # No parseable ISO → fall back to the academic-year scope (no crash, no bogus month).
+    text = _calendar_event_to_text(
+        {"event_name": "Convocation ceremony", "academic_year": "2026-2027", "term": "Fall"}
+    )
+    assert "Convocation ceremony" in text
+    assert "2026-2027" in text
 
 
 def test_chunker_preserves_source_heading_and_page_metadata():

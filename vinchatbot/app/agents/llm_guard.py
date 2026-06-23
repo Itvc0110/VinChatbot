@@ -7,9 +7,11 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 
 from vinchatbot.app.agents.guardrails import GuardrailDecision, normalize_for_matching
 from vinchatbot.app.core.config import Settings, get_settings
+from vinchatbot.app.core.observability import record_llm_usage
 
 logger = logging.getLogger(__name__)
 
@@ -74,12 +76,16 @@ async def classify_with_llm(
         if model is None:
             from vinchatbot.app.llm.openrouter_chat import build_chat_model
 
-            model = build_chat_model(settings, model=settings.guard_model)
+            model = build_chat_model(settings, model=settings.guard_model, temperature=0.0)
+        started = time.perf_counter()
         response = await model.ainvoke(
             [
                 {"role": "system", "content": GUARD_SYSTEM},
                 {"role": "user", "content": message},
             ]
+        )
+        record_llm_usage(
+            "llm_guard", settings.guard_model, response, (time.perf_counter() - started) * 1000
         )
         label = parse_label(_message_content(response))
         return GuardrailDecision(

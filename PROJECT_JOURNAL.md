@@ -1,12 +1,12 @@
 # VinChatbot — Project Journal (read this first)
 
-Single read-back file for context. Last updated: 2026-06-16.
-Detailed docs: [PRD.md](PRD.md) · [UPDATE_PLAN.md](UPDATE_PLAN.md) (roadmap) ·
+Single read-back file for context. Last updated: 2026-06-17.
+Detailed docs: [PRD.md](PRD.md) · [BRIEF.md](BRIEF.md) · [UPDATE_PLAN.md](UPDATE_PLAN.md) (roadmap +
+AI-depth backlog — single source of truth) · [worklog.md](worklog.md) (Phase-1 submission record) ·
 [ARCHITECTURE.md](ARCHITECTURE.md) (flow diagrams, incl. §2b retrieval) · LOGS/PHASE1.0–1.4 ·
 [PHASE1.5_LOG.md](LOGS/PHASE1.5_LOG.md) (observability) · [PHASE1.6_LOG.md](LOGS/PHASE1.6_LOG.md)
-(rerank cost) · [PHASE1.7_LOG.md](LOGS/PHASE1.7_LOG.md) (eval expansion + adaptive retrieval) ·
-[FUTURE_IMPROVEMENTS.md](FUTURE_IMPROVEMENTS.md) (whole-project assessment + roadmap) ·
-[todo.md](todo.md) (deferred Vietnamese work).
+(rerank cost) · [PHASE1.7_LOG.md](LOGS/PHASE1.7_LOG.md) (eval expansion + adaptive retrieval +
+cross-lingual) · [todo.md](todo.md) (deferred Vietnamese work).
 
 ## What this is
 RAG + multi-agent chatbot answering VinUni students' questions on policies, academic
@@ -82,18 +82,18 @@ stretch. Deployed-app (auth/UI/admin) required by brief but not built yet.
 
 ## Current state (2026-06-16)
 - Production = main Qdrant collection **`vinuni_documents` (7,957 points, plain-text)**, untouched.
-- **Phase 1 (sub-phases 1.0–1.7) DONE** (logs in `LOGS/`). 1.5 observability, 1.6 rerank-cost, and
-  1.7 adaptive retrieval are all shipped (flag-gated, one-flag revert each).
-- **Score baseline — READ THIS (the number changed meaning in 1.7):** the eval set grew from **86 →
-  130 cases** in Phase 1.7 by adding *deliberately hard* cases (calendar point-lookups with
-  adjacent-date distractors, VI→EN cross-lingual fees, multilingual guards). So absolute scores are
-  **NOT comparable** to the old 86-case ~0.92. On the new 130-case set: **baseline (adaptive OFF) =
-  0.846**; **shipped (adaptive ON) ≈ 0.854** (this run; v1/v2 variants scored 0.869/0.877 — the
-  ~±3-case run-to-run noise means single runs can't rank them). Guards (adversarial/safety) stay
-  **1.000**; calendar 0.893. Adaptive's confirmed mechanistic wins: the calendar wrong-date bug and
-  the persistent VI→EN fee misses are fixed. `data/eval/baseline.json` is the adaptive-OFF reference;
-  for future A/Bs, re-baseline against the adaptive-ON production state. Eval noise (multi-run
-  averaging) is the top open eval-rigor item.
+- **Phase 1 (sub-phases 1.0–1.8) DONE** (logs in `LOGS/`). 1.5 observability, 1.6 rerank-cost, 1.7
+  adaptive retrieval, 1.8 cross-lingual expansion — all shipped (flag-gated, one-flag revert each;
+  1.8 logged inside PHASE1.7_LOG.md).
+- **Score baseline — READ THIS (the number changed meaning in 1.7):** the eval set grew **86 → 130**
+  in Phase 1.7 with *deliberately hard* cases (calendar point-lookups w/ adjacent-date distractors,
+  VI→EN cross-lingual fees, multilingual guards), so absolute scores are **NOT comparable** to the old
+  86-case ~0.92. On the 130-case set: **adaptive-OFF reference = 0.846**; **production (adaptive +
+  cross-lingual, 1.7 + 1.8) = 0.885** — calendar 0.929, financial 0.875, guards (adversarial/safety/
+  unanswerable) 1.000. `data/eval/baseline.json` is now **re-snapshotted to this production run** (the
+  diff reference for future A/Bs). Confirmed mechanistic wins: calendar wrong-date fixed, persistent
+  VI→EN fee misses fixed. Single-run noise ~±3 cases → **multi-run averaging is the top open
+  eval-rigor item.**
 - Highlights from 1.4:
   - **Faithfulness false-positive FIX (shipped, no toggle)**: `assess_faithfulness` was extracting
     digits from the answer's citation/Source line (policy code "VUNI.54" → token `54`) and, not
@@ -149,11 +149,12 @@ confirm a gap before crawling — the "conduct missing" note here was stale and 
   `student_fees`/`student_deadlines`), profile tools keyed to the **authenticated** `student_id`
   (never from the prompt), personal-vs-general routing, strict cross-user isolation. (PRD §10.)
 - **Phase 3 — Platform & deploy (teammates)**: auth/roles, chat-history persistence, admin doc
-  management + source registry, frontend, Docker/deploy. Hand-off specs in FUTURE_IMPROVEMENTS.md Part 2.
+  management + source registry, frontend, Docker/deploy. Hand-off specs in UPDATE_PLAN.md Part 2.
 
-AI-depth backlog (Phase 1 quality, research-backed) lives in **FUTURE_IMPROVEMENTS.md**: eval
-framework (recall@k + LLM-judge + regression diff), observability (Langfuse + cost capture),
-contextual retrieval, adaptive query routing, near-dup dedup, cross-lingual retrieval fix.
+AI-depth backlog (Phase 1 quality, research-backed) + the multi-dimension optimization brainstorm
+now live in **UPDATE_PLAN.md** (single source of truth): eval framework (recall@k + LLM-judge +
+multi-run + regression diff), 1.5c observability tail, structured calendar/fee lookup, contextual
+retrieval, near-dup dedup, cost levers (Gemini Flash-Lite, embedding cache).
 
 **Deferred**: Vietnamese coverage (todo.md — VN policy versions, VN eval cases); genuinely-new-domain
 coverage (health/counseling/career/housing — needs headless fetch + image OCR for
@@ -166,4 +167,5 @@ coverage (health/counseling/career/housing — needs headless fetch + image OCR 
 - Storage/LLM: `vinchatbot/app/storage/{qdrant_store,vector_metadata}.py`, `llm/openrouter_chat.py`, `embeddings/openrouter_embeddings.py`
 - Config (all toggles): `vinchatbot/app/core/config.py`
 - Scripts: `scripts/{build_core_seeds,crawl_seed,ingest_documents,run_eval,eval_rag}.py`
-- Eval: `data/eval/golden/*.json` + `data/eval/calendar_golden_qa.json`
+- Eval: `data/eval/golden/*.json` + `data/eval/calendar_golden_qa.json` + `data/eval/baseline.json` (production reference)
+- Docs: `UPDATE_PLAN.md` (roadmap + backlog), `worklog.md` (Phase-1 submission record), `ARCHITECTURE.md`, `LOGS/PHASE*.md`

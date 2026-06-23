@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import sys
@@ -66,11 +67,30 @@ def _dedup_by_content_hash(chunks):
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Chunk + index raw documents into the vector store.")
+    parser.add_argument(
+        "--recreate",
+        action="store_true",
+        help="Drop + rebuild the Qdrant collection (clean re-index, removes stale points). "
+        "Use with QDRANT_COLLECTION=<scratch> to avoid touching production.",
+    )
+    parser.add_argument(
+        "--vinuni-only",
+        action="store_true",
+        help="Index only docs on a VinUni domain (drop external pages the crawler reached via outbound "
+        "links — apple.com, other universities, etc.). Keeps the index focused; avoids off-topic noise.",
+    )
+    args = parser.parse_args()
+
     configure_logging()
     settings = get_settings()
     logger.info("Loading raw documents from %s", settings.raw_data_dir)
     documents = read_raw_documents(settings.raw_data_dir)
     logger.info("Loaded documents=%s", len(documents))
+    if args.vinuni_only:
+        before = len(documents)
+        documents = [d for d in documents if "vinuni" in ((d.metadata.get("domain") or "").lower())]
+        logger.info("Filtered to VinUni-domain docs: %s -> %s (-%s)", before, len(documents), before - len(documents))
 
     chunks = []
     records = []
@@ -112,8 +132,8 @@ def main() -> None:
         settings.vector_store_backend,
         settings.qdrant_collection,
     )
-    indexed = index_chunks(chunks, settings)
-    logger.info("Finished indexing indexed=%s", indexed)
+    indexed = index_chunks(chunks, settings, recreate=args.recreate)
+    logger.info("Finished indexing indexed=%s recreate=%s", indexed, args.recreate)
     print(
         json.dumps(
             {

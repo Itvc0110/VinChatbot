@@ -1,0 +1,57 @@
+{
+  "name": "vinuni_policy_broad",
+  "description": "Broad, grounded policy eval across ~18 student-facing VinUni policies, EN+VI pairs (Phase 1.20). Each case's fact is verbatim-supported by the canonical policy doc; authored via a verification-backed workflow. The VI twins specifically measure the cross-lingual policy-retrieval gap (VI queries undermatching the EN canonical doc). expected_source = canonical all-policies slug.",
+  "source": "https://policy.vinuni.edu.vn/all-policies/<slug>/",
+  "cases": [
+    {"id": "pol-acadint-report-en", "language": "en", "question": "After an academic integrity violation, how many working days does the instructor have to submit the report to the Registrar?", "required_facts": ["5 working days", "Registrar"], "expected_source": ["student-academic-integrity"], "expects_refusal": false},
+    {"id": "pol-acadint-report-vi", "language": "vi", "question": "Sau khi có vi phạm liêm chính học thuật, giảng viên có bao nhiêu ngày làm việc để nộp báo cáo cho Phòng Đăng ký (Registrar)?", "required_facts": ["5 ngày làm việc", "Registrar"], "expected_source": ["student-academic-integrity"], "expects_refusal": false},
+
+    {"id": "pol-conduct-scope-en", "language": "en", "question": "Does the Student Code of Conduct apply to exchange and visiting students at VinUniversity?", "required_facts": ["exchange", "visiting"], "expected_source": ["student-affairs-regulations-code-of-conduct"], "expects_refusal": false},
+    {"id": "pol-conduct-scope-vi", "language": "vi", "question": "Bộ Quy tắc Ứng xử của Sinh viên có áp dụng cho sinh viên trao đổi và sinh viên thỉnh giảng tại VinUniversity không?", "required_facts": ["trao đổi|exchange", "thỉnh giảng|visiting"], "expected_source": ["student-affairs-regulations-code-of-conduct"], "expects_refusal": false},
+
+    {"id": "pol-loa-return-en", "language": "en", "question": "How far in advance must I submit the form to return from a leave of absence?", "required_facts": ["one month"], "expected_source": ["procedure-for-requesting-a-leave-of-absence", "vuni.54"], "expects_refusal": false},
+    {"id": "pol-loa-return-vi", "language": "vi", "question": "Tôi phải nộp đơn xin trở lại học sau thời gian bảo lưu trước bao lâu?", "required_facts": ["một tháng|one month"], "expected_source": ["procedure-for-requesting-a-leave-of-absence", "vuni.54"], "expects_refusal": false},
+
+    {"id": "pol-mdattend-20-en", "language": "en", "question": "In the MD program, what percentage of excused absences, if exceeded, requires special consideration by the Board of Examiners?", "required_facts": ["20%", "Board of Examiners"], "expected_source": ["attendance-policy-at-medical-doctor-program"], "expects_refusal": false},
+    {"id": "pol-mdattend-20-vi", "language": "vi", "question": "Trong chương trình MD, vượt quá bao nhiêu phần trăm vắng mặt có phép thì cần Hội đồng Khảo thí (Board of Examiners) xem xét đặc biệt?", "required_facts": ["20%", "Board of Examiners|Hội đồng Khảo thí"], "expected_source": ["attendance-policy-at-medical-doctor-program"], "expects_refusal": false},
+
+    {"id": "pol-sexmis-hotline-en", "language": "en", "question": "What is the Counselling Office support line phone number for reporting sexual misconduct?", "required_facts": ["0868900016"], "expected_source": ["sexual-misconduct-and-response"], "expects_refusal": false},
+    {"id": "pol-sexmis-hotline-vi", "language": "vi", "question": "Số điện thoại đường dây hỗ trợ của Văn phòng Tư vấn để báo cáo hành vi sai trái tình dục là gì?", "required_facts": ["0868900016"], "expected_source": ["sexual-misconduct-and-response"], "expects_refusal": false},
+
+    {"id": "pol-finaid-deadline-en", "language": "en", "question": "What are the financial support request deadlines for the Fall and Spring semesters?", "required_facts": ["July 10", "November 10"], "expected_source": ["guidelines-for-student-financial-support-request"], "expects_refusal": false},
+    {"id": "pol-finaid-deadline-vi", "language": "vi", "question": "Hạn nộp yêu cầu hỗ trợ tài chính cho học kỳ Mùa thu và Mùa xuân là khi nào?", "required_facts": ["10 tháng 7|July 10", "10 tháng 11|November 10"], "expected_source": ["guidelines-for-student-financial-support-request"], "expects_refusal": false},
+
+    {"id": "pol-intern-feedback-en", "language": "en", "question": "How many feedback meetings must an internship host supervisor hold with a student intern?", "required_facts": ["2 feedback meetings"], "expected_source": ["internship-management-policy"], "expects_refusal": false},
+    {"id": "pol-intern-feedback-vi", "language": "vi", "question": "Người hướng dẫn tại tổ chức tiếp nhận thực tập phải tổ chức bao nhiêu buổi gặp phản hồi với sinh viên thực tập?", "required_facts": ["2"], "expected_source": ["internship-management-policy"], "expects_refusal": false},
+
+    {"id": "pol-lib-loan-en", "language": "en", "question": "As an undergraduate student, how many items can I borrow from the library and for how long?", "required_facts": ["3", "2 weeks"], "expected_source": ["library-policies-for-users"], "expects_refusal": false},
+    {"id": "pol-lib-loan-vi", "language": "vi", "question": "Là sinh viên đại học, tôi được mượn bao nhiêu tài liệu từ thư viện và trong bao lâu?", "required_facts": ["3", "2 tuần|2 weeks"], "expected_source": ["library-policies-for-users"], "expects_refusal": false},
+
+    {"id": "pol-res-curfew-en", "language": "en", "question": "What time is the on-campus curfew in the residential halls?", "required_facts": ["11:00 PM"], "expected_source": ["residential-life-guideline"], "expects_refusal": false},
+    {"id": "pol-res-curfew-vi", "language": "vi", "question": "Giờ giới nghiêm trong khuôn viên ký túc xá là mấy giờ?", "required_facts": ["11:00"], "expected_source": ["residential-life-guideline"], "expects_refusal": false},
+
+    {"id": "pol-visa-travel-en", "language": "en", "question": "Can I travel away from Hanoi while my student visa is being renewed?", "required_facts": ["Hanoi", "passport"], "expected_source": ["study-visa-guidelines-for-international-students"], "expects_refusal": false},
+    {"id": "pol-visa-travel-vi", "language": "vi", "question": "Tôi có thể rời Hà Nội trong thời gian gia hạn visa du học không?", "required_facts": ["Hà Nội|Hanoi", "hộ chiếu|passport"], "expected_source": ["study-visa-guidelines-for-international-students"], "expects_refusal": false},
+
+    {"id": "pol-genai-scope-en", "language": "en", "question": "Which students do the generative AI guidelines apply to?", "required_facts": ["undergraduate and graduate students"], "expected_source": ["guidelines-on-student-use-of-generative-artificial-intelligence"], "expects_refusal": false},
+    {"id": "pol-genai-scope-vi", "language": "vi", "question": "Hướng dẫn về sử dụng AI tạo sinh áp dụng cho những đối tượng sinh viên nào?", "required_facts": ["đại học và sau đại học|undergraduate and graduate"], "expected_source": ["guidelines-on-student-use-of-generative-artificial-intelligence"], "expects_refusal": false},
+
+    {"id": "pol-courseeval-en", "language": "en", "question": "Is a course evaluation conducted for every course in my degree?", "required_facts": ["end-of-course evaluation", "each course"], "expected_source": ["course-evaluation"], "expects_refusal": false},
+    {"id": "pol-courseeval-vi", "language": "vi", "question": "Có tổ chức đánh giá cuối khóa cho mỗi môn học trong chương trình của tôi không?", "required_facts": ["đánh giá|evaluation", "mỗi môn|each course"], "expected_source": ["course-evaluation"], "expects_refusal": false},
+
+    {"id": "pol-progchange-en", "language": "en", "question": "If I submit a second program change request while my first one is still being reviewed, what happens?", "required_facts": ["most recent"], "expected_source": ["guideline-for-program-change-request"], "expects_refusal": false},
+    {"id": "pol-progchange-vi", "language": "vi", "question": "Nếu tôi nộp yêu cầu đổi chương trình thứ hai khi yêu cầu đầu tiên vẫn đang được xem xét thì điều gì xảy ra?", "required_facts": ["gần nhất|mới nhất|most recent"], "expected_source": ["guideline-for-program-change-request"], "expects_refusal": false},
+
+    {"id": "pol-escalation-en", "language": "en", "question": "How many stages does the formal complaint/escalation procedure for students have?", "required_facts": ["three"], "expected_source": ["formal-escalation-management-procedure-for-students"], "expects_refusal": false},
+    {"id": "pol-escalation-vi", "language": "vi", "question": "Quy trình khiếu nại chính thức dành cho sinh viên có bao nhiêu giai đoạn?", "required_facts": ["ba|3|three"], "expected_source": ["formal-escalation-management-procedure-for-students"], "expects_refusal": false},
+
+    {"id": "pol-minor-ai-en", "language": "en", "question": "How many credits is the Artificial Intelligence minor offered to BBA students?", "required_facts": ["15 credits", "Artificial Intelligence"], "expected_source": ["minor-fields-information"], "expects_refusal": false},
+    {"id": "pol-minor-ai-vi", "language": "vi", "question": "Ngành phụ Trí tuệ nhân tạo dành cho sinh viên BBA có bao nhiêu tín chỉ?", "required_facts": ["15"], "expected_source": ["minor-fields-information"], "expects_refusal": false},
+
+    {"id": "pol-exchange-credits-en", "language": "en", "question": "What is the minimum number of credits I must take during an exchange semester to maintain full-time status?", "required_facts": ["12 credits", "full-time"], "expected_source": ["outbound-student-exchange-procedure"], "expects_refusal": false},
+    {"id": "pol-exchange-credits-vi", "language": "vi", "question": "Tôi phải đăng ký tối thiểu bao nhiêu tín chỉ trong học kỳ trao đổi để duy trì trạng thái toàn thời gian?", "required_facts": ["12", "toàn thời gian|full-time"], "expected_source": ["outbound-student-exchange-procedure"], "expects_refusal": false},
+
+    {"id": "pol-thesis-days-en", "language": "en", "question": "How many working days do I have to submit my thesis or dissertation after the examination committee's final approval?", "required_facts": ["15 working days", "30 working days"], "expected_source": ["guidelines-for-thesis-and-dissertation-submission"], "expects_refusal": false},
+    {"id": "pol-thesis-days-vi", "language": "vi", "question": "Tôi có bao nhiêu ngày làm việc để nộp luận văn hoặc luận án sau khi hội đồng chấm phê duyệt cuối cùng?", "required_facts": ["15", "30"], "expected_source": ["guidelines-for-thesis-and-dissertation-submission"], "expects_refusal": false}
+  ]
+}

@@ -72,6 +72,99 @@ def reset_point_lookup() -> None:
     _point_lookup.set(False)
 
 
+# Raw user message for the current turn. Set once by the service before the agent runs, read by the
+# retrieval tool so the deterministic structured lookup matches the USER's actual question rather than
+# the agent's (run-to-run variable) tool-call reformulation — making the lookup fire reliably (Phase 1.19).
+_user_message: contextvars.ContextVar[str | None] = contextvars.ContextVar("user_message", default=None)
+
+
+def set_user_message(value: str | None) -> None:
+    _user_message.set(value)
+
+
+def get_user_message() -> str | None:
+    return _user_message.get()
+
+
+def reset_user_message() -> None:
+    _user_message.set(None)
+
+
+# Per-turn per-stage cost/latency ledger (Phase C). A turn touches several billable stages
+# (guardrail/supervisor route, query expansion, specialist answer, rerank) but `sum_token_usage` only
+# sees the answer stage — so local cost UNDERCOUNTS every turn. This ledger attributes calls / tokens /
+# latency / cost PER STAGE so the eval report can prove each model call is worth its latency and money.
+#
+# Concurrency note: the dict is MUTATED IN PLACE (never rebound after reset) so it survives LangGraph's
+# task boundaries. A child task copies the contextvar *binding* (var -> the same dict object) at
+# creation, so in-place mutations made inside a graph node are visible to the parent turn. A rebinding
+# `.set()` inside a child task would NOT propagate back — which is exactly why `record_stage` only
+# mutates and `reset_stage_ledger` (the one rebind) runs in the parent before any task spawns.
+_stage_ledger: contextvars.ContextVar[dict[str, dict[str, float]] | None] = contextvars.ContextVar(
+    "stage_ledger", default=None
+)
+
+_STAGE_FIELDS = ("calls", "tokens_in", "tokens_out", "latency_ms", "est_cost_usd")
+
+
+def reset_stage_ledger() -> None:
+    """Start a fresh per-turn ledger. Call once at the top of a turn, in the parent context."""
+    _stage_ledger.set({})
+
+
+def record_stage(
+    name: str,
+    *,
+    calls: int = 1,
+    tokens_in: int = 0,
+    tokens_out: int = 0,
+    latency_ms: float = 0.0,
+    est_cost_usd: float = 0.0,
+) -> None:
+    """Accumulate one stage's usage into the per-turn ledger. Best-effort; never raises."""
+    try:
+        ledger = _stage_ledger.get()
+        if ledger is None:
+            # No reset ran (called outside a turn). The rebind only reaches the parent context here.
+            ledger = {}
+            _stage_ledger.set(ledger)
+        entry = ledger.get(name)
+        if entry is None:
+            entry = dict.fromkeys(_STAGE_FIELDS, 0)
+            ledger[name] = entry
+        entry["calls"] += calls
+        entry["tokens_in"] += tokens_in
+        entry["tokens_out"] += tokens_out
+        entry["latency_ms"] += latency_ms
+        entry["est_cost_usd"] += est_cost_usd
+    except Exception:
+        pass
+
+
+def get_stage_ledger() -> dict[str, dict[str, float]]:
+    return _stage_ledger.get() or {}
+
+
+def ledger_totals(ledger: dict[str, dict[str, float]] | None = None) -> dict[str, float]:
+    """Sum the per-stage ledger into turn totals: tokens_in/out, est_cost_usd, latency_ms, model_calls."""
+    ledger = get_stage_ledger() if ledger is None else ledger
+    tokens_in = tokens_out = model_calls = 0
+    est_cost = latency_ms = 0.0
+    for entry in ledger.values():
+        tokens_in += int(entry.get("tokens_in") or 0)
+        tokens_out += int(entry.get("tokens_out") or 0)
+        model_calls += int(entry.get("calls") or 0)
+        est_cost += float(entry.get("est_cost_usd") or 0.0)
+        latency_ms += float(entry.get("latency_ms") or 0.0)
+    return {
+        "tokens_in": tokens_in,
+        "tokens_out": tokens_out,
+        "model_calls": model_calls,
+        "est_cost_usd": round(est_cost, 8),
+        "latency_ms": round(latency_ms, 1),
+    }
+
+
 def redact(text: str | None, keep: int = 24) -> str:
     """Mask free text for logs: keep a short prefix, append length + content hash so identical
     inputs are still correlatable without storing the PII itself."""
@@ -92,6 +185,14 @@ MODEL_PRICES_USD_PER_M: dict[str, tuple[float, float]] = {
     "openai/gpt-4o": (2.50, 10.00),
     "google/gemini-2.5-flash-lite": (0.10, 0.40),
     "qwen/qwen-2.5-7b-instruct": (0.04, 0.10),
+    "meta-llama/llama-guard-4-12b": (0.05, 0.05),
+}
+
+# Rerank bills per "search unit" (≤100 docs/search), not per token; our candidate pool is
+# ≤ retrieval_candidate_k so one rerank call ≈ one search. ESTIMATE (~$2.00 / 1k searches); unknown
+# rerank models fall back to 0 so the figure is 0 rather than wrong.
+RERANK_PRICES_USD_PER_CALL: dict[str, float] = {
+    "cohere/rerank-v3.5": 0.002,
 }
 
 
@@ -114,6 +215,35 @@ def sum_token_usage(messages: Iterable[Any]) -> tuple[int, int]:
 def estimate_cost_usd(model: str, tokens_in: int, tokens_out: int) -> float:
     price_in, price_out = MODEL_PRICES_USD_PER_M.get(model, (0.0, 0.0))
     return round((tokens_in * price_in + tokens_out * price_out) / 1_000_000, 8)
+
+
+def rerank_cost_usd(model: str, calls: int = 1) -> float:
+    """Estimated USD for `calls` rerank searches with `model` (see RERANK_PRICES_USD_PER_CALL)."""
+    return round(RERANK_PRICES_USD_PER_CALL.get(model, 0.0) * calls, 8)
+
+
+def usage_tokens(response: Any) -> tuple[int, int]:
+    """Extract (input, output) tokens from a LangChain response's `usage_metadata`; (0, 0) if absent."""
+    usage = getattr(response, "usage_metadata", None)
+    if isinstance(usage, dict):
+        return int(usage.get("input_tokens") or 0), int(usage.get("output_tokens") or 0)
+    return 0, 0
+
+
+def record_llm_usage(name: str, model: str, response: Any, latency_ms: float = 0.0) -> None:
+    """Record one LLM stage call into the per-turn ledger (tokens from `usage_metadata`, cost from the
+    price table). Best-effort: a metering failure must never break the turn."""
+    try:
+        tokens_in, tokens_out = usage_tokens(response)
+        record_stage(
+            name,
+            tokens_in=tokens_in,
+            tokens_out=tokens_out,
+            latency_ms=latency_ms,
+            est_cost_usd=estimate_cost_usd(model, tokens_in, tokens_out),
+        )
+    except Exception:
+        pass
 
 
 # --- Langfuse tracing (Phase 1.5b) ----------------------------------------------------------

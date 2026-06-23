@@ -353,6 +353,29 @@ def _record_to_chunk_text(record: StructuredRecord) -> str | None:
     return None
 
 
+_EN_MONTHS_FULL = (
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+)
+
+
+def _absolute_month_year(iso: str) -> str:
+    """'2027-06-15' -> 'June 2027 (tháng 6 năm 2027)'. Empty if there's no parseable ISO date.
+
+    Phase 1.13: calendar chunks must LEAD with the absolute month+year so the model/embedding reads
+    "June 2027" instead of the ambiguous academic-year label "2026-2027" + a relative "15-Jun" (the
+    June-2026-returns-June-2027 bug). Both languages so it also matches the date-normalized query
+    variants from Phase 1.12.
+    """
+    match = re.match(r"(\d{4})-(\d{2})-\d{2}", iso or "")
+    if not match:
+        return ""
+    year, month = int(match.group(1)), int(match.group(2))
+    if not 1 <= month <= 12:
+        return ""
+    return f"{_EN_MONTHS_FULL[month - 1]} {year} (tháng {month} năm {year})"
+
+
 def _calendar_event_to_text(data: dict[str, Any]) -> str | None:
     event = normalize_text(str(data.get("event_name") or ""))
     if len(event) < 4:
@@ -360,12 +383,21 @@ def _calendar_event_to_text(data: dict[str, Any]) -> str | None:
     term = (data.get("term") or "").strip()
     year = (data.get("academic_year") or "").strip()
     scope = " ".join(part for part in (term, year) if part)
+    iso_start = str(data.get("date_start_iso") or "")
     date_text = data.get("date_text_original") or data.get("date_start") or ""
-    iso = data.get("date_start_iso") or ""
-    if iso and data.get("date_end_iso"):
-        iso = f"{iso} to {data.get('date_end_iso')}"
+    iso = (
+        f"{iso_start} to {data.get('date_end_iso')}"
+        if iso_start and data.get("date_end_iso")
+        else iso_start
+    )
     date_str = f"{date_text} ({iso})".strip() if iso else str(date_text)
-    parts = [f"Academic calendar event{f' — {scope}' if scope else ''}: {event}."]
+    # Lead with the absolute month+year (both languages); fall back to the academic-year scope only
+    # when there's no ISO date to derive it from.
+    absolute = _absolute_month_year(iso_start)
+    headline = absolute or scope
+    parts = [f"Academic calendar event{f' — {headline}' if headline else ''}: {event}."]
+    if absolute and scope:
+        parts.append(f"Term/Học kỳ: {scope}.")
     if date_str.strip():
         parts.append(f"Date: {date_str}.")
     if data.get("event_type"):

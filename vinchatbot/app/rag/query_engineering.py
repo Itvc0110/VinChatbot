@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from collections.abc import Callable
 from typing import TypeVar
 
 from vinchatbot.app.core.config import Settings, get_settings
+from vinchatbot.app.core.observability import record_llm_usage
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +40,78 @@ def is_point_lookup(query: str, category: str | None = None) -> bool:
     if category and category.strip().lower() in _POINTLOOKUP_CATS:
         return True
     return bool(_POINTLOOKUP_RE.search(query or ""))
+
+
+# List-lookup detection (Phase 1.27/A6). The mirror of point-lookup: a question asking for MULTIPLE rows
+# ("all/each/every program", "compare … across", "list … for both terms"). These need a WIDER context +
+# enumeration, the opposite of the point-lookup narrowing. Deliberately list-SPECIFIC markers only — VI
+# quantifiers that double as RATE words are EXCLUDED so they don't misfire: "các" (the/plural), and crucially
+# "mỗi"/"từng"/"mọi" (each/every — but "mỗi ngày" = per day, "mỗi tín chỉ" = per credit are RATES, not lists;
+# "mỗi ngày" was wrongly hijacking the library-fine question into the tuition matrix). The unambiguous VI list
+# words remain (tất cả/liệt kê/so sánh/toàn bộ); EN "each/every" stay (EN rates use "per", not each/every).
+_LISTLOOKUP_RE = re.compile(
+    r"\b(all|each|every|both|list|compare|across)\b"
+    r"|tất cả|tat ca|so sánh|so sanh|liệt kê|liet ke|toàn bộ|toan bo",
+    re.IGNORECASE,
+)
+
+
+def is_list_lookup(query: str, category: str | None = None) -> bool:
+    """True for multi-row 'list' questions that should WIDEN retrieval + enumerate every matching row,
+    rather than narrow to one value (Phase 1.27/A6). Query-driven only (category unused) so it stays
+    domain-agnostic; conservative markers so it does not fire on single-target point-lookups."""
+    return bool(_LISTLOOKUP_RE.search(query or ""))
+
+
+# Deterministic month+year date normalization (Phase 1.12). The reported failure: "events for 6/2026"
+# worked but "tháng 6 năm 2026" (VI) did not — same date, different surface form. These regexes detect a
+# (month, year) in any of the common VI/EN/numeric forms and emit the OTHER canonical forms, so a date
+# query matches the corpus regardless of phrasing. Pure regex → deterministic (no LLM, no consistency
+# cost), and additive to the multi-query set.
+_EN_MONTHS = (
+    "january", "february", "march", "april", "may", "june",
+    "july", "august", "september", "october", "november", "december",
+)
+_EN_MONTH_TO_NUM = {name: i + 1 for i, name in enumerate(_EN_MONTHS)}
+_EN_MONTH_TO_NUM.update({name[:3]: i + 1 for i, name in enumerate(_EN_MONTHS)})  # jan, feb, ...
+_DATE_RE_VI = re.compile(r"tháng\s*(\d{1,2})\s*(?:năm\s*)?/?\s*(20\d{2})", re.IGNORECASE)
+_DATE_RE_NUM = re.compile(r"\b(\d{1,2})\s*/\s*(20\d{2})\b")
+_DATE_RE_EN = re.compile(r"\b([A-Za-z]{3,9})\.?\s+(20\d{2})\b")
+
+
+def extract_month_years(query: str) -> list[tuple[int, int]]:
+    """Return the unique (month, year) pairs named in `query`, in VI/EN/numeric forms (sorted).
+    Shared by `normalize_date_phrases` (query expansion) and the calendar metadata boost (year
+    disambiguation)."""
+    q = query or ""
+    found: set[tuple[int, int]] = set()
+    for pat in (_DATE_RE_VI, _DATE_RE_NUM):
+        for m in pat.finditer(q):
+            month, year = int(m.group(1)), int(m.group(2))
+            if 1 <= month <= 12:
+                found.add((month, year))
+    for m in _DATE_RE_EN.finditer(q):
+        month = _EN_MONTH_TO_NUM.get(m.group(1).lower())
+        if month:
+            found.add((month, int(m.group(2))))
+    return sorted(found)
+
+
+def normalize_date_phrases(query: str) -> list[str]:
+    """Return extra both-language canonical forms of any month+year in `query` (deduped, excluding
+    forms already present). E.g. '6/2026' -> ['tháng 6 năm 2026', 'June 2026', '06/2026']."""
+    lowered = (query or "").lower()
+    variants: list[str] = []
+    for month, year in extract_month_years(query):
+        for cand in (
+            f"tháng {month} năm {year}",
+            f"{_EN_MONTHS[month - 1].capitalize()} {year}",
+            f"{month}/{year}",
+            f"{month:02d}/{year}",
+        ):
+            if cand.lower() not in lowered and cand not in variants:
+                variants.append(cand)
+    return variants
 
 # Query expansion has two independent kinds (Phase 1.8 made them orthogonal):
 #  • paraphrase  — same-language synonym/keyword variants (multi-query recall). Gated by
@@ -96,12 +170,20 @@ async def expand_query(
         if model is None:
             from vinchatbot.app.llm.openrouter_chat import build_chat_model
 
-            model = build_chat_model(settings)
+            # temp=0: deterministic variants → stable candidate pool → stable retrieval (Phase 1.11).
+            model = build_chat_model(settings, temperature=0.0)
+        started = time.perf_counter()
         response = await model.ainvoke(
             [
                 {"role": "system", "content": system},
                 {"role": "user", "content": query},
             ]
+        )
+        record_llm_usage(
+            "query_expansion",
+            settings.openrouter_chat_model,
+            response,
+            (time.perf_counter() - started) * 1000,
         )
         content = response.content if isinstance(response.content, str) else str(response.content)
         variants: list[str] = [query]

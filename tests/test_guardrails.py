@@ -6,11 +6,14 @@ from types import SimpleNamespace
 from vinchatbot.app.agents.guardrails import (
     GuardrailDecision,
     answer_language,
+    assess_faithfulness,
     assess_user_message,
     build_conversational_response,
     build_graceful_degradation_response,
     build_guardrail_response,
+    contains_sensitive_output,
     resolve_guardrail_decision,
+    resolve_output_decision,
 )
 from vinchatbot.app.agents.vinuni_agent import VinUniAgentService
 from vinchatbot.app.schemas.chat import ChatRequest
@@ -62,8 +65,17 @@ def test_guardrail_blocks_out_of_scope_question():
     assert decision.action == "out_of_scope"
 
 
-def test_guardrail_routes_ambiguous_event_year_questions_to_scope_router():
+def test_guardrail_allows_event_questions_as_in_scope():
+    # Phase 1.13 guard fix: "events in <year>" is a legitimate VinUni calendar question (campus/academic
+    # events) and must ALLOW at the rule tier, not get dumped into the over-refusing scope router.
     decision = assess_user_message("Nh\u1eefng s\u1ef1 ki\u1ec7n trong n\u0103m 2026")
+
+    assert decision.action == "allow"
+
+
+def test_guardrail_routes_generic_dates_question_to_scope_router():
+    # A generic "key dates in <year>" with NO academic/VinUni term is still ambiguous \u2192 scope router.
+    decision = assess_user_message("What are the key dates in 2026?")
 
     assert decision.action == "needs_scope_router"
 
@@ -252,3 +264,83 @@ def test_capability_reply_uses_llm_then_falls_back(monkeypatch):
     with_key = SimpleNamespace(openrouter_api_key="x")
     llm = asyncio.run(g.build_conversational_response(decision, "bạn là gì vậy?", settings=with_key))
     assert llm.answer == "Mình là VinChatbot, trợ lý học vụ VinUni."
+
+
+def test_assess_faithfulness_is_number_format_agnostic():
+    # Phase 1.13b: a correct VI-formatted figure ("10.000") must be judged grounded against an
+    # EN-formatted source ("10,000") — the old token compare wrongly degraded it to a refusal.
+    answer = "Phí phạt trả trễ là 10.000 đồng/ngày. Nguồn: [Tariff](https://policy.vinuni.edu.vn/x)"
+    evidence = ["Library overdue fines: For normal material: 10,000 VND /day overdue/document."]
+    assert assess_faithfulness(answer, evidence) is True
+
+
+def test_assess_faithfulness_flags_ungrounded_number():
+    # A figure absent from the evidence (in any format) is still unfaithful.
+    answer = "Học phí là 999.999.999 đồng/năm."
+    evidence = ["The annual tuition is 350,000,000 VND."]
+    assert assess_faithfulness(answer, evidence) is False
+
+
+# --- Phase 1.25/A4: unified output-audit decision + de-obfuscated secret guard -----------------
+
+_SECRET = "sk-or-v1-abcdef0123456789abcdef"  # synthetic key-shaped value (matches the output pattern)
+
+
+def test_resolve_output_decision_allows_grounded_cited_answer():
+    citations = [SimpleNamespace(source_url="https://x")]
+    decision = resolve_output_decision(
+        "The library lends 3 items for 2 weeks.", citations, ["lends 3 items for 2 weeks"]
+    )
+    assert decision.action == "allow"
+    assert decision.allowed is True
+
+
+def test_resolve_output_decision_degrades_when_no_citation():
+    decision = resolve_output_decision("Some answer with 42 items.", [], [])
+    assert decision.action == "graceful_degradation"
+    assert "citation" in decision.reason.lower()
+
+
+def test_resolve_output_decision_degrades_ungrounded_number():
+    citations = [SimpleNamespace(source_url="https://x")]
+    decision = resolve_output_decision("The fine is 999 VND.", citations, ["The fine is 10 VND."])
+    assert decision.action == "graceful_degradation"
+
+
+def test_resolve_output_decision_blocks_secret_value():
+    citations = [SimpleNamespace(source_url="https://x")]
+    decision = resolve_output_decision(f"Sure: {_SECRET}", citations, ["evidence"])
+    assert decision.action == "sensitive_output_blocked"
+
+
+def test_resolve_output_decision_bypass_path_skips_grounding():
+    # require_grounding=False (time fast path / conversational): an uncited reply is allowed, but a
+    # leaked secret is still blocked.
+    assert resolve_output_decision("Hi! I help with VinUni questions.", [], [], require_grounding=False).action == "allow"
+    assert resolve_output_decision(f"key {_SECRET}", [], [], require_grounding=False).action == "sensitive_output_blocked"
+
+
+def test_contains_sensitive_output_catches_zero_width_disguised_secret():
+    # NEW in 1.25/A4: a zero-width-space-disguised key (evaded the raw pattern) is caught after stripping.
+    disguised = "sk-or-v1-abcdef​0123456789abcdef"
+    assert contains_sensitive_output(f"here: {disguised}") is True
+    assert contains_sensitive_output(f"here: {_SECRET}") is True
+
+
+def test_contains_sensitive_output_no_false_positive_on_institutional_contacts():
+    # Legit institutional facts (a tuition figure + the counselling hotline that is a golden required_fact)
+    # must NOT trip the secret guard.
+    answer = "Annual tuition is 350,000,000 VND. Report misconduct to the hotline 0868900016."
+    assert contains_sensitive_output(answer) is False
+
+
+def test_agent_blocks_secret_leak_in_served_answer():
+    # End-to-end: an in-scope question whose generated answer echoes a key → the output guard blocks it
+    # (agent ran, so this is the OUTPUT side), and the secret never reaches the user.
+    agent = FakeAgent(f"The library opens at 8am. (debug: {_SECRET})")
+    service = VinUniAgentService(retriever=SimpleNamespace(), agent=agent)
+    response = asyncio.run(
+        service.chat(ChatRequest(message="What are the library hours?", conversation_id="secret-e2e"))
+    )
+    assert agent.calls == 1
+    assert "sk-or-v1-" not in response.answer  # secret did not leak to the user

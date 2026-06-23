@@ -13,7 +13,7 @@
       "id": "pol-loa-first-step",
       "language": "en",
       "question": "What is the first step a student takes to request a leave of absence at VinUni?",
-      "required_facts": ["form"],
+      "required_facts": ["form|application"],
       "expected_source": "procedure-for-requesting-a-leave-of-absence",
       "expects_refusal": false
     },
