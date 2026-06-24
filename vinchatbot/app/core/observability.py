@@ -38,38 +38,68 @@ def get_request_id() -> str | None:
 
 # Per-turn rerank-call counter. Rerank uses raw httpx (not LangChain), so Langfuse can't trace it;
 # this counter surfaces the call count in the structured turn log (proves the 1.6 fusion saving).
-_rerank_calls: contextvars.ContextVar[int] = contextvars.ContextVar("rerank_calls", default=0)
+#
+# Concurrency note: the count lives in a 1-element list MUTATED IN PLACE (never rebound after reset) so
+# an increment made inside a LangGraph node task is visible to the parent turn that logs it. The reranker
+# runs deep inside `agent.ainvoke`, in a task whose context is a COPY of the parent's — a rebinding
+# `.set()` there is lost across the boundary (see test_contextvar_rebind_in_child_task_does_not_propagate),
+# which is exactly why rerank_calls used to log 0 despite a billed rerank call. Mirrors the stage ledger.
+_rerank_calls: contextvars.ContextVar[list[int] | None] = contextvars.ContextVar(
+    "rerank_calls", default=None
+)
 
 
 def incr_rerank_count(n: int = 1) -> None:
     try:
-        _rerank_calls.set(_rerank_calls.get() + n)
+        counter = _rerank_calls.get()
+        if counter is None:
+            # No reset ran (called outside a turn); this rebind only reaches the current context.
+            counter = [0]
+            _rerank_calls.set(counter)
+        counter[0] += n
     except Exception:
         pass
 
 
 def get_rerank_count() -> int:
-    return _rerank_calls.get()
+    counter = _rerank_calls.get()
+    return counter[0] if counter else 0
 
 
 def reset_rerank_count() -> None:
-    _rerank_calls.set(0)
+    """Start a fresh per-turn counter. Call once at the top of a turn, in the parent context (before
+    any task spawns) so child tasks inherit the binding and their in-place increments propagate back."""
+    _rerank_calls.set([0])
 
 
 # Per-turn flag: did the adaptive router treat this turn as a point-lookup? Surfaced in the turn log.
-_point_lookup: contextvars.ContextVar[bool] = contextvars.ContextVar("point_lookup", default=False)
+# Same in-place-mutation contract as the rerank counter: mark_point_lookup() runs inside the LangGraph
+# tool node (a copied context), so the flag is a mutable 1-element list reset in the parent before the
+# task spawns — a `.set(True)` rebind in the node would be lost and the turn log would always read False.
+_point_lookup: contextvars.ContextVar[list[bool] | None] = contextvars.ContextVar(
+    "point_lookup", default=None
+)
 
 
 def mark_point_lookup() -> None:
-    _point_lookup.set(True)
+    try:
+        flag = _point_lookup.get()
+        if flag is None:
+            flag = [False]
+            _point_lookup.set(flag)
+        flag[0] = True
+    except Exception:
+        pass
 
 
 def get_point_lookup() -> bool:
-    return _point_lookup.get()
+    flag = _point_lookup.get()
+    return bool(flag and flag[0])
 
 
 def reset_point_lookup() -> None:
-    _point_lookup.set(False)
+    """Start a fresh per-turn flag, in the parent context (see reset_rerank_count)."""
+    _point_lookup.set([False])
 
 
 # Raw user message for the current turn. Set once by the service before the agent runs, read by the

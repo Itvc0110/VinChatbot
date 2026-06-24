@@ -73,18 +73,47 @@ function renderInline(
   return nodes;
 }
 
-function FormattedBody({ text, cite }: { text: string; cite?: CiteOpts }) {
+// Markdown ATX heading line: `#`…`######` + a space + text. The minimal formatter has no block
+// markdown, so without this a `### Heading` leaks its literal `###` into the bubble (renderInline only
+// ever stripped inline bold/links). We render the heading text — still inline-formatted — as a bold,
+// lightly-scaled span so it reads as a section label without breaking the pre-wrap line model.
+const HEADING_RE = /^\s*(#{1,6})\s+(.*\S)\s*$/;
+
+function renderLine(
+  line: string,
+  keyPrefix: string,
+  cite?: CiteOpts
+): React.ReactNode {
+  const h = HEADING_RE.exec(line);
+  if (h) {
+    return (
+      <span className={`md-h md-h${h[1].length}`}>
+        {renderInline(h[2], keyPrefix, cite)}
+      </span>
+    );
+  }
+  return renderInline(line, keyPrefix, cite);
+}
+
+// Split into lines and render each (heading-aware), keeping the literal "\n" separators so the
+// `.body { white-space: pre-wrap }` container reproduces the answer's line breaks exactly. Shared by
+// the finished answer and the streaming view so headings render identically while tokens arrive.
+function renderBlocks(
+  text: string,
+  keyPrefix: string,
+  cite?: CiteOpts
+): React.ReactNode[] {
   const lines = text.split("\n");
-  return (
-    <div className="body">
-      {lines.map((line, idx) => (
-        <React.Fragment key={idx}>
-          {renderInline(line, `ln${idx}`, cite)}
-          {idx < lines.length - 1 ? "\n" : null}
-        </React.Fragment>
-      ))}
-    </div>
-  );
+  return lines.map((line, idx) => (
+    <React.Fragment key={`${keyPrefix}-${idx}`}>
+      {renderLine(line, `${keyPrefix}-ln${idx}`, cite)}
+      {idx < lines.length - 1 ? "\n" : null}
+    </React.Fragment>
+  ));
+}
+
+function FormattedBody({ text, cite }: { text: string; cite?: CiteOpts }) {
+  return <div className="body">{renderBlocks(text, "fb", cite)}</div>;
 }
 
 function UserBubble({
@@ -230,7 +259,7 @@ export function MessageBubble({
         </div>
         {message.text ? (
           <div className="body">
-            {renderInline(message.text, "stream")}
+            {renderBlocks(message.text, "stream")}
             <span className="stream-caret" aria-hidden="true" />
           </div>
         ) : (

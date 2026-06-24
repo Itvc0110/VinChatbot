@@ -570,6 +570,28 @@ textarea::placeholder {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+/* Markdown headings rendered by the minimal formatter (renderLine in MessageBubble): bold, lightly
+   scaled section labels. inline-block keeps them inside the pre-wrap line model — the surrounding
+   "\n" text nodes still break the lines, so no extra vertical gap is introduced. */
+.msg .body .md-h {
+  display: inline-block;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.msg .body .md-h1 {
+  font-size: 1.18em;
+}
+.msg .body .md-h2 {
+  font-size: 1.1em;
+}
+.msg .body .md-h3 {
+  font-size: 1.03em;
+}
+.msg .body .md-h4,
+.msg .body .md-h5,
+.msg .body .md-h6 {
+  font-size: 1em;
+}
 .body.muted {
   color: var(--muted-foreground);
   font-style: italic;

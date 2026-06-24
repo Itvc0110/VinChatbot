@@ -15,4 +15,3 @@ data/eval/results/
 
 # Server runtime logs (uvicorn stdout/stderr); phase logs (*.md) stay tracked.
 LOGS/*.log
-

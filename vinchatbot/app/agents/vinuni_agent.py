@@ -216,8 +216,8 @@ class VinUniAgentService:
         # Phase 1.25/B: LLM groundedness auditor — catches the grounded-but-wrong residual (right doc,
         # wrong row/number/year) the deterministic check passes. Scoped to high-stakes point-lookups,
         # gated off by default, fail-open (only a confident grounded:false degrades). The scope signal is
-        # recomputed HERE from the user message + routed intent — the `mark_point_lookup` contextvar set
-        # inside the LangGraph tool node does NOT propagate back to this parent context.
+        # recomputed HERE from the user message + routed intent (not read from the point-lookup contextvar)
+        # so it still fires on turns where the retrieval tool node never ran to mark the flag.
         if self.settings.enable_output_audit and is_point_lookup(request.message, result.get("intent")):
             verdict = await audit_output(answer, retrieved_texts, request.message, self.settings)
             if not verdict.grounded:

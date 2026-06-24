@@ -272,7 +272,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         { id: assistantId, role: "assistant", text: "", streaming: true, personalized: true },
       ]);
-      let streamed = false;
+      // True once the stream has produced ANY event (status or delta) — i.e. the /chat/stream
+      // endpoint opened successfully. We only fall back to the non-streaming /chat (a full,
+      // expensive agent re-run) when the stream never opened at all; a failure AFTER it opened
+      // is shown as an error, not retried.
+      let received = false;
 
       const sent = `${buildPersonalContext(
         personalData.current.profile,
@@ -287,21 +291,25 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           {
             signal: controller.signal,
             onDelta: (chunk) => {
-              streamed = true;
+              received = true;
               setMessages((prev) =>
                 prev.map((m) => (m.id === assistantId ? { ...m, text: m.text + chunk } : m))
               );
             },
-            // No-op until the backend emits `event: status`; then the pre-reveal placeholder
-            // shows the real step instead of the default "Searching…" line.
-            onStatus: (step) => patchMessage(assistantId, { statusStep: step }),
+            // Fires on the stream's opening `status` event (and any later real step). Marks the
+            // stream as opened, and shows the step text when present (else the localized
+            // "Searching…" placeholder).
+            onStatus: (step) => {
+              received = true;
+              patchMessage(assistantId, { statusStep: step });
+            },
           }
         );
         settle(assistantId, { text: resp.answer, response: resp, streaming: false });
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           patchMessage(assistantId, { text: "", cancelled: true, streaming: false });
-        } else if (!streamed) {
+        } else if (!received) {
           try {
             const resp = await postChat(
               { message: sent, conversation_id: conversationId },
