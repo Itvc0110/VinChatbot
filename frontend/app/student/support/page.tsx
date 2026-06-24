@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AsyncBoundary, PageHeader, EmptyState, Toast } from "@/components/ui/primitives";
+import { useEffect, useMemo, useState } from "react";
+import { AsyncBoundary, EmptyState, Toast } from "@/components/ui/primitives";
 import {
   TicketFilters,
   DEFAULT_TICKET_FILTERS,
   type TicketFilterState,
 } from "@/components/tickets/TicketFilters";
-import { TicketBoard } from "@/components/tickets/TicketBoard";
-import { type TicketHandlers } from "@/components/tickets/TicketCard";
+import { TicketCard, type TicketHandlers } from "@/components/tickets/TicketCard";
 import { TicketDetailDrawer } from "@/components/tickets/TicketDetailDrawer";
 import { CreateTicketModal } from "@/components/tickets/CreateTicketModal";
 import { useAsync } from "@/lib/useAsync";
@@ -24,10 +23,40 @@ import {
 import type { SupportTicket, TicketStatus } from "@/lib/portalTypes";
 import { IconTicket } from "@/components/shell/icons";
 
+const PAGE_SIZE = 6;
+
 function matchesVisibility(t: SupportTicket, vis: TicketFilterState["visibility"]): boolean {
   if (vis === "deleted") return !!t.deleted;
   if (vis === "archived") return !!t.archived && !t.deleted;
   return !t.archived && !t.deleted;
+}
+
+function SparkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4L12 3z" />
+      <path d="M19 13l.6 1.8 1.9.7-1.9.7L19 18l-.6-1.8-1.9-.7 1.9-.7z" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+function Chevron({ dir }: { dir: "left" | "right" }) {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={dir === "left" ? "M15 18l-6-6 6-6" : "M9 18l6-6-6-6"} />
+    </svg>
+  );
 }
 
 export default function StudentSupportPage() {
@@ -39,15 +68,13 @@ export default function StudentSupportPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
-  // Mirror loaded tickets into local state on every successful load (initial + reload).
-  // All mutations also persist to the shared store, so a reload re-syncs cleanly.
   useEffect(() => {
     if (loaded.status === "success") setItems(loaded.data);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded.status]);
 
-  // A ticket was just sent to admin (via the global Review drawer) — refresh so it appears.
   useEffect(() => {
     if (ticketsRevision > 0) loaded.reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -88,34 +115,60 @@ export default function StudentSupportPage() {
     updateTicketStatus(t.id, status).catch(() => setToast(p.tickets.actionFailed));
   };
 
-  const visible = all
-    .filter((t) => matchesVisibility(t, filters.visibility))
-    .filter((t) => filters.status === "all" || t.status === filters.status)
-    .filter((t) => filters.priority === "all" || t.priority === filters.priority)
-    .filter((t) => filters.category === "all" || t.category === filters.category)
-    .filter((t) => {
-      const q = filters.search.trim().toLowerCase();
-      if (!q) return true;
-      return [t.subject, t.body, t.id, t.origin_question]
-        .filter(Boolean)
-        .some((s) => (s as string).toLowerCase().includes(q));
-    });
+  const visible = useMemo(
+    () =>
+      all
+        .filter((t) => matchesVisibility(t, filters.visibility))
+        .filter((t) => filters.status === "all" || t.status === filters.status)
+        .filter((t) => filters.priority === "all" || t.priority === filters.priority)
+        .filter((t) => filters.category === "all" || t.category === filters.category)
+        .filter((t) => {
+          const q = filters.search.trim().toLowerCase();
+          if (!q) return true;
+          return [t.subject, t.body, t.id, t.origin_question]
+            .filter(Boolean)
+            .some((s) => (s as string).toLowerCase().includes(q));
+        }),
+    [all, filters]
+  );
 
+  const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageItems = visible.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const selected = all.find((t) => t.id === selectedId) ?? null;
 
   return (
     <div className="page-inner">
-      <PageHeader
-        title={p.tickets.title}
-        description={p.tickets.subtitle}
-        actions={
-          <button className="btn btn-primary" onClick={() => setCreating(true)}>
-            + {p.tickets.newTicket}
-          </button>
-        }
-      />
+      <div className="ah-pagehead">
+        <div>
+          <h1 className="ah-pagehead-title">{p.tickets.title}</h1>
+          <p className="ah-pagehead-sub">{p.tickets.subtitle}</p>
+        </div>
+        <button className="ah-btn-red" onClick={() => setCreating(true)}>
+          <PlusIcon /> {p.tickets.newTicket}
+        </button>
+      </div>
 
-      <TicketFilters value={filters} onChange={setFilters} variant="student" />
+      <div className="vinnie-banner">
+        <span className="vinnie-banner-icon">
+          <SparkIcon />
+        </span>
+        <span className="vinnie-banner-text">
+          Vinnie can help draft, categorize, and route your request before submission.
+        </span>
+        <button className="vinnie-banner-btn" onClick={() => setCreating(true)}>
+          Start with Vinnie
+        </button>
+      </div>
+
+      <TicketFilters
+        value={filters}
+        onChange={(f) => {
+          setFilters(f);
+          setPage(1);
+        }}
+        variant="student"
+      />
 
       <AsyncBoundary state={loaded} onRetry={loaded.reload}>
         {() =>
@@ -125,13 +178,51 @@ export default function StudentSupportPage() {
               title={p.sup.noTicketsTitle}
               description={p.sup.noTicketsDesc}
             />
-          ) : (
-            <TicketBoard
-              variant="student"
-              items={visible}
-              handlers={handlers}
-              sort={filters.sort}
+          ) : visible.length === 0 ? (
+            <EmptyState
+              icon={<IconTicket size={28} />}
+              title={p.empty}
+              description={p.tickets.subtitle}
             />
+          ) : (
+            <>
+              <div className="ticket-cardlist">
+                {pageItems.map((t) => (
+                  <TicketCard key={t.id} t={t} h={handlers} variant="student" />
+                ))}
+              </div>
+
+              {pageCount > 1 && (
+                <nav className="ah-pagination" aria-label="Pagination">
+                  <button
+                    className="ah-page-btn"
+                    onClick={() => setPage(safePage - 1)}
+                    disabled={safePage <= 1}
+                    aria-label="Previous page"
+                  >
+                    <Chevron dir="left" />
+                  </button>
+                  {Array.from({ length: pageCount }, (_, i) => i + 1).map((n) => (
+                    <button
+                      key={n}
+                      className={`ah-page-btn ${n === safePage ? "active" : ""}`}
+                      onClick={() => setPage(n)}
+                      aria-current={n === safePage ? "page" : undefined}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                  <button
+                    className="ah-page-btn"
+                    onClick={() => setPage(safePage + 1)}
+                    disabled={safePage >= pageCount}
+                    aria-label="Next page"
+                  >
+                    <Chevron dir="right" />
+                  </button>
+                </nav>
+              )}
+            </>
           )
         }
       </AsyncBoundary>

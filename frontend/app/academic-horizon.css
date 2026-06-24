@@ -573,3 +573,88 @@ table.ah-table,
     display: inline-flex;
   }
 }
+
+/* ==========================================================================
+   PHASE 2 — student portal migration to Academic Horizon
+   The student shell (StudentShell) wraps pages in `.ah-ui`. Here we remap the
+   EXISTING semantic tokens (globals.css) to their --ah-* equivalents WITHIN that
+   scope, so every token-driven student component adopts Academic Horizon with no
+   JSX/logic changes. The old tokens stay intact globally — admin and other
+   surfaces are unaffected.
+   ========================================================================== */
+.ah-ui {
+  /* surfaces */
+  --bg: var(--ah-bg);
+  --surface: var(--ah-surface);
+  --surface-2: var(--ah-surface-2);
+  --surface-3: var(--ah-surface-3);
+  /* lines */
+  --border: var(--ah-border);
+  --border-strong: var(--ah-border-strong);
+  /* text */
+  --foreground: var(--ah-text);
+  /* brand red — the signature Academic Horizon change */
+  --primary: var(--ah-brand);
+  --primary-hover: var(--ah-brand-hover);
+  --primary-foreground: var(--ah-on-primary);
+  --accent: var(--ah-brand);
+  --accent-tint: rgba(185, 32, 38, 0.07);
+  --accent-tint-strong: rgba(185, 32, 38, 0.12);
+  --accent-border: rgba(185, 32, 38, 0.22);
+  --ring: var(--ah-ring);
+  /* shape — AH: 8px containers, 4px controls */
+  --radius-lg: var(--ah-radius);
+  --radius: var(--ah-radius);
+  --radius-sm: var(--ah-radius-sm);
+  /* elevation — flat by default, soft ambient where depth is needed */
+  --shadow-sm: none;
+  --shadow-card: var(--ah-shadow-2);
+  --shadow-pop: var(--ah-shadow-pop);
+}
+[data-theme="dark"] .ah-ui {
+  /* accent tints re-based on the dark brand red so they don't vibrate */
+  --accent-tint: rgba(226, 96, 106, 0.14);
+  --accent-tint-strong: rgba(226, 96, 106, 0.2);
+  --accent-border: rgba(226, 96, 106, 0.28);
+}
+
+/* Headline face (Hanken Grotesk) on titles within the AH scope. */
+.ah-ui .page-title,
+.ah-ui .section-title,
+.ah-ui .greeting-title,
+.ah-ui .stat-value,
+.ah-ui .login-title,
+.ah-ui .cal-title {
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+}
+
+/* Student shell: horizontal top nav + scrolling content (mirrors RoleShell's
+   height model so /student/chat keeps its full-height "flush" layout). */
+.ah-studentshell {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--ah-bg);
+}
+.ah-student-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 28px clamp(20px, 4vw, 40px) 56px;
+}
+.ah-student-content.flush {
+  padding: 0;
+  overflow: hidden;
+}
+.ah-student-content > .page-inner {
+  max-width: var(--content-max);
+  margin: 0 auto;
+}
+
+/* Dashboard "ask Vinnie" hero → Academic Horizon brand-red banner (was navy). */
+.ah-ui .hero-ask {
+  background: linear-gradient(135deg, var(--ah-primary) 0%, var(--ah-brand) 100%);
+  border-radius: var(--ah-radius-lg);
+}

@@ -1,15 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  AsyncBoundary,
-  Card,
-  SectionHeader,
-  StatCard,
-  EmptyState,
-} from "@/components/ui/primitives";
-import { ClassSessionRow, DeadlineRow } from "@/components/portal/rows";
+import Link from "next/link";
+import { Card } from "@/components/ui/primitives";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
 import { useAuth } from "@/lib/auth";
@@ -17,190 +10,322 @@ import {
   getStudentProfile,
   getStudentSchedule,
   getStudentDeadlines,
-  getStudentNotifications,
-  getActiveSuggestedQuestions,
+  getSupportTickets,
+  getStudentCalendar,
 } from "@/lib/api";
 import { daysUntil } from "@/lib/format";
-import { IconArrow, IconBell, IconClock, IconCap, IconChat } from "@/components/shell/icons";
-import type { ScheduleDay } from "@/lib/portalTypes";
+import { timeLabel } from "@/lib/calendar";
+import {
+  IconArrow,
+  IconClock,
+  IconTicket,
+  IconChat,
+  IconCap,
+} from "@/components/shell/icons";
+import type {
+  ScheduleDay,
+  SupportTicket,
+  TicketStatus,
+  CalendarEvent,
+} from "@/lib/portalTypes";
 
 const DAY_ORDER: ScheduleDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 function todayShort(): ScheduleDay {
   return DAY_ORDER[(new Date().getDay() + 6) % 7];
 }
 
+const ACTIVE_STATUSES: TicketStatus[] = ["submitted", "in_review", "waiting_for_student"];
+const TICKET_CHIP: Record<TicketStatus, string> = {
+  draft: "neutral",
+  submitted: "info",
+  in_review: "warning",
+  waiting_for_student: "warning",
+  resolved: "success",
+  closed: "neutral",
+};
+const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
+  draft: "Draft",
+  submitted: "Submitted",
+  in_review: "In Progress",
+  waiting_for_student: "Needs Input",
+  resolved: "Resolved",
+  closed: "Closed",
+};
+
+function relTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const h = Math.round(diff / 3_600_000);
+  if (h < 1) return "just now";
+  if (h < 24) return `${h}h ago`;
+  return `${Math.round(h / 24)}d ago`;
+}
+
 export default function StudentDashboardPage() {
   const { p, lang } = usePortal();
+  const locale = lang === "vi" ? "vi-VN" : "en-US";
   const { user } = useAuth();
   const router = useRouter();
-  const [draft, setDraft] = useState("");
 
-  const profile = useAsync(getStudentProfile, []);
-  const schedule = useAsync(getStudentSchedule, []);
-  const deadlines = useAsync(getStudentDeadlines, []);
-  const notifications = useAsync(getStudentNotifications, []);
-  // Notification-driven suggested questions (PLAN22.6), localized, falling back to the static set.
-  const suggested = useAsync(() => getActiveSuggestedQuestions(lang), [lang]);
-  const suggestedQs =
-    suggested.status === "success" && suggested.data.length > 0
-      ? suggested.data.map((q) => q.question_text)
-      : p.dash.suggested;
+  const profile = useAsync(() => getStudentProfile(), []);
+  const schedule = useAsync(() => getStudentSchedule(), []);
+  const deadlines = useAsync(() => getStudentDeadlines(), []);
+  const tickets = useAsync(() => getSupportTickets(), []);
+  const calendar = useAsync(() => getStudentCalendar(), []);
 
   const go = (q: string) => router.push(`/student/chat?q=${encodeURIComponent(q)}`);
-  const name = user?.name ?? (profile.status === "success" ? profile.data.preferred_name : "");
+
+  const pr = profile.status === "success" ? profile.data : null;
+  const name = user?.name ?? pr?.preferred_name ?? "";
+
+  // Today's classes (fall back to next day with classes, like the original).
+  const allClasses = schedule.status === "success" ? schedule.data : [];
+  const today = todayShort();
+  let schedDay = today;
+  let todays = allClasses.filter((s) => s.day === schedDay);
+  if (todays.length === 0) {
+    const next = DAY_ORDER.slice(DAY_ORDER.indexOf(today) + 1)
+      .concat(DAY_ORDER)
+      .find((d) => allClasses.some((s) => s.day === d));
+    if (next) {
+      schedDay = next;
+      todays = allClasses.filter((s) => s.day === schedDay);
+    }
+  }
+  todays = [...todays].sort((a, b) => a.start.localeCompare(b.start));
+
+  const activeTickets = (tickets.status === "success" ? tickets.data : [])
+    .filter((t) => ACTIVE_STATUSES.includes(t.status) && !t.archived && !t.deleted)
+    .slice(0, 3);
+
+  const upcomingEvents = (calendar.status === "success" ? calendar.data : [])
+    .filter((e) => e.type === "event" && new Date(e.start).getTime() >= Date.now())
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+    .slice(0, 3);
+
+  // Recommended-for-you: derived, urgency-first.
+  const recs: { icon: React.ReactNode; text: string; onClick: () => void }[] = [];
+  if (todays[0]) {
+    recs.push({
+      icon: <IconCap size={18} />,
+      text: `${todays[0].course_code} starts at ${todays[0].start}`,
+      onClick: () => router.push("/student/schedule"),
+    });
+  }
+  if (deadlines.status === "success" && deadlines.data[0]) {
+    const d = deadlines.data[0];
+    const n = daysUntil(d.due_at);
+    recs.push({
+      icon: <IconClock size={18} />,
+      text: `${d.title} ${n <= 0 ? "is due today" : `is due in ${n} day${n === 1 ? "" : "s"}`}`,
+      onClick: () => go(`Tell me about the deadline: ${d.title}`),
+    });
+  }
+  const needsInput = (tickets.status === "success" ? tickets.data : []).find(
+    (t) => t.status === "waiting_for_student" && !t.archived && !t.deleted
+  );
+  if (needsInput) {
+    recs.push({
+      icon: <IconTicket size={18} />,
+      text: `Ticket ${needsInput.id} needs your input`,
+      onClick: () => router.push("/student/support"),
+    });
+  }
+  while (recs.length < 3) {
+    recs.push({
+      icon: <IconChat size={18} />,
+      text: "Ask Vinnie anything about your studies",
+      onClick: () => router.push("/student/chat"),
+    });
+  }
 
   return (
     <div className="page-inner">
-      <div className="greeting-block">
-        <h2 className="greeting-title">
-          {p.greetingMorning}
-          {name ? `, ${name}` : ""} 👋
-        </h2>
-        {profile.status === "success" && (
-          <p className="greeting-sub">
-            {profile.data.program} · {p.year} {profile.data.year} · {p.dash.studentId}{" "}
-            {profile.data.student_id}
-          </p>
-        )}
+      <div className="dash-welcome">
+        <h1 className="dash-welcome-title">
+          Welcome to Student Copilot{name ? `, ${name}` : ""} 👋
+        </h1>
+        <p className="dash-welcome-sub">{p.productTagline}</p>
       </div>
 
-      <div className="hero-ask" style={{ margin: "16px 0 24px" }}>
-        <h2>{p.askCta}</h2>
-        <p>{p.askAnything}</p>
-        <form
-          className="hero-ask-field"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (draft.trim()) go(draft.trim());
-          }}
-        >
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder={p.askAnything}
-            aria-label={p.askCta}
-          />
-          <button className="btn btn-primary" type="submit">
-            <IconChat size={16} /> {p.askCta}
-          </button>
-        </form>
-      </div>
-
-      <div className="grid grid-3" style={{ marginBottom: 8 }}>
-        <AsyncBoundary state={notifications} onRetry={notifications.reload} rows={1}>
-          {(list) => {
-            const unread = list.filter((n) => !n.read && !n.archived).length;
-            return (
-              <StatCard
-                label={p.nav.notifications}
-                value={unread}
-                hint={p.notif.unreadCount(unread)}
-                tone={unread > 0 ? "warning" : "success"}
-                icon={<IconBell size={18} />}
+      <div className="dash-grid">
+        <div className="dash-main">
+          {/* Academic Profile */}
+          <Card>
+            <div className="dash-section-head">
+              <h2 className="dash-section-title">Academic Profile</h2>
+            </div>
+            <div className="profile-card-grid">
+              <Field k="Program" v={pr?.program ?? "—"} />
+              <Field k="Year" v={pr ? `Year ${pr.year}` : "—"} />
+              <Field k="Term" v={pr?.intake ?? "—"} />
+              <Field k="Advisor" v={pr?.advisor ?? "—"} />
+              <Field k="GPA" v={pr ? pr.gpa.toFixed(2) : "—"} />
+              <Field
+                k="Credits"
+                v={pr ? `${pr.credits_earned}/${pr.credits_required}` : "—"}
               />
-            );
-          }}
-        </AsyncBoundary>
+            </div>
+          </Card>
 
-        <AsyncBoundary state={deadlines} onRetry={deadlines.reload} rows={1}>
-          {(list) => {
-            const thisWeek = list.filter((d) => {
-              const n = daysUntil(d.due_at);
-              return n >= 0 && n <= 7;
-            });
-            return (
-              <StatCard
-                label={p.upcomingDeadlines}
-                value={thisWeek.length}
-                hint={p.dash.dueNext7}
-                tone={thisWeek.length > 0 ? "warning" : "success"}
-                icon={<IconClock size={18} />}
-              />
-            );
-          }}
-        </AsyncBoundary>
+          {/* Recommended for You */}
+          <div>
+            <div className="dash-section-head">
+              <h2 className="dash-section-title">Recommended for You</h2>
+            </div>
+            <div className="rec-strip">
+              {recs.slice(0, 3).map((r, i) => (
+                <button key={i} className="rec-card" onClick={r.onClick}>
+                  <span className="rec-icon">{r.icon}</span>
+                  <span className="rec-text">{r.text}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
-        <AsyncBoundary state={profile} onRetry={profile.reload} rows={1}>
-          {(pr) => (
-            <StatCard
-              label={p.dash.gpaCredits}
-              value={pr.gpa.toFixed(2)}
-              hint={p.dash.creditsEarned(pr.credits_earned, pr.credits_required)}
-              tone="default"
-              icon={<IconCap size={18} />}
-            />
-          )}
-        </AsyncBoundary>
-      </div>
-
-      <div className="grid cols-2-1" style={{ marginTop: 16 }}>
-        <Card>
-          <SectionHeader title={p.todaySchedule} />
-          <AsyncBoundary state={schedule} onRetry={schedule.reload}>
-            {(all) => {
-              const today = todayShort();
-              let day = today;
-              let items = all.filter((s) => s.day === day);
-              if (items.length === 0) {
-                const upcoming = DAY_ORDER.slice(DAY_ORDER.indexOf(today) + 1)
-                  .concat(DAY_ORDER)
-                  .find((d) => all.some((s) => s.day === d));
-                if (upcoming) {
-                  day = upcoming;
-                  items = all.filter((s) => s.day === day);
-                }
-              }
-              if (items.length === 0) return <EmptyState title={p.dash.noClasses} />;
-              const sorted = [...items].sort((a, b) => a.start.localeCompare(b.start));
-              return (
-                <>
-                  {day !== today && (
-                    <p className="td-sub" style={{ marginTop: -4 }}>
-                      {p.dash.nextClassDay(p.dayFull[day])}
-                    </p>
-                  )}
-                  {sorted.map((s) => (
-                    <ClassSessionRow key={s.id} s={s} />
-                  ))}
-                </>
-              );
-            }}
-          </AsyncBoundary>
-        </Card>
-
-        <Card>
-          <SectionHeader
-            title={p.upcomingDeadlines}
-            action={
-              <a className="btn btn-ghost btn-sm" href="/student/schedule">
+          {/* Active Tickets */}
+          <div>
+            <div className="dash-section-head">
+              <h2 className="dash-section-title">Active Tickets</h2>
+              <Link className="dash-viewall" href="/student/support">
                 {p.viewAll} <IconArrow size={14} />
-              </a>
-            }
-          />
-          <AsyncBoundary state={deadlines} onRetry={deadlines.reload}>
-            {(list) =>
-              list.length === 0 ? (
-                <EmptyState title={p.empty} />
-              ) : (
-                <>
-                  {list.slice(0, 4).map((d) => (
-                    <DeadlineRow key={d.id} d={d} />
-                  ))}
-                </>
-              )
-            }
-          </AsyncBoundary>
-        </Card>
-      </div>
+              </Link>
+            </div>
+            {activeTickets.length === 0 ? (
+              <Card>
+                <p className="rail-empty" style={{ margin: 0 }}>
+                  {p.sup.noTicketsTitle}
+                </p>
+              </Card>
+            ) : (
+              <div className="dash-list">
+                {activeTickets.map((t) => (
+                  <TicketCardLite
+                    key={t.id}
+                    t={t}
+                    onClick={() => router.push("/student/support")}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
 
-      <SectionHeader title={p.suggestedQuestions} />
-      <div className="qchips">
-        {suggestedQs.map((q) => (
-          <button key={q} className="qchip" onClick={() => go(q)}>
-            <IconChat size={14} /> {q}
-          </button>
-        ))}
+          {/* Upcoming Events */}
+          <div>
+            <div className="dash-section-head">
+              <h2 className="dash-section-title">Upcoming Events</h2>
+              <Link className="dash-viewall" href="/student/events">
+                {p.viewAll} <IconArrow size={14} />
+              </Link>
+            </div>
+            {upcomingEvents.length === 0 ? (
+              <Card>
+                <p className="rail-empty" style={{ margin: 0 }}>
+                  No upcoming events.
+                </p>
+              </Card>
+            ) : (
+              <div className="dash-list">
+                {upcomingEvents.map((e) => (
+                  <EventRowLite key={e.id} e={e} locale={locale} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right rail */}
+        <div className="dash-rail">
+          <div className="rail-card">
+            <h3 className="rail-title">
+              {p.todaySchedule}
+              {schedDay !== today ? ` · ${p.dayFull[schedDay]}` : ""}
+            </h3>
+            {todays.length === 0 ? (
+              <p className="rail-empty">{p.dash.noClasses}</p>
+            ) : (
+              todays.map((s) => (
+                <div key={s.id} className="rail-sched-row">
+                  <span className="rail-time">{s.start}</span>
+                  <div className="rail-sched-main">
+                    <div className="rail-sched-title">{s.course_title}</div>
+                    <div className="rail-sched-sub">
+                      {s.room}, {s.building} · {s.instructor}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="ask-vinnie-card">
+            <h3>{p.askCta}</h3>
+            <p>{p.askAnything}</p>
+            <button
+              className="ask-vinnie-btn"
+              onClick={() => go("What's on my schedule today?")}
+            >
+              <IconChat size={15} /> Ask Vinnie about today
+            </button>
+          </div>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function Field({ k, v }: { k: string; v: string }) {
+  return (
+    <div>
+      <div className="profile-field-k">{k}</div>
+      <div className="profile-field-v">{v}</div>
+    </div>
+  );
+}
+
+function TicketCardLite({ t, onClick }: { t: SupportTicket; onClick: () => void }) {
+  return (
+    <button className="dash-ticket-card" onClick={onClick}>
+      <span className="rec-icon">
+        <IconTicket size={18} />
+      </span>
+      <div className="dash-ticket-main">
+        <div className="dash-ticket-meta">
+          {t.department} · {t.id}
+        </div>
+        <div className="dash-ticket-title">{t.subject}</div>
+        <p className="dash-ticket-desc">{t.body}</p>
+        <div className="dash-ticket-time">Updated {relTime(t.updated_at)}</div>
+      </div>
+      <span className={`ah-chip ${TICKET_CHIP[t.status]}`}>
+        {TICKET_STATUS_LABEL[t.status]}
+      </span>
+    </button>
+  );
+}
+
+function EventRowLite({ e, locale }: { e: CalendarEvent; locale: string }) {
+  const start = new Date(e.start);
+  const mon = start.toLocaleDateString(locale, { month: "short" });
+  const day = start.getDate();
+  const time = e.all_day
+    ? "All day"
+    : `${timeLabel(e.start, locale)}${e.end ? ` – ${timeLabel(e.end, locale)}` : ""}`;
+  return (
+    <div className="event-row">
+      <div className="event-date">
+        <div className="event-date-mon">{mon}</div>
+        <div className="event-date-day">{day}</div>
+      </div>
+      <div className="event-main">
+        <div className="event-title">{e.title}</div>
+        <div className="event-meta">
+          <span>{time}</span>
+          {e.location && <span>· {e.location}</span>}
+        </div>
+      </div>
+      <Link className="btn btn-outline btn-sm" href="/student/events">
+        Details
+      </Link>
     </div>
   );
 }

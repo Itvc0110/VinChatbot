@@ -1,40 +1,55 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  AsyncBoundary,
-  Card,
-  PageHeader,
-  EmptyState,
-  Badge,
-  Toast,
-  type BadgeTone,
-} from "@/components/ui/primitives";
-import { CalendarView, type CalendarViewMode } from "@/components/calendar/CalendarView";
+import { useRouter } from "next/navigation";
+import { AsyncBoundary, Toast } from "@/components/ui/primitives";
+import { CalendarView } from "@/components/calendar/CalendarView";
 import { EventDetailDrawer } from "@/components/calendar/EventDetailDrawer";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
 import { getStudentCalendar } from "@/lib/api";
-import type { CalendarEvent, CalendarEventType } from "@/lib/portalTypes";
-import {
-  addDays,
-  addMonths,
-  monthTitle,
-  weekTitle,
-  timeLabel,
-} from "@/lib/calendar";
+import type { CalendarEvent } from "@/lib/portalTypes";
+import { addDays, addMonths, monthTitle, weekTitle, timeLabel, ymd } from "@/lib/calendar";
 import { formatDate } from "@/lib/format";
-import { IconCalendar } from "@/components/shell/icons";
 
-const EVENT_TONE: Record<CalendarEventType, BadgeTone> = {
-  class: "info",
-  deadline: "warning",
-  exam: "danger",
-  event: "success",
-  reminder: "gold",
-};
+type ViewMode = "day" | "week" | "month" | "list";
+type CalFilter = "all" | "class" | "exam" | "assignment" | "tuition" | "event";
 
-const TYPES: CalendarEventType[] = ["class", "deadline", "exam", "event", "reminder"];
+const FILTERS: { key: CalFilter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "class", label: "Classes" },
+  { key: "exam", label: "Exams" },
+  { key: "assignment", label: "Assignment Deadlines" },
+  { key: "tuition", label: "Tuition Deadlines" },
+  { key: "event", label: "Events" },
+];
+
+const VIEWS: { key: ViewMode; label: string }[] = [
+  { key: "day", label: "Day" },
+  { key: "week", label: "Week" },
+  { key: "month", label: "Month" },
+  { key: "list", label: "List" },
+];
+
+function isTuition(e: CalendarEvent): boolean {
+  return /tuition|fee|học phí|hoc phi/i.test(`${e.title} ${e.category ?? ""}`);
+}
+function matchFilter(e: CalendarEvent, f: CalFilter): boolean {
+  switch (f) {
+    case "all":
+      return true;
+    case "class":
+      return e.type === "class";
+    case "exam":
+      return e.type === "exam";
+    case "event":
+      return e.type === "event" || e.type === "reminder";
+    case "assignment":
+      return e.type === "deadline" && !isTuition(e);
+    case "tuition":
+      return e.type === "deadline" && isTuition(e);
+  }
+}
 
 function Chevron({ dir }: { dir: "left" | "right" }) {
   return (
@@ -48,51 +63,115 @@ function Chevron({ dir }: { dir: "left" | "right" }) {
 export default function StudentCalendarPage() {
   const { p, lang } = usePortal();
   const locale = lang === "vi" ? "vi-VN" : "en-US";
-  const cal = useAsync(getStudentCalendar, []);
+  const router = useRouter();
+  const cal = useAsync(() => getStudentCalendar(), []);
 
-  const [view, setView] = useState<CalendarViewMode>("month");
+  const [view, setView] = useState<ViewMode>("month");
   const [cursor, setCursor] = useState<Date>(() => new Date());
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<CalendarEventType | "all">("all");
+  const [filter, setFilter] = useState<CalFilter>("all");
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const events = cal.status === "success" ? cal.data : [];
+  const filtered = useMemo(
+    () => events.filter((e) => matchFilter(e, filter)),
+    [events, filter]
+  );
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return events.filter((e) => {
-      if (typeFilter !== "all" && e.type !== typeFilter) return false;
-      if (!q) return true;
-      return [e.title, e.location, e.course, e.category, e.description]
-        .filter(Boolean)
-        .some((s) => (s as string).toLowerCase().includes(q));
-    });
-  }, [events, search, typeFilter]);
-
-  const upcoming = useMemo(() => {
-    const now = Date.now();
+  const todays = useMemo(() => {
+    const key = ymd(new Date());
     return filtered
-      .filter((e) => new Date(e.start).getTime() >= now)
-      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
-      .slice(0, 6);
+      .filter((e) => ymd(new Date(e.start)) === key)
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
   }, [filtered]);
 
-  const shift = (dir: number) =>
-    setCursor((c) => (view === "month" ? addMonths(c, dir) : addDays(c, dir * 7)));
+  const dayEvents = useMemo(() => {
+    const key = ymd(cursor);
+    return filtered
+      .filter((e) => ymd(new Date(e.start)) === key)
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  }, [filtered, cursor]);
 
-  const title = view === "month" ? monthTitle(cursor, locale) : weekTitle(cursor, locale);
+  const listEvents = useMemo(
+    () =>
+      [...filtered]
+        .filter((e) => new Date(e.start).getTime() >= Date.now() - 86_400_000)
+        .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+        .slice(0, 40),
+    [filtered]
+  );
+
+  const shift = (dir: number) => {
+    if (view === "month") setCursor((c) => addMonths(c, dir));
+    else if (view === "week") setCursor((c) => addDays(c, dir * 7));
+    else if (view === "day") setCursor((c) => addDays(c, dir));
+  };
+
+  const period =
+    view === "month"
+      ? monthTitle(cursor, locale)
+      : view === "week"
+      ? weekTitle(cursor, locale)
+      : view === "day"
+      ? formatDate(cursor.toISOString(), locale)
+      : "Upcoming";
+
+  const evLine = (e: CalendarEvent) =>
+    [
+      e.all_day
+        ? "All day"
+        : `${timeLabel(e.start, locale)}${e.end ? ` – ${timeLabel(e.end, locale)}` : ""}`,
+      e.location,
+      e.course,
+    ]
+      .filter(Boolean)
+      .join(" · ");
 
   return (
     <div className="page-inner">
-      <PageHeader title={p.cal.title} />
-
-      <div className="cal-toolbar">
-        <div className="cal-toolbar-left">
-          <button className="btn btn-outline btn-sm" onClick={() => setCursor(new Date())}>
-            {p.cal.today}
+      <div className="ah-pagehead">
+        <div>
+          <h1 className="ah-pagehead-title">Academic Calendar</h1>
+          <p className="ah-pagehead-sub">Manage your schedule, exams, and personal events.</p>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            className="btn btn-outline"
+            onClick={() => setToast("Calendar sync link copied (demo).")}
+          >
+            Sync Calendar
           </button>
-          <div className="cal-nav">
+          <button
+            className="btn btn-outline"
+            onClick={() =>
+              router.push(
+                `/student/chat?q=${encodeURIComponent("What's on my schedule this week?")}`
+              )
+            }
+          >
+            Ask Vinnie about my week
+          </button>
+        </div>
+      </div>
+
+      <div className="cal-toolbar-ah">
+        <div className="seg" role="group" aria-label="View">
+          {VIEWS.map((v) => (
+            <button
+              key={v.key}
+              className={`seg-opt ${view === v.key ? "active" : ""}`}
+              aria-pressed={view === v.key}
+              onClick={() => setView(v.key)}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+        <button className="btn btn-outline btn-sm" onClick={() => setCursor(new Date())}>
+          {p.cal.today}
+        </button>
+        {view !== "list" && (
+          <div className="cal-nav-ah">
             <button className="icon-btn" onClick={() => shift(-1)} aria-label={p.cal.prev}>
               <Chevron dir="left" />
             </button>
@@ -100,56 +179,27 @@ export default function StudentCalendarPage() {
               <Chevron dir="right" />
             </button>
           </div>
-          <span className="cal-title">{title}</span>
-        </div>
+        )}
+        <span className="cal-period">{period}</span>
+      </div>
 
-        <div className="cal-toolbar-right">
-          <input
-            className="input cal-search"
-            placeholder={p.cal.searchPlaceholder}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label={p.cal.searchPlaceholder}
-          />
-          <select
-            className="select cal-type"
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value as CalendarEventType | "all")}
-            aria-label={p.cal.allTypes}
+      <div className="cal-filters">
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            className={`cal-filter-chip ${filter === f.key ? "active" : ""}`}
+            onClick={() => setFilter(f.key)}
           >
-            <option value="all">{p.cal.allTypes}</option>
-            {TYPES.map((t) => (
-              <option key={t} value={t}>
-                {p.enums.eventType[t]}
-              </option>
-            ))}
-          </select>
-          <div className="seg" role="group" aria-label="View">
-            <button
-              className={`seg-opt ${view === "week" ? "active" : ""}`}
-              aria-pressed={view === "week"}
-              onClick={() => setView("week")}
-            >
-              {p.cal.week}
-            </button>
-            <button
-              className={`seg-opt ${view === "month" ? "active" : ""}`}
-              aria-pressed={view === "month"}
-              onClick={() => setView("month")}
-            >
-              {p.cal.month}
-            </button>
-          </div>
-        </div>
+            {f.label}
+          </button>
+        ))}
       </div>
 
       <AsyncBoundary state={cal} onRetry={cal.reload} errorLabel={p.cal.loadError}>
         {() => (
-          <div className="cal-layout">
-            <Card className="cal-card">
-              {filtered.length === 0 ? (
-                <EmptyState icon={<IconCalendar size={28} />} title={p.cal.noEvents} />
-              ) : (
+          <div className="cal-layout-ah">
+            <div className="cal-main-card">
+              {view === "month" || view === "week" ? (
                 <CalendarView
                   events={filtered}
                   view={view}
@@ -157,36 +207,54 @@ export default function StudentCalendarPage() {
                   onSelectEvent={setSelected}
                   onSelectDay={(d) => {
                     setCursor(d);
-                    setView("week");
+                    setView("day");
                   }}
                 />
-              )}
-            </Card>
-
-            <Card className="cal-upcoming">
-              <h3 className="section-title" style={{ marginBottom: 12 }}>
-                {p.cal.upcoming}
-              </h3>
-              {upcoming.length === 0 ? (
-                <EmptyState title={p.cal.noUpcoming} />
               ) : (
-                <div className="upcoming-list">
-                  {upcoming.map((e) => (
-                    <button key={e.id} className="upcoming-row" onClick={() => setSelected(e)}>
-                      <span className={`upcoming-bar ev-${e.type}`} aria-hidden="true" />
-                      <span className="upcoming-main">
-                        <span className="upcoming-title">{e.title}</span>
-                        <span className="upcoming-sub">
-                          {formatDate(e.start, locale)}
-                          {!e.all_day ? ` · ${timeLabel(e.start, locale)}` : ""}
+                <div className="cal-list">
+                  {(view === "day" ? dayEvents : listEvents).length === 0 ? (
+                    <div className="cal-empty">{p.cal.noEvents}</div>
+                  ) : (
+                    (view === "day" ? dayEvents : listEvents).map((e) => (
+                      <button
+                        key={e.id}
+                        className="cal-list-row"
+                        onClick={() => setSelected(e)}
+                      >
+                        <span className="cal-list-time">
+                          {view === "list" ? formatDate(e.start, locale) : timeLabel(e.start, locale)}
                         </span>
-                      </span>
-                      <Badge tone={EVENT_TONE[e.type]}>{p.enums.eventType[e.type]}</Badge>
-                    </button>
-                  ))}
+                        <span className="cal-list-main">
+                          <span className="cal-list-title">{e.title}</span>
+                          <span className="cal-list-sub">{evLine(e)}</span>
+                        </span>
+                      </button>
+                    ))
+                  )}
                 </div>
               )}
-            </Card>
+            </div>
+
+            <div className="rail-card">
+              <h3 className="rail-title">{p.todaySchedule}</h3>
+              {todays.length === 0 ? (
+                <p className="rail-empty">{p.dash.noClasses}</p>
+              ) : (
+                todays.map((e) => (
+                  <div key={e.id} className="rail-sched-row">
+                    <span className="rail-time">
+                      {e.all_day ? "—" : timeLabel(e.start, locale)}
+                    </span>
+                    <div className="rail-sched-main">
+                      <div className="rail-sched-title">{e.title}</div>
+                      <div className="rail-sched-sub">
+                        {[e.category, e.location].filter(Boolean).join(" · ")}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
       </AsyncBoundary>
