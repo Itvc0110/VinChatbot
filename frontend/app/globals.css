@@ -111,6 +111,113 @@
   color-scheme: dark;
 }
 
+/* ============================================================================
+   ACADEMIC HORIZON — additive design tokens (Stitch "Academic Horizon").
+   Source of truth: DESIGN.md. ADDITIVE — the existing --* tokens above are left
+   intact for compatibility. Components opt in via the `.ah-ui` scope and `.ah-*`
+   classes (academic-horizon.css), so the current pages are unchanged until they
+   are migrated. Light values are per the Stitch spec; dark values are a derived
+   extension so the existing theme toggle keeps working.
+   ============================================================================ */
+:root {
+  /* surfaces (warm off-white bg, white cards) */
+  --ah-bg: #fbf9f6;
+  --ah-surface: #ffffff;
+  --ah-surface-2: #f5f3f0;
+  --ah-surface-3: #efeeeb;
+  --ah-surface-4: #e4e2df;
+
+  /* brand red: action #950013, signature #B92026 */
+  --ah-primary: #950013;
+  --ah-brand: #b92026;
+  --ah-brand-hover: #a01620;
+  --ah-on-primary: #ffffff;
+  --ah-primary-tint: #ffdad7;
+  --ah-on-primary-tint: #930013;
+
+  /* text + lines */
+  --ah-text: #1b1c1a;
+  --ah-text-2: #5b403e;
+  --ah-muted: #6b7280;
+  --ah-border: #e5e7eb;
+  --ah-border-strong: #d8d6d2;
+  --ah-outline: #8f706d;
+
+  /* status */
+  --ah-info: #3b82f6;
+  --ah-info-bg: #eaf1fe;
+  --ah-success: #10b981;
+  --ah-success-bg: #e7f7f0;
+  --ah-warning: #b45309;
+  --ah-warning-bg: #fbf0e2;
+  --ah-error: #ba1a1a;
+  --ah-error-bg: #ffdad6;
+  --ah-secondary: #575e70;
+  --ah-secondary-bg: #d9dff5;
+
+  /* radius (Stitch 4 / 8 / 12) */
+  --ah-radius-sm: 4px;
+  --ah-radius: 8px;
+  --ah-radius-lg: 12px;
+  --ah-radius-pill: 9999px;
+
+  /* elevation: flat default, soft ambient on hover; heavier for pop-overs */
+  --ah-shadow: none;
+  --ah-shadow-2: 0 4px 20px rgba(0, 0, 0, 0.04);
+  --ah-shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.1);
+
+  /* brand-red focus glow (low opacity) */
+  --ah-ring: rgba(185, 32, 38, 0.22);
+
+  /* spacing (8px rhythm) + layout */
+  --ah-stack-sm: 8px;
+  --ah-stack-md: 16px;
+  --ah-stack-lg: 24px;
+  --ah-gutter: 24px;
+  --ah-margin: 40px;
+  --ah-container: 1280px;
+
+  /* type — Hanken Grotesk headlines (--ah-font-head set by next/font in layout.tsx),
+     Inter body. */
+  --ah-font-body: var(--font-sans), "Inter", system-ui, sans-serif;
+}
+
+[data-theme="dark"] {
+  /* Academic Horizon is light-only by spec; these are a derived dark extension. */
+  --ah-bg: #16161a;
+  --ah-surface: #1d1e22;
+  --ah-surface-2: #24252b;
+  --ah-surface-3: #2c2e35;
+  --ah-surface-4: #353841;
+
+  --ah-primary: #ff8a8f;
+  --ah-brand: #e2606a;
+  --ah-brand-hover: #ec717a;
+  --ah-on-primary: #2a0306;
+  --ah-primary-tint: rgba(226, 96, 106, 0.18);
+  --ah-on-primary-tint: #ffb3ad;
+
+  --ah-text: #e7e4df;
+  --ah-text-2: #c8b6b4;
+  --ah-muted: #9aa3b2;
+  --ah-border: rgba(255, 255, 255, 0.12);
+  --ah-border-strong: rgba(255, 255, 255, 0.2);
+  --ah-outline: #b89a97;
+
+  --ah-info-bg: rgba(59, 130, 246, 0.16);
+  --ah-success-bg: rgba(16, 185, 129, 0.16);
+  --ah-warning: #e0a44a;
+  --ah-warning-bg: rgba(224, 164, 74, 0.16);
+  --ah-error: #f06a62;
+  --ah-error-bg: rgba(240, 106, 98, 0.16);
+  --ah-secondary: #aab2c6;
+  --ah-secondary-bg: rgba(120, 130, 160, 0.2);
+
+  --ah-shadow-2: 0 4px 20px rgba(0, 0, 0, 0.45);
+  --ah-shadow-pop: 0 14px 36px rgba(0, 0, 0, 0.55);
+  --ah-ring: rgba(255, 138, 143, 0.3);
+}
+
 * {
   box-sizing: border-box;
 }

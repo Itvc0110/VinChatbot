@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Hanken_Grotesk } from "next/font/google";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import { Providers } from "./providers";
 import "./globals.css";
 import "./portal.css";
+import "./academic-horizon.css";
 
 // Inter with the `vietnamese` subset so diacritics (ế, ữ, ợ, Đ…) render crisply.
 const inter = Inter({
@@ -18,6 +19,15 @@ const mono = JetBrains_Mono({
   variable: "--font-mono",
 });
 
+// Hanken Grotesk — Academic Horizon headline face (DESIGN.md §2). Exposed as the CSS
+// variable --ah-font-head and consumed by the Academic Horizon layer. Additive: the
+// default body font stays Inter, so existing pages render unchanged.
+const hankenGrotesk = Hanken_Grotesk({
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  display: "swap",
+  variable: "--ah-font-head",
+});
+
 export const metadata: Metadata = {
   title: "VinUni Student Copilot",
   description:
@@ -30,7 +40,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${mono.variable}`}>
+    <html
+      lang="en"
+      className={`${inter.variable} ${mono.variable} ${hankenGrotesk.variable}`}
+    >
       <head>
         {/* Apply the saved/OS theme before paint to avoid a flash of the wrong theme. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
