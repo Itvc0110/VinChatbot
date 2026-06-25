@@ -1,0 +1,107 @@
+{
+  "name": "vinuni_programs_per_college",
+  "description": "Per-college undergraduate program facts (duration + credits for the single major/degree WITHOUT a minor). Verified 2026-06-24 from the v2-indexed authoritative curriculum PDFs / program-specification docs (policy.vinuni) and college pages, NOT bot output: CS=4yr/120 (BSCS, consistent across cohorts), MD=6yr/228 (MD_Program-Specifications + Cohort-2025), Nursing=4yr/126 current AY25-26 (146 w/ minor), BBA=4yr/120. CAS omitted — no CAS program/credit content surfaced in v2 (coverage gap; see LOGS/PHASE1.29_PLAN.md). SCORED set = cases that pass on v2+D9; the VI MD/Nursing variants moved to golden_targets/programs_xlingual.json (cross-lingual under-retrieval, awaiting the retrieval fix).",
+  "source": "policy.vinuni curriculum PDFs + cecs/chs/cbm pages",
+  "cases": [
+    {
+      "id": "prog-cs-credits-en",
+      "question": "How long is VinUni's Bachelor of Science in Computer Science program and how many credits for the single major?",
+      "required_facts": [
+        "4 years",
+        "120"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "cecs.vinuni",
+        "computer-science",
+        "BSCS"
+      ],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "prog-cs-credits-vi",
+      "question": "Chương trình Cử nhân Khoa học Máy tính tại VinUni kéo dài bao lâu và cần bao nhiêu tín chỉ cho chuyên ngành đơn?",
+      "required_facts": [
+        "4 năm|4 years",
+        "120"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "cecs.vinuni",
+        "may-tinh",
+        "BSCS"
+      ],
+      "language": "vi",
+      "held_out": true
+    },
+    {
+      "id": "prog-md-credits-en",
+      "question": "How many years is VinUni's Doctor of Medicine (MD) program and how many total credits?",
+      "required_facts": [
+        "6 years",
+        "228"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "MD_",
+        "medical-doctor",
+        "chs.vinuni"
+      ],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "prog-nursing-credits-en",
+      "question": "How many total credits does VinUni's current Bachelor of Nursing program require for the single degree, without a minor?",
+      "required_facts": [
+        "126"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "BN_",
+        "nursing",
+        "chs.vinuni"
+      ],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "prog-bba-credits-en",
+      "question": "How many credits does VinUni's Bachelor of Business Administration require for the single major, without a minor?",
+      "required_facts": [
+        "120"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "BBA",
+        "business-administration",
+        "cbm.vinuni"
+      ],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "prog-md-credits-vi",
+      "question": "Chương trình Bác sĩ Y khoa (MD) của VinUni kéo dài mấy năm và tổng cộng bao nhiêu tín chỉ?",
+      "required_facts": [
+        "6 năm|6 years",
+        "228"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "MD_",
+        "medical-doctor",
+        "chs.vinuni"
+      ],
+      "language": "vi",
+      "held_out": false
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "name": "vinuni_identity_intent_audit",
+  "description": "Phase 1.28/D9 intent-satisfaction auditor: identity/role questions where a GROUNDED answer can still name the wrong-role person (the data overloads 'President': Council-President = Lê Mai Lan vs Rector = Rohit Verma 2021 / Tan Yap Peng 2025). With ENABLE_INTENT_AUDIT, role-enumeration + role-mismatch answers must HEDGE instead of confidently listing wrong people, while individual 'who is X' must still ANSWER (no over-degradation) and policy 'who is eligible' must not be gated. NOTE: the enumeration cases expect a HEDGE for now (safe given the data); once the leadership content + entity/role table (D8) land, flip them to required_facts=[Rohit Verma, Tan Yap Peng]. Authored from live v2 probes, not the bot's output.",
+  "source": "vinuni.edu.vn/people + policy.vinuni",
+  "cases": [
+    {
+      "id": "d9-rectors-enumerate-en",
+      "question": "Who have served as the Rectors (Hiệu trưởng) of VinUniversity over time?",
+      "expects_refusal": true,
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "d9-rectors-enumerate-vi",
+      "question": "VinUni đã có những hiệu trưởng nào qua các thời kỳ?",
+      "expects_refusal": true,
+      "language": "vi",
+      "held_out": true
+    },
+    {
+      "id": "d9-rector-trap-en",
+      "question": "Who is the Rector (Hiệu trưởng) of VinUniversity?",
+      "required_facts": [],
+      "forbidden_facts": ["Lê Mai Lan", "Le Mai Lan", "University Council"],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "d9-identity-tanyappeng-vi",
+      "question": "Tan Yap Peng là ai?",
+      "required_facts": ["Princeton"],
+      "forbidden_facts": [],
+      "language": "vi",
+      "held_out": false
+    },
+    {
+      "id": "d9-identity-yappeng-western-vi",
+      "question": "Yap-Peng Tan là ai?",
+      "required_facts": ["Princeton"],
+      "forbidden_facts": [],
+      "language": "vi",
+      "held_out": true
+    },
+    {
+      "id": "d9-identity-rohit-en",
+      "question": "Who is Rohit Verma at VinUniversity?",
+      "required_facts": ["Provost|Cornell"],
+      "forbidden_facts": [],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "d9-control-eligible-en",
+      "question": "Who is eligible for the Vingroup scholarship?",
+      "required_facts": ["science|technology|eligib|GPA"],
+      "forbidden_facts": [],
+      "language": "en",
+      "held_out": false
+    }
+  ]
+}

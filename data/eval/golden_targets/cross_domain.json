@@ -1,0 +1,325 @@
+{
+  "name": "vinuni_cross_domain_targets",
+  "description": "TARGET (roadmap #1, D1+D2): compound questions spanning two domains. The single-intent route reaches one domain's tools, then the output guard refuses the WHOLE answer (conf 0). Facts verified 2026-06-24: all-majors listed tuition ~815,850,000 VND (~35,000 USD)/yr; add/drop period = first two weeks of the semester; tuition paid twice per year. Substrate for part-aware degradation (D1) + decompose→fan-out (D2): the bot should answer the parts it can and name the gap. Move to data/eval/golden/ when D1/D2 land. | Stage-0.5 expansion 2026-06-25: +cases authored from VERIFIED corpus facts, tagged failure_type (coverage/multi_question/chained) + domains; substrate for G1 multi-label routing+synthesis (cross-ref PHASE1.29_PLAN Phase 1.31).",
+  "source": "admissions tuition FAQ + International-Student-Handbook + financial tariff",
+  "cases": [
+    {
+      "id": "cross-tuition-adddrop-en",
+      "question": "What is VinUni's listed annual tuition for all undergraduate majors, and how long is the add/drop period each semester?",
+      "required_facts": [
+        "35,000|815,850,000",
+        "two weeks"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "admissions.vinuni",
+        "vinuni"
+      ],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "cross-nursing-tuition-payment-en",
+      "question": "How much is the annual Nursing tuition at VinUni, and how many times per year is tuition paid?",
+      "required_facts": [
+        "15,000|349,650,000",
+        "twice|two"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "admissions.vinuni",
+        "policy.vinuni",
+        "vinuni"
+      ],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "cross-other-bachelor-tuition-fall-start-en",
+      "question": "What is the listed tuition fee per academic year for VinUni's non-Nursing Bachelor programs, and on what date does Fall 2026 instruction begin?",
+      "required_facts": [
+        "815,850,000|35,000",
+        "September 21, 2026|21-Sep|2026-09-21"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "VinUni-Academic-Calendar"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "coverage",
+      "domains": [
+        "financial",
+        "calendar"
+      ]
+    },
+    {
+      "id": "cross-tuition-twice-year-spring-start-en",
+      "question": "How many times per year do VinUni students pay tuition, and when does Spring 2027 instruction begin?",
+      "required_facts": [
+        "twice|02|two",
+        "February 15, 2027|15-Feb|2027-02-15"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "VinUni-Academic-Calendar"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "coverage",
+      "domains": [
+        "financial",
+        "calendar"
+      ]
+    },
+    {
+      "id": "cross-late-payment-fee-summer-start-en",
+      "question": "What late payment fee applies if a VinUni student misses the tuition deadline, and when does Summer 2027 instruction begin?",
+      "required_facts": [
+        "2,000,000|2.000.000",
+        "July 5, 2027|5-Jul|2027-07-05"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "VinUni-Academic-Calendar"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "coverage",
+      "domains": [
+        "financial",
+        "calendar"
+      ]
+    },
+    {
+      "id": "cross-library-room-booking-overdue-fine-en",
+      "question": "Does the VinUni library let students book study rooms online, and what is the overdue fine per day for a normal library item?",
+      "required_facts": [
+        "room booking|book online|19 rooms",
+        "10,000"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "library.vinuni.edu.vn",
+        "financial-regulations-and-tariff-for-student"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "coverage",
+      "domains": [
+        "services",
+        "financial"
+      ]
+    },
+    {
+      "id": "cross-transcript-request-fee-en",
+      "question": "How do VinUni students request an official transcript or certification, and what is the fee per copy?",
+      "required_facts": [
+        "transcript|certification|document request",
+        "50,000"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "registrar.vinuni.edu.vn/academics/request-transcripts-certifications",
+        "financial-regulations-and-tariff-for-student"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "coverage",
+      "domains": [
+        "services",
+        "financial"
+      ]
+    },
+    {
+      "id": "cross-transcript-request-fee-vi",
+      "question": "Làm thế nào để yêu cầu cấp bảng điểm và chứng nhận tại VinUni, và phí mỗi bản tài liệu là bao nhiêu?",
+      "required_facts": [
+        "bảng điểm|chứng nhận|yêu cầu giấy tờ",
+        "50.000|50,000"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/yeu-cau-cap-bang-diem-va-chung-nhan",
+        "tai-chinh-va-bieu-phi"
+      ],
+      "language": "vi",
+      "held_out": false,
+      "failure_type": "coverage",
+      "domains": [
+        "services",
+        "financial"
+      ]
+    },
+    {
+      "id": "cross-integrity-sanction-gpa-good-standing-en",
+      "question": "What is the sanction for a Tier 1 academic integrity violation at VinUni, and what cumulative GPA do I need to keep my entry scholarship?",
+      "required_facts": [
+        "Tier 1",
+        "verbal warning|written warning|re-read|redo|educational intervention"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "student-academic-integrity",
+        "criteria-to-maintain"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "coverage",
+      "domains": [
+        "policy",
+        "financial"
+      ]
+    },
+    {
+      "id": "cross-withdraw-refund-wgrade-en",
+      "question": "If I withdraw from a course after the semester starts, how much tuition is refunded and will a W grade appear on my transcript?",
+      "required_facts": [
+        "80%|50%|refund",
+        "W|withdrawal|withdrawn"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "financial-regulations-and-tariff",
+        "academic-regulations"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "coverage",
+      "domains": [
+        "policy",
+        "financial"
+      ]
+    },
+    {
+      "id": "cross-late-payment-fee-adddrop-en",
+      "question": "How much is the late tuition payment fee at VinUni, and how long does the add/drop period last each semester?",
+      "required_facts": [
+        "2,000,000|2.000.000",
+        "two weeks|first two weeks"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "financial-regulations-and-tariff",
+        "vinuni"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "coverage",
+      "domains": [
+        "financial",
+        "policy"
+      ]
+    },
+    {
+      "id": "cross-fall26-exam-transcript-request-en",
+      "question": "When is the Fall 2026 final exam period at VinUni, and how do I request an official transcript from the Registrar?",
+      "required_facts": [
+        "11-22-Jan|Final Exam Period|exam period",
+        "Student Document Request Form|request|50,000"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "VinUni-Academic-Calendar",
+        "registrar.vinuni",
+        "request-transcripts-certifications"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "coverage",
+      "domains": [
+        "calendar",
+        "registrar"
+      ]
+    },
+    {
+      "id": "cross-rut-mon-hoan-hoc-phi-vi",
+      "question": "Nếu tôi rút một môn học sau khi học kỳ đã bắt đầu thì được hoàn lại bao nhiêu phần trăm học phí, và phí nộp học phí muộn là bao nhiêu?",
+      "required_facts": [
+        "80%|50%|hoàn",
+        "2,000,000|2.000.000"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "financial-regulations-and-tariff",
+        "Quy-dinh-tai-chinh-va-Bieu-phi"
+      ],
+      "language": "vi",
+      "held_out": false,
+      "failure_type": "coverage",
+      "domains": [
+        "policy",
+        "financial"
+      ]
+    },
+    {
+      "id": "mq-integrity-penalty-scholarship-gpa-en",
+      "question": "What is the penalty for an academic integrity violation at VinUni, and what GPA do I need to keep my merit scholarship?",
+      "required_facts": [
+        "Tier 1|Tier 2|Tier 3|warning|sanction|failing grade",
+        "2.5|cumulative GPA"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "student-academic-integrity",
+        "criteria-to-maintain"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "multi_question",
+      "domains": [
+        "policy",
+        "financial"
+      ]
+    },
+    {
+      "id": "mq-late-payment-fee-academic-warning-gpa-en",
+      "question": "How much is the late tuition payment fee at VinUni, and what cumulative GPA triggers an academic warning?",
+      "required_facts": [
+        "2,000,000|2.000.000",
+        "1.20|1.40|1.60|1.80|academic warning"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "financial-regulations-and-tariff",
+        "academic-regulations"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "multi_question",
+      "domains": [
+        "financial",
+        "policy"
+      ]
+    },
+    {
+      "id": "mq-transcript-fee-request-process-en",
+      "question": "How much does VinUni charge for an official transcript, and what are the steps to request one from the Registrar?",
+      "required_facts": [
+        "50,000",
+        "Student Document Request Form|select the document type|2.3 working days|processing"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "registrar.vinuni",
+        "request-transcripts-certifications"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "multi_question",
+      "domains": [
+        "registrar",
+        "financial"
+      ]
+    }
+  ]
+}

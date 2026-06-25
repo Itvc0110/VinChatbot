@@ -8,6 +8,7 @@ from typing import Any
 from vinchatbot.app.agents.guardrails import answer_language, scan_for_injection
 from vinchatbot.app.core.config import get_settings
 from vinchatbot.app.core.observability import get_user_message, mark_point_lookup, record_stage
+from vinchatbot.app.rag.canonical_lookup import AID_URL, canonical_doc_match
 from vinchatbot.app.rag.citations import excerpt
 from vinchatbot.app.rag.context import dedup_by_text, reorder_for_long_context
 from vinchatbot.app.rag.policy_lookup import match as policy_doc_match
@@ -50,6 +51,23 @@ def build_retrieval_tools(retriever: Retriever):
         routed = enforced_filters or {}
         subcat = routed.get("subcategory") or routed.get("category")
 
+        # Canonical doc-pin match (Phase 1.30/S15+S16) — computed ONCE up front because it must take
+        # precedence over the structured fee lookup below: an aid/subsidy question ("what % subsidy")
+        # is an aid-POLICY fact that lives on the scholarship page, not a tariff row, so the fee lookup
+        # matching it is a false-positive that would early-return a wrong fee record and pre-empt the pin.
+        if getattr(settings, "enable_canonical_doc_pin", False):
+            try:
+                canon_match = canonical_doc_match(get_user_message() or query)
+            except Exception:
+                canon_match = None
+        else:
+            canon_match = None
+        # On the FINANCIAL route only the aid pin applies: a program/admission name there means a FEE
+        # question ("tuition fee per credit for the MD program"), which the structured fee lookup answers —
+        # NOT a doc-pin target. (A program-credit COUNT question routes to services, not financial, so it
+        # still pins.) So a program/admission canon_match on the financial route is suppressed.
+        canon_applies = bool(canon_match) and not (subcat == "financial" and canon_match != AID_URL)
+
         # Phase 1.27/A6 list mode: a multi-row question ("tuition for ALL programs") needs a WIDER context so
         # every row reaches the answer, and must NOT be narrowed by the point-lookup path. Detect on the USER's
         # raw question (contextvar) so the agent's reformulation can't drop the "all/each". Gated → byte-identical.
@@ -69,7 +87,15 @@ def build_retrieval_tools(retriever: Retriever):
         # never the adjacent near-identical date/fee row that vector retrieval leaks (the
         # grounded-but-wrong residuals). Stage 1 = calendar, Stage 2 = fees. Gated + fail-open: any
         # miss/error falls through to the vector path below, byte-identical to today.
-        if getattr(settings, "enable_structured_lookup", False) and subcat in ("calendar", "financial"):
+        # Skip the FEE lookup when the canonical doc-pin claims this query (aid/subsidy/scholarship %): that
+        # fact lives on the aid page, not a tariff row, so letting the fee lookup early-return here would
+        # pre-empt the pin with a wrong record. Calendar structured lookup is never pre-empted (the pin
+        # excludes calendar), and real fee queries don't match canonical_doc_match → fee lookup still fires.
+        if (
+            getattr(settings, "enable_structured_lookup", False)
+            and subcat in ("calendar", "financial")
+            and not (subcat == "financial" and canon_applies)
+        ):
             domain = "calendar" if subcat == "calendar" else "fee"
             started = time.perf_counter()
             try:
@@ -119,6 +145,11 @@ def build_retrieval_tools(retriever: Retriever):
             and subcat == "student_affairs"
             and answer_language(get_user_message() or query) == "vi"
         ):
+            cross_lingual = True
+        # Phase 1.30/S15+S16: VI fact-intent (program/admission/aid) queries undermatch the (often EN)
+        # curriculum/aid doc — force the EN translation variant so it is RRF-fused in (the canonical doc-pin
+        # below then guarantees the right doc leads). Detected on the USER's raw question.
+        if canon_applies and answer_language(get_user_message() or query) == "vi":
             cross_lingual = True
         # Deterministic both-language date forms (Phase 1.12): "tháng 6 năm 2026" <-> "June 2026" <->
         # "6/2026". Pure regex (no LLM) → consistency-safe, and added for date queries so a date matches
@@ -232,6 +263,24 @@ def build_retrieval_tools(retriever: Retriever):
                     chunks = dedup_by_text(list(pinned) + list(chunks), lambda chunk: chunk.text)[
                         : max_k + len(pinned)
                     ]
+
+        # Canonical doc-pin for fact-intents (Phase 1.30/S15+S16): admission-GPA / financial-aid-% / program-
+        # credits answers live in a doc that is out-ranked (often unretrieved) by magnet prose, so a boost
+        # can't help (A/B-rejected, 1.30a). Deterministically fetch the curated canonical page by source_url
+        # and non-evicting-prepend it — re-ranked WITH the real query so the fact-bearing chunk leads inside
+        # the doc (program PDFs are multi-chunk → limit 3). Gated + fail-open; calendar excluded.
+        if canon_applies and subcat != "calendar":
+            try:
+                canon_pinned = await retriever.search(
+                    query=query, filters={"source_url": canon_match}, limit=3,
+                    expand_sections=expand_sections,
+                )
+            except Exception:
+                canon_pinned = []
+            if canon_pinned:
+                chunks = dedup_by_text(list(canon_pinned) + list(chunks), lambda chunk: chunk.text)[
+                    : max_k + len(canon_pinned)
+                ]
 
         # Indirect-injection defense: drop retrieved chunks whose text carries injection
         # patterns so poisoned source content cannot steer the model.

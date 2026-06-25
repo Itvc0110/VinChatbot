@@ -59,6 +59,15 @@ SEED_URLS = [
     "https://vinuni.edu.vn/registrar/",
     "https://registrar.vinuni.edu.vn/",
     "https://experience.vinuni.edu.vn/",
+    # Expansion seeds — high-value sections of the new student-relevant subdomains.
+    "https://admissions.vinuni.edu.vn/undergraduate/",
+    "https://admissions.vinuni.edu.vn/undergraduate/faqs/general-admissions",
+    "https://admissions.vinuni.edu.vn/undergraduate/tuition-fee-and-financial-support",
+    "https://scholarships.vinuni.edu.vn/",
+    "https://cecs.vinuni.edu.vn/undergraduate/",
+    "https://chs.vinuni.edu.vn/",
+    "https://cbm.vinuni.edu.vn/",
+    "https://cas.vinuni.edu.vn/",
 ]
 
 VINUNI_PUBLIC_SUBDOMAINS = {
@@ -66,7 +75,20 @@ VINUNI_PUBLIC_SUBDOMAINS = {
     "policy.vinuni.edu.vn",
     "registrar.vinuni.edu.vn",
     "experience.vinuni.edu.vn",
+    # Expansion (student-relevant): admissions, scholarships, and the four colleges. (library.vinuni.edu.vn
+    # is intentionally excluded — see test_crawler_metadata; the library catalog is login-walled.)
+    "admissions.vinuni.edu.vn",
+    "scholarships.vinuni.edu.vn",
+    "cecs.vinuni.edu.vn",
+    "chs.vinuni.edu.vn",
+    "cbm.vinuni.edu.vn",
+    "cas.vinuni.edu.vn",
 }
+
+# WordPress taxonomy/archive paths that explode the frontier with marketing/blog and carry no student
+# content. Skipped on vinuni subdomains to avoid the blog/image crawl trap. (Policy is separately
+# path-gated via _is_policy_allowed_path; /wp-content/ is NOT listed — policy PDFs live there.)
+NOISE_PATH_MARKERS = ("/category/", "/tag/", "/author/", "/feed/", "/event/", "/page/")
 
 PRIVATE_OR_LOGIN_HOSTS = {
     "my.vinuni.edu.vn",
@@ -199,6 +221,12 @@ class VinUniCrawler:
                 except httpx.HTTPError as exc:
                     logger.warning("Failed to crawl %s: %s", target.source_url, exc)
                     result.manifest_entries.append(self._skipped_manifest(target, f"http_error:{exc}", crawl_run_id))
+                    continue
+                except Exception as exc:  # noqa: BLE001 — one malformed doc must not abort the whole crawl
+                    logger.warning("Failed to parse %s: %s", target.source_url, exc, exc_info=True)
+                    result.manifest_entries.append(
+                        self._skipped_manifest(target, f"parse_error:{type(exc).__name__}", crawl_run_id)
+                    )
                     continue
 
                 result.manifest_entries.append(manifest_entry)
@@ -468,6 +496,8 @@ class VinUniCrawler:
                 return False, "vinuni_depth_cap"
             if per_domain_counts.get(host, 0) >= self.max_vinuni_pages_per_domain:
                 return False, "vinuni_domain_cap"
+            if any(marker in parsed.path.lower() for marker in NOISE_PATH_MARKERS):
+                return False, "noise_path"
             return True, None
 
         if target.crawl_depth > self.external_max_depth:

@@ -1,0 +1,70 @@
+{
+  "name": "vinuni_expansion_admissions_programs_scholarships",
+  "description": "Golden cases for the crawl expansion (admissions / college programs / scholarships) + the logged entity-handling bug (F-ENUM enumeration, F-NAME name-order). required_facts authored from the crawled authoritative pages (admissions FAQ, cecs Data Science page, PhD-CS scholarship page) — NOT the bot's output. The two president cases are DIAGNOSTIC: the corpus carries Rohit Verma as Provost (not clearly President), so they probe the enumeration + name-order failure and any leadership content gap — expected to fail until entity-handling / leadership content lands.",
+  "source": "admissions.vinuni.edu.vn / cecs.vinuni.edu.vn",
+  "cases": [
+    {
+      "id": "exp-admissions-ielts-phd-cs-en",
+      "question": "What is the minimum IELTS score required to apply for VinUni's PhD in Computer Science program?",
+      "required_facts": ["6.5"],
+      "forbidden_facts": [],
+      "expected_source": ["admissions.vinuni"],
+      "language": "en"
+    },
+    {
+      "id": "exp-program-datascience-en",
+      "question": "How long is VinUni's Bachelor of Data Science program and how many total credits for the single major?",
+      "required_facts": ["4 years", "120"],
+      "forbidden_facts": [],
+      "expected_source": ["cecs.vinuni", "data-science", "BSDS"],
+      "language": "en"
+    },
+    {
+      "id": "exp-program-datascience-vi",
+      "question": "Chương trình Cử nhân Khoa học Dữ liệu tại VinUni kéo dài bao lâu và có tổng cộng bao nhiêu tín chỉ cho chuyên ngành đơn?",
+      "required_facts": ["4 năm|4 years", "120"],
+      "forbidden_facts": [],
+      "expected_source": ["cecs.vinuni", "data-science", "BSDS", "khoa-hoc-du-lieu"],
+      "language": "vi"
+    },
+    {
+      "id": "exp-scholarship-phd-cs-en",
+      "question": "What financial support do students in VinUni's PhD in Computer Science program receive?",
+      "required_facts": ["full scholarship|100% tuition", "allowance|stipend"],
+      "forbidden_facts": [],
+      "expected_source": ["admissions.vinuni", "financial-support"],
+      "language": "en"
+    },
+    {
+      "id": "exp-bba-duration-en",
+      "question": "How many years is VinUni's Bachelor of Business Administration program?",
+      "required_facts": ["4 years"],
+      "forbidden_facts": [],
+      "expected_source": ["admissions.vinuni"],
+      "language": "en"
+    },
+    {
+      "id": "exp-provost-en",
+      "question": "Who is the Provost of VinUniversity?",
+      "required_facts": ["Rohit Verma"],
+      "forbidden_facts": [],
+      "expected_source": ["vinuni"],
+      "language": "en"
+    },
+    {
+      "id": "exp-presidents-enumerate-en",
+      "question": "Who have served as Presidents of VinUniversity?",
+      "expects_refusal": true,
+      "_note": "D9-realistic target: the corpus overloads 'President' (Council-President Lê Mai Lan vs Rector Rohit Verma/Tan Yap Peng) and has no authoritative president-list, so the SAFE behavior is to hedge (ENABLE_INTENT_AUDIT) rather than confidently list wrong people. Flip back to required_facts=[Rohit Verma, Tan Yap Peng] once leadership content + the D8 role/alias table land. See LOGS/PHASE1.28_LOG.md / ADAPTIVE_ORCHESTRATION_ROADMAP.md D9.",
+      "language": "en"
+    },
+    {
+      "id": "exp-name-order-yappeng-en",
+      "question": "Who is Yap-Peng Tan at VinUniversity?",
+      "required_facts": ["VinUni|president|professor|leader"],
+      "forbidden_facts": [],
+      "expected_source": ["vinuni"],
+      "language": "en"
+    }
+  ]
+}

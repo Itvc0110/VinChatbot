@@ -7,7 +7,11 @@ from types import SimpleNamespace
 import vinchatbot.app.agents.tools as tools_mod
 from vinchatbot.app.ingest.chunker import chunk_document
 from vinchatbot.app.rag.retriever import RetrievedChunk
-from vinchatbot.app.rag.structured_lookup import StructuredLookup
+from vinchatbot.app.rag.structured_lookup import (
+    StructuredLookup,
+    is_authoritative_structured_source,
+    is_official_record,
+)
 from vinchatbot.app.schemas.document import DocumentMetadata, RawDocument, stable_hash
 
 SRC = "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
@@ -423,3 +427,35 @@ def test_seam_skips_lookup_when_flag_off(monkeypatch):
     tool = next(t for t in tools if t.name == "search_academic_calendar")
     asyncio.run(tool.ainvoke({"query": "When is Convocation Day in the 2026-2027 academic calendar?"}))
     assert retriever.search_calls == 1  # vector path ran, lookup bypassed
+
+
+def test_is_official_record_keeps_official_drops_external():
+    # Official VinUni sources feed the authoritative deterministic lookup...
+    assert is_official_record({"source_url": "https://policy.vinuni.edu.vn/all-policies/grades/"}) is True
+    assert is_official_record({"source_url": "https://registrar.vinuni.edu.vn/calendar/"}) is True
+    assert is_official_record({"source_url": "https://vinuni.edu.vn/student-gateway/"}) is True
+    # ...but an external page's dates/amounts must NOT (it stays searchable as prose, deprioritised ×0.7).
+    assert is_official_record({"source_url": "https://www.harvard.edu/academic-calendar/"}) is False
+    assert is_official_record({"source_url": "https://en.wikipedia.org/wiki/VinUniversity"}) is False
+    # A record with no usable source_url is treated as non-official (conservative — never authoritative).
+    assert is_official_record({"source_url": ""}) is False
+    assert is_official_record({}) is False
+
+
+def test_is_authoritative_structured_source_by_document_kind():
+    cal = "https://policy.vinuni.edu.vn/wp-content/uploads/2025/06/VinUni-Academic-Calendar.pdf"
+    old_cal = "https://vinuni.edu.vn/wp-content/uploads/2020/07/VinUni-Academic-Calendar_AY24-25.pdf"
+    tariff = "https://policy.vinuni.edu.vn/all-policies/financial-regulations-and-tariff/"
+    # calendar_event is authoritative from a real calendar document — current AND old academic years...
+    assert is_authoritative_structured_source({"record_type": "calendar_event", "source_url": cal}) is True
+    assert is_authoritative_structured_source({"record_type": "calendar_event", "source_url": old_cal}) is True
+    # ...financial rows only from the official tariff document...
+    assert is_authoritative_structured_source({"record_type": "table_record", "source_url": tariff}) is True
+    # ...but a date/amount merely MENTIONED on a news/admissions/scholarship page is NOT authoritative.
+    assert is_authoritative_structured_source(
+        {"record_type": "calendar_event", "source_url": "https://admissions.vinuni.edu.vn/some-news-2024/"}
+    ) is False
+    assert is_authoritative_structured_source(
+        {"record_type": "table_record", "source_url": "https://scholarships.vinuni.edu.vn/vingroup-scholarship/"}
+    ) is False
+    assert is_authoritative_structured_source({"record_type": "calendar_event", "source_url": ""}) is False

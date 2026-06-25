@@ -37,7 +37,7 @@ from vinchatbot.app.core.observability import (
 )
 from vinchatbot.app.core.timeutils import current_time_context, is_pure_time_question
 from vinchatbot.app.rag.citations import dedupe_citations, excerpt
-from vinchatbot.app.rag.query_engineering import is_point_lookup
+from vinchatbot.app.rag.query_engineering import is_identity_query, is_point_lookup
 from vinchatbot.app.rag.retriever import QdrantHybridRetriever, RetrievedChunk, Retriever
 from vinchatbot.app.schemas.chat import ChatRequest, ChatResponse, Citation
 from vinchatbot.app.schemas.document import DocumentMetadata
@@ -218,10 +218,24 @@ class VinUniAgentService:
         # gated off by default, fail-open (only a confident grounded:false degrades). The scope signal is
         # recomputed HERE from the user message + routed intent — the `mark_point_lookup` contextvar set
         # inside the LangGraph tool node does NOT propagate back to this parent context.
-        if self.settings.enable_output_audit and is_point_lookup(request.message, result.get("intent")):
-            verdict = await audit_output(answer, retrieved_texts, request.message, self.settings)
-            if not verdict.grounded:
-                audit_trace = {"type": "output_audit", "grounded": False, "reason": verdict.reason}
+        # Phase 1.28/D9 widens the gate: ALSO audit identity/role-enumeration queries for
+        # intent-satisfaction (the named person's role must match the role asked) — a grounded answer that
+        # names the wrong-role "President" is degraded to a hedge. `check_intent` only when run_intent so the
+        # point-lookup groundedness path is byte-identical when the intent flag is off.
+        run_audit = self.settings.enable_output_audit and is_point_lookup(request.message, result.get("intent"))
+        run_intent = self.settings.enable_intent_audit and is_identity_query(request.message, result.get("intent"))
+        if run_audit or run_intent:
+            verdict = await audit_output(
+                answer, retrieved_texts, request.message, self.settings, check_intent=run_intent
+            )
+            insufficient = (not verdict.grounded) or (run_intent and not verdict.satisfies_intent)
+            if insufficient:
+                audit_trace = {
+                    "type": "output_audit",
+                    "grounded": verdict.grounded,
+                    "satisfies_intent": verdict.satisfies_intent,
+                    "reason": verdict.reason,
+                }
                 self._log_turn(
                     request,
                     intent=result.get("intent"),
@@ -239,7 +253,15 @@ class VinUniAgentService:
                     citations=citations,
                     tool_trace=[*tool_trace, audit_trace],
                 )
-            tool_trace = [*tool_trace, {"type": "output_audit", "grounded": True, "reason": verdict.reason}]
+            tool_trace = [
+                *tool_trace,
+                {
+                    "type": "output_audit",
+                    "grounded": True,
+                    "satisfies_intent": verdict.satisfies_intent,
+                    "reason": verdict.reason,
+                },
+            ]
 
         if self.settings.enable_output_moderation:
             from vinchatbot.app.agents.safety_guard import assess_safety
@@ -536,6 +558,12 @@ def _extract_citations(messages: Iterable[Any]) -> list[Citation]:
                     score=item.get("score"),
                 )
             )
+    # NOTE (Phase 1.28h, REJECTED): score-sorting these citations before [:8] was A/B-tested to surface the
+    # highest-relevance chunk on multi-call turns. It recovered exp-program-datascience-vi but REGRESSED 5 VI
+    # policy cases' cite_ok (0.941→0.794) — for cross-lingual policy queries it pushed the expected VI policy
+    # source out of the top-8 in favor of higher-scored EN/other chunks. Net-negative → reverted to
+    # first-encountered order. See LOGS/PHASE1.28_LOG.md (1.28h). The cross-lingual citation dilution remains
+    # a documented open item.
     return dedupe_citations(citations)[:8]
 
 

@@ -1,0 +1,25 @@
+{
+  "name": "vinuni_leadership_enumeration_targets",
+  "description": "TARGET (F-ENUM, affirmative): 'who have been the Rectors/Hiệu trưởng' must enumerate BOTH Rohit Verma (founding) and Tan Yap Peng (current, 2025). Fails today: D9 makes it safely HEDGE; the affirmative answer needs the leadership-announcement content (E6) + the D8 role/alias table. Move to data/eval/golden/ once those land (flipping the safe-hedge identity_intent case to required-both-names).",
+  "source": "vinuni.edu.vn leadership announcement + people pages",
+  "cases": [
+    {
+      "id": "lead-rectors-enum-en",
+      "question": "Who have served as the Rectors (Hiệu trưởng) of VinUniversity over time?",
+      "required_facts": ["Rohit Verma", "Tan Yap Peng|Yap-Peng Tan"],
+      "forbidden_facts": [],
+      "expected_source": ["vinuni"],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "lead-rectors-enum-vi",
+      "question": "VinUni đã có những hiệu trưởng nào qua các thời kỳ?",
+      "required_facts": ["Rohit Verma", "Tan Yap Peng|Yap-Peng Tan"],
+      "forbidden_facts": [],
+      "expected_source": ["vinuni"],
+      "language": "vi",
+      "held_out": false
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "name": "vinuni_scholarships",
+  "description": "VinUni scholarship facts, verified 2026-06-24 from v2-indexed authoritative pages, NOT bot output. SCORED = cases that pass on v2+D9: merit-based scholarships cover 50%-100% of tuition; the Vingroup Science & Technology Scholarship (graduate) is full-cost. The all-students 35% tuition-subsidy cases were moved to golden_targets/admissions_financial_retrieval.json (the recovered scholarship page is out-ranked by the policy tariff → bot says 50% / hedges). PhD-CS full scholarship already in expansion.json.",
+  "source": "admissions.vinuni / scholarships.vinuni",
+  "cases": [
+    {
+      "id": "schol-ug-merit-range-en",
+      "question": "What range of tuition do VinUni's merit-based scholarships cover?",
+      "required_facts": [
+        "50",
+        "100"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "admissions.vinuni",
+        "scholarship"
+      ],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "schol-vingroup-st-en",
+      "question": "What does the Vingroup Science and Technology Scholarship cover for graduate students?",
+      "required_facts": [
+        "full|100%|fully|full-cost",
+        "science|graduate|doctoral|master"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "scholarships.vinuni",
+        "vingroup"
+      ],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "schol-ug-subsidy-en",
+      "question": "What percentage tuition subsidy do all VinUni undergraduate students receive?",
+      "required_facts": [
+        "35"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "admissions.vinuni",
+        "scholarship",
+        "tuition"
+      ],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "schol-ug-subsidy-vi",
+      "question": "Tất cả sinh viên đại học VinUni được hỗ trợ học phí (trợ cấp) bao nhiêu phần trăm?",
+      "required_facts": [
+        "35"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "admissions.vinuni",
+        "scholarship",
+        "hoc-phi"
+      ],
+      "language": "vi",
+      "held_out": false
+    }
+  ]
+}

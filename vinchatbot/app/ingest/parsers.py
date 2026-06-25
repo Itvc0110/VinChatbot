@@ -203,10 +203,13 @@ def _docx_to_markdown(stream) -> str:
         else:
             lines.append(text)
     for table in document.tables:
-        for row in table.rows:
-            cells = [normalize_text(cell.text) for cell in row.cells]
-            if any(cells):
-                lines.append("| " + " | ".join(cells) + " |")
+        try:
+            for row in table.rows:
+                cells = [normalize_text(cell.text) for cell in row.cells]
+                if any(cells):
+                    lines.append("| " + " | ".join(cells) + " |")
+        except Exception:  # noqa: BLE001 — python-docx raises on some merged-cell grid layouts; skip the table
+            continue
     return "\n\n".join(lines)
 
 
@@ -553,6 +556,11 @@ _CALENDAR_EVENT_KEYWORDS: tuple[str, ...] = (
     "makeup", "make-up", "census", "defense", "thesis", "semester", "term", "fall", "spring",
     "summer", "winter", "tet", "lunar", "new year", "independence", "reunification",
     "national day", "commemoration", "festival", "ceremony", "move-in", "check-in",
+    # Phase 1.31 — these holiday/period rows were DROPPED by the keyword gate (the authoritative calendar
+    # PDF says "Victory Day"/"Labor Day"/"Vietnam Culture Day"/"Independent Study Week", none of which
+    # matched a keyword), so they were absent from the structured index → date lookups hedged. ACCENT-FREE
+    # is NOT assumed here (parser keywords match normalize_text output, which keeps accents — see VN below).
+    "victory", "labor", "labour", "culture", "independent study", "study week",
     # end-of-term result cycle (Phase 1.13b — these rows ("Marking + Appeal + Grade release",
     # "Gradebook submission", schedule/timetable releases) were silently dropped, so grade-release
     # point-lookups had no structured event to match.
@@ -562,6 +570,8 @@ _CALENDAR_EVENT_KEYWORDS: tuple[str, ...] = (
     "tựu trường", "bắt đầu", "kết thúc", "thi", "đánh giá", "giỗ tổ", "quốc khánh", "tết",
     "dự kiến", "rút môn", "hủy môn", "học phần", "chấm điểm", "phúc khảo", "công bố điểm",
     "điểm", "lịch thi", "thời khóa biểu",
+    # Phase 1.31 VN holiday names (Victory Day / Labor Day / Culture Day) for VI calendar sources.
+    "giải phóng", "lao động", "văn hóa",
 )
 
 

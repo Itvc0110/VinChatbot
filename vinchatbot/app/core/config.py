@@ -157,6 +157,14 @@ class Settings(BaseSettings):
     enable_canonical_policy_boost: bool = Field(
         default=False, validation_alias="ENABLE_CANONICAL_POLICY_BOOST"
     )
+    # Canonical doc-pin for fact-intents (Phase 1.30/S15+S16, default off → A/B): generalizes the policy
+    # doc-pin (1.21) to admission-GPA / financial-aid-% / program-credits questions. The boost (1.30a) was
+    # A/B-rejected (authoritative doc out-ranked/unretrieved → a score nudge can't move selection). Instead,
+    # on a confident fact-topic match (canonical_lookup.canonical_doc_match), fetch the curated canonical page
+    # by source_url and non-evicting-prepend it. Fail-open.
+    enable_canonical_doc_pin: bool = Field(
+        default=False, validation_alias="ENABLE_CANONICAL_DOC_PIN"
+    )
     # Policy doc-pin (Phase 1.21, default off → A/B): the canonical-boost (above) was rejected — a score
     # nudge can't move which DOCUMENT is cited (the magnet PDF / the page's own PDF twin / on-topic
     # non-policy pages out-rank the canonical page with gaps too large for any boost). Instead, when a
@@ -173,6 +181,19 @@ class Settings(BaseSettings):
     # but that needs A/B confirmation) — kept inert until then. Curated map is always the precedence path.
     enable_policy_auto_index: bool = Field(
         default=False, validation_alias="ENABLE_POLICY_AUTO_INDEX"
+    )
+    # Incremental ingest (re-ingest cost saver, default off → full re-embed as today). When on (or via the
+    # ingest `--incremental` flag) and the target collection already exists, re-embed ONLY chunks whose
+    # content-addressed point id is not already present, and delete genuinely-stale points. Point ids =
+    # uuid5 of a content-hash chunk_id, so "id present" == "identical text already embedded" → reuses
+    # existing vectors instead of paying to re-embed unchanged chunks. ASSUMES the batch is the COMPLETE
+    # corpus (true for scripts/ingest_documents.py): it cross-checks the scroll against the reported point
+    # count, aborts on zero content-address overlap (wrong hashing/embedding scheme) and on any large
+    # deletion (partial/failed crawl) — use --recreate for an intentional full rebuild. Qdrant only.
+    # Limitation: the id is text-derived, so a chunk with unchanged text but changed metadata keeps its old
+    # payload (run --recreate to fully reconcile payload metadata).
+    enable_incremental_ingest: bool = Field(
+        default=False, validation_alias="ENABLE_INCREMENTAL_INGEST"
     )
     # Mass cache (Phase A2c): exact-match Redis cache of LLM responses + rerank scores, keyed on the FULL
     # prompt/content (→ reproducible A/Bs AND cheaper). Fail-open: no REDIS_URL / any redis error ⇒ cache
@@ -259,6 +280,12 @@ class Settings(BaseSettings):
     # fail-OPEN on critic error. Default off; A/B before flipping (guards must stay 1.000, no passing
     # case may degrade).
     enable_output_audit: bool = Field(default=False, validation_alias="ENABLE_OUTPUT_AUDIT")
+    # Intent-satisfaction auditor (Phase 1.28/D9): extends the output-audit critic from groundedness-only to
+    # ALSO judge whether the answer resolves the SPECIFIC role/attribute asked (e.g. the Rector, not a
+    # different-role "President"). Scoped to identity/role-enumeration queries (is_identity_query), fail-OPEN,
+    # default off. On a confident satisfies_intent:false → graceful-degradation (hedge), turning
+    # confidently-wrong identity answers into safe refusals. A/B before flipping (guards stay 1.000).
+    enable_intent_audit: bool = Field(default=False, validation_alias="ENABLE_INTENT_AUDIT")
     # Model for the output-audit critic. Empty → fall back to guard_model (qwen-2.5-7b). Decoupled from
     # guard_model so the groundedness judge can use a more capable model than the input guard without
     # disturbing the input-guard A/B history. Accepts any OpenRouter chat model id.

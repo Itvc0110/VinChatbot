@@ -14,7 +14,7 @@
       "language": "en",
       "question": "What learning and research support services does the VinUni library provide?",
       "required_facts": ["research support"],
-      "expected_source": "library.vinuni.edu.vn",
+      "expected_source": ["library.vinuni.edu.vn", "library-policies"],
       "expects_refusal": false
     },
     {

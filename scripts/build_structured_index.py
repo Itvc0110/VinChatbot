@@ -15,9 +15,20 @@ import json
 from pathlib import Path
 
 from vinchatbot.app.core.config import get_settings
-from vinchatbot.app.rag.structured_lookup import stream_json_array
+from vinchatbot.app.rag.structured_lookup import (
+    is_authoritative_structured_source,
+    stream_json_array,
+)
 
 KEEP_CALENDAR = "calendar_event"
+
+
+def _is_target(record: dict) -> bool:
+    """A calendar_event or a financial table_record — the only records the deterministic lookup serves."""
+    rt = record.get("record_type")
+    return rt == KEEP_CALENDAR or (
+        rt == "table_record" and (record.get("metadata") or {}).get("subcategory") == "financial"
+    )
 
 
 def main() -> None:
@@ -29,18 +40,26 @@ def main() -> None:
         raise SystemExit(f"source not found: {src}")
 
     kept = []
+    skipped_non_authoritative = 0
     for record in stream_json_array(src):  # streamed → builds even with little free RAM
-        rt = record.get("record_type")
-        if rt == KEEP_CALENDAR:
-            kept.append(record)
-        elif rt == "table_record" and (record.get("metadata") or {}).get("subcategory") == "financial":
-            kept.append(record)
+        if not _is_target(record):
+            continue
+        # Authoritative-source only: a calendar/fee record must come from policy.vinuni (the calendar PDF +
+        # tariff). A college/admissions/marketing page mentioning a date or amount must NEVER feed the
+        # deterministic lookup (it would surface a wrong, high-confidence answer that bypasses rerank).
+        if not is_authoritative_structured_source(record):
+            skipped_non_authoritative += 1
+            continue
+        kept.append(record)
 
     dst.write_text(json.dumps(kept, ensure_ascii=False), encoding="utf-8")
     cal = sum(1 for r in kept if r.get("record_type") == KEEP_CALENDAR)
     fee = sum(1 for r in kept if r.get("record_type") == "table_record")
     size_kb = dst.stat().st_size / 1024
-    print(f"wrote {dst} — {len(kept)} records ({cal} calendar_event, {fee} financial table_record), {size_kb:.0f} KB")
+    print(
+        f"wrote {dst} — {len(kept)} records ({cal} calendar_event, {fee} financial table_record), "
+        f"{size_kb:.0f} KB; skipped {skipped_non_authoritative} non-authoritative (non-policy) records"
+    )
 
 
 if __name__ == "__main__":

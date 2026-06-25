@@ -15,20 +15,14 @@
       "held_out": true,
       "question": "When is the end-of-semester course evaluation period for Summer 2027?",
       "golden_answer": "The Summer 2027 end-of-semester course evaluation period runs from August 16 through August 20, 2027.",
-      "required_facts": ["Summer 2027", "August 16, 2027", "August 20, 2027"],
-      "forbidden_facts": ["August 23, 2027"],
-      "evidence": "16-20 Aug End-of-Semester Course Evaluation Period - Summer'27 (distractor: 23-27 Aug Final Exam Period)",
-      "source_page": 1
-    },
-    {
-      "id": "calendar-summer-evaluation-vi",
-      "pair_id": "calendar-summer-evaluation",
-      "language": "vi",
-      "held_out": true,
-      "question": "Kỳ đánh giá môn học cuối kỳ của học kỳ Summer 2027 diễn ra khi nào?",
-      "golden_answer": "Kỳ đánh giá môn học cuối kỳ Summer 2027 diễn ra từ ngày 16 đến ngày 20 tháng 8 năm 2027.",
-      "required_facts": ["Summer 2027", "16 tháng 8 năm 2027", "20 tháng 8 năm 2027"],
-      "forbidden_facts": ["23 tháng 8 năm 2027"],
+      "required_facts": [
+        "Summer 2027",
+        "August 16, 2027",
+        "August 20, 2027"
+      ],
+      "forbidden_facts": [
+        "August 23, 2027"
+      ],
       "evidence": "16-20 Aug End-of-Semester Course Evaluation Period - Summer'27 (distractor: 23-27 Aug Final Exam Period)",
       "source_page": 1
     },
@@ -39,21 +33,14 @@
       "held_out": true,
       "question": "When does course registration for Summer 2027 start?",
       "golden_answer": "Summer 2027 class enrollment (course registration) starts on June 21, 2027.",
-      "required_facts": ["Summer 2027", "June 21, 2027"],
-      "forbidden_facts": ["June 14, 2027"],
+      "required_facts": [
+        "Summer 2027",
+        "June 21, 2027"
+      ],
+      "forbidden_facts": [
+        "June 14, 2027"
+      ],
       "evidence": "21-Jun Summer'27 Class Enrollment Starts (distractor: 14-Jun Summer'27 Class Timetable Release)",
-      "source_page": 1
-    },
-    {
-      "id": "calendar-summer-enrollment-vi",
-      "pair_id": "calendar-summer-enrollment",
-      "language": "vi",
-      "held_out": true,
-      "question": "Sinh viên bắt đầu đăng ký môn cho học kỳ Summer 2027 vào ngày nào?",
-      "golden_answer": "Việc đăng ký môn (Class Enrollment) cho học kỳ Summer 2027 bắt đầu vào ngày 21 tháng 6 năm 2027.",
-      "required_facts": ["Summer 2027", "21 tháng 6 năm 2027"],
-      "forbidden_facts": ["14 tháng 6 năm 2027"],
-      "evidence": "21-Jun Summer'27 Class Enrollment Starts (distractor: 14-Jun Class Timetable Release)",
       "source_page": 1
     },
     {
@@ -63,20 +50,13 @@
       "held_out": true,
       "question": "When will the Spring 2027 final exam schedule be released?",
       "golden_answer": "The Spring 2027 final exam schedule is released on May 3, 2027.",
-      "required_facts": ["Final Exam Schedule Release", "May 3, 2027"],
-      "forbidden_facts": ["May 28, 2027"],
-      "evidence": "3-May Final Exam Schedule Release (distractor: 28-May Last Day of Instruction)",
-      "source_page": 1
-    },
-    {
-      "id": "calendar-spring-final-schedule-vi",
-      "pair_id": "calendar-spring-final-schedule",
-      "language": "vi",
-      "held_out": true,
-      "question": "Lịch thi cuối kỳ của học kỳ Spring 2027 được công bố vào ngày nào?",
-      "golden_answer": "Lịch thi cuối kỳ Spring 2027 được công bố vào ngày 3 tháng 5 năm 2027.",
-      "required_facts": ["lịch thi cuối kỳ", "3 tháng 5 năm 2027"],
-      "forbidden_facts": ["28 tháng 5 năm 2027"],
+      "required_facts": [
+        "Final Exam Schedule Release",
+        "May 3, 2027"
+      ],
+      "forbidden_facts": [
+        "May 28, 2027"
+      ],
       "evidence": "3-May Final Exam Schedule Release (distractor: 28-May Last Day of Instruction)",
       "source_page": 1
     },
@@ -87,20 +67,15 @@
       "held_out": true,
       "question": "What is the Spring 2027 Add, Transfer Credit, and Independent Study deadline?",
       "golden_answer": "The Spring 2027 Add, Transfer Credit, and Independent Study deadline is February 26, 2027.",
-      "required_facts": ["Add", "Transfer Credit", "Independent Study", "February 26, 2027"],
-      "forbidden_facts": ["March 5, 2027"],
-      "evidence": "26-Feb Add/Transfer Credit/Independent Study Deadline (distractor: 5-Mar Course Drop Deadline)",
-      "source_page": 1
-    },
-    {
-      "id": "calendar-spring-add-transfer-deadline-vi",
-      "pair_id": "calendar-spring-add-transfer-deadline",
-      "language": "vi",
-      "held_out": true,
-      "question": "Hạn Add, Transfer Credit và Independent Study của học kỳ Spring 2027 là ngày nào?",
-      "golden_answer": "Hạn Add, Transfer Credit và Independent Study của Spring 2027 là ngày 26 tháng 2 năm 2027.",
-      "required_facts": ["Add", "Transfer Credit", "Independent Study", "26 tháng 2 năm 2027"],
-      "forbidden_facts": ["5 tháng 3 năm 2027"],
+      "required_facts": [
+        "Add",
+        "Transfer Credit",
+        "Independent Study",
+        "February 26, 2027"
+      ],
+      "forbidden_facts": [
+        "March 5, 2027"
+      ],
       "evidence": "26-Feb Add/Transfer Credit/Independent Study Deadline (distractor: 5-Mar Course Drop Deadline)",
       "source_page": 1
     },
@@ -111,21 +86,14 @@
       "held_out": true,
       "question": "When is Convocation Day in the 2026-2027 academic calendar?",
       "golden_answer": "The calendar tentatively lists Convocation Day on September 26, 2026.",
-      "required_facts": ["tentatively", "September 26, 2026"],
-      "forbidden_facts": ["September 21, 2026"],
+      "required_facts": [
+        "tentatively",
+        "September 26, 2026"
+      ],
+      "forbidden_facts": [
+        "September 21, 2026"
+      ],
       "evidence": "26-Sep Convocation Day (tentatively) (distractor: 21-Sep Fall'26 Instruction Begins)",
-      "source_page": 1
-    },
-    {
-      "id": "calendar-convocation-vi",
-      "pair_id": "calendar-convocation",
-      "language": "vi",
-      "held_out": true,
-      "question": "Ngày Convocation trong lịch năm học 2026-2027 dự kiến là khi nào?",
-      "golden_answer": "Lịch dự kiến Ngày Convocation vào ngày 26 tháng 9 năm 2026.",
-      "required_facts": ["dự kiến", "26 tháng 9 năm 2026"],
-      "forbidden_facts": ["21 tháng 9 năm 2026"],
-      "evidence": "26-Sep Convocation Day (tentatively) (distractor: 21-Sep Instruction Begins)",
       "source_page": 1
     },
     {
@@ -135,20 +103,14 @@
       "held_out": true,
       "question": "When is the end-of-semester course evaluation period for Fall 2026?",
       "golden_answer": "The Fall 2026 end-of-semester course evaluation period runs from December 21 through December 31, 2026.",
-      "required_facts": ["Fall 2026", "December 21, 2026", "December 31, 2026"],
-      "forbidden_facts": ["January 11, 2027"],
-      "evidence": "21-31 Dec End-of-Semester Course Evaluation Period - Fall'26 (distractor: 11-22 Jan Final Exam Period)",
-      "source_page": 1
-    },
-    {
-      "id": "calendar-fall-evaluation-vi",
-      "pair_id": "calendar-fall-evaluation",
-      "language": "vi",
-      "held_out": true,
-      "question": "Kỳ đánh giá môn học cuối kỳ của học kỳ Fall 2026 diễn ra khi nào?",
-      "golden_answer": "Kỳ đánh giá môn học cuối kỳ Fall 2026 diễn ra từ ngày 21 đến ngày 31 tháng 12 năm 2026.",
-      "required_facts": ["Fall 2026", "21 tháng 12 năm 2026", "31 tháng 12 năm 2026"],
-      "forbidden_facts": ["11 tháng 1 năm 2027"],
+      "required_facts": [
+        "Fall 2026",
+        "December 21, 2026",
+        "December 31, 2026"
+      ],
+      "forbidden_facts": [
+        "January 11, 2027"
+      ],
       "evidence": "21-31 Dec End-of-Semester Course Evaluation Period - Fall'26 (distractor: 11-22 Jan Final Exam Period)",
       "source_page": 1
     },
@@ -159,8 +121,13 @@
       "held_out": true,
       "question": "When are Fall 2026 grades released (the marking, appeal, and grade release period)?",
       "golden_answer": "The Fall 2026 marking, appeal, and grade release period runs from January 25 through February 12, 2027.",
-      "required_facts": ["January 25, 2027", "February 12, 2027"],
-      "forbidden_facts": ["January 22, 2027"],
+      "required_facts": [
+        "January 25, 2027",
+        "February 12, 2027"
+      ],
+      "forbidden_facts": [
+        "January 22, 2027"
+      ],
       "evidence": "25-Jan-12-Feb Marking + Appeal + Grade release (distractor: 11-22 Jan Final Exam Period)",
       "source_page": 1
     },
@@ -171,8 +138,13 @@
       "held_out": true,
       "question": "Thời gian chấm điểm, phúc khảo và công bố điểm của học kỳ Fall 2026 diễn ra khi nào?",
       "golden_answer": "Thời gian chấm điểm, phúc khảo và công bố điểm của Fall 2026 diễn ra từ ngày 25 tháng 1 đến ngày 12 tháng 2 năm 2027.",
-      "required_facts": ["25 tháng 1 năm 2027", "12 tháng 2 năm 2027"],
-      "forbidden_facts": ["22 tháng 1 năm 2027"],
+      "required_facts": [
+        "25 tháng 1 năm 2027",
+        "12 tháng 2 năm 2027"
+      ],
+      "forbidden_facts": [
+        "22 tháng 1 năm 2027"
+      ],
       "evidence": "25-Jan-12-Feb Marking + Appeal + Grade release (distractor: 11-22 Jan Final Exam Period)",
       "source_page": 1
     },
@@ -183,18 +155,11 @@
       "held_out": true,
       "question": "When is the Lunar New Year holiday in the 2026-2027 academic calendar?",
       "golden_answer": "The calendar tentatively lists the Lunar New Year holiday from February 2 through February 10, 2027.",
-      "required_facts": ["tentatively", "February 2, 2027", "February 10, 2027"],
-      "evidence": "2-10 Feb Lunar New Year Holiday (tentatively)",
-      "source_page": 1
-    },
-    {
-      "id": "calendar-lunar-new-year-vi",
-      "pair_id": "calendar-lunar-new-year",
-      "language": "vi",
-      "held_out": true,
-      "question": "Kỳ nghỉ Tết Nguyên đán trong lịch năm học 2026-2027 dự kiến diễn ra khi nào?",
-      "golden_answer": "Lịch dự kiến kỳ nghỉ Tết Nguyên đán từ ngày 2 đến ngày 10 tháng 2 năm 2027.",
-      "required_facts": ["dự kiến", "2 tháng 2 năm 2027", "10 tháng 2 năm 2027"],
+      "required_facts": [
+        "tentatively",
+        "February 2, 2027",
+        "February 10, 2027"
+      ],
       "evidence": "2-10 Feb Lunar New Year Holiday (tentatively)",
       "source_page": 1
     },
@@ -205,18 +170,10 @@
       "held_out": true,
       "question": "When is Graduation Day in the 2026-2027 calendar?",
       "golden_answer": "The calendar tentatively lists Graduation Day on June 26, 2027.",
-      "required_facts": ["tentatively", "June 26, 2027"],
-      "evidence": "26-Jun Graduation Day (tentatively)",
-      "source_page": 1
-    },
-    {
-      "id": "calendar-graduation-vi",
-      "pair_id": "calendar-graduation",
-      "language": "vi",
-      "held_out": true,
-      "question": "Ngày tốt nghiệp (Graduation Day) trong lịch 2026-2027 dự kiến là khi nào?",
-      "golden_answer": "Lịch dự kiến Ngày tốt nghiệp vào ngày 26 tháng 6 năm 2027.",
-      "required_facts": ["dự kiến", "26 tháng 6 năm 2027"],
+      "required_facts": [
+        "tentatively",
+        "June 26, 2027"
+      ],
       "evidence": "26-Jun Graduation Day (tentatively)",
       "source_page": 1
     },
@@ -227,18 +184,9 @@
       "held_out": true,
       "question": "On what date does the 2026-2027 calendar mark Hung Kings' Commemoration Day?",
       "golden_answer": "The calendar marks Hung Kings' Commemoration Day on April 16, 2027.",
-      "required_facts": ["April 16, 2027"],
-      "evidence": "16-Apr Hung King's Commemoration Day",
-      "source_page": 1
-    },
-    {
-      "id": "calendar-hung-king-vi",
-      "pair_id": "calendar-hung-king",
-      "language": "vi",
-      "held_out": true,
-      "question": "Theo lịch 2026-2027, ngày Giỗ Tổ Hùng Vương năm 2027 là ngày nào?",
-      "golden_answer": "Theo lịch, ngày Giỗ Tổ Hùng Vương là ngày 16 tháng 4 năm 2027.",
-      "required_facts": ["16 tháng 4 năm 2027"],
+      "required_facts": [
+        "April 16, 2027"
+      ],
       "evidence": "16-Apr Hung King's Commemoration Day",
       "source_page": 1
     },
@@ -249,7 +197,10 @@
       "held_out": true,
       "question": "When is Vietnam Culture Day in the 2026-2027 academic calendar?",
       "golden_answer": "The calendar tentatively lists Vietnam Culture Day on November 24, 2026.",
-      "required_facts": ["tentatively", "November 24, 2026"],
+      "required_facts": [
+        "tentatively",
+        "November 24, 2026"
+      ],
       "evidence": "24-Nov Vietnam Culture Day (tentatively)",
       "source_page": 1
     },
@@ -260,7 +211,10 @@
       "held_out": true,
       "question": "Ngày Văn hóa Việt Nam trong lịch năm học 2026-2027 dự kiến là khi nào?",
       "golden_answer": "Lịch dự kiến Ngày Văn hóa Việt Nam vào ngày 24 tháng 11 năm 2026.",
-      "required_facts": ["dự kiến", "24 tháng 11 năm 2026"],
+      "required_facts": [
+        "dự kiến",
+        "24 tháng 11 năm 2026"
+      ],
       "evidence": "24-Nov Vietnam Culture Day (tentatively)",
       "source_page": 1
     },
@@ -271,20 +225,13 @@
       "held_out": true,
       "question": "When are Spring 2027 grades released (the marking, appeal, and grade release period)?",
       "golden_answer": "The Spring 2027 marking, appeal, and grade release period runs from June 21 through July 2, 2027.",
-      "required_facts": ["June 21, 2027", "July 2, 2027"],
-      "forbidden_facts": ["June 7, 2027"],
-      "evidence": "21-Jun-02-Jul Marking + Appeal + Grade release (distractor: 7-18 Jun Final Exam Period)",
-      "source_page": 1
-    },
-    {
-      "id": "calendar-spring-grade-release-vi",
-      "pair_id": "calendar-spring-grade-release",
-      "language": "vi",
-      "held_out": true,
-      "question": "Thời gian chấm điểm, phúc khảo và công bố điểm của học kỳ Spring 2027 diễn ra khi nào?",
-      "golden_answer": "Thời gian chấm điểm, phúc khảo và công bố điểm của Spring 2027 diễn ra từ ngày 21 tháng 6 đến ngày 2 tháng 7 năm 2027.",
-      "required_facts": ["21 tháng 6 năm 2027", "2 tháng 7 năm 2027"],
-      "forbidden_facts": ["7 tháng 6 năm 2027"],
+      "required_facts": [
+        "June 21, 2027",
+        "July 2, 2027"
+      ],
+      "forbidden_facts": [
+        "June 7, 2027"
+      ],
       "evidence": "21-Jun-02-Jul Marking + Appeal + Grade release (distractor: 7-18 Jun Final Exam Period)",
       "source_page": 1
     },
@@ -295,20 +242,13 @@
       "held_out": true,
       "question": "When are Summer 2027 grades released (the marking, appeal, and grade release period)?",
       "golden_answer": "The Summer 2027 marking, appeal, and grade release period runs from August 30 through September 10, 2027.",
-      "required_facts": ["August 30, 2027", "September 10, 2027"],
-      "forbidden_facts": ["August 23, 2027"],
-      "evidence": "30-Aug-10-Sep Marking + Appeal + Grade release (distractor: 23-27 Aug Final Exam Period)",
-      "source_page": 1
-    },
-    {
-      "id": "calendar-summer-grade-release-vi",
-      "pair_id": "calendar-summer-grade-release",
-      "language": "vi",
-      "held_out": true,
-      "question": "Thời gian chấm điểm, phúc khảo và công bố điểm của học kỳ Summer 2027 diễn ra khi nào?",
-      "golden_answer": "Thời gian chấm điểm, phúc khảo và công bố điểm của Summer 2027 diễn ra từ ngày 30 tháng 8 đến ngày 10 tháng 9 năm 2027.",
-      "required_facts": ["30 tháng 8 năm 2027", "10 tháng 9 năm 2027"],
-      "forbidden_facts": ["23 tháng 8 năm 2027"],
+      "required_facts": [
+        "August 30, 2027",
+        "September 10, 2027"
+      ],
+      "forbidden_facts": [
+        "August 23, 2027"
+      ],
       "evidence": "30-Aug-10-Sep Marking + Appeal + Grade release (distractor: 23-27 Aug Final Exam Period)",
       "source_page": 1
     },
@@ -319,21 +259,14 @@
       "held_out": true,
       "question": "When is Orientation Week for Fall 2026?",
       "golden_answer": "Orientation Week for Fall 2026 runs from September 14 through September 18, 2026.",
-      "required_facts": ["September 14, 2026", "September 18, 2026"],
-      "forbidden_facts": ["September 21, 2026"],
+      "required_facts": [
+        "September 14, 2026",
+        "September 18, 2026"
+      ],
+      "forbidden_facts": [
+        "September 21, 2026"
+      ],
       "evidence": "14-18-Sep Orientation Week (distractor: 21-Sep Fall'26 Instruction Begins)",
-      "source_page": 1
-    },
-    {
-      "id": "calendar-orientation-week-vi",
-      "pair_id": "calendar-orientation-week",
-      "language": "vi",
-      "held_out": true,
-      "question": "Tuần định hướng (Orientation Week) cho học kỳ Fall 2026 diễn ra khi nào?",
-      "golden_answer": "Tuần định hướng cho Fall 2026 diễn ra từ ngày 14 đến ngày 18 tháng 9 năm 2026.",
-      "required_facts": ["14 tháng 9 năm 2026", "18 tháng 9 năm 2026"],
-      "forbidden_facts": ["21 tháng 9 năm 2026"],
-      "evidence": "14-18-Sep Orientation Week (distractor: 21-Sep Instruction Begins)",
       "source_page": 1
     },
     {
@@ -343,7 +276,9 @@
       "held_out": true,
       "question": "On what date does the 2026-2027 calendar mark Victory Day?",
       "golden_answer": "The calendar marks Victory Day on April 30, 2027.",
-      "required_facts": ["April 30, 2027"],
+      "required_facts": [
+        "April 30, 2027"
+      ],
       "evidence": "30-Apr Victory Day",
       "source_page": 1
     },
@@ -354,7 +289,9 @@
       "held_out": true,
       "question": "Theo lịch năm học 2026-2027, ngày Giải phóng miền Nam (Victory Day) là ngày nào?",
       "golden_answer": "Theo lịch, ngày Giải phóng miền Nam là ngày 30 tháng 4 năm 2027.",
-      "required_facts": ["30 tháng 4 năm 2027"],
+      "required_facts": [
+        "30 tháng 4 năm 2027"
+      ],
       "evidence": "30-Apr Victory Day",
       "source_page": 1
     }
