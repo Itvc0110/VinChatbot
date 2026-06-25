@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/primitives";
@@ -32,6 +33,33 @@ import type {
 const DAY_ORDER: ScheduleDay[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 function todayShort(): ScheduleDay {
   return DAY_ORDER[(new Date().getDay() + 6) % 7];
+}
+
+// ---- Time-aware schedule states (FRONTEND-ONLY; no backend / payload change) -----
+// Drives the visual "Completed / Now / Upcoming" states on the Today's Schedule card.
+type ScheduleState = "past" | "current" | "upcoming";
+
+// "HH:MM" → minutes since midnight (local). Returns NaN for malformed input.
+function minutesOfDay(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + (m || 0);
+}
+
+// Compare a class to the current local time. With both start and end we use
+// [start, end). If an item somehow has only a start, infer a UI-only 90-minute
+// duration so it can still resolve a "current" window (presentation only — the
+// schedule data structure is unchanged).
+function getScheduleItemState(
+  item: { start: string; end?: string },
+  now: Date
+): ScheduleState {
+  const cur = now.getHours() * 60 + now.getMinutes();
+  const start = minutesOfDay(item.start);
+  if (Number.isNaN(start)) return "upcoming";
+  const end = item.end ? minutesOfDay(item.end) : start + 90; // 90-min fallback: UI-only
+  if (cur >= end) return "past";
+  if (cur >= start) return "current";
+  return "upcoming";
 }
 
 const ACTIVE_STATUSES: TicketStatus[] = ["submitted", "in_review", "waiting_for_student"];
@@ -91,6 +119,9 @@ const STR: Record<Lang, {
   hoursAgo: (h: number) => string;
   daysAgo: (d: number) => string;
   updated: (rel: string) => string;
+  schedNow: string;
+  schedCompleted: string;
+  schedUpcoming: string;
 }> = {
   en: {
     welcome: "Welcome to Student Copilot",
@@ -118,6 +149,9 @@ const STR: Record<Lang, {
     hoursAgo: (h) => `${h}h ago`,
     daysAgo: (d) => `${d}d ago`,
     updated: (rel) => `Updated ${rel}`,
+    schedNow: "Now",
+    schedCompleted: "Completed",
+    schedUpcoming: "Upcoming",
   },
   vi: {
     welcome: "Chào mừng đến với Student Copilot",
@@ -145,6 +179,9 @@ const STR: Record<Lang, {
     hoursAgo: (h) => `${h} giờ trước`,
     daysAgo: (d) => `${d} ngày trước`,
     updated: (rel) => `Cập nhật ${rel}`,
+    schedNow: "Đang diễn ra",
+    schedCompleted: "Đã qua",
+    schedUpcoming: "Sắp tới",
   },
 };
 
@@ -162,6 +199,16 @@ export default function StudentDashboardPage() {
   const locale = lang === "vi" ? "vi-VN" : "en-US";
   const { user } = useAuth();
   const router = useRouter();
+
+  // Local clock for time-aware schedule states. Starts null so SSR and the first
+  // client render agree (no hydration mismatch); set on mount, then re-ticks every
+  // minute. Cleaned up on unmount. Frontend-only — no network involved.
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const profile = useAsync(() => getStudentProfile(), []);
   const schedule = useAsync(() => getStudentSchedule(), []);
@@ -189,6 +236,10 @@ export default function StudentDashboardPage() {
     }
   }
   todays = [...todays].sort((a, b) => a.start.localeCompare(b.start));
+  // Time-aware states only make sense when the rail is actually showing *today*.
+  // When today has no classes we fall back to the next day with classes — those
+  // are all genuinely upcoming, so we skip the now/past comparison.
+  const isToday = schedDay === today;
 
   const activeTickets = (tickets.status === "success" ? tickets.data : [])
     .filter((t) => ACTIVE_STATUSES.includes(t.status) && !t.archived && !t.deleted)
@@ -341,17 +392,42 @@ export default function StudentDashboardPage() {
             {todays.length === 0 ? (
               <p className="rail-empty">{p.dash.noClasses}</p>
             ) : (
-              todays.map((s) => (
-                <div key={s.id} className="rail-sched-row">
-                  <span className="rail-time">{s.start}</span>
-                  <div className="rail-sched-main">
-                    <div className="rail-sched-title">{s.course_title}</div>
-                    <div className="rail-sched-sub">
-                      {s.room}, {s.building} · {s.instructor}
+              todays.map((cls) => {
+                const state =
+                  isToday && now ? getScheduleItemState(cls, now) : "upcoming";
+                const stateLabel =
+                  state === "current"
+                    ? s.schedNow
+                    : state === "past"
+                    ? s.schedCompleted
+                    : s.schedUpcoming;
+                return (
+                  <div
+                    key={cls.id}
+                    className={`rail-sched-row state-${state}`}
+                    title={stateLabel}
+                  >
+                    <span className="rail-time">{cls.start}</span>
+                    <div className="rail-sched-main">
+                      <div className="rail-sched-title">
+                        {cls.course_title}
+                        {state === "current" && (
+                          <span className="sched-badge now">
+                            <span className="sched-dot" aria-hidden />
+                            {s.schedNow}
+                          </span>
+                        )}
+                        {state === "past" && (
+                          <span className="sched-badge past">{s.schedCompleted}</span>
+                        )}
+                      </div>
+                      <div className="rail-sched-sub">
+                        {cls.room}, {cls.building} · {cls.instructor}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 

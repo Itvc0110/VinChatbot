@@ -1,0 +1,794 @@
+/* ============================================================================
+   ACADEMIC HORIZON — student-side polish layer (additive, last in the cascade)
+   ----------------------------------------------------------------------------
+   A refinement pass over the EXISTING Academic Horizon student UI. Nothing here
+   is a redesign: it tunes softness, depth, motion, type rhythm, and interaction
+   states on the surfaces students actually touch (login + /student/*).
+
+   SAFETY / SCOPING
+   - Admin shares the `.ah-ui` scope AND several primitives (.card, .seg,
+     .icon-btn, .ah-iconbtn, .ah-profile, .ah-chip, .badge). So shared primitives
+     are scoped under the student/auth roots only:  `.ah-studentshell`,
+     `.ah-authframe`.
+   - Page-level classes from ah-pages.css (.dash-*, .rec-card, .event-*, .cal-*,
+     .vinnie-*, .ah-login*, .ah-pagehead, .ah-page-btn, .events-*, .ask-vinnie*)
+     and the chat classes (.msg, .composer*, .source-card, .source-drawer,
+     .convo-*, .vinnie-widget/.vinnie-fab) are rendered ONLY on login + student
+     surfaces, so they are targeted directly.
+   - No JSX, routes, API, auth, RAG, SSE, or chat-streaming logic is touched.
+   ============================================================================ */
+
+/* ---- Local polish tokens: navy-tinted soft shadows + soft easing ---------- */
+.ah-studentshell,
+.ah-authframe {
+  /* Tinted (navy) ambient shadows read warmer/premium vs. flat black at low α. */
+  --ah-shadow-soft: 0 1px 2px rgba(0, 40, 85, 0.04), 0 6px 18px rgba(0, 40, 85, 0.05);
+  --ah-shadow-lift: 0 2px 6px rgba(0, 40, 85, 0.07), 0 14px 34px rgba(0, 40, 85, 0.10);
+  /* Soft ease-out for feedback motion (calm, no overshoot). */
+  --ah-ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ah-dur-1: 160ms;
+  --ah-dur-2: 240ms;
+}
+[data-theme="dark"] .ah-studentshell,
+[data-theme="dark"] .ah-authframe {
+  --ah-shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.40), 0 6px 18px rgba(0, 0, 0, 0.40);
+  --ah-shadow-lift: 0 2px 8px rgba(0, 0, 0, 0.50), 0 16px 34px rgba(0, 0, 0, 0.55);
+}
+
+/* ---- Respect reduced-motion: drop transforms/animations, keep color fades -- */
+@media (prefers-reduced-motion: reduce) {
+  .ah-studentshell *,
+  .ah-authframe *,
+  .vinnie-widget *,
+  .source-drawer * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================================
+   1. CARDS — soft resting depth + gentle hover elevation (shared, scoped)
+   ============================================================================ */
+.ah-studentshell .card,
+.ah-studentshell .stat-card {
+  box-shadow: var(--ah-shadow-soft);
+  transition: box-shadow var(--ah-dur-2) var(--ah-ease-soft),
+    border-color var(--ah-dur-1) var(--ah-ease-soft);
+}
+.ah-studentshell .card:hover {
+  box-shadow: var(--ah-shadow-lift);
+}
+/* Right-rail "today" + calendar panels are plain bordered divs — give them the
+   same soft resting depth so the dashboard reads as one calm material. */
+.rail-card,
+.cal-main-card {
+  box-shadow: var(--ah-shadow-soft);
+}
+
+/* ============================================================================
+   2. INTERACTIVE CARD-BUTTONS — lift on hover, press on active (student-only)
+   ============================================================================ */
+.rec-card,
+.dash-ticket-card,
+.vinnie-sugg-card,
+.event-card2,
+.source-card {
+  transition: box-shadow var(--ah-dur-2, 240ms) var(--ah-ease-soft, ease),
+    border-color var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease),
+    transform var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease);
+}
+.rec-card:hover,
+.dash-ticket-card:hover,
+.vinnie-sugg-card:hover:not(:disabled),
+.event-card2:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--ah-shadow-lift, 0 14px 34px rgba(0, 40, 85, 0.1));
+}
+.rec-card:active,
+.dash-ticket-card:active,
+.vinnie-sugg-card:active:not(:disabled) {
+  transform: translateY(0);
+}
+/* Event "details" link inside an event card should not also fire the card lift. */
+.event-card2 .btn:hover {
+  transform: none;
+}
+
+/* ============================================================================
+   3. BUTTONS, CHIPS, PILLS — consistent press feedback + soft transitions
+   ============================================================================ */
+.ah-btn-primary-full,
+.ah-btn-outline-full,
+.ah-login-demo-btn,
+.ask-vinnie-btn,
+.events-hero-btn,
+.vinnie-banner-btn,
+.ah-btn-red,
+.ah-page-btn,
+.cal-filter-chip,
+.prompt-chip,
+.send-btn {
+  transition: background var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease),
+    border-color var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease),
+    color var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease),
+    box-shadow var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease),
+    transform var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease);
+}
+.ah-btn-primary-full:active:not(:disabled),
+.ah-btn-outline-full:active:not(:disabled),
+.ah-login-demo-btn:active:not(:disabled),
+.ask-vinnie-btn:active,
+.events-hero-btn:active,
+.vinnie-banner-btn:active,
+.ah-btn-red:active:not(:disabled),
+.ah-page-btn:active:not(:disabled),
+.cal-filter-chip:active,
+.prompt-chip:active:not(:disabled) {
+  transform: scale(0.97);
+}
+/* Primary actions earn a subtle brand-tinted lift on hover. */
+.ah-btn-primary-full:hover,
+.ah-btn-red:hover {
+  box-shadow: 0 4px 14px rgba(0, 87, 168, 0.22);
+}
+.ask-vinnie-btn:hover,
+.events-hero-btn:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+}
+/* Shared chrome chips (language/theme) press feedback — scoped to student. */
+.ah-studentshell .seg-opt:active,
+.ah-studentshell .icon-btn:active,
+.ah-studentshell .ah-iconbtn:active {
+  transform: scale(0.94);
+}
+.ah-studentshell .icon-btn,
+.ah-studentshell .ah-iconbtn {
+  transition: color var(--ah-dur-1) var(--ah-ease-soft),
+    background var(--ah-dur-1) var(--ah-ease-soft),
+    border-color var(--ah-dur-1) var(--ah-ease-soft),
+    transform var(--ah-dur-1) var(--ah-ease-soft);
+}
+
+/* ============================================================================
+   4. INPUTS — hover affordance before focus (login + chat already have rings)
+   ============================================================================ */
+.ah-input:hover:not(:focus-visible) {
+  border-color: var(--ah-border-strong);
+}
+.ah-studentshell .input:hover:not(:focus-visible),
+.ah-studentshell .textarea:hover:not(:focus-visible),
+.ah-studentshell .select:hover:not(:focus-visible) {
+  border-color: var(--ah-border-strong);
+}
+
+/* ============================================================================
+   5. TYPOGRAPHY — tabular figures for data, balanced/pretty wrapping
+   ============================================================================ */
+/* Numbers that sit in columns/rows align cleanly with tabular figures. */
+.profile-field-v,
+.stat-value,
+.event-date-day,
+.event-card2-date-day,
+.rail-time,
+.cal-list-time,
+.ah-page-btn {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+/* Headlines: avoid lonely last-line orphans; tighten the optical rhythm. */
+.dash-welcome-title,
+.ah-pagehead-title,
+.vinnie-welcome-title,
+.ah-login-title,
+.events-hero-title,
+.dash-section-title,
+.ah-studentshell .page-title {
+  text-wrap: balance;
+}
+/* Long descriptive copy reads better with pretty wrapping (no orphan word). */
+.dash-welcome-sub,
+.ah-pagehead-sub,
+.vinnie-welcome-sub,
+.ah-login-sub,
+.events-hero-desc,
+.msg .body,
+.ah-studentshell .page-desc {
+  text-wrap: pretty;
+}
+
+/* ============================================================================
+   6. TOP NAV — its own elevated surface so it reads above the page (see also §13)
+   NOTE: the nav is a non-scrolling flex item (content scrolls in a container
+   below it), so backdrop-blur wouldn't show — a solid distinct surface + a soft
+   downward shadow is what actually separates it from the page here.
+   ============================================================================ */
+.ah-topnav {
+  /* white card edge above the light-blue page, lifted by a soft navy-tinted shadow */
+  background: var(--ah-surface);
+  border-bottom: 1px solid var(--ah-border-strong);
+  box-shadow: 0 1px 0 rgba(0, 40, 85, 0.03), 0 6px 20px rgba(0, 40, 85, 0.06);
+}
+[data-theme="dark"] .ah-topnav {
+  /* its own navy-tinted dark surface, distinct from the page (#16161a) and the
+     default card surface (#1d1e22); blue-gray hairline; soft (not harsh) depth */
+  background: #1a2130;
+  border-bottom: 1px solid rgba(125, 155, 200, 0.18);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.30), 0 6px 22px rgba(0, 0, 0, 0.45);
+}
+
+/* ============================================================================
+   7. CHAT — message readability, source card, conversation rail, drawer
+   ============================================================================ */
+/* Comfortable answer column on wide screens (still token-driven elsewhere). */
+.chat-full .messages .msg {
+  max-width: 80ch;
+}
+/* Assistant answers get a touch more presence so they anchor the column. */
+.msg.assistant {
+  box-shadow: var(--ah-shadow-soft, 0 6px 18px rgba(0, 40, 85, 0.05));
+}
+/* Source cards: gentle hover lift consistent with the page cards. */
+.source-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--ah-shadow-lift, var(--shadow-card));
+}
+/* Conversation rail: a brand left-bar on the active row (mirrors admin sidebar)
+   so the current thread is legible at a glance, not just a faint tint. */
+.convo-row.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+}
+.convo-row {
+  transition: background var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease);
+}
+/* Source drawer header: faint surface tint to separate it from the body list. */
+.source-drawer-head {
+  background: var(--surface-2);
+}
+.source-drawer.overlay,
+.detail-drawer {
+  box-shadow: -10px 0 40px rgba(0, 40, 85, 0.14);
+}
+[data-theme="dark"] .source-drawer.overlay,
+[data-theme="dark"] .detail-drawer {
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.55);
+}
+
+/* ============================================================================
+   8. GRADIENT HERO/BANNER SURFACES — depth + inner highlight (student-only)
+   ============================================================================ */
+/* hero/banner gradient surfaces (the dashboard Ask-AI card + Vinnie avatar get a
+   richer, dedicated treatment in section 12). */
+.ah-ui .hero-ask,
+.events-hero {
+  box-shadow: 0 10px 30px rgba(0, 40, 85, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+/* ============================================================================
+   9. SELECTION — brand-tinted text selection on student surfaces
+   ============================================================================ */
+.ah-studentshell ::selection,
+.ah-authframe ::selection {
+  background: rgba(0, 87, 168, 0.18);
+}
+[data-theme="dark"] .ah-studentshell ::selection,
+[data-theme="dark"] .ah-authframe ::selection {
+  background: rgba(79, 155, 224, 0.30);
+}
+
+/* ============================================================================
+   10. DARK-MODE CONTRAST — crisper card edges so surfaces don't muddy together
+   ============================================================================ */
+[data-theme="dark"] .ah-studentshell .card,
+[data-theme="dark"] .rail-card,
+[data-theme="dark"] .cal-main-card,
+[data-theme="dark"] .rec-card,
+[data-theme="dark"] .dash-ticket-card,
+[data-theme="dark"] .event-card2,
+[data-theme="dark"] .vinnie-sugg-card,
+[data-theme="dark"] .event-row {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+[data-theme="dark"] .source-drawer-head {
+  background: var(--surface-2);
+}
+
+/* ============================================================================
+   11. RESPONSIVE — fill 1366 / 1440 with calmer rhythm (student content only)
+   ============================================================================ */
+@media (min-width: 1366px) {
+  /* Let the dashboard/calendar grids use the extra width without sprawling. */
+  .ah-studentshell { --content-max: 1240px; }
+  .dash-grid { gap: 28px; }
+  .cal-layout-ah { gap: 24px; }
+}
+@media (min-width: 1440px) {
+  .ah-student-content { padding-left: clamp(40px, 5vw, 64px); padding-right: clamp(40px, 5vw, 64px); }
+}
+
+/* ============================================================================
+   12. VINNIE AI EXPERIENCE — premium-but-calm assistant treatment
+   (empty state, composer web-search toggle, dashboard Ask-AI card, top nav)
+   All selectors below are login/student/chat-only — admin renders none of them.
+   ============================================================================ */
+
+/* ---- 12a. Empty-state avatar: soft blue ring + halo (no flashy glow) ------- */
+.vinnie-avatar-lg {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  /* concentric tint ring + a calm navy-tinted drop, plus a top inner highlight */
+  box-shadow: 0 0 0 6px var(--ah-primary-tint),
+    0 14px 34px rgba(0, 40, 85, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  margin-bottom: 22px;
+}
+[data-theme="dark"] .vinnie-avatar-lg {
+  /* deeper navy/blue glow so the icon block feels lit, not flat, in dark mode */
+  box-shadow: 0 0 0 6px rgba(79, 155, 224, 0.16),
+    0 0 38px rgba(79, 155, 224, 0.30),
+    0 14px 34px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+/* ---- 12b. Empty-state hierarchy + spacing rhythm -------------------------- */
+.vinnie-welcome { padding: 48px 24px 32px; }
+.vinnie-welcome-title { font-size: 30px; margin-bottom: 10px; }
+.vinnie-welcome-sub { margin-bottom: 32px; }
+.vinnie-sugg-grid { gap: 14px; }
+
+/* Suggestion cards: softer surface, clearer hover toward the brand blue. */
+.vinnie-sugg-card {
+  padding: 15px 16px;
+  background: var(--surface);
+}
+.vinnie-sugg-card:hover:not(:disabled) {
+  background: var(--accent-tint);
+}
+.vinnie-sugg-card:hover:not(:disabled) .vinnie-sugg-icon {
+  background: var(--ah-brand);
+  color: #fff;
+  transition: background var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease),
+    color var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease);
+}
+.vinnie-sugg-icon {
+  transition: background var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease),
+    color var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease);
+}
+
+/* ---- 12c. Composer Web Search toggle (frontend-only UI control) ----------- */
+.composer-tool {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  margin-bottom: 1px; /* optical align with the textarea baseline */
+  padding: 0 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease),
+    border-color var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease),
+    color var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease),
+    transform var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease);
+}
+.composer-tool:hover {
+  color: var(--foreground);
+  border-color: var(--accent-border);
+}
+.composer-tool:active {
+  transform: scale(0.96);
+}
+/* Active = Web Search on: clear (but still soft) brand-blue affordance. */
+.composer-tool.active {
+  background: var(--accent-tint-strong);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+.composer-tool.active svg {
+  color: var(--accent);
+}
+/* In the compact floating widget, keep just the globe (tooltip + aria-pressed remain). */
+.vinnie-widget .composer-tool-label {
+  display: none;
+}
+
+/* ---- 12d. Dashboard "Ask Vinnie" — the primary assistant entry point ------ */
+.ask-vinnie-card {
+  /* a touch more contrast in the gradient + a calm lit edge */
+  background: linear-gradient(135deg, #002a59 0%, #0061ba 100%);
+  box-shadow: 0 12px 30px rgba(0, 40, 85, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  transition: box-shadow var(--ah-dur-2, 240ms) var(--ah-ease-soft, ease),
+    transform var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease);
+}
+.ask-vinnie-card:hover {
+  box-shadow: 0 16px 38px rgba(0, 40, 85, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.ask-vinnie-btn {
+  font-weight: 650;
+}
+.ask-vinnie-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.20);
+}
+.ask-vinnie-btn:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* ---- 12e. Top nav: Vinnie AI as a discoverable "assistant" tab ------------
+   An inset blue pill (drawn with ::before so the link height/underline stay put)
+   makes Vinnie noticeable but calm when inactive, and clearly selected when
+   active. No emoji, no purple, no gradient, no motion beyond a soft color fade. */
+.ah-topnav-link[href="/student/chat"] {
+  position: relative;
+  isolation: isolate; /* keep the pill (z-index:-1) behind the label, above the nav */
+  color: var(--ah-on-primary-tint);
+}
+.ah-topnav-link[href="/student/chat"]::before {
+  content: "";
+  position: absolute;
+  inset: 12px 2px; /* inset → a pill inside the 64px tab, height unchanged */
+  z-index: -1;
+  border-radius: var(--ah-radius-pill);
+  background: var(--ah-primary-tint);
+  border: 1px solid transparent;
+  transition: background var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease),
+    border-color var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease);
+}
+/* the chat-bubble icon carries the brand blue so the tab reads as "the assistant" */
+.ah-topnav-link[href="/student/chat"] span[aria-hidden] {
+  color: var(--ah-brand);
+}
+.ah-topnav-link[href="/student/chat"]:hover {
+  color: var(--ah-brand);
+}
+.ah-topnav-link[href="/student/chat"]:hover::before {
+  background: var(--accent-tint-strong, rgba(0, 87, 168, 0.12));
+  border-color: var(--accent-border, rgba(0, 87, 168, 0.22));
+}
+/* Active = clearly selected: stronger blue fill + brand text (underline kept). */
+.ah-topnav-link[href="/student/chat"].active {
+  color: var(--ah-brand);
+}
+.ah-topnav-link[href="/student/chat"].active::before {
+  background: var(--accent-tint-strong, rgba(0, 87, 168, 0.14));
+  border-color: var(--accent-border, rgba(0, 87, 168, 0.22));
+}
+[data-theme="dark"] .ah-topnav-link[href="/student/chat"].active::before {
+  background: rgba(79, 155, 224, 0.26);
+  border-color: rgba(79, 155, 224, 0.34);
+}
+/* nav reflows to 44px-tall links below 768px — keep the pill proportionate */
+@media (max-width: 767px) {
+  .ah-topnav-link[href="/student/chat"]::before {
+    inset: 6px 2px;
+  }
+}
+
+/* ============================================================================
+   13. TODAY'S SCHEDULE — time-aware states (dashboard rail)
+   Classes: .rail-sched-row.state-{past|current|upcoming} + .sched-badge/.sched-dot
+   Driven by getScheduleItemState() in the dashboard page (frontend-only).
+   ============================================================================ */
+.rail-sched-row {
+  transition: opacity var(--ah-dur-2, 240ms) var(--ah-ease-soft, ease),
+    background var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease);
+}
+
+/* Past — faded back but still legible; softer time/icon color. */
+.rail-sched-row.state-past {
+  opacity: 0.5;
+}
+.rail-sched-row.state-past .rail-time {
+  color: var(--muted-foreground);
+  font-weight: 600;
+}
+
+/* Upcoming — the default look; no extra rules needed (clean and readable). */
+
+/* Current — soft blue block + brand left accent bar + stronger time color. */
+.rail-sched-row.state-current {
+  position: relative;
+  background: var(--accent-tint);
+  border-bottom-color: transparent;
+  border-radius: var(--radius-sm);
+  padding-left: 14px;
+  padding-right: 10px;
+}
+.rail-sched-row.state-current::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+}
+.rail-sched-row.state-current .rail-time {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* State badges shown on the class title line. */
+.sched-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+.sched-badge.now {
+  background: var(--accent);
+  color: var(--primary-foreground);
+}
+.sched-badge.past {
+  background: var(--surface-3);
+  color: var(--muted-foreground);
+  font-weight: 600;
+}
+/* subtle "live" dot — pulse is neutralized by the reduced-motion guard above */
+.sched-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: sched-pulse 1.8s ease-in-out infinite;
+}
+@keyframes sched-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.65);
+  }
+}
+
+/* ============================================================================
+   14. NOTIFICATION DROPDOWN — Facebook-style popover from the top-nav bell
+   (component: NotificationBell). Student-only classes; frontend-only behavior.
+   ============================================================================ */
+.ah-notif {
+  position: relative;
+  display: inline-flex;
+}
+
+/* unread count badge on the bell (brand blue — red is reserved for danger) */
+.ah-notif-count {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: 2px solid var(--surface);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* the popover panel */
+.ah-notif-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 60;
+  width: 380px;
+  max-width: calc(100vw - 24px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: ah-notif-in 160ms var(--ah-ease-soft, ease);
+}
+[data-theme="dark"] .ah-notif-panel {
+  /* its own navy surface + blue-gray hairline so it reads above dark content */
+  background: #1c2330;
+  border-color: rgba(125, 155, 200, 0.20);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+}
+@keyframes ah-notif-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ah-notif-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.ah-notif-title {
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+.ah-notif-unread {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-tint);
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+}
+
+.ah-notif-list {
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* a single notification row (button) */
+.ah-notif-item {
+  position: relative;
+  display: flex;
+  gap: 11px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  padding: 11px 30px 11px 12px; /* right room for the unread dot */
+  border-radius: var(--radius);
+  transition: background var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease);
+}
+.ah-notif-item:hover {
+  background: var(--surface-2);
+}
+.ah-notif-item.unread {
+  background: var(--accent-tint);
+}
+.ah-notif-item.unread:hover {
+  background: var(--accent-tint-strong);
+}
+.ah-notif-dot {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.ah-notif-item.read .ah-notif-dot {
+  display: none;
+}
+.ah-notif-ico {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--accent-tint);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ah-notif-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ah-notif-row1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ah-notif-time {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  color: var(--ah-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ah-notif-itemtitle {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--foreground);
+  line-height: 1.35;
+}
+.ah-notif-msg {
+  font-size: 12.5px;
+  color: var(--ah-text-2);
+  line-height: 1.45;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* empty state */
+.ah-notif-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 34px 20px;
+  color: var(--ah-muted);
+  font-size: 13.5px;
+}
+.ah-notif-empty svg {
+  color: var(--ah-muted);
+  opacity: 0.7;
+}
+
+/* footer "View all" */
+.ah-notif-foot {
+  display: block;
+  text-align: center;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  color: var(--accent);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease);
+}
+.ah-notif-foot:hover {
+  background: var(--surface-2);
+}
+
+/* Mobile: full-width sheet-like panel pinned under the nav. */
+@media (max-width: 480px) {
+  .ah-notif-panel {
+    position: fixed;
+    top: 60px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-width: none;
+  }
+}

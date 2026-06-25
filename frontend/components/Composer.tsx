@@ -1,6 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 
+function GlobeIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="15"
+      height="15"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+    </svg>
+  );
+}
+
 export function Composer({
   onSend,
   onStop,
@@ -26,6 +45,11 @@ export function Composer({
   const { t } = useI18n();
   const promptChips = chips ?? t.quickPrompts;
   const [value, setValue] = useState("");
+  // FRONTEND-ONLY Web Search toggle. Defaults to off and lives purely in local UI state — it is
+  // intentionally NOT read by submit() / onSend and NOT added to any request payload, so chat,
+  // RAG, SSE, and streaming behavior are unchanged.
+  // TODO(backend): when real web search ships, thread `webSearch` into the send payload here.
+  const [webSearch, setWebSearch] = useState(false);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const trimmed = value.trim();
 
@@ -75,6 +99,16 @@ export function Composer({
         </div>
       )}
       <div className="composer-field">
+        <button
+          type="button"
+          className={`composer-tool ${webSearch ? "active" : ""}`}
+          aria-pressed={webSearch}
+          title={t.webSearchHint}
+          onClick={() => setWebSearch((v) => !v)}
+        >
+          <GlobeIcon />
+          <span className="composer-tool-label">{t.webSearch}</span>
+        </button>
         <textarea
           ref={taRef}
           rows={1}

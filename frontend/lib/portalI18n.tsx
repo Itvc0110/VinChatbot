@@ -140,6 +140,7 @@ export interface PortalStrings {
     unreadCount: (n: number) => string;
     emptyTitle: string;
     emptyDesc: string;
+    emptyShort: string;
     noMatch: string;
     loadError: string;
     actionFailed: string;
@@ -685,6 +686,7 @@ const en: PortalStrings = {
     unreadCount: (n) => (n === 1 ? "1 unread" : `${n} unread`),
     emptyTitle: "You're all caught up",
     emptyDesc: "New notifications about deadlines, schedule, and events will appear here.",
+    emptyShort: "No notifications yet",
     noMatch: "No notifications match this filter.",
     loadError: "Couldn't load notifications.",
     actionFailed: "Action failed. Try again.",
@@ -1274,6 +1276,7 @@ const vi: PortalStrings = {
     unreadCount: (n) => `${n} chưa đọc`,
     emptyTitle: "Bạn đã xem hết",
     emptyDesc: "Thông báo mới về hạn chót, lịch học và sự kiện sẽ hiển thị ở đây.",
+    emptyShort: "Chưa có thông báo nào",
     noMatch: "Không có thông báo nào khớp bộ lọc này.",
     loadError: "Không tải được thông báo.",
     actionFailed: "Thao tác thất bại. Thử lại nhé.",

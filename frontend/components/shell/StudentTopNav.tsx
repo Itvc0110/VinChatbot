@@ -11,9 +11,9 @@ import {
   IconChat,
   IconCalendar,
   IconTicket,
-  IconBell,
   IconCap,
 } from "./icons";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 // Academic Horizon student chrome: a fixed horizontal top navigation bar (DESIGN.md §11.2).
 // Links use the Stitch screen names over the EXISTING routes (see ROUTES.md) — no route renames.
@@ -176,14 +176,7 @@ export function StudentTopNav() {
         >
           {theme === "dark" ? <SunIcon /> : <MoonIcon />}
         </button>
-        <Link
-          href="/student/notifications"
-          className="ah-iconbtn"
-          aria-label={s.notifications}
-        >
-          <IconBell />
-          <span className="ah-iconbtn-dot" aria-hidden />
-        </Link>
+        <NotificationBell ariaLabel={s.notifications} />
         <span className="ah-profile" title={user?.name}>
           <span className="ah-avatar">{user ? initials(user.name) : "?"}</span>
           {user && <span className="ah-profile-name">{user.name}</span>}
