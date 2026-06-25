@@ -547,10 +547,25 @@ table.ah-table,
   }
 }
 @media (max-width: 767px) {
+  /* reflow the top nav: brand + actions on row 1, scrollable links on row 2 */
+  .ah-topnav {
+    flex-wrap: wrap;
+    height: auto;
+    gap: 8px 12px;
+    padding: 8px 12px;
+  }
+  .ah-topnav > nav {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .ah-topnav-actions {
+    margin-left: auto;
+  }
   .ah-topnav-links {
-    gap: 0;
+    gap: 2px;
   }
   .ah-topnav-link {
+    height: 44px;
     padding: 0 10px;
   }
   .ah-profile-name {
@@ -642,7 +657,8 @@ table.ah-table,
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 28px clamp(20px, 4vw, 40px) 56px;
+  /* extra bottom padding so page-end content clears the floating Vinnie button */
+  padding: 28px clamp(20px, 4vw, 40px) 96px;
 }
 .ah-student-content.flush {
   padding: 0;
@@ -655,6 +671,7 @@ table.ah-table,
 
 /* Dashboard "ask Vinnie" hero → Academic Horizon brand-red banner (was navy). */
 .ah-ui .hero-ask {
-  background: linear-gradient(135deg, var(--ah-primary) 0%, var(--ah-brand) 100%);
+  /* fixed deep-red gradient (not theme-swapped) so white text stays readable in dark mode */
+  background: linear-gradient(135deg, #950013 0%, #b92026 100%);
   border-radius: var(--ah-radius-lg);
 }
