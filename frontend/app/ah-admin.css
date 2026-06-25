@@ -218,3 +218,65 @@
 .amon-item-sub { font-size: 12.5px; color: var(--ah-muted); margin-top: 2px; }
 .amon-item-act { flex: 0 0 auto; }
 .amon-feedback-score { font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body); font-size: 34px; font-weight: 700; color: var(--ah-brand); line-height: 1; }
+
+/* ---- /admin/context — context & personalization -------------------------- */
+.actx-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px); gap: 24px; align-items: start; }
+@media (max-width: 1024px) { .actx-grid { grid-template-columns: 1fr; } }
+.actx-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.actx-rail { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.actx-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.actx-chip {
+  display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: var(--ah-radius-pill);
+  border: 1px solid var(--ah-border); background: var(--ah-surface); color: var(--ah-text-2);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+}
+.actx-chip-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ah-border-strong); }
+.actx-chip.on { background: var(--ah-primary-tint); border-color: var(--ah-brand); color: var(--ah-on-primary-tint); }
+.actx-chip.on .actx-chip-dot { background: var(--ah-brand); }
+.actx-chip.ctx.on { background: var(--ah-secondary-bg); border-color: var(--ah-secondary); color: var(--ah-secondary); }
+.actx-chip.ctx.on .actx-chip-dot { background: var(--ah-secondary); }
+.actx-chip.add { border-style: dashed; color: var(--ah-brand); }
+.actx-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ah-muted); margin-top: 12px; }
+.actx-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.actx-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.actx-rule { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid var(--ah-border); border-radius: var(--ah-radius); background: var(--ah-surface); }
+.actx-rule + .actx-rule { margin-top: 10px; }
+.actx-rule-num { width: 30px; height: 30px; border-radius: var(--ah-radius-sm); background: var(--ah-primary-tint); color: var(--ah-on-primary-tint); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex: 0 0 auto; }
+.actx-rule-main { flex: 1 1 auto; min-width: 0; }
+.actx-rule-name { font-size: 14px; font-weight: 600; color: var(--ah-text); }
+.actx-rule-logic { font-size: 12.5px; color: var(--ah-muted); margin-top: 3px; line-height: 1.5; }
+.actx-rule-logic code { background: var(--ah-surface-2); padding: 1px 5px; border-radius: 4px; font-size: 12px; color: var(--ah-text); }
+.actx-rule-actions { display: flex; gap: 4px; flex: 0 0 auto; }
+.actx-test-profile { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 14px; }
+.actx-test-out { background: var(--ah-surface-2); border-radius: var(--ah-radius-sm); padding: 12px; font-size: 13px; color: var(--ah-text-2); }
+.actx-test-bubble { background: var(--ah-primary-tint); color: var(--ah-on-primary-tint); border-radius: var(--ah-radius-sm); padding: 10px 12px; font-size: 13px; line-height: 1.5; margin-top: 10px; }
+
+/* ---- /admin/events — campus events management ---------------------------- */
+.aev-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+@media (max-width: 760px) { .aev-stats { grid-template-columns: repeat(2, 1fr); } }
+.aev-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.aev-toolbar .input { flex: 1 1 220px; min-width: 0; }
+.aev-toolbar-actions { margin-left: auto; display: flex; gap: 8px; }
+@media (max-width: 760px) { .aev-toolbar-actions { margin-left: 0; } }
+.aev-actions-cell { display: flex; gap: 4px; flex-wrap: wrap; }
+.aev-cap { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.aev-cap-bar { width: 56px; height: 6px; border-radius: var(--ah-radius-pill); background: var(--ah-surface-3); overflow: hidden; }
+.aev-cap-fill { height: 100%; background: var(--ah-brand); border-radius: var(--ah-radius-pill); }
+.aev-form { display: flex; flex-direction: column; gap: 14px; }
+
+/* ---- /admin/settings — system settings ----------------------------------- */
+.aset-sections { display: flex; flex-direction: column; gap: 20px; }
+.aset-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--ah-border); }
+.aset-row:last-child { border-bottom: none; }
+.aset-row-label { font-size: 14px; font-weight: 600; color: var(--ah-text); }
+.aset-row-sub { font-size: 12.5px; color: var(--ah-muted); margin-top: 2px; }
+.aset-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 680px) { .aset-grid2 { grid-template-columns: 1fr; } }
+.ah-switch { position: relative; width: 42px; height: 24px; flex: 0 0 auto; display: inline-block; }
+.ah-switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.ah-switch-track { position: absolute; inset: 0; border-radius: var(--ah-radius-pill); background: var(--ah-surface-3); transition: background 150ms ease; }
+.ah-switch-thumb { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: var(--ah-shadow-2); transition: transform 150ms ease; }
+.ah-switch input:checked + .ah-switch-track { background: var(--ah-brand); }
+.ah-switch input:checked + .ah-switch-track .ah-switch-thumb { transform: translateX(18px); }
+.perm-cell { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--ah-radius-sm); border: none; background: none; cursor: pointer; color: var(--ah-muted); }
+.perm-cell.on { color: var(--ah-success); }
