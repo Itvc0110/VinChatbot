@@ -1,0 +1,138 @@
+/* ============================================================================
+   ACADEMIC HORIZON — admin portal page layouts (Phase 3)
+   Real, screen-specific layouts for the admin console. Uses --ah-* tokens and new
+   `.ah-admin*` / `.a*` classes. Scoped by the admin shell (`.ah-ui .ah-adminshell`).
+   ============================================================================ */
+
+/* ---- admin shell extras --------------------------------------------------- */
+.ah-admin-content > .page-inner { max-width: 1320px; margin: 0 auto; }
+.ah-admin-banner {
+  display: flex; align-items: center; gap: 8px; padding: 8px clamp(16px, 3vw, 32px);
+  background: var(--ah-primary-tint); color: var(--ah-on-primary-tint);
+  border-bottom: 1px solid color-mix(in srgb, var(--ah-brand) 18%, transparent);
+  font-size: 12px; font-weight: 600;
+}
+.ah-sidebar-scrim { display: none; }
+@media (max-width: 767px) {
+  .ah-sidebar-scrim { display: block; position: fixed; inset: 0; z-index: 39; background: rgba(0, 0, 0, 0.4); }
+}
+
+/* ---- shared admin building blocks ---------------------------------------- */
+.acard { background: var(--ah-surface); border: 1px solid var(--ah-border); border-radius: var(--ah-radius); padding: 18px; }
+.acard-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.acard-title { font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body); font-size: 16px; font-weight: 600; margin: 0; color: var(--ah-text); }
+.acard-link { font-size: 13px; font-weight: 600; color: var(--ah-brand); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+.acard-link:hover { text-decoration: underline; }
+
+.astat { background: var(--ah-surface); border: 1px solid var(--ah-border); border-radius: var(--ah-radius); padding: 16px; }
+.astat-top { display: flex; align-items: center; justify-content: space-between; }
+.astat-icon { width: 32px; height: 32px; border-radius: var(--ah-radius-sm); display: inline-flex; align-items: center; justify-content: center; background: var(--ah-primary-tint); color: var(--ah-on-primary-tint); }
+.astat-value { font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body); font-size: 26px; font-weight: 700; color: var(--ah-text); margin-top: 8px; line-height: 1; }
+.astat-label { font-size: 12.5px; color: var(--ah-muted); margin-top: 4px; }
+.astat.tone-danger .astat-icon { background: var(--ah-error-bg); color: var(--ah-error); }
+.astat.tone-warning .astat-icon { background: var(--ah-warning-bg); color: var(--ah-warning); }
+.astat.tone-success .astat-icon { background: var(--ah-success-bg); color: var(--ah-success); }
+
+/* metric grid (KB status / quality) */
+.mgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.mcell { background: var(--ah-surface-2); border-radius: var(--ah-radius-sm); padding: 12px; }
+.mcell-v { font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body); font-size: 20px; font-weight: 700; color: var(--ah-text); }
+.mcell-k { font-size: 11.5px; color: var(--ah-muted); margin-top: 2px; }
+
+/* breakdown bars (ticket categories / source usage) */
+.bd-row { display: grid; grid-template-columns: 120px 1fr 46px; gap: 10px; align-items: center; padding: 7px 0; font-size: 13px; }
+.bd-label { color: var(--ah-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bd-track { height: 8px; border-radius: var(--ah-radius-pill); background: var(--ah-surface-3); overflow: hidden; }
+.bd-fill { height: 100%; background: var(--ah-brand); border-radius: var(--ah-radius-pill); }
+.bd-val { text-align: right; color: var(--ah-muted); font-weight: 600; }
+
+/* quick actions */
+.qa-list { display: flex; flex-direction: column; gap: 10px; }
+.qa-btn {
+  display: flex; align-items: center; gap: 10px; padding: 11px 14px; border: 1px solid var(--ah-border);
+  border-radius: var(--ah-radius-sm); background: var(--ah-surface); color: var(--ah-text); text-decoration: none;
+  font-size: 14px; font-weight: 600; transition: border-color 150ms ease, background 150ms ease, color 150ms ease;
+}
+.qa-btn:hover { border-color: var(--ah-brand); color: var(--ah-brand); background: var(--ah-primary-tint); }
+.qa-icon { width: 30px; height: 30px; border-radius: var(--ah-radius-sm); display: inline-flex; align-items: center; justify-content: center; background: var(--ah-primary-tint); color: var(--ah-on-primary-tint); flex: 0 0 auto; }
+
+/* ---- /admin/dashboard ----------------------------------------------------- */
+.adash-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 1100px) { .adash-grid { grid-template-columns: 1fr; } }
+.adash-main { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.adash-rail { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.adash-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 680px) { .adash-stats { grid-template-columns: repeat(2, 1fr); } }
+
+/* needs-attention list */
+.attn-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--ah-border); }
+.attn-row:last-child { border-bottom: none; }
+.attn-icon { width: 32px; height: 32px; border-radius: var(--ah-radius-sm); flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; background: var(--ah-warning-bg); color: var(--ah-warning); }
+.attn-icon.danger { background: var(--ah-error-bg); color: var(--ah-error); }
+.attn-main { flex: 1 1 auto; min-width: 0; }
+.attn-title { font-size: 14px; font-weight: 600; color: var(--ah-text); }
+.attn-sub { font-size: 12.5px; color: var(--ah-muted); margin-top: 2px; }
+
+/* recent-activity feed */
+.act-row { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--ah-border); }
+.act-row:last-child { border-bottom: none; }
+.act-dot { width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; background: var(--ah-surface-2); color: var(--ah-text-2); }
+.act-main { flex: 1 1 auto; min-width: 0; }
+.act-title { font-size: 13.5px; font-weight: 600; color: var(--ah-text); }
+.act-sub { font-size: 12px; color: var(--ah-muted); margin-top: 1px; }
+.act-time { font-size: 11.5px; color: var(--ah-muted); flex: 0 0 auto; }
+
+/* ---- /admin/tickets — two-column manager ---------------------------------- */
+.atik-grid { display: grid; grid-template-columns: minmax(320px, 38%) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 980px) { .atik-grid { grid-template-columns: 1fr; } }
+.atik-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.atik-filterbar { display: flex; gap: 8px; flex-wrap: wrap; }
+.atik-filterbar .input { flex: 1 1 140px; min-width: 0; }
+.atik-list { display: flex; flex-direction: column; gap: 10px; }
+.atik-row {
+  display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid var(--ah-border);
+  border-radius: var(--ah-radius); background: var(--ah-surface); cursor: pointer; text-align: left; font: inherit;
+  width: 100%; transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+.atik-row:hover { border-color: var(--ah-border-strong); }
+.atik-row.active { border-color: var(--ah-brand); box-shadow: 0 0 0 1px var(--ah-brand); background: var(--ah-primary-tint); }
+.atik-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--ah-brand); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex: 0 0 auto; }
+.atik-row-main { flex: 1 1 auto; min-width: 0; }
+.atik-row-top { display: flex; align-items: center; gap: 8px; }
+.atik-row-id { font-size: 11.5px; color: var(--ah-muted); font-weight: 600; }
+.atik-row-time { font-size: 11px; color: var(--ah-muted); margin-left: auto; }
+.atik-row-name { font-size: 14px; font-weight: 600; color: var(--ah-text); margin-top: 1px; }
+.atik-row-sub { font-size: 12px; color: var(--ah-muted); margin: 2px 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.atik-row-chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+.atik-detail { background: var(--ah-surface); border: 1px solid var(--ah-border); border-radius: var(--ah-radius); overflow: hidden; }
+.atik-detail-head { display: flex; gap: 12px; align-items: flex-start; padding: 18px; border-bottom: 1px solid var(--ah-border); }
+.atik-detail-title { font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body); font-size: 18px; font-weight: 600; color: var(--ah-text); margin: 0 0 6px; }
+.atik-detail-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.atik-section { padding: 16px 18px; border-bottom: 1px solid var(--ah-border); }
+.atik-section:last-child { border-bottom: none; }
+.atik-section-title { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ah-muted); margin: 0 0 10px; display: flex; align-items: center; gap: 6px; }
+.atik-kv { display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px; font-size: 13px; margin: 0; }
+.atik-kv dt { color: var(--ah-muted); }
+.atik-kv dd { margin: 0; color: var(--ah-text); }
+.atik-ai { background: var(--ah-primary-tint); border-radius: var(--ah-radius-sm); padding: 12px; font-size: 13px; color: var(--ah-on-primary-tint); line-height: 1.5; }
+.atik-ai-routing { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.atik-thread { display: flex; flex-direction: column; gap: 10px; }
+.atik-msg { padding: 10px 12px; border-radius: var(--ah-radius-sm); font-size: 13px; line-height: 1.5; }
+.atik-msg.student { background: var(--ah-surface-2); color: var(--ah-text); }
+.atik-msg.admin { background: var(--ah-primary-tint); color: var(--ah-on-primary-tint); }
+.atik-msg-who { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; opacity: 0.8; margin-bottom: 3px; }
+.atik-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.atik-reply { display: flex; flex-direction: column; gap: 8px; }
+.atik-empty { padding: 64px 24px; text-align: center; color: var(--ah-muted); }
+
+/* ---- /admin/sources — knowledge base ------------------------------------- */
+.akb-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+@media (max-width: 760px) { .akb-stats { grid-template-columns: repeat(2, 1fr); } }
+.akb-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.akb-toolbar .input { flex: 1 1 220px; min-width: 0; }
+.akb-actions { margin-left: auto; display: flex; gap: 8px; }
+@media (max-width: 760px) { .akb-actions { margin-left: 0; } }
+.akb-indexing { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ah-muted); margin-top: 3px; }
+.akb-indexing.ok { color: var(--ah-success); }
+.akb-foot { margin-top: 14px; font-size: 12.5px; color: var(--ah-muted); }

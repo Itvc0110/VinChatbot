@@ -6,6 +6,7 @@ import "./globals.css";
 import "./portal.css";
 import "./academic-horizon.css";
 import "./ah-pages.css";
+import "./ah-admin.css";
 
 // Inter with the `vietnamese` subset so diacritics (ế, ữ, ợ, Đ…) render crisply.
 const inter = Inter({

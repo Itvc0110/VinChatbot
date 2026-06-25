@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AsyncBoundary,
-  SectionHeader,
   Badge,
   EmptyState,
   Toast,
@@ -14,8 +13,13 @@ import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
 import { getKnowledgeSources, recrawlSource, disableSource } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
-import type { KnowledgeSource, SourceStatus } from "@/lib/portalTypes";
-import { IconDatabase, IconUpload } from "@/components/shell/icons";
+import type {
+  KnowledgeSource,
+  SourceStatus,
+  SourceType,
+  SourceCategory,
+} from "@/lib/portalTypes";
+import { IconDatabase, IconUpload, IconCheck, IconAlert } from "@/components/shell/icons";
 
 const STATUS_TONE: Record<SourceStatus, BadgeTone> = {
   indexed: "success",
@@ -25,11 +29,60 @@ const STATUS_TONE: Record<SourceStatus, BadgeTone> = {
   pending: "warning",
 };
 
+const TYPES: (SourceType | "all")[] = ["all", "url", "pdf", "docx", "database"];
+const CATEGORIES: (SourceCategory | "all")[] = [
+  "all",
+  "Academic",
+  "Tuition",
+  "Events",
+  "Student Services",
+  "Schedule",
+];
+const STATUSES: (SourceStatus | "all")[] = ["all", "indexed", "pending", "failed", "disabled"];
+
+function Summary({ value, label, tone = "default" }: { value: number; label: string; tone?: "default" | "success" | "warning" | "danger" }) {
+  return (
+    <div className={`astat tone-${tone}`}>
+      <div className="astat-top">
+        <span className="astat-icon"><IconDatabase size={18} /></span>
+      </div>
+      <div className="astat-value">{value.toLocaleString()}</div>
+      <div className="astat-label">{label}</div>
+    </div>
+  );
+}
+
 export default function SourcesPage() {
   const { p, lang } = usePortal();
   const sources = useAsync(getKnowledgeSources, []);
   const [toast, setToast] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [typeF, setTypeF] = useState<SourceType | "all">("all");
+  const [catF, setCatF] = useState<SourceCategory | "all">("all");
+  const [statusF, setStatusF] = useState<SourceStatus | "all">("all");
+
+  const list = sources.status === "success" ? sources.data : [];
+  const counts = {
+    total: list.length,
+    indexed: list.filter((s) => s.status === "indexed").length,
+    pending: list.filter((s) => s.status === "pending").length,
+    failed: list.filter((s) => s.status === "failed").length,
+  };
+
+  const filtered = useMemo(
+    () =>
+      list
+        .filter((s) => typeF === "all" || s.type === typeF)
+        .filter((s) => catF === "all" || s.category === catF)
+        .filter((s) => statusF === "all" || s.status === statusF)
+        .filter((s) => {
+          const q = search.trim().toLowerCase();
+          if (!q) return true;
+          return [s.name, s.url].some((x) => x.toLowerCase().includes(q));
+        }),
+    [list, typeF, catF, statusF, search]
+  );
 
   async function recrawl(s: KnowledgeSource) {
     setBusyId(s.id);
@@ -59,20 +112,48 @@ export default function SourcesPage() {
 
   return (
     <div className="page-inner">
-      <SectionHeader
-        title={p.admin.allSources}
-        action={
+      {/* Summary cards */}
+      <div className="akb-stats">
+        <Summary value={counts.total} label="Total sources" />
+        <Summary value={counts.indexed} label="Indexed" tone="success" />
+        <Summary value={counts.pending} label="Pending review" tone={counts.pending > 0 ? "warning" : "success"} />
+        <Summary value={counts.failed} label="Indexing failed" tone={counts.failed > 0 ? "danger" : "success"} />
+      </div>
+
+      {/* Search + filters + actions */}
+      <div className="akb-toolbar">
+        <input
+          className="input"
+          placeholder="Search sources…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search sources"
+        />
+        <select className="select" value={typeF} onChange={(e) => setTypeF(e.target.value as SourceType | "all")} aria-label="Type filter">
+          {TYPES.map((t) => (
+            <option key={t} value={t}>{t === "all" ? "All types" : t.toUpperCase()}</option>
+          ))}
+        </select>
+        <select className="select" value={catF} onChange={(e) => setCatF(e.target.value as SourceCategory | "all")} aria-label="Category filter">
+          {CATEGORIES.map((c) => (
+            <option key={c} value={c}>{c === "all" ? "All categories" : (p.enums.category[c] ?? c)}</option>
+          ))}
+        </select>
+        <select className="select" value={statusF} onChange={(e) => setStatusF(e.target.value as SourceStatus | "all")} aria-label="Status filter">
+          {STATUSES.map((s) => (
+            <option key={s} value={s}>{s === "all" ? "All status" : p.enums.sourceStatus[s]}</option>
+          ))}
+        </select>
+        <div className="akb-actions">
+          <Link className="btn btn-outline btn-sm" href="/admin/upload">Add URL</Link>
           <Link className="btn btn-primary btn-sm" href="/admin/upload">
             <IconUpload size={14} /> {p.admin.addSource}
           </Link>
-        }
-      />
-      <AsyncBoundary
-        state={sources}
-        onRetry={sources.reload}
-        errorLabel={p.admin.loadSourcesError}
-      >
-        {(list) =>
+        </div>
+      </div>
+
+      <AsyncBoundary state={sources} onRetry={sources.reload} errorLabel={p.admin.loadSourcesError}>
+        {() =>
           list.length === 0 ? (
             <EmptyState
               icon={<IconDatabase size={28} />}
@@ -80,82 +161,74 @@ export default function SourcesPage() {
               description={p.admin.noSourcesDesc}
             />
           ) : (
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>{p.admin.colSourceName}</th>
-                    <th>{p.admin.colType}</th>
-                    <th>{p.admin.colCategory}</th>
-                    <th>{p.admin.colStatus}</th>
-                    <th>{p.admin.colChunks}</th>
-                    <th>{p.admin.colLastCrawled}</th>
-                    <th>{p.admin.colLastIndexed}</th>
-                    <th>{p.admin.colActions}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {list.map((s) => (
-                    <tr key={s.id}>
-                      <td>
-                        <div className="td-strong">{s.name}</div>
-                        <div className="td-sub">
-                          {s.is_official ? `${p.admin.official} · ` : ""}
-                          {s.url}
-                        </div>
-                      </td>
-                      <td>
-                        <Badge tone="neutral">{s.type.toUpperCase()}</Badge>
-                      </td>
-                      <td>{p.enums.category[s.category] ?? s.category}</td>
-                      <td>
-                        <Badge tone={STATUS_TONE[s.status]}>{p.enums.sourceStatus[s.status]}</Badge>
-                      </td>
-                      <td>{s.chunk_count}</td>
-                      <td className="td-sub">
-                        {s.last_crawled_at ? relativeTime(s.last_crawled_at, lang) : "—"}
-                      </td>
-                      <td className="td-sub">
-                        {s.last_indexed_at ? relativeTime(s.last_indexed_at, lang) : "—"}
-                      </td>
-                      <td>
-                        <div className="row-actions">
-                          <a className="btn btn-ghost btn-sm" href={s.url} target="_blank" rel="noreferrer">
-                            {p.view}
-                          </a>
-                          <button
-                            className="btn btn-outline btn-sm"
-                            disabled={busyId === s.id || s.status === "disabled"}
-                            onClick={() => recrawl(s)}
-                          >
-                            {busyId === s.id ? "…" : p.admin.recrawl}
-                          </button>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => setToast(p.admin.chunksInfo(s.name, s.chunk_count))}
-                          >
-                            {p.admin.chunks}
-                          </button>
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            disabled={busyId === s.id || s.status === "disabled"}
-                            onClick={() => disable(s)}
-                          >
-                            {p.admin.disable}
-                          </button>
-                        </div>
-                      </td>
+            <>
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>{p.admin.colSourceName}</th>
+                      <th>{p.admin.colType}</th>
+                      <th>{p.admin.colCategory}</th>
+                      <th>{p.admin.colStatus}</th>
+                      <th>{p.admin.colChunks}</th>
+                      <th>{p.admin.colLastCrawled}</th>
+                      <th>{p.admin.colActions}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filtered.map((s) => (
+                      <tr key={s.id}>
+                        <td>
+                          <div className="td-strong">{s.name}</div>
+                          <div className="td-sub">
+                            {s.is_official ? `${p.admin.official} · ` : ""}
+                            {s.url}
+                          </div>
+                        </td>
+                        <td><Badge tone="neutral">{s.type.toUpperCase()}</Badge></td>
+                        <td>{p.enums.category[s.category] ?? s.category}</td>
+                        <td>
+                          <Badge tone={STATUS_TONE[s.status]}>{p.enums.sourceStatus[s.status]}</Badge>
+                          <div className={`akb-indexing ${s.chunk_count > 0 ? "ok" : ""}`}>
+                            {s.chunk_count > 0 ? <IconCheck size={12} /> : <IconAlert size={12} />}
+                            {s.chunk_count > 0 ? "Indexed" : "Not indexed"}
+                          </div>
+                        </td>
+                        <td>{s.chunk_count}</td>
+                        <td className="td-sub">
+                          {s.last_crawled_at ? relativeTime(s.last_crawled_at, lang) : "—"}
+                        </td>
+                        <td>
+                          <div className="row-actions">
+                            <a className="btn btn-ghost btn-sm" href={s.url} target="_blank" rel="noreferrer">{p.view}</a>
+                            <button
+                              className="btn btn-outline btn-sm"
+                              disabled={busyId === s.id || s.status === "disabled"}
+                              onClick={() => recrawl(s)}
+                            >
+                              {busyId === s.id ? "…" : p.admin.recrawl}
+                            </button>
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              disabled={busyId === s.id || s.status === "disabled"}
+                              onClick={() => disable(s)}
+                            >
+                              {p.admin.disable}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="akb-foot">
+                Showing {filtered.length} of {list.length} sources · {p.admin.sourcesNote}
+              </p>
+            </>
           )
         }
       </AsyncBoundary>
-      <p className="td-sub" style={{ marginTop: 12 }}>
-        {p.admin.sourcesNote}
-      </p>
 
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
     </div>
