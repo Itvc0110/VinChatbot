@@ -26,13 +26,19 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
+const STR = {
+  en: { primary: "Primary" },
+  vi: { primary: "Điều hướng chính" },
+} as const;
+
 function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
 export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { p } = usePortal();
+  const { p, lang } = usePortal();
+  const s = STR[lang];
 
   // Each role sees ONLY its own navigation — no mixing of student + admin items.
   const studentNav: NavItem[] = [
@@ -70,7 +76,7 @@ export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => v
         </span>
       </div>
 
-      <nav className="sidebar-nav" aria-label="Primary">
+      <nav className="sidebar-nav" aria-label={s.primary}>
         <div className="nav-group-label">{groupLabel}</div>
         <ul>
           {items.map((item) => (

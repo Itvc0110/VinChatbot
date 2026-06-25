@@ -13,8 +13,73 @@ import { IconTicket, IconArrow, IconCheck } from "@/components/shell/icons";
 const STATUS_OPTS: TicketStatus[] = ["submitted", "in_review", "waiting_for_student", "resolved", "closed"];
 const PRIORITY_OPTS: TicketPriority[] = ["low", "medium", "high"];
 
+// Colocated bilingual strings for UI chrome not covered by the portal dictionary.
+const STR = {
+  en: {
+    searchTickets: "Search tickets",
+    searchPlaceholder: "Search tickets…",
+    statusFilter: "Status filter",
+    priorityFilter: "Priority filter",
+    allStatus: "All status",
+    allPriority: "All priority",
+    noMatch: "No tickets match.",
+    selectToReview: "Select a ticket to review.",
+    studentContext: "Student Context",
+    student: "Student",
+    ticketId: "Ticket ID",
+    assignedOffice: "Assigned office",
+    created: "Created",
+    updated: "Updated",
+    slaDue: "SLA due",
+    aiAnalysis: "✦ Vinnie AI Analysis",
+    aiDrafted: "Drafted by Vinnie from the student’s question:",
+    aiContext: "Context:",
+    aiNoDraft: "Submitted directly by the student — no AI draft. Suggested routing below is rule-based.",
+    escalateHigh: "Escalate: high priority",
+    conversation: "Conversation",
+    quickActions: "Quick Actions",
+    markInReview: "Mark in review",
+    requestInfo: "Request info",
+    resolve: "Resolve",
+    close: "Close",
+    replyPlaceholder: "Write a reply to the student…",
+    sendReply: "Send reply",
+  },
+  vi: {
+    searchTickets: "Tìm phiếu",
+    searchPlaceholder: "Tìm phiếu…",
+    statusFilter: "Lọc theo trạng thái",
+    priorityFilter: "Lọc theo ưu tiên",
+    allStatus: "Tất cả trạng thái",
+    allPriority: "Tất cả ưu tiên",
+    noMatch: "Không có phiếu nào khớp.",
+    selectToReview: "Chọn một phiếu để rà soát.",
+    studentContext: "Bối cảnh sinh viên",
+    student: "Sinh viên",
+    ticketId: "Mã phiếu",
+    assignedOffice: "Phòng ban phụ trách",
+    created: "Tạo lúc",
+    updated: "Cập nhật",
+    slaDue: "Hạn SLA",
+    aiAnalysis: "✦ Phân tích AI Vinnie",
+    aiDrafted: "Được Vinnie soạn từ câu hỏi của sinh viên:",
+    aiContext: "Bối cảnh:",
+    aiNoDraft: "Sinh viên gửi trực tiếp — không có bản nháp AI. Đề xuất phân luồng bên dưới dựa trên quy tắc.",
+    escalateHigh: "Nâng mức: ưu tiên cao",
+    conversation: "Hội thoại",
+    quickActions: "Thao tác nhanh",
+    markInReview: "Đánh dấu đang xem xét",
+    requestInfo: "Yêu cầu bổ sung",
+    resolve: "Giải quyết",
+    close: "Đóng",
+    replyPlaceholder: "Viết phản hồi cho sinh viên…",
+    sendReply: "Gửi phản hồi",
+  },
+} as const;
+
 export default function AdminTicketsPage() {
   const { p, lang } = usePortal();
+  const s = STR[lang];
   const locale = lang === "vi" ? "vi-VN" : "en-US";
   const loaded = useAsync(getAdminTickets, []);
   const [items, setItems] = useState<SupportTicket[] | null>(null);
@@ -99,18 +164,18 @@ export default function AdminTicketsPage() {
                 <div className="atik-filterbar">
                   <input
                     className="input"
-                    placeholder="Search tickets…"
+                    placeholder={s.searchPlaceholder}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    aria-label="Search tickets"
+                    aria-label={s.searchTickets}
                   />
                   <select
                     className="select"
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value as TicketStatus | "all")}
-                    aria-label="Status filter"
+                    aria-label={s.statusFilter}
                   >
-                    <option value="all">All status</option>
+                    <option value="all">{s.allStatus}</option>
                     {STATUS_OPTS.map((s) => (
                       <option key={s} value={s}>{p.enums.ticketStatus[s]}</option>
                     ))}
@@ -119,9 +184,9 @@ export default function AdminTicketsPage() {
                     className="select"
                     value={priorityFilter}
                     onChange={(e) => setPriorityFilter(e.target.value as TicketPriority | "all")}
-                    aria-label="Priority filter"
+                    aria-label={s.priorityFilter}
                   >
-                    <option value="all">All priority</option>
+                    <option value="all">{s.allPriority}</option>
                     {PRIORITY_OPTS.map((s) => (
                       <option key={s} value={s}>{p.enums.ticketPriority[s]}</option>
                     ))}
@@ -130,7 +195,7 @@ export default function AdminTicketsPage() {
 
                 <div className="atik-list">
                   {visible.length === 0 ? (
-                    <p className="attn-sub">No tickets match.</p>
+                    <p className="attn-sub">{s.noMatch}</p>
                   ) : (
                     visible.map((t) => (
                       <button
@@ -167,7 +232,7 @@ export default function AdminTicketsPage() {
                 {!selected ? (
                   <div className="atik-empty">
                     <IconTicket size={28} />
-                    <p>Select a ticket to review.</p>
+                    <p>{s.selectToReview}</p>
                   </div>
                 ) : (
                   <>
@@ -185,16 +250,16 @@ export default function AdminTicketsPage() {
 
                     {/* Student context */}
                     <div className="atik-section">
-                      <h3 className="atik-section-title">Student Context</h3>
+                      <h3 className="atik-section-title">{s.studentContext}</h3>
                       <dl className="atik-kv">
-                        <dt>Student</dt><dd>{selected.student_name ?? "—"}</dd>
-                        <dt>Ticket ID</dt><dd>{selected.id}</dd>
-                        <dt>Assigned office</dt><dd>{selected.department}</dd>
-                        <dt>Created</dt><dd>{formatDateTime(selected.created_at, locale)}</dd>
-                        <dt>Updated</dt><dd>{formatDateTime(selected.updated_at, locale)}</dd>
+                        <dt>{s.student}</dt><dd>{selected.student_name ?? "—"}</dd>
+                        <dt>{s.ticketId}</dt><dd>{selected.id}</dd>
+                        <dt>{s.assignedOffice}</dt><dd>{selected.department}</dd>
+                        <dt>{s.created}</dt><dd>{formatDateTime(selected.created_at, locale)}</dd>
+                        <dt>{s.updated}</dt><dd>{formatDateTime(selected.updated_at, locale)}</dd>
                         {selected.due_at && (
                           <>
-                            <dt>SLA due</dt><dd>{formatDateTime(selected.due_at, locale)}</dd>
+                            <dt>{s.slaDue}</dt><dd>{formatDateTime(selected.due_at, locale)}</dd>
                           </>
                         )}
                       </dl>
@@ -202,22 +267,22 @@ export default function AdminTicketsPage() {
 
                     {/* Vinnie AI analysis */}
                     <div className="atik-section">
-                      <h3 className="atik-section-title">✦ Vinnie AI Analysis</h3>
+                      <h3 className="atik-section-title">{s.aiAnalysis}</h3>
                       <div className="atik-ai">
                         {selected.created_by_ai ? (
                           <>
-                            Drafted by Vinnie from the student&apos;s question:{" "}
+                            {s.aiDrafted}{" "}
                             <em>“{selected.origin_question ?? selected.subject}”</em>.
-                            {selected.included_context ? ` Context: ${selected.included_context}` : ""}
+                            {selected.included_context ? ` ${s.aiContext} ${selected.included_context}` : ""}
                           </>
                         ) : (
-                          "Submitted directly by the student — no AI draft. Suggested routing below is rule-based."
+                          s.aiNoDraft
                         )}
                         <div className="atik-ai-routing">
                           <span className="ah-chip">{p.enums.ticketCategory[selected.category]}</span>
                           <span className="ah-chip info">{selected.department}</span>
                           {selected.priority === "high" && (
-                            <span className="ah-chip warning">Escalate: high priority</span>
+                            <span className="ah-chip warning">{s.escalateHigh}</span>
                           )}
                         </div>
                       </div>
@@ -225,10 +290,10 @@ export default function AdminTicketsPage() {
 
                     {/* Conversation */}
                     <div className="atik-section">
-                      <h3 className="atik-section-title">Conversation</h3>
+                      <h3 className="atik-section-title">{s.conversation}</h3>
                       <div className="atik-thread">
                         <div className="atik-msg student">
-                          <div className="atik-msg-who">Student</div>
+                          <div className="atik-msg-who">{s.student}</div>
                           {selected.body}
                         </div>
                         {(selected.messages ?? [])
@@ -244,26 +309,26 @@ export default function AdminTicketsPage() {
 
                     {/* Quick actions */}
                     <div className="atik-section">
-                      <h3 className="atik-section-title">Quick Actions</h3>
+                      <h3 className="atik-section-title">{s.quickActions}</h3>
                       <div className="atik-actions" style={{ marginBottom: 12 }}>
                         <button className="btn btn-outline btn-sm" onClick={() => onSetStatus(selected, "in_review")}>
-                          Mark in review
+                          {s.markInReview}
                         </button>
                         <button className="btn btn-outline btn-sm" onClick={() => onSetStatus(selected, "waiting_for_student")}>
-                          Request info
+                          {s.requestInfo}
                         </button>
                         <button className="btn btn-primary btn-sm" onClick={() => onSetStatus(selected, "resolved")}>
-                          <IconCheck size={14} /> Resolve
+                          <IconCheck size={14} /> {s.resolve}
                         </button>
                         <button className="btn btn-ghost btn-sm" onClick={() => onSetStatus(selected, "closed")}>
-                          Close
+                          {s.close}
                         </button>
                       </div>
                       <div className="atik-reply">
                         <textarea
                           className="textarea"
                           rows={3}
-                          placeholder="Write a reply to the student…"
+                          placeholder={s.replyPlaceholder}
                           value={reply}
                           onChange={(e) => setReply(e.target.value)}
                         />
@@ -273,7 +338,7 @@ export default function AdminTicketsPage() {
                             disabled={!reply.trim()}
                             onClick={() => onRespond(selected, reply)}
                           >
-                            <IconArrow size={14} /> Send reply
+                            <IconArrow size={14} /> {s.sendReply}
                           </button>
                         </div>
                       </div>

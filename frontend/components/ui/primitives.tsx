@@ -1,6 +1,22 @@
 "use client";
 
 import type { AsyncState } from "@/lib/portalTypes";
+import { useI18n } from "@/lib/i18n";
+
+const STR = {
+  en: {
+    loading: "Loading",
+    dismiss: "Dismiss",
+    errorLabel: "Couldn't load this.",
+    retryLabel: "Retry",
+  },
+  vi: {
+    loading: "Đang tải",
+    dismiss: "Đóng",
+    errorLabel: "Không thể tải nội dung này.",
+    retryLabel: "Thử lại",
+  },
+} as const;
 
 // ---- Page header ------------------------------------------------------------
 export function PageHeader({
@@ -128,8 +144,8 @@ export function AsyncBoundary<T>({
   onRetry,
   children,
   rows = 3,
-  errorLabel = "Couldn't load this.",
-  retryLabel = "Retry",
+  errorLabel,
+  retryLabel,
 }: {
   state: AsyncState<T>;
   onRetry?: () => void;
@@ -138,9 +154,13 @@ export function AsyncBoundary<T>({
   errorLabel?: string;
   retryLabel?: string;
 }) {
+  const { lang } = useI18n();
+  const s = STR[lang];
+  const resolvedErrorLabel = errorLabel ?? s.errorLabel;
+  const resolvedRetryLabel = retryLabel ?? s.retryLabel;
   if (state.status === "loading") {
     return (
-      <div className="skeleton-stack" aria-busy="true" aria-label="Loading">
+      <div className="skeleton-stack" aria-busy="true" aria-label={s.loading}>
         {Array.from({ length: rows }).map((_, i) => (
           <div key={i} className="skeleton-card">
             <div className="skel-line w-40" />
@@ -154,11 +174,11 @@ export function AsyncBoundary<T>({
   if (state.status === "error") {
     return (
       <div className="load-error" role="alert">
-        <p>{errorLabel}</p>
+        <p>{resolvedErrorLabel}</p>
         <p className="load-error-detail">{state.error}</p>
         {onRetry && (
           <button className="btn btn-outline" onClick={onRetry}>
-            {retryLabel}
+            {resolvedRetryLabel}
           </button>
         )}
       </div>
@@ -177,10 +197,12 @@ export function Toast({
   tone?: "success" | "info" | "danger";
   onClose: () => void;
 }) {
+  const { lang } = useI18n();
+  const s = STR[lang];
   return (
     <div className={`toast toast-${tone}`} role="status">
       <span>{message}</span>
-      <button className="toast-close" onClick={onClose} aria-label="Dismiss">
+      <button className="toast-close" onClick={onClose} aria-label={s.dismiss}>
         ✕
       </button>
     </div>

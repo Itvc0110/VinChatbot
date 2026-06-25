@@ -40,6 +40,43 @@ const CATEGORIES: (SourceCategory | "all")[] = [
 ];
 const STATUSES: (SourceStatus | "all")[] = ["all", "indexed", "pending", "failed", "disabled"];
 
+const STR = {
+  en: {
+    totalSources: "Total sources",
+    indexed: "Indexed",
+    pendingReview: "Pending review",
+    indexingFailed: "Indexing failed",
+    searchSources: "Search sources",
+    searchSourcesPlaceholder: "Search sources…",
+    typeFilter: "Type filter",
+    categoryFilter: "Category filter",
+    statusFilter: "Status filter",
+    allTypes: "All types",
+    allCategories: "All categories",
+    allStatus: "All status",
+    addUrl: "Add URL",
+    notIndexed: "Not indexed",
+    showing: (n: number, total: number) => `Showing ${n} of ${total} sources`,
+  },
+  vi: {
+    totalSources: "Tổng nguồn",
+    indexed: "Đã lập chỉ mục",
+    pendingReview: "Chờ duyệt",
+    indexingFailed: "Lập chỉ mục lỗi",
+    searchSources: "Tìm nguồn",
+    searchSourcesPlaceholder: "Tìm nguồn…",
+    typeFilter: "Lọc theo loại",
+    categoryFilter: "Lọc theo danh mục",
+    statusFilter: "Lọc theo trạng thái",
+    allTypes: "Tất cả loại",
+    allCategories: "Tất cả danh mục",
+    allStatus: "Tất cả trạng thái",
+    addUrl: "Thêm URL",
+    notIndexed: "Chưa lập chỉ mục",
+    showing: (n: number, total: number) => `Hiển thị ${n} trên ${total} nguồn`,
+  },
+} as const;
+
 function Summary({ value, label, tone = "default" }: { value: number; label: string; tone?: "default" | "success" | "warning" | "danger" }) {
   return (
     <div className={`astat tone-${tone}`}>
@@ -54,6 +91,7 @@ function Summary({ value, label, tone = "default" }: { value: number; label: str
 
 export default function SourcesPage() {
   const { p, lang } = usePortal();
+  const tr = STR[lang];
   const sources = useAsync(getKnowledgeSources, []);
   const [toast, setToast] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -114,38 +152,38 @@ export default function SourcesPage() {
     <div className="page-inner">
       {/* Summary cards */}
       <div className="akb-stats">
-        <Summary value={counts.total} label="Total sources" />
-        <Summary value={counts.indexed} label="Indexed" tone="success" />
-        <Summary value={counts.pending} label="Pending review" tone={counts.pending > 0 ? "warning" : "success"} />
-        <Summary value={counts.failed} label="Indexing failed" tone={counts.failed > 0 ? "danger" : "success"} />
+        <Summary value={counts.total} label={tr.totalSources} />
+        <Summary value={counts.indexed} label={tr.indexed} tone="success" />
+        <Summary value={counts.pending} label={tr.pendingReview} tone={counts.pending > 0 ? "warning" : "success"} />
+        <Summary value={counts.failed} label={tr.indexingFailed} tone={counts.failed > 0 ? "danger" : "success"} />
       </div>
 
       {/* Search + filters + actions */}
       <div className="akb-toolbar">
         <input
           className="input"
-          placeholder="Search sources…"
+          placeholder={tr.searchSourcesPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          aria-label="Search sources"
+          aria-label={tr.searchSources}
         />
-        <select className="select" value={typeF} onChange={(e) => setTypeF(e.target.value as SourceType | "all")} aria-label="Type filter">
+        <select className="select" value={typeF} onChange={(e) => setTypeF(e.target.value as SourceType | "all")} aria-label={tr.typeFilter}>
           {TYPES.map((t) => (
-            <option key={t} value={t}>{t === "all" ? "All types" : t.toUpperCase()}</option>
+            <option key={t} value={t}>{t === "all" ? tr.allTypes : t.toUpperCase()}</option>
           ))}
         </select>
-        <select className="select" value={catF} onChange={(e) => setCatF(e.target.value as SourceCategory | "all")} aria-label="Category filter">
+        <select className="select" value={catF} onChange={(e) => setCatF(e.target.value as SourceCategory | "all")} aria-label={tr.categoryFilter}>
           {CATEGORIES.map((c) => (
-            <option key={c} value={c}>{c === "all" ? "All categories" : (p.enums.category[c] ?? c)}</option>
+            <option key={c} value={c}>{c === "all" ? tr.allCategories : (p.enums.category[c] ?? c)}</option>
           ))}
         </select>
-        <select className="select" value={statusF} onChange={(e) => setStatusF(e.target.value as SourceStatus | "all")} aria-label="Status filter">
+        <select className="select" value={statusF} onChange={(e) => setStatusF(e.target.value as SourceStatus | "all")} aria-label={tr.statusFilter}>
           {STATUSES.map((s) => (
-            <option key={s} value={s}>{s === "all" ? "All status" : p.enums.sourceStatus[s]}</option>
+            <option key={s} value={s}>{s === "all" ? tr.allStatus : p.enums.sourceStatus[s]}</option>
           ))}
         </select>
         <div className="akb-actions">
-          <Link className="btn btn-outline btn-sm" href="/admin/upload">Add URL</Link>
+          <Link className="btn btn-outline btn-sm" href="/admin/upload">{tr.addUrl}</Link>
           <Link className="btn btn-primary btn-sm" href="/admin/upload">
             <IconUpload size={14} /> {p.admin.addSource}
           </Link>
@@ -191,7 +229,7 @@ export default function SourcesPage() {
                           <Badge tone={STATUS_TONE[s.status]}>{p.enums.sourceStatus[s.status]}</Badge>
                           <div className={`akb-indexing ${s.chunk_count > 0 ? "ok" : ""}`}>
                             {s.chunk_count > 0 ? <IconCheck size={12} /> : <IconAlert size={12} />}
-                            {s.chunk_count > 0 ? "Indexed" : "Not indexed"}
+                            {s.chunk_count > 0 ? tr.indexed : tr.notIndexed}
                           </div>
                         </td>
                         <td>{s.chunk_count}</td>
@@ -223,7 +261,7 @@ export default function SourcesPage() {
                 </table>
               </div>
               <p className="akb-foot">
-                Showing {filtered.length} of {list.length} sources · {p.admin.sourcesNote}
+                {tr.showing(filtered.length, list.length)} · {p.admin.sourcesNote}
               </p>
             </>
           )

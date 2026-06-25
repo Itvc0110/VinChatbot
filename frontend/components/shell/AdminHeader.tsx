@@ -36,6 +36,11 @@ function MoonIcon() {
   );
 }
 
+const STR = {
+  en: { openMenu: "Open menu", language: "Language", notifications: "Notifications" },
+  vi: { openMenu: "Mở menu", language: "Ngôn ngữ", notifications: "Thông báo" },
+} as const;
+
 export function AdminHeader({
   title,
   subtitle,
@@ -50,6 +55,7 @@ export function AdminHeader({
   const { user } = useAuth();
   const { theme, toggle } = useTheme();
   const { lang, setLang, t } = useI18n();
+  const s = STR[lang];
   const nextTheme = theme === "dark" ? t.themeLight : t.themeDark;
 
   return (
@@ -59,7 +65,7 @@ export function AdminHeader({
           type="button"
           className="ah-iconbtn ah-menu-btn"
           onClick={onMenu}
-          aria-label="Open menu"
+          aria-label={s.openMenu}
         >
           <MenuIcon />
         </button>
@@ -71,7 +77,7 @@ export function AdminHeader({
 
       <div className="ah-admin-header-actions">
         {actions}
-        <div className="seg" role="group" aria-label="Language">
+        <div className="seg" role="group" aria-label={s.language}>
           {(["en", "vi"] as Lang[]).map((l) => (
             <button
               key={l}
@@ -86,7 +92,7 @@ export function AdminHeader({
         <button className="icon-btn" onClick={toggle} aria-label={nextTheme} title={nextTheme}>
           {theme === "dark" ? <SunIcon /> : <MoonIcon />}
         </button>
-        <button type="button" className="ah-iconbtn" aria-label="Notifications">
+        <button type="button" className="ah-iconbtn" aria-label={s.notifications}>
           <IconBell />
           <span className="ah-iconbtn-dot" aria-hidden />
         </button>

@@ -2,14 +2,22 @@
 
 import { useState } from "react";
 import { useChat } from "@/lib/chat";
+import { useI18n } from "@/lib/i18n";
 import { IconChat } from "@/components/shell/icons";
 import { VinnieChatWidget } from "./VinnieChatWidget";
+
+const STR = {
+  en: { askVinnie: "Ask Vinnie" },
+  vi: { askVinnie: "Hỏi Vinnie" },
+} as const;
 
 // Global floating chat bubble (bottom-right) available across student pages. Opens the
 // compact Vinnie widget, which shares conversation state with the full Ask Vinnie page.
 export function FloatingVinnieButton() {
   const [open, setOpen] = useState(false);
   const chat = useChat();
+  const { lang } = useI18n();
+  const s = STR[lang];
 
   return (
     <>
@@ -17,8 +25,8 @@ export function FloatingVinnieButton() {
       <button
         className={`vinnie-fab ${open ? "is-open" : ""}`}
         onClick={() => setOpen((o) => !o)}
-        aria-label="Ask Vinnie"
-        title="Ask Vinnie"
+        aria-label={s.askVinnie}
+        title={s.askVinnie}
         aria-expanded={open}
       >
         {open ? (

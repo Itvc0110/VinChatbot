@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Toast } from "@/components/ui/primitives";
 import { IconCalendar, IconCheck } from "@/components/shell/icons";
+import { usePortal } from "@/lib/portalI18n";
 
 // Admin Campus Events management (Phase 4, new route). Demo-only: there is no events backend, so the
 // list is local demo state (create/edit/publish/archive mutate local state). No live API touched.
@@ -13,7 +14,53 @@ interface AdminEvent {
   category: string; audience: string; status: EventStatus; registered: number; capacity: number;
 }
 const STATUS_CHIP: Record<EventStatus, string> = { draft: "neutral", scheduled: "info", published: "success", closed: "warning" };
-const STATUS_LABEL: Record<EventStatus, string> = { draft: "Draft", scheduled: "Scheduled", published: "Published", closed: "Closed" };
+
+interface EventStrings {
+  status: Record<EventStatus, string>;
+  totalEvents: string; published: string; drafts: string; totalRegistrations: string;
+  searchEvents: string; searchEventsAria: string; statusFilter: string; allStatus: string;
+  createEvent: string; noEventsMatch: string;
+  colEvent: string; colCategory: string; colAudience: string; colStatus: string; colRegistrations: string; colActions: string;
+  preview: string; edit: string; publishBtn: string; archive: string;
+  eventEditor: string; close: string; editEvent: string; createEventTitle: string;
+  title: string; date: string; time: string; location: string; category: string; audience: string; capacity: string; statusLabel: string;
+  eventTitlePh: string; venuePh: string;
+  cancel: string; saveEvent: string;
+  eventUpdated: string; eventCreated: string; eventPublished: string; eventArchived: string;
+  previewPrefix: string; previewSuffix: string;
+}
+
+const STR: Record<"en" | "vi", EventStrings> = {
+  en: {
+    status: { draft: "Draft", scheduled: "Scheduled", published: "Published", closed: "Closed" },
+    totalEvents: "Total events", published: "Published", drafts: "Drafts", totalRegistrations: "Total registrations",
+    searchEvents: "Search events…", searchEventsAria: "Search events", statusFilter: "Status filter", allStatus: "All status",
+    createEvent: "+ Create Event", noEventsMatch: "No events match.",
+    colEvent: "Event", colCategory: "Category", colAudience: "Audience", colStatus: "Status", colRegistrations: "Registrations", colActions: "Actions",
+    preview: "Preview", edit: "Edit", publishBtn: "Publish", archive: "Archive",
+    eventEditor: "Event editor", close: "Close", editEvent: "Edit event", createEventTitle: "Create event",
+    title: "Title", date: "Date", time: "Time", location: "Location", category: "Category", audience: "Audience", capacity: "Capacity", statusLabel: "Status",
+    eventTitlePh: "Event title", venuePh: "Venue",
+    cancel: "Cancel", saveEvent: "Save event",
+    eventUpdated: "Event updated.", eventCreated: "Event created.", eventPublished: "Event published.", eventArchived: "Event archived.",
+    previewPrefix: 'Preview "', previewSuffix: '" (demo).',
+  },
+  vi: {
+    status: { draft: "Bản nháp", scheduled: "Đã lên lịch", published: "Đã đăng", closed: "Đã đóng" },
+    totalEvents: "Tổng sự kiện", published: "Đã đăng", drafts: "Bản nháp", totalRegistrations: "Tổng lượt đăng ký",
+    searchEvents: "Tìm sự kiện…", searchEventsAria: "Tìm sự kiện", statusFilter: "Lọc trạng thái", allStatus: "Tất cả trạng thái",
+    createEvent: "+ Tạo sự kiện", noEventsMatch: "Không có sự kiện nào khớp.",
+    colEvent: "Sự kiện", colCategory: "Danh mục", colAudience: "Đối tượng", colStatus: "Trạng thái", colRegistrations: "Lượt đăng ký", colActions: "Thao tác",
+    preview: "Xem trước", edit: "Sửa", publishBtn: "Đăng", archive: "Lưu trữ",
+    eventEditor: "Trình tạo sự kiện", close: "Đóng", editEvent: "Sửa sự kiện", createEventTitle: "Tạo sự kiện",
+    title: "Tiêu đề", date: "Ngày", time: "Thời gian", location: "Địa điểm", category: "Danh mục", audience: "Đối tượng", capacity: "Sức chứa", statusLabel: "Trạng thái",
+    eventTitlePh: "Tiêu đề sự kiện", venuePh: "Địa điểm tổ chức",
+    cancel: "Huỷ", saveEvent: "Lưu sự kiện",
+    eventUpdated: "Đã cập nhật sự kiện.", eventCreated: "Đã tạo sự kiện.", eventPublished: "Đã đăng sự kiện.", eventArchived: "Đã lưu trữ sự kiện.",
+    previewPrefix: 'Xem trước "', previewSuffix: '" (demo).',
+  },
+};
+
 const CATEGORIES = ["Academic", "Career", "Social", "Workshop", "Sports"];
 const AUDIENCES = ["All Students", "Final-year", "CS, Data Science", "Freshmen"];
 
@@ -38,6 +85,9 @@ function Stat({ value, label }: { value: React.ReactNode; label: string }) {
 }
 
 export default function AdminEventsPage() {
+  const { lang } = usePortal();
+  const s = STR[lang];
+  const STATUS_LABEL: Record<EventStatus, string> = s.status;
   const [events, setEvents] = useState<AdminEvent[]>(SEED);
   const [search, setSearch] = useState("");
   const [statusF, setStatusF] = useState<EventStatus | "all">("all");
@@ -71,10 +121,10 @@ export default function AdminEventsPage() {
     if (!draft) return;
     if (draft.id) {
       setEvents((cur) => cur.map((e) => (e.id === draft.id ? draft : e)));
-      setToast("Event updated.");
+      setToast(s.eventUpdated);
     } else {
       setEvents((cur) => [{ ...draft, id: `e${cur.length + 1}-${Date.now() % 10000}` }, ...cur]);
-      setToast("Event created.");
+      setToast(s.eventCreated);
     }
     setDraft(null);
   };
@@ -82,32 +132,32 @@ export default function AdminEventsPage() {
   return (
     <div className="page-inner">
       <div className="aev-stats">
-        <Stat value={counts.total} label="Total events" />
-        <Stat value={counts.published} label="Published" />
-        <Stat value={counts.drafts} label="Drafts" />
-        <Stat value={counts.regs.toLocaleString()} label="Total registrations" />
+        <Stat value={counts.total} label={s.totalEvents} />
+        <Stat value={counts.published} label={s.published} />
+        <Stat value={counts.drafts} label={s.drafts} />
+        <Stat value={counts.regs.toLocaleString()} label={s.totalRegistrations} />
       </div>
 
       <div className="aev-toolbar">
-        <input className="input" placeholder="Search events…" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search events" />
-        <select className="select" value={statusF} onChange={(e) => setStatusF(e.target.value as EventStatus | "all")} aria-label="Status filter">
-          <option value="all">All status</option>
-          {(["draft", "scheduled", "published", "closed"] as EventStatus[]).map((s) => (
-            <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+        <input className="input" placeholder={s.searchEvents} value={search} onChange={(e) => setSearch(e.target.value)} aria-label={s.searchEventsAria} />
+        <select className="select" value={statusF} onChange={(e) => setStatusF(e.target.value as EventStatus | "all")} aria-label={s.statusFilter}>
+          <option value="all">{s.allStatus}</option>
+          {(["draft", "scheduled", "published", "closed"] as EventStatus[]).map((st) => (
+            <option key={st} value={st}>{STATUS_LABEL[st]}</option>
           ))}
         </select>
         <div className="aev-toolbar-actions">
-          <button className="ah-btn-red" onClick={() => setDraft({ ...BLANK })}>+ Create Event</button>
+          <button className="ah-btn-red" onClick={() => setDraft({ ...BLANK })}>{s.createEvent}</button>
         </div>
       </div>
 
       {visible.length === 0 ? (
-        <div className="acard" style={{ textAlign: "center", color: "var(--ah-muted)", padding: 40 }}>No events match.</div>
+        <div className="acard" style={{ textAlign: "center", color: "var(--ah-muted)", padding: 40 }}>{s.noEventsMatch}</div>
       ) : (
         <div className="table-wrap">
           <table className="data-table">
             <thead>
-              <tr><th>Event</th><th>Category</th><th>Audience</th><th>Status</th><th>Registrations</th><th>Actions</th></tr>
+              <tr><th>{s.colEvent}</th><th>{s.colCategory}</th><th>{s.colAudience}</th><th>{s.colStatus}</th><th>{s.colRegistrations}</th><th>{s.colActions}</th></tr>
             </thead>
             <tbody>
               {visible.map((e) => {
@@ -129,13 +179,13 @@ export default function AdminEventsPage() {
                     </td>
                     <td>
                       <div className="aev-actions-cell">
-                        <button className="btn btn-ghost btn-sm" onClick={() => setToast(`Preview "${e.title}" (demo).`)}>Preview</button>
-                        <button className="btn btn-outline btn-sm" onClick={() => setDraft({ ...e })}>Edit</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setToast(`${s.previewPrefix}${e.title}${s.previewSuffix}`)}>{s.preview}</button>
+                        <button className="btn btn-outline btn-sm" onClick={() => setDraft({ ...e })}>{s.edit}</button>
                         {e.status !== "published" && e.status !== "closed" && (
-                          <button className="btn btn-primary btn-sm" onClick={() => setStatus(e.id, "published", "Event published.")}>Publish</button>
+                          <button className="btn btn-primary btn-sm" onClick={() => setStatus(e.id, "published", s.eventPublished)}>{s.publishBtn}</button>
                         )}
                         {e.status !== "closed" && (
-                          <button className="btn btn-ghost btn-sm" onClick={() => setStatus(e.id, "closed", "Event archived.")}>Archive</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => setStatus(e.id, "closed", s.eventArchived)}>{s.archive}</button>
                         )}
                       </div>
                     </td>
@@ -149,42 +199,42 @@ export default function AdminEventsPage() {
 
       {/* Create / Edit drawer */}
       <div className={`detail-scrim ${draft ? "open" : ""}`} onClick={() => setDraft(null)} aria-hidden="true" />
-      <aside className={`detail-drawer wide ${draft ? "open" : ""}`} role="dialog" aria-label="Event editor" aria-hidden={!draft}>
+      <aside className={`detail-drawer wide ${draft ? "open" : ""}`} role="dialog" aria-label={s.eventEditor} aria-hidden={!draft}>
         {draft && (
           <>
             <div className="detail-head">
-              <span className="td-strong">{draft.id ? "Edit event" : "Create event"}</span>
-              <button className="source-drawer-close" onClick={() => setDraft(null)} aria-label="Close">✕</button>
+              <span className="td-strong">{draft.id ? s.editEvent : s.createEventTitle}</span>
+              <button className="source-drawer-close" onClick={() => setDraft(null)} aria-label={s.close}>✕</button>
             </div>
             <div className="detail-body">
               <form className="aev-form" onSubmit={(e) => { e.preventDefault(); save(); }}>
                 <div className="field">
-                  <label className="field-label" htmlFor="ev-title">Title</label>
-                  <input id="ev-title" className="input" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Event title" />
+                  <label className="field-label" htmlFor="ev-title">{s.title}</label>
+                  <input id="ev-title" className="input" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder={s.eventTitlePh} />
                 </div>
                 <div className="grid cols-2" style={{ gap: 12 }}>
                   <div className="field">
-                    <label className="field-label" htmlFor="ev-date">Date</label>
+                    <label className="field-label" htmlFor="ev-date">{s.date}</label>
                     <input id="ev-date" type="date" className="input" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} />
                   </div>
                   <div className="field">
-                    <label className="field-label" htmlFor="ev-time">Time</label>
+                    <label className="field-label" htmlFor="ev-time">{s.time}</label>
                     <input id="ev-time" className="input" value={draft.time} onChange={(e) => setDraft({ ...draft, time: e.target.value })} placeholder="10:00 AM – 12:00 PM" />
                   </div>
                 </div>
                 <div className="field">
-                  <label className="field-label" htmlFor="ev-loc">Location</label>
-                  <input id="ev-loc" className="input" value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} placeholder="Venue" />
+                  <label className="field-label" htmlFor="ev-loc">{s.location}</label>
+                  <input id="ev-loc" className="input" value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} placeholder={s.venuePh} />
                 </div>
                 <div className="grid cols-2" style={{ gap: 12 }}>
                   <div className="field">
-                    <label className="field-label" htmlFor="ev-cat">Category</label>
+                    <label className="field-label" htmlFor="ev-cat">{s.category}</label>
                     <select id="ev-cat" className="select" value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })}>
                       {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <div className="field">
-                    <label className="field-label" htmlFor="ev-aud">Audience</label>
+                    <label className="field-label" htmlFor="ev-aud">{s.audience}</label>
                     <select id="ev-aud" className="select" value={draft.audience} onChange={(e) => setDraft({ ...draft, audience: e.target.value })}>
                       {AUDIENCES.map((a) => <option key={a} value={a}>{a}</option>)}
                     </select>
@@ -192,20 +242,20 @@ export default function AdminEventsPage() {
                 </div>
                 <div className="grid cols-2" style={{ gap: 12 }}>
                   <div className="field">
-                    <label className="field-label" htmlFor="ev-cap">Capacity</label>
+                    <label className="field-label" htmlFor="ev-cap">{s.capacity}</label>
                     <input id="ev-cap" type="number" className="input" value={draft.capacity} onChange={(e) => setDraft({ ...draft, capacity: Number(e.target.value) || 0 })} />
                   </div>
                   <div className="field">
-                    <label className="field-label" htmlFor="ev-status">Status</label>
+                    <label className="field-label" htmlFor="ev-status">{s.statusLabel}</label>
                     <select id="ev-status" className="select" value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value as EventStatus })}>
-                      {(["draft", "scheduled", "published", "closed"] as EventStatus[]).map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                      {(["draft", "scheduled", "published", "closed"] as EventStatus[]).map((st) => <option key={st} value={st}>{STATUS_LABEL[st]}</option>)}
                     </select>
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                  <button type="button" className="btn btn-ghost" onClick={() => setDraft(null)}>Cancel</button>
+                  <button type="button" className="btn btn-ghost" onClick={() => setDraft(null)}>{s.cancel}</button>
                   <button type="submit" className="btn btn-primary" disabled={!draft.title.trim()}>
-                    <IconCheck size={14} /> Save event
+                    <IconCheck size={14} /> {s.saveEvent}
                   </button>
                 </div>
               </form>

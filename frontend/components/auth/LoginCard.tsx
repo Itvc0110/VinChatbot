@@ -67,7 +67,7 @@ export function LoginCard() {
         >
           <div className="ah-field">
             <label className="ah-field-label" htmlFor="login-email">
-              University email
+              {p.login.emailLabel}
             </label>
             <div className="ah-input-wrap">
               <span className="ah-input-icon">
@@ -87,7 +87,7 @@ export function LoginCard() {
 
           <div className="ah-field">
             <label className="ah-field-label" htmlFor="login-password">
-              Password
+              {p.login.passwordLabel}
             </label>
             <div className="ah-input-wrap">
               <span className="ah-input-icon">
@@ -106,7 +106,7 @@ export function LoginCard() {
           </div>
 
           <button type="submit" className="ah-btn-primary-full">
-            Sign in
+            {p.login.signIn}
           </button>
         </form>
 

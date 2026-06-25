@@ -25,10 +25,67 @@ Spring Semester 2026
   • Tuition installment 2 due: 30 June 2026
   ...`;
 
-const TYPE_OPTS: { key: SourceType; name: string; sub: string }[] = [
-  { key: "url", name: "URL", sub: "Official web page" },
-  { key: "pdf", name: "PDF", sub: "Document up to 50MB" },
-  { key: "docx", name: "DOCX", sub: "Word document" },
+const STR = {
+  en: {
+    sourceType: "Source Type",
+    metadata: "Metadata",
+    reviewExtracted: "Review extracted content",
+    processingPipeline: "Processing Pipeline",
+    sourceUrl: "Source URL",
+    uploadFile: "Upload File",
+    clickToUpload: "Click to upload or drag and drop",
+    upTo: (type: string) => `${type}, up to 50MB`,
+    saveDraft: "Save as Draft",
+    savedDraft: "Saved as draft (demo).",
+    vinnieReadiness: "✦ Vinnie Readiness",
+    readinessLow: "Fill out the title and source to improve readiness.",
+    readinessReady: "Ready — Vinnie can use this source's metadata to route answers.",
+    readinessHint: "Vinnie uses metadata to filter and prioritize context so students get the right answer for their program.",
+    typeOpts: {
+      url: "Official web page",
+      pdf: "Document up to 50MB",
+      docx: "Word document",
+    },
+    pipeline: [
+      { name: "Upload & Parse", sub: "Read the document text" },
+      { name: "Chunk & Embed", sub: "Split + vectorize" },
+      { name: "Admin Review", sub: "Approve before publish" },
+      { name: "Index to Vinnie", sub: "Make searchable" },
+    ],
+  },
+  vi: {
+    sourceType: "Loại nguồn",
+    metadata: "Siêu dữ liệu",
+    reviewExtracted: "Rà soát nội dung trích xuất",
+    processingPipeline: "Quy trình xử lý",
+    sourceUrl: "URL nguồn",
+    uploadFile: "Tải tệp lên",
+    clickToUpload: "Nhấn để tải lên hoặc kéo và thả",
+    upTo: (type: string) => `${type}, tối đa 50MB`,
+    saveDraft: "Lưu bản nháp",
+    savedDraft: "Đã lưu bản nháp (demo).",
+    vinnieReadiness: "✦ Mức sẵn sàng của Vinnie",
+    readinessLow: "Điền tiêu đề và nguồn để tăng mức sẵn sàng.",
+    readinessReady: "Sẵn sàng — Vinnie có thể dùng siêu dữ liệu của nguồn này để định tuyến câu trả lời.",
+    readinessHint: "Vinnie dùng siêu dữ liệu để lọc và ưu tiên ngữ cảnh, giúp sinh viên nhận đúng câu trả lời cho chương trình của mình.",
+    typeOpts: {
+      url: "Trang web chính thức",
+      pdf: "Tài liệu tối đa 50MB",
+      docx: "Tài liệu Word",
+    },
+    pipeline: [
+      { name: "Tải lên & Phân tích", sub: "Đọc nội dung tài liệu" },
+      { name: "Chia khối & Nhúng", sub: "Tách + vector hóa" },
+      { name: "Duyệt quản trị", sub: "Phê duyệt trước khi xuất bản" },
+      { name: "Lập chỉ mục cho Vinnie", sub: "Cho phép tìm kiếm" },
+    ],
+  },
+} as const;
+
+const TYPE_OPTS: { key: SourceType; name: string }[] = [
+  { key: "url", name: "URL" },
+  { key: "pdf", name: "PDF" },
+  { key: "docx", name: "DOCX" },
 ];
 
 function FileGlyph() {
@@ -41,7 +98,8 @@ function FileGlyph() {
 }
 
 export default function UploadPage() {
-  const { p } = usePortal();
+  const { p, lang } = usePortal();
+  const tr = STR[lang];
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -96,12 +154,7 @@ export default function UploadPage() {
     setResult(null);
   }
 
-  const PIPELINE = [
-    { n: 1, name: "Upload & Parse", sub: "Read the document text" },
-    { n: 2, name: "Chunk & Embed", sub: "Split + vectorize" },
-    { n: 3, name: "Admin Review", sub: "Approve before publish" },
-    { n: 4, name: "Index to Vinnie", sub: "Make searchable" },
-  ];
+  const PIPELINE = tr.pipeline.map((step, i) => ({ n: i + 1, name: step.name, sub: step.sub }));
 
   return (
     <div className="page-inner">
@@ -112,7 +165,7 @@ export default function UploadPage() {
             <>
               {/* Source type selector */}
               <div className="acard">
-                <div className="acard-head"><h2 className="acard-title">Source Type</h2></div>
+                <div className="acard-head"><h2 className="acard-title">{tr.sourceType}</h2></div>
                 <div className="aup-types">
                   {TYPE_OPTS.map((t) => (
                     <button
@@ -122,7 +175,7 @@ export default function UploadPage() {
                     >
                       <span className="aup-type-icon">{t.key === "url" ? <IconExternal size={18} /> : <FileGlyph />}</span>
                       <span className="aup-type-name">{t.name}</span>
-                      <span className="aup-type-sub">{t.sub}</span>
+                      <span className="aup-type-sub">{tr.typeOpts[t.key]}</span>
                     </button>
                   ))}
                 </div>
@@ -130,7 +183,7 @@ export default function UploadPage() {
 
               {/* Upload area */}
               <div className="acard">
-                <div className="acard-head"><h2 className="acard-title">{isUrl ? "Source URL" : "Upload File"}</h2></div>
+                <div className="acard-head"><h2 className="acard-title">{isUrl ? tr.sourceUrl : tr.uploadFile}</h2></div>
                 {isUrl ? (
                   <div className="field">
                     <input
@@ -151,9 +204,9 @@ export default function UploadPage() {
                     onKeyDown={(e) => e.key === "Enter" && fileRef.current?.click()}
                   >
                     <span className="aup-drop-icon"><IconUpload size={26} /></span>
-                    <div className="aup-drop-title">{file ? file.name : "Click to upload or drag and drop"}</div>
+                    <div className="aup-drop-title">{file ? file.name : tr.clickToUpload}</div>
                     <div className="aup-drop-sub">
-                      {file ? p.admin.kbSelected(Number((file.size / 1024).toFixed(0))) : `${sourceType.toUpperCase()}, up to 50MB`}
+                      {file ? p.admin.kbSelected(Number((file.size / 1024).toFixed(0))) : tr.upTo(sourceType.toUpperCase())}
                     </div>
                     <input
                       ref={fileRef}
@@ -168,7 +221,7 @@ export default function UploadPage() {
 
               {/* Metadata form */}
               <div className="acard">
-                <div className="acard-head"><h2 className="acard-title">Metadata</h2></div>
+                <div className="acard-head"><h2 className="acard-title">{tr.metadata}</h2></div>
                 <div className="form-grid">
                   <div className="field">
                     <label className="field-label" htmlFor="u-title">{p.admin.sourceTitle} *</label>
@@ -199,15 +252,15 @@ export default function UploadPage() {
               {/* Review-before-publish */}
               {phase === "review" && (
                 <div className="acard">
-                  <div className="acard-head"><h2 className="acard-title">Review extracted content</h2></div>
+                  <div className="acard-head"><h2 className="acard-title">{tr.reviewExtracted}</h2></div>
                   <div className="aup-extract">{SAMPLE_EXTRACT}</div>
                 </div>
               )}
 
               {/* Actions */}
               <div className="aup-actions">
-                <button className="btn btn-ghost" onClick={() => setToast("Saved as draft (demo).")}>
-                  Save as Draft
+                <button className="btn btn-ghost" onClick={() => setToast(tr.savedDraft)}>
+                  {tr.saveDraft}
                 </button>
                 {phase === "form" ? (
                   <button className="btn btn-primary" disabled={!hasInput} onClick={() => setPhase("review")}>
@@ -250,7 +303,7 @@ export default function UploadPage() {
         {/* RAIL */}
         <div className="aup-rail">
           <div className="acard">
-            <div className="acard-head"><h2 className="acard-title">Processing Pipeline</h2></div>
+            <div className="acard-head"><h2 className="acard-title">{tr.processingPipeline}</h2></div>
             {PIPELINE.map((s) => {
               const done = s.n < stage || phase === "done";
               const active = !done && s.n === stage;
@@ -267,16 +320,14 @@ export default function UploadPage() {
           </div>
 
           <div className="acard">
-            <div className="acard-head"><h2 className="acard-title">✦ Vinnie Readiness</h2></div>
+            <div className="acard-head"><h2 className="acard-title">{tr.vinnieReadiness}</h2></div>
             <div className="aup-readiness-score">{readiness}%</div>
             <div className="aup-readiness-bar"><div className="aup-readiness-fill" style={{ width: `${readiness}%` }} /></div>
             <p className="field-hint">
-              {readiness < 100
-                ? "Fill out the title and source to improve readiness."
-                : "Ready — Vinnie can use this source's metadata to route answers."}
+              {readiness < 100 ? tr.readinessLow : tr.readinessReady}
             </p>
             <p className="field-hint" style={{ marginTop: 8 }}>
-              Vinnie uses metadata to filter and prioritize context so students get the right answer for their program.
+              {tr.readinessHint}
             </p>
           </div>
         </div>

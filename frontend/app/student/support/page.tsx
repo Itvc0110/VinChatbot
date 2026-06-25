@@ -25,6 +25,33 @@ import { IconTicket } from "@/components/shell/icons";
 
 const PAGE_SIZE = 6;
 
+type Lang = "en" | "vi";
+
+const STR: Record<Lang, {
+  vinnieBanner: string;
+  startWithVinnie: string;
+  pagination: string;
+  prevPage: string;
+  nextPage: string;
+}> = {
+  en: {
+    vinnieBanner:
+      "Vinnie can help draft, categorize, and route your request before submission.",
+    startWithVinnie: "Start with Vinnie",
+    pagination: "Pagination",
+    prevPage: "Previous page",
+    nextPage: "Next page",
+  },
+  vi: {
+    vinnieBanner:
+      "Vinnie có thể giúp soạn thảo, phân loại và chuyển yêu cầu của bạn trước khi gửi.",
+    startWithVinnie: "Bắt đầu với Vinnie",
+    pagination: "Phân trang",
+    prevPage: "Trang trước",
+    nextPage: "Trang sau",
+  },
+};
+
 function matchesVisibility(t: SupportTicket, vis: TicketFilterState["visibility"]): boolean {
   if (vis === "deleted") return !!t.deleted;
   if (vis === "archived") return !!t.archived && !t.deleted;
@@ -60,7 +87,8 @@ function Chevron({ dir }: { dir: "left" | "right" }) {
 }
 
 export default function StudentSupportPage() {
-  const { p } = usePortal();
+  const { p, lang } = usePortal();
+  const s = STR[lang];
   const { ticketsRevision } = useChat();
   const loaded = useAsync(getSupportTickets, []);
   const [items, setItems] = useState<SupportTicket[] | null>(null);
@@ -154,10 +182,10 @@ export default function StudentSupportPage() {
           <SparkIcon />
         </span>
         <span className="vinnie-banner-text">
-          Vinnie can help draft, categorize, and route your request before submission.
+          {s.vinnieBanner}
         </span>
         <button className="vinnie-banner-btn" onClick={() => setCreating(true)}>
-          Start with Vinnie
+          {s.startWithVinnie}
         </button>
       </div>
 
@@ -193,12 +221,12 @@ export default function StudentSupportPage() {
               </div>
 
               {pageCount > 1 && (
-                <nav className="ah-pagination" aria-label="Pagination">
+                <nav className="ah-pagination" aria-label={s.pagination}>
                   <button
                     className="ah-page-btn"
                     onClick={() => setPage(safePage - 1)}
                     disabled={safePage <= 1}
-                    aria-label="Previous page"
+                    aria-label={s.prevPage}
                   >
                     <Chevron dir="left" />
                   </button>
@@ -216,7 +244,7 @@ export default function StudentSupportPage() {
                     className="ah-page-btn"
                     onClick={() => setPage(safePage + 1)}
                     disabled={safePage >= pageCount}
-                    aria-label="Next page"
+                    aria-label={s.nextPage}
                   >
                     <Chevron dir="right" />
                   </button>

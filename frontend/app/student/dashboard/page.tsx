@@ -43,25 +43,122 @@ const TICKET_CHIP: Record<TicketStatus, string> = {
   resolved: "success",
   closed: "neutral",
 };
-const TICKET_STATUS_LABEL: Record<TicketStatus, string> = {
-  draft: "Draft",
-  submitted: "Submitted",
-  in_review: "In Progress",
-  waiting_for_student: "Needs Input",
-  resolved: "Resolved",
-  closed: "Closed",
+
+type Lang = "en" | "vi";
+
+const TICKET_STATUS_LABEL: Record<Lang, Record<TicketStatus, string>> = {
+  en: {
+    draft: "Draft",
+    submitted: "Submitted",
+    in_review: "In Progress",
+    waiting_for_student: "Needs Input",
+    resolved: "Resolved",
+    closed: "Closed",
+  },
+  vi: {
+    draft: "Bản nháp",
+    submitted: "Đã gửi",
+    in_review: "Đang xử lý",
+    waiting_for_student: "Cần phản hồi",
+    resolved: "Đã giải quyết",
+    closed: "Đã đóng",
+  },
 };
 
-function relTime(iso: string): string {
+const STR: Record<Lang, {
+  welcome: string;
+  academicProfile: string;
+  recommended: string;
+  activeTickets: string;
+  upcomingEvents: string;
+  noUpcomingEvents: string;
+  fieldProgram: string;
+  fieldYear: string;
+  fieldTerm: string;
+  fieldAdvisor: string;
+  fieldGpa: string;
+  fieldCredits: string;
+  yearOf: (n: number | string) => string;
+  startsAt: (code: string, time: string) => string;
+  dueToday: (title: string) => string;
+  dueInDays: (title: string, n: number) => string;
+  needsInput: (id: string) => string;
+  askAnything: string;
+  askVinnieAboutToday: string;
+  details: string;
+  allDay: string;
+  justNow: string;
+  hoursAgo: (h: number) => string;
+  daysAgo: (d: number) => string;
+  updated: (rel: string) => string;
+}> = {
+  en: {
+    welcome: "Welcome to Student Copilot",
+    academicProfile: "Academic Profile",
+    recommended: "Recommended for You",
+    activeTickets: "Active Tickets",
+    upcomingEvents: "Upcoming Events",
+    noUpcomingEvents: "No upcoming events.",
+    fieldProgram: "Program",
+    fieldYear: "Year",
+    fieldTerm: "Term",
+    fieldAdvisor: "Advisor",
+    fieldGpa: "GPA",
+    fieldCredits: "Credits",
+    yearOf: (n) => `Year ${n}`,
+    startsAt: (code, time) => `${code} starts at ${time}`,
+    dueToday: (title) => `${title} is due today`,
+    dueInDays: (title, n) => `${title} is due in ${n} day${n === 1 ? "" : "s"}`,
+    needsInput: (id) => `Ticket ${id} needs your input`,
+    askAnything: "Ask Vinnie anything about your studies",
+    askVinnieAboutToday: "Ask Vinnie about today",
+    details: "Details",
+    allDay: "All day",
+    justNow: "just now",
+    hoursAgo: (h) => `${h}h ago`,
+    daysAgo: (d) => `${d}d ago`,
+    updated: (rel) => `Updated ${rel}`,
+  },
+  vi: {
+    welcome: "Chào mừng đến với Student Copilot",
+    academicProfile: "Hồ sơ học vụ",
+    recommended: "Gợi ý cho bạn",
+    activeTickets: "Phiếu đang mở",
+    upcomingEvents: "Sự kiện sắp tới",
+    noUpcomingEvents: "Không có sự kiện sắp tới.",
+    fieldProgram: "Chương trình",
+    fieldYear: "Năm học",
+    fieldTerm: "Học kỳ",
+    fieldAdvisor: "Cố vấn",
+    fieldGpa: "GPA",
+    fieldCredits: "Tín chỉ",
+    yearOf: (n) => `Năm ${n}`,
+    startsAt: (code, time) => `${code} bắt đầu lúc ${time}`,
+    dueToday: (title) => `${title} đến hạn hôm nay`,
+    dueInDays: (title, n) => `${title} đến hạn trong ${n} ngày`,
+    needsInput: (id) => `Phiếu ${id} cần bạn phản hồi`,
+    askAnything: "Hỏi Vinnie bất cứ điều gì về việc học của bạn",
+    askVinnieAboutToday: "Hỏi Vinnie về hôm nay",
+    details: "Chi tiết",
+    allDay: "Cả ngày",
+    justNow: "vừa xong",
+    hoursAgo: (h) => `${h} giờ trước`,
+    daysAgo: (d) => `${d} ngày trước`,
+    updated: (rel) => `Cập nhật ${rel}`,
+  },
+};
+
+function relTime(iso: string, s: (typeof STR)[Lang]): string {
   const diff = Date.now() - new Date(iso).getTime();
   const h = Math.round(diff / 3_600_000);
-  if (h < 1) return "just now";
-  if (h < 24) return `${h}h ago`;
-  return `${Math.round(h / 24)}d ago`;
+  if (h < 1) return s.justNow;
+  if (h < 24) return s.hoursAgo(h);
+  return s.daysAgo(Math.round(h / 24));
 }
 
 export default function StudentDashboardPage() {
   const { p, lang } = usePortal();
+  const s = STR[lang];
   const locale = lang === "vi" ? "vi-VN" : "en-US";
   const { user } = useAuth();
   const router = useRouter();
@@ -107,7 +204,7 @@ export default function StudentDashboardPage() {
   if (todays[0]) {
     recs.push({
       icon: <IconCap size={18} />,
-      text: `${todays[0].course_code} starts at ${todays[0].start}`,
+      text: s.startsAt(todays[0].course_code, todays[0].start),
       onClick: () => router.push("/student/schedule"),
     });
   }
@@ -116,7 +213,7 @@ export default function StudentDashboardPage() {
     const n = daysUntil(d.due_at);
     recs.push({
       icon: <IconClock size={18} />,
-      text: `${d.title} ${n <= 0 ? "is due today" : `is due in ${n} day${n === 1 ? "" : "s"}`}`,
+      text: n <= 0 ? s.dueToday(d.title) : s.dueInDays(d.title, n),
       onClick: () => go(`Tell me about the deadline: ${d.title}`),
     });
   }
@@ -126,14 +223,14 @@ export default function StudentDashboardPage() {
   if (needsInput) {
     recs.push({
       icon: <IconTicket size={18} />,
-      text: `Ticket ${needsInput.id} needs your input`,
+      text: s.needsInput(needsInput.id),
       onClick: () => router.push("/student/support"),
     });
   }
   while (recs.length < 3) {
     recs.push({
       icon: <IconChat size={18} />,
-      text: "Ask Vinnie anything about your studies",
+      text: s.askAnything,
       onClick: () => router.push("/student/chat"),
     });
   }
@@ -142,7 +239,7 @@ export default function StudentDashboardPage() {
     <div className="page-inner">
       <div className="dash-welcome">
         <h1 className="dash-welcome-title">
-          Welcome to Student Copilot{name ? `, ${name}` : ""} 👋
+          {s.welcome}{name ? `, ${name}` : ""} 👋
         </h1>
         <p className="dash-welcome-sub">{p.productTagline}</p>
       </div>
@@ -152,16 +249,16 @@ export default function StudentDashboardPage() {
           {/* Academic Profile */}
           <Card>
             <div className="dash-section-head">
-              <h2 className="dash-section-title">Academic Profile</h2>
+              <h2 className="dash-section-title">{s.academicProfile}</h2>
             </div>
             <div className="profile-card-grid">
-              <Field k="Program" v={pr?.program ?? "—"} />
-              <Field k="Year" v={pr ? `Year ${pr.year}` : "—"} />
-              <Field k="Term" v={pr?.intake ?? "—"} />
-              <Field k="Advisor" v={pr?.advisor ?? "—"} />
-              <Field k="GPA" v={pr ? pr.gpa.toFixed(2) : "—"} />
+              <Field k={s.fieldProgram} v={pr?.program ?? "—"} />
+              <Field k={s.fieldYear} v={pr ? s.yearOf(pr.year) : "—"} />
+              <Field k={s.fieldTerm} v={pr?.intake ?? "—"} />
+              <Field k={s.fieldAdvisor} v={pr?.advisor ?? "—"} />
+              <Field k={s.fieldGpa} v={pr ? pr.gpa.toFixed(2) : "—"} />
               <Field
-                k="Credits"
+                k={s.fieldCredits}
                 v={pr ? `${pr.credits_earned}/${pr.credits_required}` : "—"}
               />
             </div>
@@ -170,7 +267,7 @@ export default function StudentDashboardPage() {
           {/* Recommended for You */}
           <div>
             <div className="dash-section-head">
-              <h2 className="dash-section-title">Recommended for You</h2>
+              <h2 className="dash-section-title">{s.recommended}</h2>
             </div>
             <div className="rec-strip">
               {recs.slice(0, 3).map((r, i) => (
@@ -185,7 +282,7 @@ export default function StudentDashboardPage() {
           {/* Active Tickets */}
           <div>
             <div className="dash-section-head">
-              <h2 className="dash-section-title">Active Tickets</h2>
+              <h2 className="dash-section-title">{s.activeTickets}</h2>
               <Link className="dash-viewall" href="/student/support">
                 {p.viewAll} <IconArrow size={14} />
               </Link>
@@ -202,6 +299,7 @@ export default function StudentDashboardPage() {
                   <TicketCardLite
                     key={t.id}
                     t={t}
+                    lang={lang}
                     onClick={() => router.push("/student/support")}
                   />
                 ))}
@@ -212,7 +310,7 @@ export default function StudentDashboardPage() {
           {/* Upcoming Events */}
           <div>
             <div className="dash-section-head">
-              <h2 className="dash-section-title">Upcoming Events</h2>
+              <h2 className="dash-section-title">{s.upcomingEvents}</h2>
               <Link className="dash-viewall" href="/student/events">
                 {p.viewAll} <IconArrow size={14} />
               </Link>
@@ -220,13 +318,13 @@ export default function StudentDashboardPage() {
             {upcomingEvents.length === 0 ? (
               <Card>
                 <p className="rail-empty" style={{ margin: 0 }}>
-                  No upcoming events.
+                  {s.noUpcomingEvents}
                 </p>
               </Card>
             ) : (
               <div className="dash-list">
                 {upcomingEvents.map((e) => (
-                  <EventRowLite key={e.id} e={e} locale={locale} />
+                  <EventRowLite key={e.id} e={e} locale={locale} lang={lang} />
                 ))}
               </div>
             )}
@@ -264,7 +362,7 @@ export default function StudentDashboardPage() {
               className="ask-vinnie-btn"
               onClick={() => go("What's on my schedule today?")}
             >
-              <IconChat size={15} /> Ask Vinnie about today
+              <IconChat size={15} /> {s.askVinnieAboutToday}
             </button>
           </div>
         </div>
@@ -282,7 +380,16 @@ function Field({ k, v }: { k: string; v: string }) {
   );
 }
 
-function TicketCardLite({ t, onClick }: { t: SupportTicket; onClick: () => void }) {
+function TicketCardLite({
+  t,
+  lang,
+  onClick,
+}: {
+  t: SupportTicket;
+  lang: Lang;
+  onClick: () => void;
+}) {
+  const s = STR[lang];
   return (
     <button className="dash-ticket-card" onClick={onClick}>
       <span className="rec-icon">
@@ -294,21 +401,22 @@ function TicketCardLite({ t, onClick }: { t: SupportTicket; onClick: () => void 
         </div>
         <div className="dash-ticket-title">{t.subject}</div>
         <p className="dash-ticket-desc">{t.body}</p>
-        <div className="dash-ticket-time">Updated {relTime(t.updated_at)}</div>
+        <div className="dash-ticket-time">{s.updated(relTime(t.updated_at, s))}</div>
       </div>
       <span className={`ah-chip ${TICKET_CHIP[t.status]}`}>
-        {TICKET_STATUS_LABEL[t.status]}
+        {TICKET_STATUS_LABEL[lang][t.status]}
       </span>
     </button>
   );
 }
 
-function EventRowLite({ e, locale }: { e: CalendarEvent; locale: string }) {
+function EventRowLite({ e, locale, lang }: { e: CalendarEvent; locale: string; lang: Lang }) {
+  const s = STR[lang];
   const start = new Date(e.start);
   const mon = start.toLocaleDateString(locale, { month: "short" });
   const day = start.getDate();
   const time = e.all_day
-    ? "All day"
+    ? s.allDay
     : `${timeLabel(e.start, locale)}${e.end ? ` – ${timeLabel(e.end, locale)}` : ""}`;
   return (
     <div className="event-row">
@@ -324,7 +432,7 @@ function EventRowLite({ e, locale }: { e: CalendarEvent; locale: string }) {
         </div>
       </div>
       <Link className="btn btn-outline btn-sm" href="/student/events">
-        Details
+        {s.details}
       </Link>
     </div>
   );

@@ -63,6 +63,9 @@ export interface PortalStrings {
   login: {
     title: string;
     subtitle: string;
+    emailLabel: string;
+    passwordLabel: string;
+    signIn: string;
     continueStudent: string;
     continueAdmin: string;
     sso: string;
@@ -604,6 +607,9 @@ const en: PortalStrings = {
   login: {
     title: "Sign in to VinUni Student Copilot",
     subtitle: "24/7 verified student support powered by official VinUni sources",
+    emailLabel: "University email",
+    passwordLabel: "Password",
+    signIn: "Sign in",
     continueStudent: "Continue as Student",
     continueAdmin: "Continue as Admin",
     sso: "Continue with VinUni SSO",
@@ -1190,6 +1196,9 @@ const vi: PortalStrings = {
   login: {
     title: "Đăng nhập VinUni Student Copilot",
     subtitle: "Hỗ trợ sinh viên 24/7 với câu trả lời đã xác minh từ nguồn chính thức VinUni",
+    emailLabel: "Email trường",
+    passwordLabel: "Mật khẩu",
+    signIn: "Đăng nhập",
     continueStudent: "Tiếp tục với vai trò Sinh viên",
     continueAdmin: "Tiếp tục với vai trò Quản trị",
     sso: "Tiếp tục với VinUni SSO",

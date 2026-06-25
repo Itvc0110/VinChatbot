@@ -22,8 +22,26 @@ const CATEGORIES: NotificationType[] = ["academic", "schedule", "deadline", "eve
 const PRIORITIES: NotificationPriority[] = ["low", "medium", "high", "urgent"];
 const STATUS_CHIP: Record<string, string> = { published: "success", draft: "neutral", archived: "neutral" };
 
+const STR = {
+  en: {
+    sent: "Sent",
+    audiencePlaceholder: "CS, Year 2",
+    preview: "Preview",
+    previewTitle: "Notification title",
+    previewMsg: "Your message preview appears here as students will see it.",
+  },
+  vi: {
+    sent: "Đã gửi",
+    audiencePlaceholder: "CS, Năm 2",
+    preview: "Xem trước",
+    previewTitle: "Tiêu đề thông báo",
+    previewMsg: "Bản xem trước nội dung của bạn hiển thị tại đây như sinh viên sẽ thấy.",
+  },
+} as const;
+
 export default function AdminNotificationsPage() {
   const { p, lang } = usePortal();
+  const s = STR[lang];
   const loaded = useAsync(getAdminNotifications, []);
   const [items, setItems] = useState<Notification[] | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -94,7 +112,7 @@ export default function AdminNotificationsPage() {
                     return (
                       <div key={n.id} className="anotif-card">
                         <div className="anotif-card-top">
-                          <span className={`ah-chip ${STATUS_CHIP[st] ?? "neutral"}`}>{st === "published" ? "Sent" : st}</span>
+                          <span className={`ah-chip ${STATUS_CHIP[st] ?? "neutral"}`}>{st === "published" ? s.sent : st}</span>
                           <span className="ah-chip neutral">{p.enums.notificationType[n.type]}</span>
                           {n.target_audience && n.target_audience.length > 0 && (
                             <span className="ah-chip info">{n.target_audience.join(", ")}</span>
@@ -151,7 +169,7 @@ export default function AdminNotificationsPage() {
               </div>
               <div className="field">
                 <label className="field-label" htmlFor="n-audience">{p.adminNotif.fAudience}</label>
-                <input id="n-audience" className="input" value={audience} onChange={(e) => setAudience(e.target.value)} placeholder="CS, Year 2" />
+                <input id="n-audience" className="input" value={audience} onChange={(e) => setAudience(e.target.value)} placeholder={s.audiencePlaceholder} />
               </div>
 
               <button className="btn btn-outline" type="button" onClick={() => void generate()} disabled={busy}>
@@ -195,13 +213,13 @@ export default function AdminNotificationsPage() {
 
           {/* Live preview */}
           <div className="acard">
-            <div className="acard-head"><h2 className="acard-title">Preview</h2></div>
+            <div className="acard-head"><h2 className="acard-title">{s.preview}</h2></div>
             <div className="anotif-preview-frame">
               <div className="anotif-preview-card">
                 <span className="anotif-preview-ic"><IconBell size={16} /></span>
                 <div style={{ minWidth: 0 }}>
-                  <div className="anotif-preview-title">{title.trim() || "Notification title"}</div>
-                  <div className="anotif-preview-msg">{message.trim() || "Your message preview appears here as students will see it."}</div>
+                  <div className="anotif-preview-title">{title.trim() || s.previewTitle}</div>
+                  <div className="anotif-preview-msg">{message.trim() || s.previewMsg}</div>
                 </div>
               </div>
             </div>

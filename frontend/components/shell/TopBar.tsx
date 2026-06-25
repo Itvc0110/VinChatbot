@@ -34,6 +34,11 @@ function MenuIcon() {
   );
 }
 
+const STR = {
+  en: { openMenu: "Open menu", language: "Language" },
+  vi: { openMenu: "Mở menu", language: "Ngôn ngữ" },
+} as const;
+
 export function TopBar({
   title,
   subtitle,
@@ -48,12 +53,13 @@ export function TopBar({
   const { theme, toggle } = useTheme();
   const { lang, setLang, t } = useI18n();
   const { p } = usePortal();
+  const s = STR[lang];
   const nextTheme = theme === "dark" ? t.themeLight : t.themeDark;
 
   return (
     <header className="ptop">
       <div className="ptop-left">
-        <button className="ptop-menu" onClick={onMenu} aria-label="Open menu">
+        <button className="ptop-menu" onClick={onMenu} aria-label={s.openMenu}>
           <MenuIcon />
         </button>
         <div className="ptop-titles">
@@ -68,7 +74,7 @@ export function TopBar({
           <span className="status-dot" />
           {t.statusReady}
         </span>
-        <div className="seg" role="group" aria-label="Language">
+        <div className="seg" role="group" aria-label={s.language}>
           {(["en", "vi"] as Lang[]).map((l) => (
             <button
               key={l}

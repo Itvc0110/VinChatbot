@@ -11,13 +11,63 @@ import { formatDate } from "@/lib/format";
 import { timeLabel } from "@/lib/calendar";
 import { IconCalendar, IconArrow } from "@/components/shell/icons";
 
+const STR = {
+  en: {
+    title: "Events",
+    subtitle: "Discover academic, career, and campus activities recommended for you.",
+    searchPlaceholder: "Search events…",
+    searchAria: "Search events",
+    filterAll: "All",
+    filterWorkshops: "Workshops",
+    filterSeminars: "Seminars",
+    filterClubs: "Clubs",
+    filterCareer: "Career",
+    noEventsTitle: "No events found",
+    noEventsDesc: "Try a different filter or search term.",
+    featuredBadge: "Featured Event",
+    registerNow: "Register Now",
+    viewDetails: "View details",
+    upcomingTitle: "Upcoming Activities",
+    noMoreUpcoming: "No more upcoming activities.",
+    recommended: "Recommended",
+    register: "Register",
+    details: "Details",
+    allDay: "All day",
+    registeredToast: (t: string) => `Registered for "${t}" (demo).`,
+  },
+  vi: {
+    title: "Sự kiện",
+    subtitle: "Khám phá các hoạt động học thuật, nghề nghiệp và trong khuôn viên được gợi ý cho bạn.",
+    searchPlaceholder: "Tìm sự kiện…",
+    searchAria: "Tìm sự kiện",
+    filterAll: "Tất cả",
+    filterWorkshops: "Workshop",
+    filterSeminars: "Hội thảo",
+    filterClubs: "Câu lạc bộ",
+    filterCareer: "Nghề nghiệp",
+    noEventsTitle: "Không tìm thấy sự kiện",
+    noEventsDesc: "Hãy thử bộ lọc hoặc từ khóa khác.",
+    featuredBadge: "Sự kiện nổi bật",
+    registerNow: "Đăng ký ngay",
+    viewDetails: "Xem chi tiết",
+    upcomingTitle: "Hoạt động sắp tới",
+    noMoreUpcoming: "Không còn hoạt động sắp tới.",
+    recommended: "Được gợi ý",
+    register: "Đăng ký",
+    details: "Chi tiết",
+    allDay: "Cả ngày",
+    registeredToast: (t: string) => `Đã đăng ký "${t}" (demo).`,
+  },
+} as const;
+
 type EventFilter = "all" | "workshop" | "seminar" | "club" | "career";
-const FILTERS: { key: EventFilter; label: string; match: RegExp }[] = [
-  { key: "all", label: "All", match: /.*/ },
-  { key: "workshop", label: "Workshops", match: /workshop|lab|hands-on/i },
-  { key: "seminar", label: "Seminars", match: /seminar|lecture|talk|guest/i },
-  { key: "club", label: "Clubs", match: /club|society|meetup|social/i },
-  { key: "career", label: "Career", match: /career|fair|intern|job|employer/i },
+type FilterLabelKey = "filterAll" | "filterWorkshops" | "filterSeminars" | "filterClubs" | "filterCareer";
+const FILTERS: { key: EventFilter; labelKey: FilterLabelKey; match: RegExp }[] = [
+  { key: "all", labelKey: "filterAll", match: /.*/ },
+  { key: "workshop", labelKey: "filterWorkshops", match: /workshop|lab|hands-on/i },
+  { key: "seminar", labelKey: "filterSeminars", match: /seminar|lecture|talk|guest/i },
+  { key: "club", labelKey: "filterClubs", match: /club|society|meetup|social/i },
+  { key: "career", labelKey: "filterCareer", match: /career|fair|intern|job|employer/i },
 ];
 
 function PinIcon() {
@@ -45,6 +95,7 @@ function isRecommended(e: CalendarEvent): boolean {
 
 export default function StudentEventsPage() {
   const { p, lang } = usePortal();
+  const s = STR[lang];
   const locale = lang === "vi" ? "vi-VN" : "en-US";
   const cal = useAsync(() => getStudentCalendar(), []);
 
@@ -75,7 +126,7 @@ export default function StudentEventsPage() {
   const featured = events[0] ?? null;
   const rest = featured ? events.slice(1) : [];
 
-  const register = (e: CalendarEvent) => setToast(`Registered for "${e.title}" (demo).`);
+  const register = (e: CalendarEvent) => setToast(s.registeredToast(e.title));
 
   const dateBadge = (iso: string) => {
     const d = new Date(iso);
@@ -83,27 +134,25 @@ export default function StudentEventsPage() {
   };
   const timeRange = (e: CalendarEvent) =>
     e.all_day
-      ? "All day"
+      ? s.allDay
       : `${timeLabel(e.start, locale)}${e.end ? ` – ${timeLabel(e.end, locale)}` : ""}`;
 
   return (
     <div className="page-inner">
       <div className="ah-pagehead">
         <div>
-          <h1 className="ah-pagehead-title">Events</h1>
-          <p className="ah-pagehead-sub">
-            Discover academic, career, and campus activities recommended for you.
-          </p>
+          <h1 className="ah-pagehead-title">{s.title}</h1>
+          <p className="ah-pagehead-sub">{s.subtitle}</p>
         </div>
       </div>
 
       <div className="events-toolbar">
         <input
           className="input events-search"
-          placeholder="Search events…"
+          placeholder={s.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          aria-label="Search events"
+          aria-label={s.searchAria}
         />
         <div className="cal-filters" style={{ margin: 0 }}>
           {FILTERS.map((f) => (
@@ -112,7 +161,7 @@ export default function StudentEventsPage() {
               className={`cal-filter-chip ${filter === f.key ? "active" : ""}`}
               onClick={() => setFilter(f.key)}
             >
-              {f.label}
+              {s[f.labelKey]}
             </button>
           ))}
         </div>
@@ -123,8 +172,8 @@ export default function StudentEventsPage() {
           events.length === 0 ? (
             <EmptyState
               icon={<IconCalendar size={28} />}
-              title="No events found"
-              description="Try a different filter or search term."
+              title={s.noEventsTitle}
+              description={s.noEventsDesc}
             />
           ) : (
             <>
@@ -132,7 +181,7 @@ export default function StudentEventsPage() {
               {featured && (
                 <div className="events-hero">
                   <div>
-                    <span className="events-hero-badge">Featured Event</span>
+                    <span className="events-hero-badge">{s.featuredBadge}</span>
                     <h2 className="events-hero-title">{featured.title}</h2>
                     {featured.description && (
                       <p className="events-hero-desc">{featured.description}</p>
@@ -148,23 +197,23 @@ export default function StudentEventsPage() {
                       <span className="events-hero-stat">{featured.category}</span>
                     )}
                     <button className="events-hero-btn" onClick={() => register(featured)}>
-                      Register Now <IconArrow size={15} />
+                      {s.registerNow} <IconArrow size={15} />
                     </button>
                     <button
                       className="events-hero-stat"
                       style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", textDecoration: "underline", padding: 0 }}
                       onClick={() => setSelected(featured)}
                     >
-                      View details
+                      {s.viewDetails}
                     </button>
                   </div>
                 </div>
               )}
 
               {/* Upcoming activities grid */}
-              <h2 className="events-section-title">Upcoming Activities</h2>
+              <h2 className="events-section-title">{s.upcomingTitle}</h2>
               {rest.length === 0 ? (
-                <EmptyState title="No more upcoming activities." />
+                <EmptyState title={s.noMoreUpcoming} />
               ) : (
                 <div className="events-grid">
                   {rest.map((e) => {
@@ -182,7 +231,7 @@ export default function StudentEventsPage() {
                           <div className="event-card2-tags">
                             {e.category && <span className="ah-chip neutral">{e.category}</span>}
                             {isRecommended(e) && (
-                              <span className="ah-chip">Recommended</span>
+                              <span className="ah-chip">{s.recommended}</span>
                             )}
                           </div>
                           <div className="event-card2-title">{e.title}</div>
@@ -198,10 +247,10 @@ export default function StudentEventsPage() {
                           </div>
                           <div className="event-card2-actions">
                             <button className="btn btn-primary btn-sm" onClick={() => register(e)}>
-                              Register
+                              {s.register}
                             </button>
                             <button className="btn btn-outline btn-sm" onClick={() => setSelected(e)}>
-                              Details
+                              {s.details}
                             </button>
                           </div>
                         </div>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 import { UserProfileCard } from "@/components/auth/UserProfileCard";
 import {
   IconShield,
@@ -27,21 +28,38 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-const ADMIN_PRIMARY: NavItem[] = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: <IconShield /> },
-  { href: "/admin/tickets", label: "Tickets", icon: <IconTicket /> },
-  { href: "/admin/sources", label: "Knowledge Base", icon: <IconDatabase /> },
-  { href: "/admin/events", label: "Events", icon: <IconCalendar /> },
-  { href: "/admin/notifications", label: "Notifications", icon: <IconBell /> },
-  { href: "/admin/analytics", label: "Monitoring", icon: <IconChart /> },
-  { href: "/admin/settings", label: "Settings", icon: <IconCog /> },
-];
-
-const ADMIN_SECONDARY: NavItem[] = [
-  { href: "/admin/upload", label: "Upload Source", icon: <IconUpload /> },
-  { href: "/admin/unanswered", label: "Review Queue", icon: <IconInbox /> },
-  { href: "/admin/context", label: "Context", icon: <IconSliders /> },
-];
+const STR = {
+  en: {
+    adminConsole: "Admin Console",
+    admin: "Admin",
+    knowledge: "Knowledge",
+    dashboard: "Dashboard",
+    tickets: "Tickets",
+    knowledgeBase: "Knowledge Base",
+    events: "Events",
+    notifications: "Notifications",
+    monitoring: "Monitoring",
+    settings: "Settings",
+    uploadSource: "Upload Source",
+    reviewQueue: "Review Queue",
+    context: "Context",
+  },
+  vi: {
+    adminConsole: "Trang quản trị",
+    admin: "Quản trị",
+    knowledge: "Tri thức",
+    dashboard: "Bảng điều khiển",
+    tickets: "Yêu cầu hỗ trợ",
+    knowledgeBase: "Cơ sở tri thức",
+    events: "Sự kiện",
+    notifications: "Thông báo",
+    monitoring: "Giám sát",
+    settings: "Cài đặt",
+    uploadSource: "Tải nguồn lên",
+    reviewQueue: "Hàng đợi duyệt",
+    context: "Ngữ cảnh",
+  },
+} as const;
 
 function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
@@ -55,6 +73,24 @@ export function AdminSidebar({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const { lang } = useI18n();
+  const s = STR[lang];
+
+  const ADMIN_PRIMARY: NavItem[] = [
+    { href: "/admin/dashboard", label: s.dashboard, icon: <IconShield /> },
+    { href: "/admin/tickets", label: s.tickets, icon: <IconTicket /> },
+    { href: "/admin/sources", label: s.knowledgeBase, icon: <IconDatabase /> },
+    { href: "/admin/events", label: s.events, icon: <IconCalendar /> },
+    { href: "/admin/notifications", label: s.notifications, icon: <IconBell /> },
+    { href: "/admin/analytics", label: s.monitoring, icon: <IconChart /> },
+    { href: "/admin/settings", label: s.settings, icon: <IconCog /> },
+  ];
+
+  const ADMIN_SECONDARY: NavItem[] = [
+    { href: "/admin/upload", label: s.uploadSource, icon: <IconUpload /> },
+    { href: "/admin/unanswered", label: s.reviewQueue, icon: <IconInbox /> },
+    { href: "/admin/context", label: s.context, icon: <IconSliders /> },
+  ];
 
   const renderItem = (item: NavItem) => {
     const active = isActive(pathname, item.href);
@@ -79,11 +115,11 @@ export function AdminSidebar({
         <span className="ah-sidebar-badge">
           <IconShield size={20} />
         </span>
-        Admin Console
+        {s.adminConsole}
       </div>
-      <nav className="ah-sidebar-nav" aria-label="Admin">
+      <nav className="ah-sidebar-nav" aria-label={s.admin}>
         <ul>{ADMIN_PRIMARY.map(renderItem)}</ul>
-        <div className="ah-sidebar-group">Knowledge</div>
+        <div className="ah-sidebar-group">{s.knowledge}</div>
         <ul>{ADMIN_SECONDARY.map(renderItem)}</ul>
       </nav>
       <UserProfileCard />

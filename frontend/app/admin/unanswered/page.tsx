@@ -23,6 +23,33 @@ const PRIORITY_CHIP: Record<"high" | "medium" | "low", string> = {
 };
 const FILTER_KEYS: ("all" | QuestionStatus)[] = ["all", "new", "in_review", "forwarded", "resolved"];
 
+const STR = {
+  en: {
+    statNew: "New",
+    statInReview: "In review",
+    statResolved: "Resolved",
+    asked: "Asked",
+    suggested: "Suggested",
+    forwardToDept: "Forward to department",
+    markResolved: "Mark resolved",
+    forwardedToast: "Forwarded to department.",
+    resolvedToast: "Marked resolved.",
+    actionFailed: "Action failed.",
+  },
+  vi: {
+    statNew: "Mới",
+    statInReview: "Đang xem xét",
+    statResolved: "Đã giải quyết",
+    asked: "Đã hỏi",
+    suggested: "Đề xuất",
+    forwardToDept: "Chuyển đến phòng ban",
+    markResolved: "Đánh dấu đã giải quyết",
+    forwardedToast: "Đã chuyển đến phòng ban.",
+    resolvedToast: "Đã đánh dấu giải quyết.",
+    actionFailed: "Thao tác thất bại.",
+  },
+} as const;
+
 function Stat({ value, label }: { value: number; label: string }) {
   return (
     <div className="astat">
@@ -35,6 +62,7 @@ function Stat({ value, label }: { value: number; label: string }) {
 
 export default function UnansweredPage() {
   const { p, lang } = usePortal();
+  const s = STR[lang];
   const loaded = useAsync(getUnansweredQuestions, []);
   const [items, setItems] = useState<UnansweredQuestion[] | null>(null);
   const [filter, setFilter] = useState<"all" | QuestionStatus>("all");
@@ -69,9 +97,9 @@ export default function UnansweredPage() {
         department: action === "forward" ? q.suggested_department : undefined,
       });
       patch(q.id, updated.status);
-      setToast(action === "forward" ? "Forwarded to department." : "Marked resolved.");
+      setToast(action === "forward" ? s.forwardedToast : s.resolvedToast);
     } catch {
-      setToast("Action failed.");
+      setToast(s.actionFailed);
     } finally {
       setBusyId(null);
     }
@@ -80,9 +108,9 @@ export default function UnansweredPage() {
   return (
     <div className="page-inner">
       <div className="arev-summary">
-        <Stat value={counts.new} label="New" />
-        <Stat value={counts.in_review} label="In review" />
-        <Stat value={counts.resolved} label="Resolved" />
+        <Stat value={counts.new} label={s.statNew} />
+        <Stat value={counts.in_review} label={s.statInReview} />
+        <Stat value={counts.resolved} label={s.statResolved} />
       </div>
 
       <div className="arev-toolbar">
@@ -126,8 +154,8 @@ export default function UnansweredPage() {
                   <p className="arev-ctx">{q.student_context}</p>
 
                   <div className="arev-meta">
-                    <span>Asked {q.asked_count}×</span>
-                    <span>Suggested: {p.enums.department[q.suggested_department] ?? q.suggested_department}</span>
+                    <span>{s.asked} {q.asked_count}×</span>
+                    <span>{s.suggested}: {p.enums.department[q.suggested_department] ?? q.suggested_department}</span>
                   </div>
 
                   <div className="arev-actions">
@@ -140,7 +168,7 @@ export default function UnansweredPage() {
                         disabled={busyId === q.id}
                         onClick={() => act(q, "forward")}
                       >
-                        Forward to department
+                        {s.forwardToDept}
                       </button>
                     )}
                     {q.status !== "resolved" && (
@@ -149,7 +177,7 @@ export default function UnansweredPage() {
                         disabled={busyId === q.id}
                         onClick={() => act(q, "mark_resolved")}
                       >
-                        <IconCheck size={13} /> Mark resolved
+                        <IconCheck size={13} /> {s.markResolved}
                       </button>
                     )}
                   </div>

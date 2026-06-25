@@ -14,22 +14,62 @@ import { formatDate } from "@/lib/format";
 
 type ViewMode = "day" | "week" | "month" | "list";
 type CalFilter = "all" | "class" | "exam" | "assignment" | "tuition" | "event";
+type Lang = "en" | "vi";
 
-const FILTERS: { key: CalFilter; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "class", label: "Classes" },
-  { key: "exam", label: "Exams" },
-  { key: "assignment", label: "Assignment Deadlines" },
-  { key: "tuition", label: "Tuition Deadlines" },
-  { key: "event", label: "Events" },
-];
+const FILTER_KEYS: CalFilter[] = ["all", "class", "exam", "assignment", "tuition", "event"];
+const VIEW_KEYS: ViewMode[] = ["day", "week", "month", "list"];
 
-const VIEWS: { key: ViewMode; label: string }[] = [
-  { key: "day", label: "Day" },
-  { key: "week", label: "Week" },
-  { key: "month", label: "Month" },
-  { key: "list", label: "List" },
-];
+const STR: Record<Lang, {
+  title: string;
+  subtitle: string;
+  syncCalendar: string;
+  askVinnieWeek: string;
+  syncToast: string;
+  viewLabel: string;
+  upcoming: string;
+  allDay: string;
+  filters: Record<CalFilter, string>;
+  views: Record<ViewMode, string>;
+}> = {
+  en: {
+    title: "Academic Calendar",
+    subtitle: "Manage your schedule, exams, and personal events.",
+    syncCalendar: "Sync Calendar",
+    askVinnieWeek: "Ask Vinnie about my week",
+    syncToast: "Calendar sync link copied (demo).",
+    viewLabel: "View",
+    upcoming: "Upcoming",
+    allDay: "All day",
+    filters: {
+      all: "All",
+      class: "Classes",
+      exam: "Exams",
+      assignment: "Assignment Deadlines",
+      tuition: "Tuition Deadlines",
+      event: "Events",
+    },
+    views: { day: "Day", week: "Week", month: "Month", list: "List" },
+  },
+  vi: {
+    title: "Lịch học vụ",
+    subtitle: "Quản lý lịch học, lịch thi và sự kiện cá nhân.",
+    syncCalendar: "Đồng bộ lịch",
+    askVinnieWeek: "Hỏi Vinnie về tuần của tôi",
+    syncToast: "Đã sao chép liên kết đồng bộ lịch (demo).",
+    viewLabel: "Xem",
+    upcoming: "Sắp tới",
+    allDay: "Cả ngày",
+    filters: {
+      all: "Tất cả",
+      class: "Lớp học",
+      exam: "Kỳ thi",
+      assignment: "Hạn nộp bài tập",
+      tuition: "Hạn học phí",
+      event: "Sự kiện",
+    },
+    views: { day: "Ngày", week: "Tuần", month: "Tháng", list: "Danh sách" },
+  },
+};
 
 function isTuition(e: CalendarEvent): boolean {
   return /tuition|fee|học phí|hoc phi/i.test(`${e.title} ${e.category ?? ""}`);
@@ -62,6 +102,7 @@ function Chevron({ dir }: { dir: "left" | "right" }) {
 
 export default function StudentCalendarPage() {
   const { p, lang } = usePortal();
+  const s = STR[lang];
   const locale = lang === "vi" ? "vi-VN" : "en-US";
   const router = useRouter();
   const cal = useAsync(() => getStudentCalendar(), []);
@@ -114,12 +155,12 @@ export default function StudentCalendarPage() {
       ? weekTitle(cursor, locale)
       : view === "day"
       ? formatDate(cursor.toISOString(), locale)
-      : "Upcoming";
+      : s.upcoming;
 
   const evLine = (e: CalendarEvent) =>
     [
       e.all_day
-        ? "All day"
+        ? s.allDay
         : `${timeLabel(e.start, locale)}${e.end ? ` – ${timeLabel(e.end, locale)}` : ""}`,
       e.location,
       e.course,
@@ -131,15 +172,15 @@ export default function StudentCalendarPage() {
     <div className="page-inner">
       <div className="ah-pagehead">
         <div>
-          <h1 className="ah-pagehead-title">Academic Calendar</h1>
-          <p className="ah-pagehead-sub">Manage your schedule, exams, and personal events.</p>
+          <h1 className="ah-pagehead-title">{s.title}</h1>
+          <p className="ah-pagehead-sub">{s.subtitle}</p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button
             className="btn btn-outline"
-            onClick={() => setToast("Calendar sync link copied (demo).")}
+            onClick={() => setToast(s.syncToast)}
           >
-            Sync Calendar
+            {s.syncCalendar}
           </button>
           <button
             className="btn btn-outline"
@@ -149,21 +190,21 @@ export default function StudentCalendarPage() {
               )
             }
           >
-            Ask Vinnie about my week
+            {s.askVinnieWeek}
           </button>
         </div>
       </div>
 
       <div className="cal-toolbar-ah">
-        <div className="seg" role="group" aria-label="View">
-          {VIEWS.map((v) => (
+        <div className="seg" role="group" aria-label={s.viewLabel}>
+          {VIEW_KEYS.map((v) => (
             <button
-              key={v.key}
-              className={`seg-opt ${view === v.key ? "active" : ""}`}
-              aria-pressed={view === v.key}
-              onClick={() => setView(v.key)}
+              key={v}
+              className={`seg-opt ${view === v ? "active" : ""}`}
+              aria-pressed={view === v}
+              onClick={() => setView(v)}
             >
-              {v.label}
+              {s.views[v]}
             </button>
           ))}
         </div>
@@ -184,13 +225,13 @@ export default function StudentCalendarPage() {
       </div>
 
       <div className="cal-filters">
-        {FILTERS.map((f) => (
+        {FILTER_KEYS.map((f) => (
           <button
-            key={f.key}
-            className={`cal-filter-chip ${filter === f.key ? "active" : ""}`}
-            onClick={() => setFilter(f.key)}
+            key={f}
+            className={`cal-filter-chip ${filter === f ? "active" : ""}`}
+            onClick={() => setFilter(f)}
           >
-            {f.label}
+            {s.filters[f]}
           </button>
         ))}
       </div>

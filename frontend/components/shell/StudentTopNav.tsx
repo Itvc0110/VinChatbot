@@ -27,13 +27,30 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-const STUDENT_NAV: NavItem[] = [
-  { href: "/student/dashboard", label: "Dashboard", icon: <IconGrid /> },
-  { href: "/student/chat", label: "Vinnie AI", icon: <IconChat /> },
-  { href: "/student/schedule", label: "Calendar", icon: <IconCalendar /> },
-  { href: "/student/events", label: "Events", icon: <IconCalendar /> },
-  { href: "/student/support", label: "Tickets", icon: <IconTicket /> },
-];
+const STR = {
+  en: {
+    primary: "Primary",
+    language: "Language",
+    notifications: "Notifications",
+    signOut: "Sign out",
+    dashboard: "Dashboard",
+    vinnieAi: "Vinnie AI",
+    calendar: "Calendar",
+    events: "Events",
+    tickets: "Tickets",
+  },
+  vi: {
+    primary: "Điều hướng chính",
+    language: "Ngôn ngữ",
+    notifications: "Thông báo",
+    signOut: "Đăng xuất",
+    dashboard: "Bảng điều khiển",
+    vinnieAi: "Vinnie AI",
+    calendar: "Lịch",
+    events: "Sự kiện",
+    tickets: "Yêu cầu hỗ trợ",
+  },
+} as const;
 
 function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
@@ -98,7 +115,16 @@ export function StudentTopNav() {
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
   const { lang, setLang, t } = useI18n();
+  const s = STR[lang];
   const nextTheme = theme === "dark" ? t.themeLight : t.themeDark;
+
+  const STUDENT_NAV: NavItem[] = [
+    { href: "/student/dashboard", label: s.dashboard, icon: <IconGrid /> },
+    { href: "/student/chat", label: s.vinnieAi, icon: <IconChat /> },
+    { href: "/student/schedule", label: s.calendar, icon: <IconCalendar /> },
+    { href: "/student/events", label: s.events, icon: <IconCalendar /> },
+    { href: "/student/support", label: s.tickets, icon: <IconTicket /> },
+  ];
 
   return (
     <header className="ah-topnav">
@@ -109,7 +135,7 @@ export function StudentTopNav() {
         VinUni
       </Link>
 
-      <nav aria-label="Primary">
+      <nav aria-label={s.primary}>
         <ul className="ah-topnav-links">
           {STUDENT_NAV.map((item) => {
             const active = isActive(pathname, item.href);
@@ -130,7 +156,7 @@ export function StudentTopNav() {
       </nav>
 
       <div className="ah-topnav-actions">
-        <div className="seg" role="group" aria-label="Language">
+        <div className="seg" role="group" aria-label={s.language}>
           {(["en", "vi"] as Lang[]).map((l) => (
             <button
               key={l}
@@ -153,7 +179,7 @@ export function StudentTopNav() {
         <Link
           href="/student/notifications"
           className="ah-iconbtn"
-          aria-label="Notifications"
+          aria-label={s.notifications}
         >
           <IconBell />
           <span className="ah-iconbtn-dot" aria-hidden />
@@ -165,8 +191,8 @@ export function StudentTopNav() {
         <button
           className="ah-iconbtn"
           onClick={logout}
-          aria-label="Sign out"
-          title="Sign out"
+          aria-label={s.signOut}
+          title={s.signOut}
         >
           <LogoutIcon />
         </button>

@@ -3,11 +3,93 @@
 import { useMemo, useState } from "react";
 import { Toast } from "@/components/ui/primitives";
 import { IconCheck, IconSliders, IconChat } from "@/components/shell/icons";
+import { usePortal } from "@/lib/portalI18n";
 
 // Admin Context & Personalization (Phase 4, new route). Demo-only: configures which student-profile
 // fields act as RETRIEVAL filters vs CONTEXT-ONLY personalization, plus admin personalization rules,
 // with a "test as student" preview. No backend/API exists for this yet — state is local demo state,
 // so nothing in the live data/API layer is touched.
+
+// Colocated EN/VI copy so the top-bar language toggle localizes this whole screen. Reuses the shared
+// `lang` from portalI18n's LanguageProvider — no new provider/context. Demo data (student names,
+// programs, rule logic / code expressions, internal field keys) stays literal on purpose.
+const STR = {
+  en: {
+    intro1: "Configure how student profile data influences Vinnie's answers. Retrieval filters narrow which",
+    intro2: "documents Vinnie searches; context-only fields personalize tone & content without filtering.",
+    retrievalTitle: "Retrieval Filters",
+    contextTitle: "Context-Only Fields",
+    rulesTitle: "Personalization Rules",
+    active: (n: number) => `${n} active`,
+    addField: "+ add field",
+    addFieldToast: "Add field (demo).",
+    retrievalHint:
+      "These fields filter the knowledge base before answering — only matching documents are retrieved.",
+    contextHint: "Used to personalize the answer (tone, examples) but never to filter retrieval.",
+    addRule: "+ Add Rule",
+    newRuleName: "New rule",
+    newRuleCondition: "condition",
+    newRuleBehavior: "behavior",
+    ruleIf: "If",
+    editRule: "Edit rule",
+    deleteRule: "Delete rule",
+    editRuleToast: "Edit rule (demo).",
+    legendRetrieval: "Retrieval filter",
+    legendContext: "Context-only",
+    legendRule: "Admin rule",
+    testTitle: "✦ Test as Student",
+    studentProfile: "Student profile",
+    cohort: (c: string) => `Cohort ${c}`,
+    retrievedDoc: "Retrieved",
+    retrievedDocSuffix: (docs: number, filters: number) =>
+      `document${docs === 1 ? "" : "s"} using ${filters} active filter${filters === 1 ? "" : "s"}.`,
+    bubblePrefix: (program: string, cohort: string) =>
+      `Based on your ${program} (${cohort}) profile, here's a personalized answer`,
+    bubbleTranslated: " (translated to your preferred language)",
+    bubbleEnd: ".",
+    runTest: "Run test query",
+    runTestToast: "Ran test query (demo).",
+  },
+  vi: {
+    intro1:
+      "Cấu hình cách dữ liệu hồ sơ sinh viên ảnh hưởng đến câu trả lời của Vinnie. Bộ lọc truy xuất thu hẹp",
+    intro2:
+      "những tài liệu Vinnie tìm kiếm; trường chỉ dùng ngữ cảnh cá nhân hoá giọng văn & nội dung mà không lọc.",
+    retrievalTitle: "Bộ lọc truy xuất",
+    contextTitle: "Trường chỉ dùng ngữ cảnh",
+    rulesTitle: "Quy tắc cá nhân hoá",
+    active: (n: number) => `${n} đang bật`,
+    addField: "+ thêm trường",
+    addFieldToast: "Thêm trường (demo).",
+    retrievalHint:
+      "Các trường này lọc kho tri thức trước khi trả lời — chỉ những tài liệu khớp mới được truy xuất.",
+    contextHint:
+      "Dùng để cá nhân hoá câu trả lời (giọng văn, ví dụ) nhưng không bao giờ dùng để lọc truy xuất.",
+    addRule: "+ Thêm quy tắc",
+    newRuleName: "Quy tắc mới",
+    newRuleCondition: "điều kiện",
+    newRuleBehavior: "hành vi",
+    ruleIf: "Nếu",
+    editRule: "Sửa quy tắc",
+    deleteRule: "Xoá quy tắc",
+    editRuleToast: "Sửa quy tắc (demo).",
+    legendRetrieval: "Bộ lọc truy xuất",
+    legendContext: "Chỉ dùng ngữ cảnh",
+    legendRule: "Quy tắc quản trị",
+    testTitle: "✦ Kiểm tra như sinh viên",
+    studentProfile: "Hồ sơ sinh viên",
+    cohort: (c: string) => `Khoá ${c}`,
+    retrievedDoc: "Đã truy xuất",
+    retrievedDocSuffix: (docs: number, filters: number) =>
+      `tài liệu bằng ${filters} bộ lọc đang bật.`,
+    bubblePrefix: (program: string, cohort: string) =>
+      `Dựa trên hồ sơ ${program} (${cohort}) của bạn, đây là câu trả lời cá nhân hoá`,
+    bubbleTranslated: " (đã dịch sang ngôn ngữ ưa thích của bạn)",
+    bubbleEnd: ".",
+    runTest: "Chạy truy vấn kiểm tra",
+    runTestToast: "Đã chạy truy vấn kiểm tra (demo).",
+  },
+} as const;
 
 interface Field { key: string; active: boolean }
 interface Rule { id: string; name: string; condition: string; behavior: string }
@@ -59,6 +141,8 @@ function IconTrash() {
 }
 
 export default function AdminContextPage() {
+  const { lang } = usePortal();
+  const s = STR[lang];
   const [retrieval, setRetrieval] = useState<Field[]>(INITIAL_RETRIEVAL);
   const [context, setContext] = useState<Field[]>(INITIAL_CONTEXT);
   const [rules, setRules] = useState<Rule[]>(INITIAL_RULES);
@@ -80,8 +164,7 @@ export default function AdminContextPage() {
   return (
     <div className="page-inner">
       <p className="field-hint" style={{ margin: "0 0 16px" }}>
-        Configure how student profile data influences Vinnie&apos;s answers. Retrieval filters narrow which
-        documents Vinnie searches; context-only fields personalize tone &amp; content without filtering.
+        {s.intro1} {s.intro2}
       </p>
 
       <div className="actx-grid">
@@ -89,8 +172,8 @@ export default function AdminContextPage() {
           {/* Retrieval filters */}
           <div className="acard">
             <div className="acard-head">
-              <h2 className="acard-title">Retrieval Filters</h2>
-              <span className="ah-chip">{retrievalActive} active</span>
+              <h2 className="acard-title">{s.retrievalTitle}</h2>
+              <span className="ah-chip">{s.active(retrievalActive)}</span>
             </div>
             <div className="actx-chips">
               {retrieval.map((f) => (
@@ -98,18 +181,18 @@ export default function AdminContextPage() {
                   <span className="actx-chip-dot" />{f.key}
                 </button>
               ))}
-              <button className="actx-chip add" onClick={() => setToast("Add field (demo).")}>+ add field</button>
+              <button className="actx-chip add" onClick={() => setToast(s.addFieldToast)}>{s.addField}</button>
             </div>
             <p className="field-hint" style={{ marginTop: 10 }}>
-              These fields filter the knowledge base before answering — only matching documents are retrieved.
+              {s.retrievalHint}
             </p>
           </div>
 
           {/* Context-only fields */}
           <div className="acard">
             <div className="acard-head">
-              <h2 className="acard-title">Context-Only Fields</h2>
-              <span className="ah-chip neutral">{contextActive} active</span>
+              <h2 className="acard-title">{s.contextTitle}</h2>
+              <span className="ah-chip neutral">{s.active(contextActive)}</span>
             </div>
             <div className="actx-chips">
               {context.map((f) => (
@@ -119,17 +202,17 @@ export default function AdminContextPage() {
               ))}
             </div>
             <p className="field-hint" style={{ marginTop: 10 }}>
-              Used to personalize the answer (tone, examples) but never to filter retrieval.
+              {s.contextHint}
             </p>
           </div>
 
           {/* Personalization rules (admin-only config) */}
           <div className="acard">
             <div className="acard-head">
-              <h2 className="acard-title">Personalization Rules</h2>
+              <h2 className="acard-title">{s.rulesTitle}</h2>
               <button className="btn btn-primary btn-sm" onClick={() =>
-                setRules((cur) => [...cur, { id: `r${cur.length + 1}`, name: "New rule", condition: "condition", behavior: "behavior" }])
-              }>+ Add Rule</button>
+                setRules((cur) => [...cur, { id: `r${cur.length + 1}`, name: s.newRuleName, condition: s.newRuleCondition, behavior: s.newRuleBehavior }])
+              }>{s.addRule}</button>
             </div>
             {rules.map((r, i) => (
               <div key={r.id} className="actx-rule">
@@ -137,30 +220,30 @@ export default function AdminContextPage() {
                 <div className="actx-rule-main">
                   <div className="actx-rule-name">{r.name}</div>
                   <div className="actx-rule-logic">
-                    If <code>{r.condition}</code> → {r.behavior}
+                    {s.ruleIf} <code>{r.condition}</code> → {r.behavior}
                   </div>
                 </div>
                 <div className="actx-rule-actions">
-                  <button className="icon-action" aria-label="Edit rule" onClick={() => setToast("Edit rule (demo).")}><IconPencil /></button>
-                  <button className="icon-action danger" aria-label="Delete rule" onClick={() => setRules((cur) => cur.filter((x) => x.id !== r.id))}><IconTrash /></button>
+                  <button className="icon-action" aria-label={s.editRule} onClick={() => setToast(s.editRuleToast)}><IconPencil /></button>
+                  <button className="icon-action danger" aria-label={s.deleteRule} onClick={() => setRules((cur) => cur.filter((x) => x.id !== r.id))}><IconTrash /></button>
                 </div>
               </div>
             ))}
           </div>
 
           <div className="actx-legend">
-            <span><i style={{ background: "var(--ah-brand)" }} /> Retrieval filter</span>
-            <span><i style={{ background: "var(--ah-secondary)" }} /> Context-only</span>
-            <span><i style={{ background: "var(--ah-primary-tint)" }} /> Admin rule</span>
+            <span><i style={{ background: "var(--ah-brand)" }} /> {s.legendRetrieval}</span>
+            <span><i style={{ background: "var(--ah-secondary)" }} /> {s.legendContext}</span>
+            <span><i style={{ background: "var(--ah-primary-tint)" }} /> {s.legendRule}</span>
           </div>
         </div>
 
         {/* Test as student */}
         <div className="actx-rail">
           <div className="acard">
-            <div className="acard-head"><h2 className="acard-title">✦ Test as Student</h2></div>
+            <div className="acard-head"><h2 className="acard-title">{s.testTitle}</h2></div>
             <div className="field">
-              <label className="field-label" htmlFor="ctx-student">Student profile</label>
+              <label className="field-label" htmlFor="ctx-student">{s.studentProfile}</label>
               <select
                 id="ctx-student"
                 className="select"
@@ -172,20 +255,19 @@ export default function AdminContextPage() {
             </div>
             <div className="actx-test-profile">
               <span className="ah-chip">{student.program}</span>
-              <span className="ah-chip neutral">Cohort {student.cohort}</span>
+              <span className="ah-chip neutral">{s.cohort(student.cohort)}</span>
               <span className="ah-chip info">{student.lang}</span>
             </div>
             <div className="actx-test-out">
-              <IconCheck size={13} /> Retrieved <strong>{preview.docs}</strong> document
-              {preview.docs === 1 ? "" : "s"} using {preview.filters.length} active filter
-              {preview.filters.length === 1 ? "" : "s"}.
+              <IconCheck size={13} /> {s.retrievedDoc} <strong>{preview.docs}</strong>{" "}
+              {s.retrievedDocSuffix(preview.docs, preview.filters.length)}
             </div>
             <div className="actx-test-bubble">
-              <IconChat size={13} /> Based on your {student.program} ({student.cohort}) profile, here&apos;s a
-              personalized answer{student.lang !== "EN" ? " (translated to your preferred language)" : ""}.
+              <IconChat size={13} /> {s.bubblePrefix(student.program, student.cohort)}
+              {student.lang !== "EN" ? s.bubbleTranslated : ""}{s.bubbleEnd}
             </div>
-            <button className="btn btn-outline btn-sm" style={{ marginTop: 12 }} onClick={() => setToast("Ran test query (demo).")}>
-              <IconSliders size={14} /> Run test query
+            <button className="btn btn-outline btn-sm" style={{ marginTop: 12 }} onClick={() => setToast(s.runTestToast)}>
+              <IconSliders size={14} /> {s.runTest}
             </button>
           </div>
         </div>
