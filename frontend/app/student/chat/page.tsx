@@ -15,8 +15,6 @@ import { getActiveSuggestedQuestions } from "@/lib/api";
 import { IconClock, IconBell, IconTicket, IconCalendar, IconChat } from "@/components/shell/icons";
 
 const SUGG_ICONS = [IconClock, IconBell, IconTicket, IconCalendar];
-const TRUST_NOTE =
-  "Answers use official VinUni sources when available. Personalized answers may use your schedule, tickets, and academic profile.";
 
 // Full "Ask Vinnie" page. The chat state lives in the shared ChatProvider (mounted in the
 // student shell), so this page and the floating bubble are the SAME conversation. Layout only:
@@ -50,8 +48,11 @@ function ChatView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  // Initial welcome + suggestion cards show only for an empty conversation; once the first
+  // message is sent (or an existing conversation with messages is opened) the streaming
+  // ChatColumn takes over and these are gone.
   const empty = chat.messages.length === 0;
-  const firstName = (user?.name ?? "").split(" ").slice(-1)[0] || user?.name || "there";
+  const firstName = (user?.name ?? "").split(" ").slice(-1)[0] || user?.name || "";
   const suggestionCards = chips.slice(0, 4);
 
   return (
@@ -66,11 +67,8 @@ function ChatView() {
                 <span className="vinnie-avatar-lg">
                   <IconChat size={30} />
                 </span>
-                <h1 className="vinnie-welcome-title">Hi {firstName}, I&apos;m Vinnie.</h1>
-                <p className="vinnie-welcome-sub">
-                  I can help with your schedule, tickets, academic policies, events, and
-                  student services.
-                </p>
+                <h1 className="vinnie-welcome-title">{p.chatWelcomeTitle(firstName)}</h1>
+                <p className="vinnie-welcome-sub">{p.chatWelcomeSub}</p>
                 <div className="vinnie-sugg-grid">
                   {suggestionCards.map((q, i) => {
                     const Ic = SUGG_ICONS[i % SUGG_ICONS.length];
@@ -95,7 +93,7 @@ function ChatView() {
                 onStop={chat.stop}
                 busy={chat.busy}
                 showChips={false}
-                note={TRUST_NOTE}
+                note={p.chatTrustNote}
               />
             </div>
           ) : (
@@ -111,7 +109,7 @@ function ChatView() {
               onOpenSources={chat.openSources}
               renderActions={(m) => <ConnectedAnswerActions message={m} />}
               composerChips={chips}
-              note={TRUST_NOTE}
+              note={p.chatTrustNote}
               composerSeedText={chat.composerSeed?.text}
               composerSeedNonce={chat.composerSeed?.nonce}
             />

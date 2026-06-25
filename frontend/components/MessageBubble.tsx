@@ -11,6 +11,8 @@ import { StreamingStatus } from "./chat/StreamingStatus";
 interface CiteOpts {
   count: number;
   onCite: (idx: number) => void;
+  // Localized title for an inline [n] marker (e.g. "Source 2" / "Nguồn 2").
+  title?: (n: number) => string;
 }
 
 function BotAvatar() {
@@ -56,7 +58,7 @@ function renderInline(
           <button
             key={`${keyPrefix}-c${i}`}
             className="inline-cite"
-            title={`Source ${n}`}
+            title={cite.title ? cite.title(n) : `Source ${n}`}
             onClick={() => cite.onCite(n - 1)}
           >
             [{n}]
@@ -132,7 +134,7 @@ function UserBubble({
   if (editing) {
     return (
       <div className="msg user editing">
-        <div className="role">You</div>
+        <div className="role">{t.youLabel}</div>
         <textarea
           className="edit-area"
           rows={2}
@@ -226,7 +228,7 @@ export function MessageBubble({
         <div className="body">{message.error}</div>
         {onRetry && (
           <button className="retry-btn" onClick={onRetry}>
-            Retry
+            {t.retry}
           </button>
         )}
       </div>
@@ -275,7 +277,11 @@ export function MessageBubble({
 
   const hasCites = !!resp && resp.citations.length > 0;
   const cite: CiteOpts | undefined = hasCites
-    ? { count: resp!.citations.length, onCite: (idx) => onOpenSources?.(idx) }
+    ? {
+        count: resp!.citations.length,
+        onCite: (idx) => onOpenSources?.(idx),
+        title: t.inlineCiteTitle,
+      }
     : undefined;
 
   return (

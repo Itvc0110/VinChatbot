@@ -1603,12 +1603,12 @@ table.data-table {
   max-width: 100%;
   min-width: 0;
   overflow: hidden;
-  font-size: var(--fs-xs);
+  font-size: 12.5px;
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--muted-foreground);
   border-radius: var(--radius-sm);
-  padding: 4px 9px;
+  padding: 5px 10px;
   cursor: pointer;
   text-align: left;
   transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
@@ -2838,8 +2838,27 @@ table.data-table {
   flex-direction: column;
   gap: 2px;
 }
+/* Row = selectable title + (on hover) a three-dot menu; the row carries the active tint. */
+.convo-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: var(--radius-sm);
+  transition: background var(--dur) var(--ease);
+}
+.convo-row:hover {
+  background: var(--surface-2);
+}
+.convo-row.active {
+  background: var(--accent-tint);
+}
 .convo-item {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   text-align: left;
   border: none;
   background: transparent;
@@ -2848,20 +2867,113 @@ table.data-table {
   padding: 8px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+  transition: color var(--dur) var(--ease);
 }
 .convo-item:hover:not(:disabled) {
-  background: var(--surface-2);
   color: var(--foreground);
 }
-.convo-item.active {
-  background: var(--accent-tint);
+.convo-row.active .convo-item {
   color: var(--accent);
   font-weight: 600;
   cursor: default;
+}
+.convo-item-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Subtle "still receiving an answer" spinner shown in the rail for a busy conversation. */
+.convo-spinner {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-border);
+  border-top-color: var(--accent);
+  animation: convo-spin 0.8s linear infinite;
+}
+@keyframes convo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* No positioning here: the dropdown anchors to the whole .convo-row (position: relative)
+   so it opens BELOW the row instead of on top of the title text. */
+.convo-menu-wrap {
+  flex: 0 0 auto;
+}
+.convo-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-right: 4px;
+  border: none;
+  background: transparent;
+  color: var(--faint);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease), background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+.convo-row:hover .convo-menu-btn,
+.convo-row:focus-within .convo-menu-btn,
+.convo-menu-btn[aria-expanded="true"] {
+  opacity: 1;
+}
+.convo-menu-btn:hover {
+  background: var(--surface-3);
+  color: var(--foreground);
+}
+.convo-menu {
+  /* Rendered via a portal to <body> as a position:fixed layer (coords set inline from the
+     three-dot button's rect), so the scrollable conversation list can never clip it. */
+  width: 140px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-pop);
+}
+.convo-menu-item {
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--foreground);
+  font-size: var(--fs-sm);
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.convo-menu-item:hover {
+  background: var(--surface-2);
+}
+.convo-menu-item.danger {
+  color: var(--danger);
+}
+.convo-menu-item.danger:hover {
+  background: var(--danger-bg);
+}
+.convo-rename-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 2px 6px;
+  font: inherit;
+  font-size: var(--fs-sm);
+  padding: 6px 8px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--foreground);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
 }
 .convo-empty {
   padding: 4px 14px;

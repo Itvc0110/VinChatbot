@@ -71,6 +71,10 @@ export function ChatColumn({
         onStop={onStop}
         busy={busy}
         chips={composerChips}
+        // Initial suggestion chips belong to the empty state only. Once the conversation has
+        // messages they're hidden, so they never linger after the first question — contextual
+        // per-answer follow-ups take over (see ConnectedAnswerActions / FollowUpSuggestions).
+        showChips={messages.length === 0}
         note={note}
         seedText={composerSeedText}
         seedNonce={composerSeedNonce}

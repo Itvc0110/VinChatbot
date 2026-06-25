@@ -67,6 +67,12 @@ export interface Strings {
   showPassage: string;
   untitledSource: string;
 
+  // chat message chrome + follow-ups
+  youLabel: string;
+  retry: string;
+  inlineCiteTitle: (n: number) => string;
+  followUpHeading: string;
+
   // state chip
   chip: { grounded: string; conversational: string; refusal: string; degraded: string };
   // confidence
@@ -170,6 +176,11 @@ const en: Strings = {
   unverifiedTag: "Needs confirmation",
   showPassage: "Show the full passage",
   untitledSource: "Untitled source",
+
+  youLabel: "You",
+  retry: "Retry",
+  inlineCiteTitle: (n) => `Source ${n}`,
+  followUpHeading: "Suggested follow-ups",
 
   chip: {
     grounded: "Grounded in sources",
@@ -276,6 +287,11 @@ const vi: Strings = {
   unverifiedTag: "Cần xác nhận",
   showPassage: "Xem toàn bộ đoạn trích",
   untitledSource: "Nguồn chưa có tiêu đề",
+
+  youLabel: "Bạn",
+  retry: "Thử lại",
+  inlineCiteTitle: (n) => `Nguồn ${n}`,
+  followUpHeading: "Gợi ý câu hỏi tiếp theo",
 
   chip: {
     grounded: "Có căn cứ nguồn",

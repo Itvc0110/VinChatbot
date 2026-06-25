@@ -305,7 +305,7 @@
 .rail-sched-sub { font-size: 12px; color: var(--ah-muted); margin-top: 2px; }
 .rail-empty { font-size: 13px; color: var(--ah-muted); padding: 8px 0; }
 .ask-vinnie-card {
-  background: linear-gradient(135deg, #950013 0%, #b92026 100%);
+  background: linear-gradient(135deg, #002855 0%, #0057a8 100%);
   border-radius: var(--ah-radius); padding: 18px; color: #fff;
 }
 .ask-vinnie-card h3 { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
@@ -414,7 +414,7 @@
 }
 .vinnie-avatar-lg {
   width: 64px; height: 64px; border-radius: 18px;
-  background: linear-gradient(135deg, #950013, #b92026); color: #fff;
+  background: linear-gradient(135deg, #002855, #0057a8); color: #fff;
   display: flex; align-items: center; justify-content: center; margin-bottom: 18px; box-shadow: var(--ah-shadow-2);
 }
 .vinnie-welcome-title {
@@ -447,7 +447,7 @@
 
 .events-hero {
   position: relative; display: grid; grid-template-columns: 1fr 190px; gap: 24px;
-  background: linear-gradient(135deg, #950013 0%, #b92026 100%); color: #fff;
+  background: linear-gradient(135deg, #002855 0%, #0057a8 100%); color: #fff;
   border-radius: var(--ah-radius-lg); padding: 28px; margin-bottom: 28px;
 }
 @media (max-width: 720px) { .events-hero { grid-template-columns: 1fr; } }

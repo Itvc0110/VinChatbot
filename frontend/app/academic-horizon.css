@@ -244,7 +244,7 @@ table.ah-table,
   justify-content: center;
   padding: 32px 20px;
   background:
-    radial-gradient(120% 80% at 50% -10%, rgba(185, 32, 38, 0.06) 0%, transparent 55%),
+    radial-gradient(120% 80% at 50% -10%, rgba(0, 87, 168, 0.06) 0%, transparent 55%),
     var(--ah-bg);
 }
 
@@ -306,7 +306,7 @@ table.ah-table,
   font-weight: 600;
   color: var(--ah-text-2);
   text-decoration: none;
-  border-bottom: 2px solid transparent; /* 2px red active underline lives here */
+  border-bottom: 2px solid transparent; /* 2px navy/blue active underline lives here */
   white-space: nowrap;
   transition: color var(--dur, 170ms) var(--ease, ease),
     border-color var(--dur, 170ms) var(--ease, ease);
@@ -476,7 +476,7 @@ table.ah-table,
   bottom: 7px;
   width: 3px;
   border-radius: 0 3px 3px 0;
-  background: var(--ah-brand); /* brand-red active indicator */
+  background: var(--ah-brand); /* brand navy/blue active indicator */
 }
 .ah-adminmain {
   flex: 1 1 auto;
@@ -608,14 +608,14 @@ table.ah-table,
   --border-strong: var(--ah-border-strong);
   /* text */
   --foreground: var(--ah-text);
-  /* brand red — the signature Academic Horizon change */
+  /* brand navy/blue — the signature Academic Horizon change */
   --primary: var(--ah-brand);
   --primary-hover: var(--ah-brand-hover);
   --primary-foreground: var(--ah-on-primary);
   --accent: var(--ah-brand);
-  --accent-tint: rgba(185, 32, 38, 0.07);
-  --accent-tint-strong: rgba(185, 32, 38, 0.12);
-  --accent-border: rgba(185, 32, 38, 0.22);
+  --accent-tint: rgba(0, 87, 168, 0.07);
+  --accent-tint-strong: rgba(0, 87, 168, 0.12);
+  --accent-border: rgba(0, 87, 168, 0.22);
   --ring: var(--ah-ring);
   /* shape — AH: 8px containers, 4px controls */
   --radius-lg: var(--ah-radius);
@@ -627,10 +627,10 @@ table.ah-table,
   --shadow-pop: var(--ah-shadow-pop);
 }
 [data-theme="dark"] .ah-ui {
-  /* accent tints re-based on the dark brand red so they don't vibrate */
-  --accent-tint: rgba(226, 96, 106, 0.14);
-  --accent-tint-strong: rgba(226, 96, 106, 0.2);
-  --accent-border: rgba(226, 96, 106, 0.28);
+  /* accent tints re-based on the dark brand blue so they don't vibrate */
+  --accent-tint: rgba(79, 155, 224, 0.14);
+  --accent-tint-strong: rgba(79, 155, 224, 0.2);
+  --accent-border: rgba(79, 155, 224, 0.28);
 }
 
 /* Headline face (Hanken Grotesk) on titles within the AH scope. */
@@ -669,9 +669,9 @@ table.ah-table,
   margin: 0 auto;
 }
 
-/* Dashboard "ask Vinnie" hero → Academic Horizon brand-red banner (was navy). */
+/* Dashboard "ask Vinnie" hero → Academic Horizon navy/blue banner. */
 .ah-ui .hero-ask {
-  /* fixed deep-red gradient (not theme-swapped) so white text stays readable in dark mode */
-  background: linear-gradient(135deg, #950013 0%, #b92026 100%);
+  /* fixed navy→blue gradient (not theme-swapped) so white text stays readable in dark mode */
+  background: linear-gradient(135deg, #002855 0%, #0057a8 100%);
   border-radius: var(--ah-radius-lg);
 }

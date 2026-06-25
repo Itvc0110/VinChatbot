@@ -3,17 +3,11 @@
 import type { Citation } from "@/lib/types";
 import { useI18n } from "@/lib/i18n";
 
-function hostOf(url: string): string {
-  try {
-    return new URL(url).host;
-  } catch {
-    return url;
-  }
-}
-
-// Citations rendered directly under an assistant answer: a "Sources (n)" button plus a
-// clickable chip per source. Clicking either opens the shared source drawer focused on
-// that source. Sources are always tied to the exact answer they support.
+// Citations rendered directly under an assistant answer: ONLY a compact "Sources (n)" button.
+// Clicking it opens the shared source drawer with the full list (number / title / type /
+// snippet / open action) — the per-source pills used to render here are gone so the answer
+// card stays clean and a long citation can't break the layout. The `unverified` flag still
+// tints the button so a not-fully-grounded answer reads differently.
 export function ChatCitationList({
   citations,
   onOpen,
@@ -28,7 +22,10 @@ export function ChatCitationList({
 
   return (
     <div className="cite-list">
-      <button className="cite-sources-btn" onClick={() => onOpen(0)}>
+      <button
+        className={`cite-sources-btn ${unverified ? "unverified" : ""}`}
+        onClick={() => onOpen(0)}
+      >
         <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"
           fill="none" stroke="currentColor" strokeWidth="1.8"
           strokeLinecap="round" strokeLinejoin="round">
@@ -37,21 +34,6 @@ export function ChatCitationList({
         </svg>
         {t.sourcesBtnCount(citations.length)}
       </button>
-      {/* Compact, title-only chips. The section/excerpt/long raw text lives in the source
-          panel — never inline in the bubble — so a long citation can't break the layout. */}
-      <div className="cite-chips">
-        {citations.map((c, i) => (
-          <button
-            key={`${c.source_url}-${i}`}
-            className={`cite-chip ${unverified ? "unverified" : ""}`}
-            onClick={() => onOpen(i)}
-            title={c.section ? `${c.title || hostOf(c.source_url)} · ${c.section}` : c.title || c.source_url}
-          >
-            <span className="cite-chip-n">[{i + 1}]</span>
-            <span className="cite-chip-title">{c.title || hostOf(c.source_url)}</span>
-          </button>
-        ))}
-      </div>
     </div>
   );
 }

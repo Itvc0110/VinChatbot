@@ -101,12 +101,24 @@ export interface PortalStrings {
   personalizedAnswer: string;
   chatSuggested: string[];
   somethingWrong: string;
+  // full Ask Vinnie page: welcome state + composer trust note
+  chatWelcomeTitle: (name: string) => string;
+  chatWelcomeSub: string;
+  chatTrustNote: string;
   // conversation history (PLAN22.6.2 §2)
   chatHistory: {
     title: string;
     newChat: string;
     untitled: string;
     empty: string;
+    rename: string;
+    delete: string;
+    deleteConfirm: string;
+    actions: string;
+    save: string;
+    cancel: string;
+    processing: string;
+    stillWaiting: string;
   };
 
   // notifications screen
@@ -632,11 +644,24 @@ const en: PortalStrings = {
     "What is the course withdrawal process?",
   ],
   somethingWrong: "Something went wrong.",
+  chatWelcomeTitle: (name) => `Hi ${name || "there"}, I'm Vinnie.`,
+  chatWelcomeSub:
+    "I can help with your schedule, tickets, academic policies, events, and student services.",
+  chatTrustNote:
+    "Answers use official VinUni sources when available. Personalized answers may use your schedule, tickets, and academic profile.",
   chatHistory: {
     title: "Conversations",
     newChat: "New chat",
-    untitled: "New chat",
-    empty: "No past conversations yet.",
+    untitled: "New conversation",
+    empty: "No conversations yet.",
+    rename: "Rename",
+    delete: "Delete",
+    deleteConfirm: "Delete this conversation? This can't be undone.",
+    actions: "Conversation actions",
+    save: "Save",
+    cancel: "Cancel",
+    processing: "Processing…",
+    stillWaiting: "This conversation is still receiving an answer",
   },
 
   notif: {
@@ -1205,11 +1230,24 @@ const vi: PortalStrings = {
     "Quy trình rút môn học như thế nào?",
   ],
   somethingWrong: "Đã có lỗi xảy ra.",
+  chatWelcomeTitle: (name) => `Chào ${name || "bạn"}, mình là Vinnie.`,
+  chatWelcomeSub:
+    "Mình có thể giúp về lịch học, phiếu hỗ trợ, chính sách học vụ, sự kiện và dịch vụ sinh viên.",
+  chatTrustNote:
+    "Câu trả lời ưu tiên dùng nguồn chính thức của VinUni khi có. Câu trả lời cá nhân hóa có thể dùng lịch học, phiếu hỗ trợ và hồ sơ học vụ của bạn.",
   chatHistory: {
     title: "Cuộc trò chuyện",
-    newChat: "Trò chuyện mới",
-    untitled: "Trò chuyện mới",
+    newChat: "Cuộc trò chuyện mới",
+    untitled: "Cuộc trò chuyện mới",
     empty: "Chưa có cuộc trò chuyện nào.",
+    rename: "Đổi tên",
+    delete: "Xoá",
+    deleteConfirm: "Xoá cuộc trò chuyện này? Không thể hoàn tác.",
+    actions: "Tùy chọn cuộc trò chuyện",
+    save: "Lưu",
+    cancel: "Huỷ",
+    processing: "Đang xử lý…",
+    stillWaiting: "Cuộc trò chuyện này vẫn đang chờ câu trả lời",
   },
 
   notif: {

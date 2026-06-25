@@ -1,8 +1,14 @@
 "use client";
 
 // Global chat state for the student portal. Lifts the conversation out of the chat page
-// so the full "Ask Vinnie" page AND the floating chat bubble share ONE conversation that
-// survives route changes. Mounted once in RoleShell for students (see RoleShell.tsx).
+// so the full "Ask Vinnie" page AND the floating chat bubble share ONE set of conversations
+// that survive route changes. Mounted once in StudentShell (see StudentShell.tsx).
+//
+// Multi-conversation model: every conversation keeps its OWN messages and its own
+// busy/streaming state, so a reply can stream in conversation A while the user reads or asks
+// in conversation B — answers always land in the conversation that asked them (each in-flight
+// request is keyed by the conversation's UI id). Conversations are ordered by last activity;
+// selecting one never reorders, only SENDING a message bumps a conversation to the top.
 //
 // The general/personal toggle is gone: the student is signed in, so every question is sent
 // with their profile/schedule/deadlines/tuition context attached and the backend agent
@@ -43,6 +49,11 @@ import { formatVnd, formatDate } from "@/lib/format";
 
 let counter = 0;
 const nextId = () => `m${Date.now()}-${counter++}`;
+
+// Monotonic activity stamp used purely for ordering conversations (newest first). A counter,
+// not the wall clock, so ordering is stable and tie-free.
+let activitySeq = 0;
+const nextActivity = () => ++activitySeq;
 
 // Compact, plain-text snapshot of the student's context, prepended to the question so the
 // agent can personalize ("when is my next class?") without the user choosing a mode.
@@ -107,19 +118,35 @@ let convCounter = 0;
 const nextConvId = () => `c${Date.now()}-${convCounter++}`;
 const newThreadId = () => `web-${Math.random().toString(36).slice(2)}`;
 
-// A short topic title from the first user message (PLAN22.6.2 §2) — never a generic name.
-function titleOf(msgs: ChatMessage[]): string | null {
-  const firstUser = msgs.find((m) => m.role === "user");
-  if (!firstUser) return null;
-  const text = firstUser.text.replace(/\s+/g, " ").trim();
-  return text.length > 44 ? `${text.slice(0, 44)}…` : text;
+// A short topic title from a free-text message (PLAN22.6.2 §2) — never a generic name.
+function titleFromText(text: string): string {
+  const t = text.replace(/\s+/g, " ").trim();
+  return t.length > 44 ? `${t.slice(0, 44)}…` : t;
 }
 
-interface ArchivedConversation {
-  id: string;
-  conversationId: string;
+// Internal record for one conversation. `title === null` means "untitled" (the UI shows a
+// localized temporary label); `titleManual` is set when the student renames it, so later
+// auto-titling never overwrites a manual name.
+interface Conversation {
+  id: string; // stable UI id
+  threadId: string; // backend conversation_id (isolated agent memory per conversation)
   title: string | null;
+  titleManual: boolean;
   messages: ChatMessage[];
+  busy: boolean; // a reply is in flight for THIS conversation
+  lastActivity: number; // ordering key (newest first)
+}
+
+function makeConversation(): Conversation {
+  return {
+    id: nextConvId(),
+    threadId: newThreadId(),
+    title: null,
+    titleManual: false,
+    messages: [],
+    busy: false,
+    lastActivity: nextActivity(),
+  };
 }
 
 export interface SourceFocus {
@@ -133,6 +160,7 @@ export interface ConversationSummary {
   title: string | null; // null until the first user message gives it a topic
   active: boolean;
   empty: boolean;
+  busy: boolean; // still receiving an answer (shows a subtle indicator in the rail)
 }
 
 interface ChatContextValue {
@@ -152,6 +180,8 @@ interface ChatContextValue {
   activeConversationId: string;
   newConversation: () => void;
   switchConversation: (id: string) => void;
+  renameConversation: (id: string, title: string) => void;
+  deleteConversation: (id: string) => void;
   // "Ask follow-up": seeds + focuses the composer (shared across both chat surfaces).
   composerSeed: { text: string; nonce: number } | null;
   seedComposer: (text: string) => void;
@@ -186,8 +216,11 @@ const ChatContext = createContext<ChatContextValue | null>(null);
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const { p, lang } = usePortal();
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [busy, setBusy] = useState(false);
+  // All conversations live here; the active one is identified by `activeId`. Each conversation
+  // carries its own messages + busy flag, so streaming is naturally per-conversation.
+  const [conversations, setConversations] = useState<Conversation[]>(() => [makeConversation()]);
+  const [activeId, setActiveId] = useState<string>(() => conversations[0].id);
+
   const [toast, setToast] = useState<string | null>(null);
   const [ticketDraft, setTicketDraft] = useState<TicketDraft | null>(null);
   const [draftBusy, setDraftBusy] = useState(false);
@@ -202,6 +235,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // How many surfaces (full page / open widget) are currently showing the conversation.
   // While >0, completed answers don't bump the unread badge.
   const viewers = useRef(0);
+
+  // In-flight requests keyed by conversation UI id, so we can abort/stop a specific one and
+  // never confuse two conversations' streams.
+  const abortMap = useRef<Map<string, AbortController>>(new Map());
 
   const personalData = useRef<{
     profile: StudentProfile | null;
@@ -227,13 +264,20 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Active conversation: its messages live in `messages` above; past conversations are kept
-  // in `archived` (in-memory only). `conversationId` is the backend thread id of the active
-  // conversation, so each conversation has isolated agent memory.
-  const [conversationId, setConversationId] = useState<string>(() => newThreadId());
-  const [activeConvId, setActiveConvId] = useState<string>(() => nextConvId());
-  const [archived, setArchived] = useState<ArchivedConversation[]>([]);
-  const abortRef = useRef<AbortController | null>(null);
+  // If the active conversation disappears (deleted), fall back to the most-recent remaining one.
+  useEffect(() => {
+    if (conversations.some((c) => c.id === activeId)) return;
+    const top = [...conversations].sort((a, b) => b.lastActivity - a.lastActivity)[0];
+    if (top) setActiveId(top.id);
+  }, [conversations, activeId]);
+
+  const active = useMemo(
+    () => conversations.find((c) => c.id === activeId) ?? conversations[0],
+    [conversations, activeId]
+  );
+  const messages = active?.messages ?? [];
+  const busy = active?.busy ?? false;
+  const conversationId = active?.threadId ?? "";
 
   const latestAssistantId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -249,29 +293,57 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [messages]);
 
-  const patchMessage = useCallback((id: string, patch: Partial<ChatMessage>) => {
-    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  // --- conversation/message mutators (always target a conversation by id) ----
+  const patchConversation = useCallback((id: string, patch: Partial<Conversation>) => {
+    setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  }, []);
+
+  const patchConvMessage = useCallback(
+    (convId: string, msgId: string, patch: Partial<ChatMessage>) => {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === convId
+            ? { ...c, messages: c.messages.map((m) => (m.id === msgId ? { ...m, ...patch } : m)) }
+            : c
+        )
+      );
+    },
+    []
+  );
+
+  const appendMessage = useCallback((convId: string, msg: ChatMessage) => {
+    setConversations((prev) =>
+      prev.map((c) => (c.id === convId ? { ...c, messages: [...c.messages, msg] } : c))
+    );
   }, []);
 
   // Marks a finished answer: bumps the unread badge if nothing is on screen to read it.
-  const settle = useCallback((id: string, patch: Partial<ChatMessage>) => {
-    patchMessage(id, patch);
-    if (!patch.error && !patch.cancelled && viewers.current === 0) {
-      setUnread((u) => u + 1);
-    }
-  }, [patchMessage]);
+  const settle = useCallback(
+    (convId: string, msgId: string, patch: Partial<ChatMessage>) => {
+      patchConvMessage(convId, msgId, patch);
+      if (!patch.error && !patch.cancelled && viewers.current === 0) {
+        setUnread((u) => u + 1);
+      }
+    },
+    [patchConvMessage]
+  );
 
+  // Run a question against a SPECIFIC conversation (by UI id + backend thread id). All updates
+  // are routed to that conversation, regardless of which one is active when the reply lands.
   const ask = useCallback(
-    async (text: string) => {
+    async (convId: string, threadId: string, text: string) => {
       const controller = new AbortController();
-      abortRef.current = controller;
-      setBusy(true);
+      abortMap.current.set(convId, controller);
+      patchConversation(convId, { busy: true });
 
       const assistantId = nextId();
-      setMessages((prev) => [
-        ...prev,
-        { id: assistantId, role: "assistant", text: "", streaming: true, personalized: true },
-      ]);
+      appendMessage(convId, {
+        id: assistantId,
+        role: "assistant",
+        text: "",
+        streaming: true,
+        personalized: true,
+      });
       // True once the stream has produced ANY event (status or delta) — i.e. the /chat/stream
       // endpoint opened successfully. We only fall back to the non-streaming /chat (a full,
       // expensive agent re-run) when the stream never opened at all; a failure AFTER it opened
@@ -287,13 +359,22 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const resp = await postChatStream(
-          { message: sent, conversation_id: conversationId },
+          { message: sent, conversation_id: threadId },
           {
             signal: controller.signal,
             onDelta: (chunk) => {
               received = true;
-              setMessages((prev) =>
-                prev.map((m) => (m.id === assistantId ? { ...m, text: m.text + chunk } : m))
+              setConversations((prev) =>
+                prev.map((c) =>
+                  c.id === convId
+                    ? {
+                        ...c,
+                        messages: c.messages.map((m) =>
+                          m.id === assistantId ? { ...m, text: m.text + chunk } : m
+                        ),
+                      }
+                    : c
+                )
               );
             },
             // Fires on the stream's opening `status` event (and any later real step). Marks the
@@ -301,26 +382,30 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             // "Searching…" placeholder).
             onStatus: (step) => {
               received = true;
-              patchMessage(assistantId, { statusStep: step });
+              patchConvMessage(convId, assistantId, { statusStep: step });
             },
           }
         );
-        settle(assistantId, { text: resp.answer, response: resp, streaming: false });
+        settle(convId, assistantId, { text: resp.answer, response: resp, streaming: false });
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
-          patchMessage(assistantId, { text: "", cancelled: true, streaming: false });
+          patchConvMessage(convId, assistantId, { text: "", cancelled: true, streaming: false });
         } else if (!received) {
           try {
             const resp = await postChat(
-              { message: sent, conversation_id: conversationId },
+              { message: sent, conversation_id: threadId },
               controller.signal
             );
-            settle(assistantId, { text: resp.answer, response: resp, streaming: false });
+            settle(convId, assistantId, { text: resp.answer, response: resp, streaming: false });
           } catch (err2) {
             if (err2 instanceof DOMException && err2.name === "AbortError") {
-              patchMessage(assistantId, { text: "", cancelled: true, streaming: false });
+              patchConvMessage(convId, assistantId, {
+                text: "",
+                cancelled: true,
+                streaming: false,
+              });
             } else {
-              patchMessage(assistantId, {
+              patchConvMessage(convId, assistantId, {
                 text: "",
                 error: friendlyError(err2, lang),
                 streaming: false,
@@ -328,74 +413,115 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             }
           }
         } else {
-          patchMessage(assistantId, {
+          patchConvMessage(convId, assistantId, {
             text: "",
             error: friendlyError(err, lang),
             streaming: false,
           });
         }
       } finally {
-        abortRef.current = null;
-        setBusy(false);
+        abortMap.current.delete(convId);
+        patchConversation(convId, { busy: false });
       }
     },
-    [conversationId, patchMessage, settle, lang]
+    [patchConversation, appendMessage, patchConvMessage, settle, lang]
   );
 
+  // Send a message to the ACTIVE conversation: append the user turn, auto-title it from the
+  // first message (unless manually renamed), bump it to the top, then kick off the request.
   const send = useCallback(
     (text: string) => {
-      if (busy) return;
-      setMessages((prev) => [...prev, { id: nextId(), role: "user", text }]);
-      void ask(text);
+      const conv = conversations.find((c) => c.id === activeId);
+      if (!conv || conv.busy) return; // one in-flight reply per conversation
+      const userId = nextId();
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id !== conv.id) return c;
+          const nextTitle = c.titleManual ? c.title : c.title ?? titleFromText(text);
+          return {
+            ...c,
+            title: nextTitle,
+            messages: [...c.messages, { id: userId, role: "user", text }],
+            lastActivity: nextActivity(),
+          };
+        })
+      );
+      void ask(conv.id, conv.threadId, text);
     },
-    [busy, ask]
+    [conversations, activeId, ask]
   );
 
-  const stop = useCallback(() => abortRef.current?.abort(), []);
+  // Stop the ACTIVE conversation's in-flight reply.
+  const stop = useCallback(() => {
+    abortMap.current.get(activeId)?.abort();
+  }, [activeId]);
 
   const retry = useCallback(
     (errorId: string) => {
-      if (busy) return;
-      setMessages((prev) => {
-        const idx = prev.findIndex((m) => m.id === errorId);
-        if (idx < 0) return prev;
-        let userText = "";
-        for (let i = idx - 1; i >= 0; i--) {
-          if (prev[i].role === "user") {
-            userText = prev[i].text;
-            break;
-          }
+      const conv = conversations.find((c) => c.id === activeId);
+      if (!conv || conv.busy) return;
+      const idx = conv.messages.findIndex((m) => m.id === errorId);
+      if (idx < 0) return;
+      let userText = "";
+      for (let i = idx - 1; i >= 0; i--) {
+        if (conv.messages[i].role === "user") {
+          userText = conv.messages[i].text;
+          break;
         }
-        if (userText) void ask(userText);
-        return prev.filter((m) => m.id !== errorId);
-      });
+      }
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === conv.id ? { ...c, messages: c.messages.filter((m) => m.id !== errorId) } : c
+        )
+      );
+      if (userText) void ask(conv.id, conv.threadId, userText);
     },
-    [busy, ask]
+    [conversations, activeId, ask]
   );
 
   const editLast = useCallback(
     (text: string) => {
-      if (busy || !lastUserId) return;
-      setMessages((prev) => {
-        const idx = prev.findIndex((m) => m.id === lastUserId);
-        if (idx < 0) return prev;
-        const kept = prev.slice(0, idx);
-        void ask(text);
-        return [...kept, { id: nextId(), role: "user", text }];
-      });
+      const conv = conversations.find((c) => c.id === activeId);
+      if (!conv || conv.busy) return;
+      let lastUserMsgId: string | null = null;
+      for (let i = conv.messages.length - 1; i >= 0; i--) {
+        if (conv.messages[i].role === "user") {
+          lastUserMsgId = conv.messages[i].id;
+          break;
+        }
+      }
+      if (!lastUserMsgId) return;
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id !== conv.id) return c;
+          const idx = c.messages.findIndex((m) => m.id === lastUserMsgId);
+          if (idx < 0) return c;
+          const kept = c.messages.slice(0, idx);
+          return {
+            ...c,
+            messages: [...kept, { id: nextId(), role: "user", text }],
+            lastActivity: nextActivity(),
+          };
+        })
+      );
+      void ask(conv.id, conv.threadId, text);
     },
-    [busy, lastUserId, ask]
+    [conversations, activeId, ask]
   );
 
   const questionFor = useCallback(
     (assistantId: string): string => {
-      const idx = messages.findIndex((m) => m.id === assistantId);
-      for (let i = idx - 1; i >= 0; i--) {
-        if (messages[i].role === "user") return messages[i].text;
+      for (const c of conversations) {
+        const idx = c.messages.findIndex((m) => m.id === assistantId);
+        if (idx < 0) continue;
+        for (let i = idx - 1; i >= 0; i--) {
+          if (c.messages[i].role === "user") return c.messages[i].text;
+        }
+        return "";
       }
       return "";
     },
-    [messages]
+    [conversations]
   );
 
   const openSources = useCallback((messageId: string, focusIdx = 0) => {
@@ -414,7 +540,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     (question: string, response: ChatResponse) => {
       setTicketDraft({
         id: nextDraftId(),
-        subject: (question.trim().slice(0, 80) || "Support request"),
+        subject: question.trim().slice(0, 80) || "Support request",
         body: response.answer,
         department: DEPARTMENTS[0],
         category: "other",
@@ -486,57 +612,69 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // --- Conversation history -------------------------------------------------
-  // Archive the active conversation (only if it has messages) and reset to a fresh one.
+  // Start a fresh conversation and make it active. If the active conversation is already an
+  // empty new chat, stay there (no point stacking empties).
   const newConversation = useCallback(() => {
-    if (busy) return;
-    if (messages.length) {
-      setArchived((prev) => [
-        { id: activeConvId, conversationId, title: titleOf(messages), messages },
-        ...prev,
-      ]);
-    }
-    setMessages([]);
-    setConversationId(newThreadId());
-    setActiveConvId(nextConvId());
-    setSourceMessageId(null);
-    setSourceFocus(null);
-  }, [busy, messages, activeConvId, conversationId]);
+    const cur = conversations.find((c) => c.id === activeId);
+    if (cur && cur.messages.length === 0) return;
+    const conv = makeConversation();
+    setConversations((prev) => [...prev, conv]);
+    setActiveId(conv.id);
+    closeSources();
+  }, [conversations, activeId, closeSources]);
 
-  // Restore an archived conversation, archiving the current one in its place.
+  // Switch the active conversation. Allowed even while another conversation streams — the
+  // in-flight reply keeps running in the background and lands in its own conversation.
   const switchConversation = useCallback(
     (id: string) => {
-      if (busy || id === activeConvId) return;
-      const target = archived.find((c) => c.id === id);
-      if (!target) return;
-      setArchived((prev) => {
-        const without = prev.filter((c) => c.id !== id);
-        return messages.length
-          ? [
-              { id: activeConvId, conversationId, title: titleOf(messages), messages },
-              ...without,
-            ]
-          : without;
-      });
-      setMessages(target.messages);
-      setConversationId(target.conversationId);
-      setActiveConvId(target.id);
-      setSourceMessageId(null);
-      setSourceFocus(null);
+      if (id === activeId) return;
+      setActiveId(id);
+      closeSources();
     },
-    [busy, activeConvId, archived, messages, conversationId]
+    [activeId, closeSources]
   );
 
-  const conversations = useMemo<ConversationSummary[]>(
-    () => [
-      { id: activeConvId, title: titleOf(messages), active: true, empty: messages.length === 0 },
-      ...archived.map((c) => ({
-        id: c.id,
-        title: c.title,
-        active: false,
-        empty: c.messages.length === 0,
-      })),
-    ],
-    [activeConvId, messages, archived]
+  // Rename. A non-empty title is treated as a manual name (never auto-overwritten); clearing
+  // it reverts to auto-titling from the first user message.
+  const renameConversation = useCallback((id: string, title: string) => {
+    const trimmed = title.trim();
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id !== id) return c;
+        if (!trimmed) {
+          const firstUser = c.messages.find((m) => m.role === "user");
+          return { ...c, title: firstUser ? titleFromText(firstUser.text) : null, titleManual: false };
+        }
+        return { ...c, title: trimmed, titleManual: true };
+      })
+    );
+  }, []);
+
+  // Delete a conversation (aborting its in-flight reply if any). Never leaves the list empty —
+  // an empty list is replaced with a fresh conversation; the active-id effect re-points.
+  const deleteConversation = useCallback((id: string) => {
+    abortMap.current.get(id)?.abort();
+    abortMap.current.delete(id);
+    setConversations((prev) => {
+      const remaining = prev.filter((c) => c.id !== id);
+      return remaining.length ? remaining : [makeConversation()];
+    });
+    setSourceMessageId(null);
+    setSourceFocus(null);
+  }, []);
+
+  const conversationsView = useMemo<ConversationSummary[]>(
+    () =>
+      [...conversations]
+        .sort((a, b) => b.lastActivity - a.lastActivity)
+        .map((c) => ({
+          id: c.id,
+          title: c.title,
+          active: c.id === activeId,
+          empty: c.messages.length === 0,
+          busy: c.busy,
+        })),
+    [conversations, activeId]
   );
 
   const registerViewer = useCallback(() => {
@@ -547,10 +685,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const sourceMessage = useMemo(
-    () => messages.find((m) => m.id === sourceMessageId) ?? null,
-    [messages, sourceMessageId]
-  );
+  const sourceMessage = useMemo(() => {
+    if (!sourceMessageId) return null;
+    for (const c of conversations) {
+      const m = c.messages.find((mm) => mm.id === sourceMessageId);
+      if (m) return m;
+    }
+    return null;
+  }, [conversations, sourceMessageId]);
 
   const value: ChatContextValue = {
     messages,
@@ -563,10 +705,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     retry,
     editLast,
     questionFor,
-    conversations,
-    activeConversationId: activeConvId,
+    conversations: conversationsView,
+    activeConversationId: activeId,
     newConversation,
     switchConversation,
+    renameConversation,
+    deleteConversation,
     composerSeed,
     seedComposer,
     sourceMessage,

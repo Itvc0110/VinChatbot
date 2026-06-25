@@ -23,14 +23,14 @@
   --faint: #837c72; /* ≥4.5:1 on --surface for small UI labels */
 
   /* ---- single accent: VinUni crimson ---- */
-  --primary: #b0182c; /* fills (buttons) — 5.9:1 vs #fff */
-  --primary-hover: #971426;
+  --primary: #0057a8; /* fills (buttons) — VinUni-inspired blue */
+  --primary-hover: #00468c;
   --primary-foreground: #ffffff;
-  --accent: #a8142a; /* text / links / icons on light surfaces */
-  --accent-tint: rgba(176, 24, 44, 0.07);
-  --accent-tint-strong: rgba(176, 24, 44, 0.12);
-  --accent-border: rgba(176, 24, 44, 0.22);
-  --ring: rgba(176, 24, 44, 0.40);
+  --accent: #0057a8; /* text / links / icons on light surfaces */
+  --accent-tint: rgba(0, 87, 168, 0.07);
+  --accent-tint-strong: rgba(0, 87, 168, 0.12);
+  --accent-border: rgba(0, 87, 168, 0.22);
+  --ring: rgba(0, 87, 168, 0.4);
 
   /* ---- semantic state colors (paired always with text/icon, never color-only) ---- */
   --success: #1f7a4d;
@@ -86,14 +86,14 @@
   --faint: #837c72;
 
   /* desaturated + lightened so the accent doesn't vibrate on dark */
-  --primary: #d83f50;
-  --primary-hover: #e6505f;
+  --primary: #4f9be0;
+  --primary-hover: #6baeea;
   --primary-foreground: #ffffff;
-  --accent: #ff8089; /* readable as text/links on dark */
-  --accent-tint: rgba(255, 128, 137, 0.12);
-  --accent-tint-strong: rgba(255, 128, 137, 0.18);
-  --accent-border: rgba(255, 128, 137, 0.26);
-  --ring: rgba(255, 128, 137, 0.45);
+  --accent: #7fb0e8; /* readable as text/links on dark */
+  --accent-tint: rgba(127, 176, 232, 0.12);
+  --accent-tint-strong: rgba(127, 176, 232, 0.18);
+  --accent-border: rgba(127, 176, 232, 0.26);
+  --ring: rgba(127, 176, 232, 0.45);
 
   --success: #4cc38a;
   --success-bg: rgba(76, 195, 138, 0.13);
@@ -120,40 +120,40 @@
    extension so the existing theme toggle keeps working.
    ============================================================================ */
 :root {
-  /* surfaces (warm off-white bg, white cards) */
-  --ah-bg: #fbf9f6;
+  /* surfaces (very light blue bg, white cards) */
+  --ah-bg: #f6faff;
   --ah-surface: #ffffff;
-  --ah-surface-2: #f5f3f0;
-  --ah-surface-3: #efeeeb;
-  --ah-surface-4: #e4e2df;
+  --ah-surface-2: #eff5fc;
+  --ah-surface-3: #e4eef8;
+  --ah-surface-4: #d3e1f2;
 
-  /* brand red: action #950013, signature #B92026 */
-  --ah-primary: #950013;
-  --ah-brand: #b92026;
-  --ah-brand-hover: #a01620;
+  /* brand navy/blue: action navy #002855, signature blue #0057A8 (VinUni-inspired) */
+  --ah-primary: #002855;
+  --ah-brand: #0057a8;
+  --ah-brand-hover: #00468c;
   --ah-on-primary: #ffffff;
-  --ah-primary-tint: #ffdad7;
-  --ah-on-primary-tint: #930013;
+  --ah-primary-tint: #eaf3ff;
+  --ah-on-primary-tint: #002855;
 
   /* text + lines */
-  --ah-text: #1b1c1a;
-  --ah-text-2: #5b403e;
-  --ah-muted: #6b7280;
-  --ah-border: #e5e7eb;
-  --ah-border-strong: #d8d6d2;
-  --ah-outline: #8f706d;
+  --ah-text: #0f172a;
+  --ah-text-2: #475569;
+  --ah-muted: #64748b;
+  --ah-border: #d8e2f0;
+  --ah-border-strong: #c2d2e8;
+  --ah-outline: #94a3b8;
 
-  /* status */
-  --ah-info: #3b82f6;
-  --ah-info-bg: #eaf1fe;
+  /* status — info blue, success green, warning amber, error red (danger only) */
+  --ah-info: #0b6bcb;
+  --ah-info-bg: #e5f0fc;
   --ah-success: #10b981;
   --ah-success-bg: #e7f7f0;
   --ah-warning: #b45309;
   --ah-warning-bg: #fbf0e2;
-  --ah-error: #ba1a1a;
-  --ah-error-bg: #ffdad6;
-  --ah-secondary: #575e70;
-  --ah-secondary-bg: #d9dff5;
+  --ah-error: #b92026;
+  --ah-error-bg: #fce4e4;
+  --ah-secondary: #475569;
+  --ah-secondary-bg: #e2e8f0;
 
   /* radius (Stitch 4 / 8 / 12) */
   --ah-radius-sm: 4px;
@@ -166,8 +166,8 @@
   --ah-shadow-2: 0 4px 20px rgba(0, 0, 0, 0.04);
   --ah-shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.1);
 
-  /* brand-red focus glow (low opacity) */
-  --ah-ring: rgba(185, 32, 38, 0.22);
+  /* brand-blue focus glow (low opacity) */
+  --ah-ring: rgba(0, 87, 168, 0.3);
 
   /* spacing (8px rhythm) + layout */
   --ah-stack-sm: 8px;
@@ -190,32 +190,33 @@
   --ah-surface-3: #2c2e35;
   --ah-surface-4: #353841;
 
-  --ah-primary: #ff8a8f;
-  --ah-brand: #e2606a;
-  --ah-brand-hover: #ec717a;
-  --ah-on-primary: #2a0306;
-  --ah-primary-tint: rgba(226, 96, 106, 0.18);
-  --ah-on-primary-tint: #ffb3ad;
+  --ah-primary: #7fb0e8;
+  --ah-brand: #4f9be0;
+  --ah-brand-hover: #6baeea;
+  --ah-on-primary: #04243b;
+  --ah-primary-tint: rgba(79, 155, 224, 0.18);
+  --ah-on-primary-tint: #a9d0f5;
 
-  --ah-text: #e7e4df;
-  --ah-text-2: #c8b6b4;
-  --ah-muted: #9aa3b2;
+  --ah-text: #e8edf4;
+  --ah-text-2: #b4c2d4;
+  --ah-muted: #93a1b5;
   --ah-border: rgba(255, 255, 255, 0.12);
   --ah-border-strong: rgba(255, 255, 255, 0.2);
-  --ah-outline: #b89a97;
+  --ah-outline: #8fa6c0;
 
-  --ah-info-bg: rgba(59, 130, 246, 0.16);
+  --ah-info: #5aa7ec;
+  --ah-info-bg: rgba(11, 107, 203, 0.18);
   --ah-success-bg: rgba(16, 185, 129, 0.16);
   --ah-warning: #e0a44a;
   --ah-warning-bg: rgba(224, 164, 74, 0.16);
   --ah-error: #f06a62;
   --ah-error-bg: rgba(240, 106, 98, 0.16);
-  --ah-secondary: #aab2c6;
-  --ah-secondary-bg: rgba(120, 130, 160, 0.2);
+  --ah-secondary: #aab6c6;
+  --ah-secondary-bg: rgba(130, 150, 180, 0.2);
 
   --ah-shadow-2: 0 4px 20px rgba(0, 0, 0, 0.45);
   --ah-shadow-pop: 0 14px 36px rgba(0, 0, 0, 0.55);
-  --ah-ring: rgba(255, 138, 143, 0.3);
+  --ah-ring: rgba(127, 176, 232, 0.3);
 }
 
 * {
@@ -605,15 +606,15 @@ textarea::placeholder {
   flex: 1 1 auto;
   min-width: 0;
   overflow-y: auto;
-  padding: 20px 18px;
+  padding: 24px 18px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 .msg {
   max-width: 88%;
   border-radius: var(--radius);
-  padding: 12px 14px;
+  padding: 14px 16px;
   animation: msg-in var(--dur) var(--ease);
 }
 @keyframes msg-in {
@@ -670,7 +671,10 @@ textarea::placeholder {
 .msg .body {
   white-space: pre-wrap;
   word-break: break-word;
-  line-height: var(--lh-body);
+  /* Chat-only readability bump: larger answer body with comfortable line-height. Scoped to
+     .msg so the rest of the app keeps --fs-body (15px). */
+  font-size: 15.5px;
+  line-height: 1.65;
 }
 .msg .body a {
   color: var(--accent);
@@ -1081,9 +1085,29 @@ textarea::placeholder {
 /* per-answer follow-up suggestion chips (under a settled answer) */
 .followups {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+.followups-label {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.followups-chips {
+  display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
+  gap: 7px;
+  min-width: 0;
+}
+/* Follow-up chips read slightly larger than the composer quick-prompts. */
+.followups-chips .prompt-chip {
+  font-size: var(--fs-sm);
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
 }
 .composer-field {
   display: flex;
@@ -1096,8 +1120,10 @@ textarea::placeholder {
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 .composer-field:focus-within {
+  /* Blue focus ring matching the VinUni blue-white theme (--ring resolves to the AH blue
+     glow inside the .ah-ui student scope). */
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-tint);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 .composer textarea {
   flex: 1 1 auto;

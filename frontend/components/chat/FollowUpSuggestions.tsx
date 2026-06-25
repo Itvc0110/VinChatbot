@@ -15,16 +15,19 @@ export function FollowUpSuggestions({
   response: ChatResponse;
   onPick: (q: string) => void;
 }) {
-  const { lang } = useI18n();
+  const { t, lang } = useI18n();
   const items = followUpsFor(question, response, lang);
   if (items.length === 0) return null;
   return (
     <div className="followups">
-      {items.map((q) => (
-        <button key={q} className="prompt-chip" onClick={() => onPick(q)}>
-          {q}
-        </button>
-      ))}
+      <span className="followups-label">{t.followUpHeading}</span>
+      <div className="followups-chips">
+        {items.map((q) => (
+          <button key={q} className="prompt-chip" onClick={() => onPick(q)}>
+            {q}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
