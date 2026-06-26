@@ -56,6 +56,20 @@ async def get_current_user(
     return user
 
 
+async def get_optional_current_user(
+    authorization: Annotated[str | None, Header(alias="Authorization")] = None,
+) -> AuthenticatedUser | None:
+    if not authorization:
+        return None
+
+    token = extract_bearer_token(authorization)
+    repository = get_auth_repository()
+    user = await repository.get_user_by_session_token_hash(hash_session_token(token))
+    if user is None:
+        raise invalid_session_error()
+    return user
+
+
 def require_roles(*roles: str) -> Callable[[AuthenticatedUser], AuthenticatedUser]:
     required = set(roles)
 
