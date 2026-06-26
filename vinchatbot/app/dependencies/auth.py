@@ -38,13 +38,18 @@ def extract_bearer_token(authorization: str | None) -> str:
     return token.strip()
 
 
-async def get_current_user(
+async def get_bearer_token(
     authorization: Annotated[str | None, Header(alias="Authorization")] = None,
+) -> str:
+    return extract_bearer_token(authorization)
+
+
+async def get_current_user(
+    token: Annotated[str, Depends(get_bearer_token)],
     repository: Annotated[AuthRepository, Depends(get_auth_repository)] = None,
 ) -> AuthenticatedUser:
     if repository is None:  # pragma: no cover - FastAPI supplies this dependency.
         raise invalid_session_error()
-    token = extract_bearer_token(authorization)
     user = await repository.get_user_by_session_token_hash(hash_session_token(token))
     if user is None:
         raise invalid_session_error()
