@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 
 import psycopg
+from psycopg import sql
 
 try:
     from scripts.db_migrate import MigrationError, connect_direct
@@ -11,6 +12,34 @@ except ModuleNotFoundError:  # pragma: no cover - used when executed as python s
 from vinchatbot.app.core.config import Settings, get_settings
 
 ALLOWED_RESET_ENVS = {"development", "dev", "local", "test"}
+APP_MANAGED_TABLES = (
+    "audit_logs",
+    "suggested_questions",
+    "question_trends",
+    "student_question_events",
+    "ticket_status_history",
+    "ticket_messages",
+    "tickets",
+    "messages",
+    "conversations",
+    "events",
+    "notification_reads",
+    "notifications",
+    "deadlines",
+    "schedules",
+    "academic_summaries",
+    "enrollments",
+    "courses",
+    "student_profiles",
+    "institutes",
+    "sessions",
+    "user_roles",
+    "roles",
+    "users",
+    "schema_migrations",
+)
+APP_MANAGED_FUNCTIONS = ("set_updated_at",)
+APP_MANAGED_TYPES: tuple[str, ...] = ()
 
 
 def validate_reset_environment(app_env: str) -> None:
@@ -30,8 +59,21 @@ def reset_app_database(settings: Settings | None = None, *, yes: bool = False) -
 
     with connect_direct(settings) as conn:
         with conn.transaction():
-            conn.execute("drop table if exists schema_migrations")
-    print("Dropped schema_migrations")
+            for table in APP_MANAGED_TABLES:
+                conn.execute(
+                    sql.SQL("drop table if exists {}").format(sql.Identifier(table))
+                )
+            for type_name in APP_MANAGED_TYPES:
+                conn.execute(
+                    sql.SQL("drop type if exists {}").format(sql.Identifier(type_name))
+                )
+            for function_name in APP_MANAGED_FUNCTIONS:
+                conn.execute(
+                    sql.SQL("drop function if exists {}()").format(
+                        sql.Identifier(function_name)
+                    )
+                )
+    print("Dropped app-managed database objects")
 
 
 def main() -> int:

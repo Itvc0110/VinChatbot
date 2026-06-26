@@ -32,6 +32,14 @@ def test_discover_migrations_sorts_and_checksums(tmp_path):
     assert len(migrations[0].checksum) == 64
 
 
+def test_discover_repo_migrations_includes_initial_app_schema():
+    migrations = db_migrate.discover_migrations()
+
+    assert "000002_initial_app_schema.sql" in [
+        migration.filename for migration in migrations
+    ]
+
+
 def test_discover_migrations_rejects_duplicate_versions(tmp_path):
     (tmp_path / "000001_one.sql").write_text("select 1;", encoding="utf-8")
     (tmp_path / "000001_two.sql").write_text("select 2;", encoding="utf-8")
@@ -103,3 +111,43 @@ def test_reset_requires_yes_before_connecting(monkeypatch):
             ),
             yes=False,
         )
+
+
+def test_reset_tracks_initial_schema_app_objects():
+    expected_tables = {
+        "users",
+        "roles",
+        "user_roles",
+        "sessions",
+        "institutes",
+        "student_profiles",
+        "courses",
+        "enrollments",
+        "academic_summaries",
+        "schedules",
+        "deadlines",
+        "notifications",
+        "notification_reads",
+        "events",
+        "conversations",
+        "messages",
+        "tickets",
+        "ticket_messages",
+        "ticket_status_history",
+        "student_question_events",
+        "question_trends",
+        "suggested_questions",
+        "audit_logs",
+        "schema_migrations",
+    }
+
+    reset_tables = set(db_reset.APP_MANAGED_TABLES)
+    table_order = {
+        table: index for index, table in enumerate(db_reset.APP_MANAGED_TABLES)
+    }
+
+    assert expected_tables <= reset_tables
+    assert "set_updated_at" in db_reset.APP_MANAGED_FUNCTIONS
+    assert not {"qdrant", "redis"} & reset_tables
+    assert table_order["ticket_messages"] < table_order["tickets"]
+    assert table_order["student_profiles"] < table_order["users"]
