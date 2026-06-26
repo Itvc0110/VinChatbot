@@ -6,7 +6,7 @@ AI-depth backlog — single source of truth) · [worklog.md](worklog.md) (Phase-
 [ARCHITECTURE.md](ARCHITECTURE.md) (flow diagrams, incl. §2b retrieval) · LOGS/PHASE1.0–1.4 ·
 [PHASE1.5_LOG.md](LOGS/PHASE1.5_LOG.md) (observability) · [PHASE1.6_LOG.md](LOGS/PHASE1.6_LOG.md)
 (rerank cost) · [PHASE1.7_LOG.md](LOGS/PHASE1.7_LOG.md) (eval expansion + adaptive retrieval +
-cross-lingual) · [todo.md](todo.md) (deferred Vietnamese work).
+cross-lingual) · `todo.md` (deferred Vietnamese work).
 
 ## What this is
 RAG + multi-agent chatbot answering VinUni students' questions on policies, academic

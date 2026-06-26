@@ -16,11 +16,11 @@ and the gaps vary too much for any fixed boost:
 
 ## Fix — deterministic topic→canonical-doc selection + decisive pin
 Mirrors the proven `structured_lookup` (calendar/fee) single-winner pattern. New module
-[policy_lookup.py](../vinchatbot/app/rag/policy_lookup.py): a curated bilingual keyword → canonical-slug map
+[policy_lookup.py](../../vinchatbot/app/rag/policy_lookup.py): a curated bilingual keyword → canonical-slug map
 for the 17 student-facing policies; `match(user_message)` returns a URL **only when exactly one** topic
 matches (0 or >1 ⇒ None, fail-open). Pure dict/substring on folded text (reuses `context._fold`), no LLM.
 
-Seam in [tools.py](../vinchatbot/app/agents/tools.py) `_search` (gated `ENABLE_POLICY_DOC_PIN`, default off):
+Seam in [tools.py](../../vinchatbot/app/agents/tools.py) `_search` (gated `ENABLE_POLICY_DOC_PIN`, default off):
 for `subcat == "student_affairs"`, on a match, fetch the canonical page by `source_url`
 (`retriever.search(filters={"source_url": url}, limit=2)` — source_url is a Qdrant keyword index) and
 **prepend** it to the results (`dedup_by_text`, cap `retrieval_max_k`). Gap-proof: works even for the rank-9
@@ -37,7 +37,7 @@ Config + `.env.example`: `ENABLE_POLICY_DOC_PIN=false`. Same flag philosophy as 
   calendar/financial matches route to their own subcats so the pin never fires; the only policy-domain
   "extras" are the *correct* library doc (`svc-library-*` → "Library Access & Services Policy") or benign
   (`unans-wifi` → library page has no wifi password ⇒ bot still refuses). To be confirmed by the A/B guard read.
-- **Tests** [test_policy_lookup.py](../tests/test_policy_lookup.py): single-winner fires (VI/EN), MISS on
+- **Tests** [test_policy_lookup.py](../../tests/test_policy_lookup.py): single-winner fires (VI/EN), MISS on
   ambiguous/none/empty, generative-vs-minor disambiguation, pin prepends canonical, pin off by default, pin
   skipped on no-match. **Full suite 307 green, ruff clean.**
 - **End-to-end pin probe** (`scratchpad/probe_pin.py`, real `search_policy_documents` tool, pin ON):
@@ -107,7 +107,7 @@ re-derived: **citations = the retrieved set** (`_extract_citations` aggregates a
 deduped[:8]; `citation_ok` = expected slug ∈ any cited url) → a pinned canonical that lands in the set IS
 cited, so **no citation-preference prompt is needed** — the only blocker was the gate. Verified the canonical
 html **contains every required_fact** for finaid/intern/lib/courseeval (so facts will pass once pinned too).
-- **Change ([tools.py](../vinchatbot/app/agents/tools.py)):** gate `subcat == "student_affairs"` →
+- **Change ([tools.py](../../vinchatbot/app/agents/tools.py)):** gate `subcat == "student_affairs"` →
   `subcat != "calendar"` — fire for student_affairs (keep the +5), **financial** (finaid-vi), **general/None**
   (intern-vi/lib-vi); exclude **calendar** so date point-lookups sharing a policy keyword stay untouched
   (structured calendar/fee lookups already early-return; courseeval-vi is a calendar *mis-route* → out of scope).

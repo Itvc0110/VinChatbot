@@ -17,9 +17,9 @@ faithfulness check can't catch it (the wrong number *is* somewhere in the eviden
 **No re-embedding / no re-ingest** (reads the structured records already produced at ingest).
 
 ## What shipped (Stage 1 — calendar)
-- **Config** ([config.py](../vinchatbot/app/core/config.py)): `ENABLE_STRUCTURED_LOOKUP` (default off) +
+- **Config** ([config.py](../../vinchatbot/app/core/config.py)): `ENABLE_STRUCTURED_LOOKUP` (default off) +
   `STRUCTURED_LOOKUP_RECORDS_PATH` (empty → `<PROCESSED_DATA_DIR>/structured_records.json`).
-- **New module** [structured_lookup.py](../vinchatbot/app/rag/structured_lookup.py): in-memory index over
+- **New module** [structured_lookup.py](../../vinchatbot/app/rag/structured_lookup.py): in-memory index over
   `calendar_event` records. Key design points discovered during build:
   - **Read-side date repair** — re-derives `(start,end)` from the full `event_name` (e.g. `21-Jun-02-Jul`
     → 21 Jun + **2 Jul**) because the stored `date_*_iso` are truncated/swapped.
@@ -27,11 +27,11 @@ faithfulness check can't catch it (the wrong number *is* somewhere in the eviden
     rows) → month → bilingual name-concept; returns a row ONLY when exactly one survives, else MISS.
     This is the "never the adjacent row" guarantee.
   - Bilingual (EN+VI) query parsing; valid `DocumentMetadata` (6 required fields) so citations render.
-- **Seam** ([tools.py](../vinchatbot/app/agents/tools.py) `_search`, ~line 48): gated, fail-open,
+- **Seam** ([tools.py](../../vinchatbot/app/agents/tools.py) `_search`, ~line 48): gated, fail-open,
   calendar-only; records a 0-model-call `structured_lookup` ledger stage on a hit; MISS/err → vector path.
-- **Tests** ([test_structured_lookup.py](../tests/test_structured_lookup.py)): 14 — residuals,
+- **Tests** ([test_structured_lookup.py](../../tests/test_structured_lookup.py)): 14 — residuals,
   collisions, end-date recovery, miss/fallback, flag-off parity, metadata validity.
-- **Golden cases** ([calendar_structured.json](../data/eval/golden/calendar_structured.json)): cross-AY
+- **Golden cases** ([calendar_structured.json](../../data/eval/golden/calendar_structured.json)): cross-AY
   convocation (EN/VI), honest no-data Fall 2030 (EN/VI). (Per the "golden cases with features" rule.)
 
 ## Environment / collection finding
@@ -91,13 +91,13 @@ honest-no-data golden case. Net `confidently_wrong` still improved (7→5).
   ("21 tháng 9 năm **2030**"), slightly more often in VI → the gate hole lets it through:
   `assess_faithfulness` passed on **any** number overlap ("21" is in evidence), so the fabricated **year
   2030** (not in evidence) was served.
-- **Fix A (gate, the real fix)** — [guardrails.py](../vinchatbot/app/agents/guardrails.py)
+- **Fix A (gate, the real fix)** — [guardrails.py](../../vinchatbot/app/agents/guardrails.py)
   `assess_faithfulness`: a 4-digit year asserted in the answer must be in the evidence **or within ±1**
   of an evidence year (so an AY label "2026-2027" is fine when a chunk only names 2026); a year far from
   all evidence years (2030 vs {2026,2027}) → ungrounded → degrade. Only applies when evidence itself
   names a year (no false-positive on yearless fee chunks). Unit-tested
-  ([test_faithfulness_year.py](../tests/test_faithfulness_year.py)).
-- **Fix B (deterministic complement)** — [structured_lookup.py](../vinchatbot/app/rag/structured_lookup.py):
+  ([test_faithfulness_year.py](../../tests/test_faithfulness_year.py)).
+- **Fix B (deterministic complement)** — [structured_lookup.py](../../vinchatbot/app/rag/structured_lookup.py):
   a calendar query naming a year outside the indexed span (e.g. 2030 > max AY 2027) returns honest
   no-data (empty results) and skips vector, so the LLM never sees a wrong-year chunk.
 - Offline: **283 passed**, ruff clean (existing grounding tests unaffected).

@@ -8,7 +8,7 @@
 ## 1.23a — Retrieval & rerank determinism  (DONE, offline-verified)
 **Trial:** float-edge nondeterminism (rerank ties, dynamic-k cutoff) + (discovered during 1.23b) a
 non-deterministic **candidate order** from Qdrant were shuffling retrieval run-to-run.
-**Changes ([retriever.py](../vinchatbot/app/rag/retriever.py)):**
+**Changes ([retriever.py](../../vinchatbot/app/rag/retriever.py)):**
 - `stable_rerank_order` + `_round_score` (`_SCORE_NDIGITS=3`): rerank sort = rounded-score DESC, ties by
   index; the stored chunk score is rounded so the reactive-trigger + dynamic-k cutoffs don't flip on jitter.
 - **`_fetch_candidates` now fetches WITH scores and sorts by `(round(score) DESC, chunk_id)`** — the root fix
@@ -20,9 +20,9 @@ non-deterministic **candidate order** from Qdrant were shuffling retrieval run-t
 ## 1.23b — Exact-match Redis cache of LLM + rerank  (DONE code; cross-run hits confirmed)
 **Trial:** LLM calls (route/expansion/answer/guards) + cohere rerank are the only nondeterministic +
 expensive steps → cache them keyed on the FULL input → reproducible (kills noise) + cheaper.
-**Changes:** new [cache.py](../vinchatbot/app/core/cache.py) (fail-open redis client + `redis_get/set` +
+**Changes:** new [cache.py](../../vinchatbot/app/core/cache.py) (fail-open redis client + `redis_get/set` +
 `RedisLLMCache(BaseCache)`); `install_llm_cache` wired lazily in `build_chat_model` (covers server + eval);
-rerank wrapped in [reranker.py](../vinchatbot/app/rag/reranker.py) (cache before cohere, fail-open). Config +
+rerank wrapped in [reranker.py](../../vinchatbot/app/rag/reranker.py) (cache before cohere, fail-open). Config +
 `.env` (`REDIS_URL`, `ENABLE_LLM_CACHE`, `ENABLE_RERANK_CACHE`, `CACHE_VERSION=v1`, 30-day TTL). `redis` dep
 added. Keys = `{CACHE_VERSION}:{ns}:{blake2(prompt/content)}` → A/B-safe (a real change alters the prompt →
 miss → recompute) + version-safe; **fail-open** everywhere.
@@ -52,10 +52,10 @@ namespacing, LLM round-trip).
 an end-of-course evaluation?") to **calendar** (it shares the "evaluation" topic with "when is the eval
 period?"). Also: keep the LLM out of obviously-keyworded routings.
 **Changes (flag `ENABLE_ROUTER_V2`, default off, fail-safe = current behaviour):**
-- **Hardened prompt** `SUPERVISOR_SYSTEM_V2` ([prompts.py](../vinchatbot/app/agents/prompts.py)): explicit
+- **Hardened prompt** `SUPERVISOR_SYSTEM_V2` ([prompts.py](../../vinchatbot/app/agents/prompts.py)): explicit
   **route-by-INTENT** rule — "asks WHEN (date/period) → calendar; asks WHETHER a rule exists / HOW a process
   works → policy; asks an amount → financial" — + few-shot incl. both course-evaluation directions.
-- **Deterministic-first gate** ([supervisor.py](../vinchatbot/app/agents/supervisor.py)):
+- **Deterministic-first gate** ([supervisor.py](../../vinchatbot/app/agents/supervisor.py)):
   `classify_intent_confident` returns an intent only on a strong unambiguous keyword signal (top ≥2 hits AND
   clear lead) → routes WITHOUT the LLM; else the (hardened) LLM decides. `route_intent` branches on the flag.
 - Note: routing *determinism* is now mostly covered by the 1.23b LLM cache (routing calls cached); the gate's

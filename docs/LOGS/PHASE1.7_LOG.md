@@ -61,7 +61,7 @@ not just the headline.
 5. Avoid scorer-unfair cases (token-match edges like "temporary"≠"temporarily"); tag new cases
    `held_out: true` (metadata only) to track non-circular provenance.
 
-Schema = the existing [run_eval.py](../scripts/run_eval.py) format (`id`, `question`,
+Schema = the existing [run_eval.py](../../scripts/run_eval.py) format (`id`, `question`,
 `required_facts`, `forbidden_facts`, `expected_source`, optional `turns`, `expects_refusal`); files
 under `data/eval/golden/` (+ `calendar_golden_qa.json` for calendar).
 
@@ -102,8 +102,8 @@ query → is_point_lookup(intent/category, query)         ← B: cheap heuristic
    └─ prose        → expand + RRF-fuse + rerank-once                   ← the 1.6 path, unchanged
 ```
 - **Router is near-free:** signal already exists — supervisor **intent** (`calendar`/`financial`),
-  tool **category** via `enforced_filters` ([tools.py](../vinchatbot/app/agents/tools.py)), and the
-  **year/term regex** in `apply_metadata_boosts` ([context.py](../vinchatbot/app/rag/context.py)).
+  tool **category** via `enforced_filters` ([tools.py](../../vinchatbot/app/agents/tools.py)), and the
+  **year/term regex** in `apply_metadata_boosts` ([context.py](../../vinchatbot/app/rag/context.py)).
   New domain later = add a keyword, not a schema.
 - **Target reuses built code:** `expand_to_parent_sections` (parent-doc) already stitches a chunk's
   full section; it was shelved for calendar only because the model **over-shared** neighbours — a
@@ -114,15 +114,15 @@ query → is_point_lookup(intent/category, query)         ← B: cheap heuristic
   financial}` or query matches point-lookup regex (year/term/amount/deadline/exam/fee/policy-code).
 - [ ] **Retrieval path:** in `_search`, when point-lookup → skip `expand_query` + request section
   expansion; plumb a per-call `expand_sections: bool` through `search()`/`_finalize`
-  ([retriever.py](../vinchatbot/app/rag/retriever.py)) so parent-doc turns on for *this* query
+  ([retriever.py](../../vinchatbot/app/rag/retriever.py)) so parent-doc turns on for *this* query
   (bypassing the global flag + calendar skip).
 - [ ] **Strict prompt:** add "answer ONLY the exact value asked; don't volunteer adjacent
   dates/amounts" to the calendar + financial specialist prompts
-  ([prompts.py](../vinchatbot/app/agents/prompts.py)).
+  ([prompts.py](../../vinchatbot/app/agents/prompts.py)).
 - [ ] **Gate:** `ENABLE_ADAPTIVE_RETRIEVAL` (default **false**), fail-open; add `point_lookup` to the
   1.5 `chat_turn` log.
 - [ ] **Unit tests:** `is_point_lookup` truth table; point-lookup path skips expansion (reuse the
-  counting-retriever in [test_retrieval.py](../tests/test_retrieval.py)).
+  counting-retriever in [test_retrieval.py](../../tests/test_retrieval.py)).
 - [ ] **A/B on the Part-A set:** flag-off vs on. Win = recover the calendar point-lookups (incl. the
   Summer-2027 wrong-date) + ideally the financial cross-lingual case, no prose regression, guards 1.000.
 
@@ -212,11 +212,11 @@ Cross-run analysis (baseline ∧ v1 ∧ v2). **10 persistent fails** (no expansi
 
 **Levers identified (beyond the expansion toggle):**
 1. **Cross-lingual query expansion** — add an EN variant for VI queries (today expansion is
-   "same language" in [query_engineering.py](../vinchatbot/app/rag/query_engineering.py)). Targets the
+   "same language" in [query_engineering.py](../../vinchatbot/app/rag/query_engineering.py)). Targets the
    persistent financial cross-lingual core.
 2. **Calendar-source boost** — boost the Academic Calendar PDF over registrar blogs for
    calendar-routed queries (extend `apply_metadata_boosts` in
-   [context.py](../vinchatbot/app/rag/context.py)). Targets the wrong-document calendar fails.
+   [context.py](../../vinchatbot/app/rag/context.py)). Targets the wrong-document calendar fails.
 3. **v3 domain-differentiated expansion** (calendar off / financial on) — the expansion-sensitive flips.
 4. (Bigger, deferred) **structured calendar lookup** — the calendar_event records already exist
    (PHASE1.0); an exact (term, event) filter would definitively fix the calendar "period" core.
@@ -227,7 +227,7 @@ Cross-run analysis (baseline ∧ v1 ∧ v2). **10 persistent fails** (no expansi
 ### 2026-06-16 — v3 (domain-differentiated + cross-lingual) A/B — CONTAMINATED, re-running
 
 Implemented v3: calendar point-lookups DROP expansion (precision); financial/other KEEP expansion +
-an English cross-lingual variant ([query_engineering.py](../vinchatbot/app/rag/query_engineering.py)
+an English cross-lingual variant ([query_engineering.py](../../vinchatbot/app/rag/query_engineering.py)
 `cross_lingual`); full-section + bilingual strict prompt for both. ruff + 7 retrieval tests green.
 
 **A/B `eval_20260616T084949Z.json` = 0.854 — NOT TRUSTWORTHY.** The run logged a mid-run
@@ -277,8 +277,8 @@ since effect < eval noise and risk is low; add **multi-run eval averaging** as a
 
 ### 2026-06-16 — DEPLOYED v3 (user approved)
 
-`enable_adaptive_retrieval` default flipped **False → True** ([config.py](../vinchatbot/app/core/config.py));
-`ENABLE_ADAPTIVE_RETRIEVAL=true` added to [.env.example](../.env.example). `ENABLE_RERANK_AFTER_FUSION`
+`enable_adaptive_retrieval` default flipped **False → True** ([config.py](../../vinchatbot/app/core/config.py));
+`ENABLE_ADAPTIVE_RETRIEVAL=true` added to [.env.example](../../.env.example). `ENABLE_RERANK_AFTER_FUSION`
 stays true (1.6) — prose + financial point-lookups use fuse→rerank-once. Offline: `ruff` clean,
 `pytest -m "not live"` **117 passed**, 2 pre-existing `test_chunker.py` fails (docx/markdown).
 **Revert:** `ENABLE_ADAPTIVE_RETRIEVAL=false` → 1.6 behavior, byte-identical (retrieval + strict
@@ -287,11 +287,11 @@ prompt both flag-gated); no data migration.
 ### 2026-06-16 — Phase 1.8: cross-lingual (VI↔EN) expansion, all domains
 
 Made cross-lingual its own lever, **independent** of same-language paraphrase expansion. `expand_query`
-([query_engineering.py](../vinchatbot/app/rag/query_engineering.py)) refactored into **3 clear modes**
+([query_engineering.py](../../vinchatbot/app/rag/query_engineering.py)) refactored into **3 clear modes**
 (`paraphrase` / `cross_lingual` / both) in one LLM call; `_search`
-([tools.py](../vinchatbot/app/agents/tools.py)) now computes `paraphrase = ENABLE_QUERY_EXPANSION and
+([tools.py](../../vinchatbot/app/agents/tools.py)) now computes `paraphrase = ENABLE_QUERY_EXPANSION and
 not (calendar point-lookup)` and `cross_lingual = ENABLE_CROSSLINGUAL_EXPANSION` (new flag,
-[config.py](../vinchatbot/app/core/config.py), default **true**). So calendar point-lookups get the
+[config.py](../../vinchatbot/app/core/config.py), default **true**). So calendar point-lookups get the
 **translation variant but NOT the paraphrase flood**. Bidirectional (the failing direction was VI→EN
 vs the English calendar/tariff). ruff clean; 8 retrieval tests (incl. calendar-xling-only & financial).
 

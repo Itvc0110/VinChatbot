@@ -45,20 +45,20 @@ collection with **no re-ingest**.
 
 **Implementation.**
 - `expand_to_parent_sections(chunks, fetch_siblings, max_chars, max_siblings)` in
-  [context.py](../vinchatbot/app/rag/context.py): groups the post-dynamic-k chunks by
+  [context.py](../../vinchatbot/app/rag/context.py): groups the post-dynamic-k chunks by
   `(parent_doc_id, section_id)`, and for each group stitches the section's chunks into one
   block (matched chunk first, remaining siblings in `page_number` order, deduped, bounded by
   `PARENT_DOC_MAX_CHARS`=4000 / `PARENT_DOC_MAX_SIBLINGS`=6). Chunks without a `section_id`
   (no heading structure) pass through unchanged; several top chunks from the same section
   collapse to one (kept at the highest rank). Frozen-`RetrievedChunk`-safe via `_retext`.
 - `QdrantHybridRetriever._fetch_section_siblings` in
-  [retriever.py](../vinchatbot/app/rag/retriever.py): scrolls the indexed
+  [retriever.py](../../vinchatbot/app/rag/retriever.py): scrolls the indexed
   `metadata.parent_doc_id` keyword field, filters the section client-side (section_id isn't
   separately indexed), reads `page_content` + `metadata`. Fails soft to `[]`.
 - Wired after dynamic-k, before lost-in-the-middle reorder; only active for the Qdrant backend.
 - Config: `enable_parent_doc` / `parent_doc_max_chars` / `parent_doc_max_siblings`
-  ([config.py](../vinchatbot/app/core/config.py)).
-- Tests: 4 new pure-function cases in [test_context.py](../tests/test_context.py) (expand,
+  ([config.py](../../vinchatbot/app/core/config.py)).
+- Tests: 4 new pure-function cases in [test_context.py](../../tests/test_context.py) (expand,
   pass-through-without-section, same-section collapse, char-budget). 93 offline tests + ruff green.
 
 **A/B result (serving collection `vinuni_documents`, read-only, same session).**
@@ -131,7 +131,7 @@ The only such token was **`54`**, from the **policy code "VUNI.54"** in the answ
 line — citation *metadata*, never present in chunk body text. One metadata digit was silently
 destroying correct, grounded policy answers.
 
-**Fix** ([guardrails.py](../vinchatbot/app/agents/guardrails.py)): `assess_faithfulness` now grounds
+**Fix** ([guardrails.py](../../vinchatbot/app/agents/guardrails.py)): `assess_faithfulness` now grounds
 only the **substantive body** — `_grounding_body` strips markdown link targets, `Source:`/`Nguồn:`
 attribution lines, and `(Policy Code: …)` before fact extraction. Body claims are still checked
 (a hallucinated `12345 VND` still fails); citation identity is already validated by the citation
@@ -235,7 +235,7 @@ different seeds + new `infer_category` rules — a future step.
 **in English**; "OK"/"tạm biệt"/"cảm ơn"/"👍"/"bạn khỏe không" fell through to retrieval and returned
 the cold graceful-degradation refusal; "bạn là gì?" couldn't explain the bot.
 
-**Root causes** ([guardrails.py](../vinchatbot/app/agents/guardrails.py)):
+**Root causes** ([guardrails.py](../../vinchatbot/app/agents/guardrails.py)):
 1. `answer_language` only scanned the diacritic set `"ăâđêôơư"` (missing `à á ạ è é ệ …`) + a tiny
    word list → most Vietnamese (incl. accent-less "xin chao", "tam biet") was detected as English.
 2. No conversational-intent tier — only an exact greeting; closings/thanks/acks, identity/capability,
@@ -248,7 +248,7 @@ the cold graceful-degradation refusal; "bạn là gì?" couldn't explain the bot
   (identity/what-can-you-do/social), classified **before the SLM and before any retrieval**.
 - New async `build_conversational_response`: **canned** warm replies for smalltalk; **LLM persona**
   reply for capability/social (fail-open to canned). No source-link dump on social turns. Routed in
-  [routes_chat.py](../vinchatbot/app/api/routes_chat.py) + [vinuni_agent.py](../vinchatbot/app/agents/vinuni_agent.py)
+  [routes_chat.py](../../vinchatbot/app/api/routes_chat.py) + [vinuni_agent.py](../../vinchatbot/app/agents/vinuni_agent.py)
   via `CONVERSATIONAL_ACTIONS`.
 
 **Result.** All 8 social inputs answer directly in the correct language, no retrieval/degradation;

@@ -56,27 +56,27 @@ fee, or rule.
 What exists today (backend MVP scaffold):
 
 - FastAPI app: `POST /chat`, `POST /ingest/run`, `GET /sources`, `GET /health`
-  ([main.py](vinchatbot/app/main.py), [routes_chat.py](vinchatbot/app/api/routes_chat.py),
-  [routes_ingest.py](vinchatbot/app/api/routes_ingest.py)).
+  ([main.py](../vinchatbot/app/main.py), [routes_chat.py](../vinchatbot/app/api/routes_chat.py),
+  [routes_ingest.py](../vinchatbot/app/api/routes_ingest.py)).
 - LangChain `create_agent` ReAct loop with a LangGraph checkpointer keyed on
   `conversation_id` → in-session memory **does** exist, but only `InMemorySaver`
-  (lost on restart, not multi-worker safe) ([vinuni_agent.py](vinchatbot/app/agents/vinuni_agent.py)).
+  (lost on restart, not multi-worker safe) ([vinuni_agent.py](../vinchatbot/app/agents/vinuni_agent.py)).
 - Four retrieval tools, each hard-coding a category filter
-  ([tools.py](vinchatbot/app/agents/tools.py)).
+  ([tools.py](../vinchatbot/app/agents/tools.py)).
 - Hybrid dense+sparse retrieval over Qdrant (BM25 sparse via FastEmbed) with a single
-  rerank pass to a fixed `k=8` ([retriever.py](vinchatbot/app/rag/retriever.py),
-  [reranker.py](vinchatbot/app/rag/reranker.py)).
+  rerank pass to a fixed `k=8` ([retriever.py](../vinchatbot/app/rag/retriever.py),
+  [reranker.py](../vinchatbot/app/rag/reranker.py)).
 - Regex input guardrails + an LLM "scope router" for the gray zone; a light output
   check for leaked secrets and a citation-presence degrade
-  ([guardrails.py](vinchatbot/app/agents/guardrails.py)).
+  ([guardrails.py](../vinchatbot/app/agents/guardrails.py)).
 - Domain-aware crawler with frontier/dedupe/robots/caps, three-tier metadata, and
-  structured-record extraction ([crawler.py](vinchatbot/app/ingest/crawler.py),
-  [parsers.py](vinchatbot/app/ingest/parsers.py)).
-- 30-case bilingual calendar golden set ([calendar_golden_qa.json](data/eval/calendar_golden_qa.json)).
+  structured-record extraction ([crawler.py](../vinchatbot/app/ingest/crawler.py),
+  [parsers.py](../vinchatbot/app/ingest/parsers.py)).
+- 30-case bilingual calendar golden set ([calendar_golden_qa.json](../data/eval/calendar_golden_qa.json)).
 
 Known gaps / defects (these were fixed in sub-phase 1.0 — see [UPDATE_PLAN.md](UPDATE_PLAN.md) Phase 1):
 
-- **Config drift:** [.env.example](.env.example) ships `VECTOR_STORE_BACKEND=pinecone`
+- **Config drift:** [.env.example](../.env.example) ships `VECTOR_STORE_BACKEND=pinecone`
   with an empty Pinecone key, while the code default and README assume Qdrant. A fresh
   clone fails to retrieve.
 - **Agent coverage hole:** every tool forces a `category`, so library
@@ -84,7 +84,7 @@ Known gaps / defects (these were fixed in sub-phase 1.0 — see [UPDATE_PLAN.md]
   unreachable by the agent. There is no general semantic-search tool.
 - **Crawler crash on spreadsheets:** `pd.read_excel(...)` with no engine + optional
   `openpyxl` not installed raises `ValueError: Excel file format cannot be determined`
-  (recorded in [todo.md](todo.md)).
+  (recorded in `todo.md`).
 - **No automated eval:** `eval_rag.py` only prints 4 answers; the golden set is not
   scored.
 - **Thin data cleaning & chunking:** `normalize_text` only collapses whitespace;
@@ -226,7 +226,7 @@ Indexed on every chunk and usable as retrieval filters:
 `source_kind`, `category`, `subcategory`, `policy_code`, `security_classification`,
 `academic_year`, `term`, `event_type`, `fee_type`, `source_trust`, `document_type`,
 `original_language`. (Schema lives in
-[document.py](vinchatbot/app/schemas/document.py); `event_type`/`fee_type` to be added.)
+[document.py](../vinchatbot/app/schemas/document.py); `event_type`/`fee_type` to be added.)
 
 ## 10. Mock student data model (Phase 2)
 

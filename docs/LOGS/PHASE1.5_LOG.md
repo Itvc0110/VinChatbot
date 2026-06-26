@@ -29,10 +29,10 @@ don't rebuild.
 
 | Pillar | Status today | Where |
 |--------|--------------|-------|
-| **Logs** | Basic: stdlib `basicConfig`, **text** format; a few key=value turn logs (latency_ms, citations, confidence) | [../vinchatbot/app/core/logging.py](../vinchatbot/app/core/logging.py), [../vinchatbot/app/agents/vinuni_agent.py](../vinchatbot/app/agents/vinuni_agent.py) |
-| **Traces** | **Proto-trace**: `tool_trace` captures tool calls + results per turn, returned in the response (not persisted, not timed) | `_extract_tool_trace` in [../vinchatbot/app/agents/vinuni_agent.py](../vinchatbot/app/agents/vinuni_agent.py), [../vinchatbot/app/schemas/chat.py](../vinchatbot/app/schemas/chat.py) |
-| **Quality (4th)** | **Offline** eval harness + per-turn quality signals (confidence, faithfulness, graceful degradation, guardrail actions) | [../scripts/run_eval.py](../scripts/run_eval.py), [../vinchatbot/app/agents/guardrails.py](../vinchatbot/app/agents/guardrails.py) |
-| **Metrics** | ❌ none aggregated; `/health` returns 200 OK only (the deck's "200 OK ≠ correct answer" trap) | [../vinchatbot/app/main.py](../vinchatbot/app/main.py) |
+| **Logs** | Basic: stdlib `basicConfig`, **text** format; a few key=value turn logs (latency_ms, citations, confidence) | [../vinchatbot/app/core/logging.py](../../vinchatbot/app/core/logging.py), [../vinchatbot/app/agents/vinuni_agent.py](../../vinchatbot/app/agents/vinuni_agent.py) |
+| **Traces** | **Proto-trace**: `tool_trace` captures tool calls + results per turn, returned in the response (not persisted, not timed) | `_extract_tool_trace` in [../vinchatbot/app/agents/vinuni_agent.py](../../vinchatbot/app/agents/vinuni_agent.py), [../vinchatbot/app/schemas/chat.py](../../vinchatbot/app/schemas/chat.py) |
+| **Quality (4th)** | **Offline** eval harness + per-turn quality signals (confidence, faithfulness, graceful degradation, guardrail actions) | [../scripts/run_eval.py](../../scripts/run_eval.py), [../vinchatbot/app/agents/guardrails.py](../../vinchatbot/app/agents/guardrails.py) |
+| **Metrics** | ❌ none aggregated; `/health` returns 200 OK only (the deck's "200 OK ≠ correct answer" trap) | [../vinchatbot/app/main.py](../../vinchatbot/app/main.py) |
 | **Cost** | ❌ none — LangChain `usage_metadata` (tokens) is **discarded** every turn | — |
 
 **Key insight:** we already *compute* most AI-specific signals per turn and then throw them away;
@@ -56,23 +56,23 @@ threads). The cheapest high-value move is to emit what we have as structured JSO
 Highest value / lowest effort. All in existing code.
 
 - [x] **JSON log formatter** + `LOG_FORMAT=auto|json|text`, `LOG_LEVEL` — reworked
-  [../vinchatbot/app/core/logging.py](../vinchatbot/app/core/logging.py) (`JsonFormatter` +
+  [../vinchatbot/app/core/logging.py](../../vinchatbot/app/core/logging.py) (`JsonFormatter` +
   `RequestIdFilter`, stdlib only, **no new dependency**). `auto` → json in prod, text in dev.
 - [x] **Correlation / request ID**: FastAPI middleware in
-  [../vinchatbot/app/main.py](../vinchatbot/app/main.py) mints/honors `X-Request-ID`, stores it in a
-  `contextvars.ContextVar` ([../vinchatbot/app/core/observability.py](../vinchatbot/app/core/observability.py)),
+  [../vinchatbot/app/main.py](../../vinchatbot/app/main.py) mints/honors `X-Request-ID`, stores it in a
+  `contextvars.ContextVar` ([../vinchatbot/app/core/observability.py](../../vinchatbot/app/core/observability.py)),
   the filter injects it into every record, returned as the `X-Request-ID` response header.
 - [x] **PII redaction** `redact()` in
-  [../vinchatbot/app/core/observability.py](../vinchatbot/app/core/observability.py) (prefix + length
+  [../vinchatbot/app/core/observability.py](../../vinchatbot/app/core/observability.py) (prefix + length
   + sha8). Gated `LOG_REDACT_PII=true`.
 - [x] **Token + cost capture** (`ENABLE_COST_TRACKING=true`): `sum_token_usage` over
   `result["messages"]` + `estimate_cost_usd` (per-model price table) in
-  [../vinchatbot/app/agents/vinuni_agent.py](../vinchatbot/app/agents/vinuni_agent.py). Fail-open.
+  [../vinchatbot/app/agents/vinuni_agent.py](../../vinchatbot/app/agents/vinuni_agent.py). Fail-open.
   Caveat: misses supervisor/expansion/guard calls → captured in 1.5b via the callback.
 - [x] **One structured "turn" log line** (`_log_turn`): event, conversation_id, intent, latency_ms,
   tokens_in/out, est_cost_usd, citations, confidence, guardrail_action, degraded, tool_calls,
   needs_human_review, redacted question. Emitted on both the success and degradation paths.
-- [x] Tests: [../tests/test_observability.py](../tests/test_observability.py) — JSON formatter +
+- [x] Tests: [../tests/test_observability.py](../../tests/test_observability.py) — JSON formatter +
   extras, redact, token sum, cost (known/unknown model), request-id header mint+honor. **7/7 pass.**
 
 **Config added (.env.example + config.py):** `LOG_FORMAT`, `LOG_LEVEL`, `LOG_REDACT_PII`,
@@ -82,17 +82,17 @@ Highest value / lowest effort. All in existing code.
 Biggest observability jump for least code.
 
 - [x] Added `langfuse>=4.0.0,<5` as the `observability` optional extra in
-  [../pyproject.toml](../pyproject.toml) (`pip install -e ".[observability]"`). Installed
+  [../pyproject.toml](../../pyproject.toml) (`pip install -e ".[observability]"`). Installed
   **langfuse 4.7.1**; `pip check` shows **no** langchain/langgraph/pydantic conflict (the NeMo
   problem we avoided). API is v4: `from langfuse.langchain import CallbackHandler`.
 - [x] Wired the **Langfuse callback handler** at **`build_chat_model`**
-  ([../vinchatbot/app/llm/openrouter_chat.py](../vinchatbot/app/llm/openrouter_chat.py)) so **every**
+  ([../vinchatbot/app/llm/openrouter_chat.py](../../vinchatbot/app/llm/openrouter_chat.py)) so **every**
   LLM call is traced (supervisor, specialists, query expansion, guard, capability) — the model-level
   attach also captures the calls 1.5a's in-message summation misses. Builder +
-  `get_langfuse_callbacks` in [../vinchatbot/app/core/observability.py](../vinchatbot/app/core/observability.py).
+  `get_langfuse_callbacks` in [../vinchatbot/app/core/observability.py](../../vinchatbot/app/core/observability.py).
   Gated `ENABLE_LANGFUSE` + both keys; **fail-open** (missing key / import / init error → `[]`, never
   breaks a turn). Per-turn grouping via `langfuse_session_id=conversation_id` + `request_id` metadata
-  on the graph invoke ([../vinchatbot/app/agents/vinuni_agent.py](../vinchatbot/app/agents/vinuni_agent.py)).
+  on the graph invoke ([../vinchatbot/app/agents/vinuni_agent.py](../../vinchatbot/app/agents/vinuni_agent.py)).
 - [x] Auto-captures (once keys are set): trace waterfall, per-LLM-call tokens/cost/latency, tool
   spans, and the hosted dashboard. Validated the enabled init path with dummy keys → a
   `LangchainCallbackHandler` is constructed (real traces require live keys).
@@ -121,7 +121,7 @@ config (`ENABLE_METRICS`, `SLACK_WEBHOOK_URL`) and scope intact.
 > as setup reference for a fresh environment. Nothing here is needed for **Phase 1.5a**.
 
 **Before Phase 1.5b (Langfuse):** create a project at https://cloud.langfuse.com (free tier) or
-self-host, then add to [../.env](../.env):
+self-host, then add to [../.env](../../.env):
 ```
 ENABLE_LANGFUSE=true
 LANGFUSE_PUBLIC_KEY=pk-lf-...
@@ -158,7 +158,7 @@ in `.env`.
 ## Gates (per phase)
 - `pytest -m "not live"` green + `ruff check .` green.
 - A **no-regression** live eval after 1.5a and after 1.5b (must hold the **0.919 / 80-subset 0.912**
-  band — observability must not change agent behavior). Reuse [../scripts/run_eval.py](../scripts/run_eval.py);
+  band — observability must not change agent behavior). Reuse [../scripts/run_eval.py](../../scripts/run_eval.py);
   never run evals concurrently (PHASE1.4 quota lesson).
 
 ---
@@ -168,17 +168,17 @@ in `.env`.
 ### 2026-06-15 — Phase 1.5a implemented (structured logging + cost capture)
 
 **Changed/added.**
-- New [../vinchatbot/app/core/observability.py](../vinchatbot/app/core/observability.py): request-id
+- New [../vinchatbot/app/core/observability.py](../../vinchatbot/app/core/observability.py): request-id
   contextvar (`set/reset/get_request_id`), `redact()`, `MODEL_PRICES_USD_PER_M`, `sum_token_usage`,
   `estimate_cost_usd`.
-- [../vinchatbot/app/core/logging.py](../vinchatbot/app/core/logging.py): `JsonFormatter` +
+- [../vinchatbot/app/core/logging.py](../../vinchatbot/app/core/logging.py): `JsonFormatter` +
   `RequestIdFilter`; `configure_logging(settings)` installs one root handler (json/text by env).
-- [../vinchatbot/app/main.py](../vinchatbot/app/main.py): `request_id_middleware` (mint/honor
+- [../vinchatbot/app/main.py](../../vinchatbot/app/main.py): `request_id_middleware` (mint/honor
   `X-Request-ID`, fail-open) + pass `settings` to `configure_logging`.
-- [../vinchatbot/app/agents/vinuni_agent.py](../vinchatbot/app/agents/vinuni_agent.py): `_log_turn`
+- [../vinchatbot/app/agents/vinuni_agent.py](../../vinchatbot/app/agents/vinuni_agent.py): `_log_turn`
   (token/cost + structured turn line) on success **and** graceful-degradation paths; replaced the
   old free-text turn log.
-- [../vinchatbot/app/core/config.py](../vinchatbot/app/core/config.py): `log_format`, `log_level`,
+- [../vinchatbot/app/core/config.py](../../vinchatbot/app/core/config.py): `log_format`, `log_level`,
   `log_redact_pii`, `enable_cost_tracking`. `.env` + `.env.example`: Observability section.
 
 **Workflow safety.** No agent decision path touched (prompts, models, retrieval, guards all
@@ -204,17 +204,17 @@ langchain 1.0 / langgraph 0.6 / pydantic 2 (the pre-existing torch/tf/streamlit 
 unrelated). v4 API: `Langfuse(public_key, secret_key, host, environment, mask)` + `CallbackHandler()`.
 
 **Changed/added.**
-- [../vinchatbot/app/core/observability.py](../vinchatbot/app/core/observability.py):
+- [../vinchatbot/app/core/observability.py](../../vinchatbot/app/core/observability.py):
   `get_langfuse_callbacks` (lazy, cached, fail-open client init), `scrub_pii` (email/phone),
   `langfuse_mask` (recursive), `reset_langfuse_for_tests`.
-- [../vinchatbot/app/llm/openrouter_chat.py](../vinchatbot/app/llm/openrouter_chat.py): attach
+- [../vinchatbot/app/llm/openrouter_chat.py](../../vinchatbot/app/llm/openrouter_chat.py): attach
   `callbacks=get_langfuse_callbacks(settings) or None` on the `ChatOpenAI` model.
-- [../vinchatbot/app/agents/vinuni_agent.py](../vinchatbot/app/agents/vinuni_agent.py): session
+- [../vinchatbot/app/agents/vinuni_agent.py](../../vinchatbot/app/agents/vinuni_agent.py): session
   grouping metadata on the graph invoke (only when `enable_langfuse`).
-- [../vinchatbot/app/core/config.py](../vinchatbot/app/core/config.py): `enable_langfuse`,
+- [../vinchatbot/app/core/config.py](../../vinchatbot/app/core/config.py): `enable_langfuse`,
   `langfuse_public_key`, `langfuse_secret_key`, `langfuse_host`. `.env`/`.env.example`: Langfuse block
   (keys blank for the user to paste; `ENABLE_LANGFUSE=true` in `.env`).
-- [../.gitignore](../.gitignore): `LOGS/*.log` (uvicorn stdout/stderr; phase `*.md` stay tracked).
+- [../.gitignore](../../.gitignore): `docs/LOGS/*.log` (uvicorn stdout/stderr; phase `*.md` stay tracked).
 
 **Workflow safety.** When disabled or unkeyed, `get_langfuse_callbacks` returns `[]` → `callbacks=None`
 → identical behavior to before. No decision path changed.

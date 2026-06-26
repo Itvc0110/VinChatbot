@@ -4,8 +4,8 @@
 > backlog (2026-06-17) and the detailed Track-A/B execution plan (`NEXT_UPDATES_PLAN.md`) are **consolidated
 > into this file** (2026-06-23, all content kept). **Current detailed state + remaining Track-A/B + deferrals:
 > [LOGS/SESSION_CLOSEOUT.md](LOGS/SESSION_CLOSEOUT.md)**; per-sub-phase logs in [LOGS/](LOGS/PHASE1.27_LOG.md).
-> Pairs with [PRD.md](PRD.md) / [BRIEF.md](BRIEF.md) / [WORKLOG.md](WORKLOG.md) (submission). **Baseline:
-> 0.968/188 golden** ([data/eval/baseline.json](data/eval/baseline.json)); guards 1.000. Last updated: 2026-06-23.
+> Pairs with [PRD.md](PRD.md) / [BRIEF.md](BRIEF.md) / [worklog.md](worklog.md) (submission). **Baseline:
+> 0.968/188 golden** ([data/eval/baseline.json](../data/eval/baseline.json)); guards 1.000. Last updated: 2026-06-23.
 
 > **Phase scheme (major phase = a big change):** **Phase 1 — core RAG chatbot (DONE, sub-phases
 > 1.0–1.27)** · **Phase 2 — personalization** · **Phase 3 — product & platform**.
@@ -20,7 +20,7 @@ ends with a check you can run. Legend: 🔴 blocking bug · 🟠 quality gap · 
 Built and validated end-to-end (crawl → ingest → chat → eval). **Current: 0.968 on the 188-case golden set**
 (`data/eval/baseline.json`), plain-text pipeline, `gpt-4o-mini`, Qdrant Cloud `vinuni_full_e5` (e5-large,
 1024-d, ~10,967 points); guards (adversarial/safety/unanswerable) 1.000. Full narrative in
-[WORKLOG.md](WORKLOG.md); current state in [LOGS/SESSION_CLOSEOUT.md](LOGS/SESSION_CLOSEOUT.md).
+[worklog.md](worklog.md); current state in [LOGS/SESSION_CLOSEOUT.md](LOGS/SESSION_CLOSEOUT.md).
 
 - ✅ **1.0 — Foundation** ([PHASE1.0_LOG.md](LOGS/PHASE1.0_LOG.md)): 761-doc corpus, LangGraph
   supervisor→4 specialists, two-tier CI, eval harness. **0.472**.

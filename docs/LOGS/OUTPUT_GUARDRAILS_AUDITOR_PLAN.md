@@ -13,34 +13,34 @@ verified against the live code, not generic advice.
 ## The output stack today (what actually runs post-answer)
 
 Everything post-answer lives in one method, `VinUniAgentService.chat()`
-([vinuni_agent.py:130-164](../vinchatbot/app/agents/vinuni_agent.py#L130-L164)), three checks in order:
+([vinuni_agent.py:130-164](../../vinchatbot/app/agents/vinuni_agent.py#L130-L164)), three checks in order:
 
 1. `contains_sensitive_output(answer)` — **always-on**, but only matches literal API keys /
-   config marker words / postgres creds ([guardrails.py:544](../vinchatbot/app/agents/guardrails.py#L544)).
+   config marker words / postgres creds ([guardrails.py:544](../../vinchatbot/app/agents/guardrails.py#L544)).
    It is **not** run through `deobfuscate`, so a base64/zero-width-obfuscated leaked secret evades it
    even though the *input* side defends against exactly that.
 2. `should_gracefully_degrade(answer, citations)` **OR** `not assess_faithfulness(answer, retrieved_texts)`
-   — **always-on** ([vinuni_agent.py:137](../vinchatbot/app/agents/vinuni_agent.py#L137)).
+   — **always-on** ([vinuni_agent.py:137](../../vinchatbot/app/agents/vinuni_agent.py#L137)).
    - `should_gracefully_degrade` = no citations OR an "I don't know" marker.
    - `assess_faithfulness` = **lenient numeric-overlap** — passes if *any* number in the answer
-     appears *anywhere* in *any* retrieved chunk ([guardrails.py:583](../vinchatbot/app/agents/guardrails.py#L583)).
+     appears *anywhere* in *any* retrieved chunk ([guardrails.py:583](../../vinchatbot/app/agents/guardrails.py#L583)).
      No claim↔number binding, no year/term binding, no prose checking.
 3. `assess_safety(answer)` — **OFF by default** (`ENABLE_OUTPUT_MODERATION=false`,
-   [config.py:188](../vinchatbot/app/core/config.py#L188)); safety categories only, and fails *open*
+   [config.py:188](../../vinchatbot/app/core/config.py#L188)); safety categories only, and fails *open*
    if `OPENAI_API_KEY` is missing.
 
 ### Proven gaps
 - **Grounded-but-wrong passes** (the dominant residual). Multi-row fee tables / multi-term calendars
   make almost every plausible-but-wrong number present *somewhere* in the evidence → faithfulness passes.
 - **No citation-to-claim binding.** Citations are scraped wholesale from tool payloads
-  ([vinuni_agent.py:367](../vinchatbot/app/agents/vinuni_agent.py#L367)); nothing checks the answer's
+  ([vinuni_agent.py:367](../../vinchatbot/app/agents/vinuni_agent.py#L367)); nothing checks the answer's
   claims map to the cited chunk.
 - **Prose claims unchecked** — if the answer has no numbers, faithfulness is a no-op (wrong eligibility
   rule, wrong office, wrong yes/no → unguarded).
 - **No output PII scan.** `scrub_pii` (email/phone) is wired only to logs/Langfuse
-  ([observability.py:127](../vinchatbot/app/core/observability.py#L127)), never the served answer.
+  ([observability.py:127](../../vinchatbot/app/core/observability.py#L127)), never the served answer.
 - **Bypass paths** skip all output checks: the pure-time fast path
-  ([vinuni_agent.py:190-231](../vinchatbot/app/agents/vinuni_agent.py#L190-L231)) and the
+  ([vinuni_agent.py:190-231](../../vinchatbot/app/agents/vinuni_agent.py#L190-L231)) and the
   conversational/capability replies (return before line 130).
 
 ---
@@ -51,12 +51,12 @@ No LLM cost. Mirrors the input cascade so output decisions get a logged reason i
 
 - **Unify** the output checks into `resolve_output_decision(answer, citations, retrieved_texts, query)`
   returning an `OutputAuditDecision(action, reason)` — mirror of `resolve_guardrail_decision`
-  ([guardrails.py:357](../vinchatbot/app/agents/guardrails.py#L357)) and `GuardrailDecision`
-  ([guardrails.py:35](../vinchatbot/app/agents/guardrails.py#L35)). Emit a `tool_trace` entry
+  ([guardrails.py:357](../../vinchatbot/app/agents/guardrails.py#L357)) and `GuardrailDecision`
+  ([guardrails.py:35](../../vinchatbot/app/agents/guardrails.py#L35)). Emit a `tool_trace` entry
   `{type: "output_guard", action, reason}` so every degrade/block records **why**.
 - **Add an output PII scan** (always-on): reuse the `scrub_pii` email/phone regexes + add student-ID /
   grade patterns. Decide redact-vs-degrade per category.
-- **Run the secret scan through `deobfuscate`** ([guardrails.py:659](../vinchatbot/app/agents/guardrails.py#L659))
+- **Run the secret scan through `deobfuscate`** ([guardrails.py:659](../../vinchatbot/app/agents/guardrails.py#L659))
   to close the obfuscated-leak gap.
 - **Cover the bypass paths** (time fast path + conversational) with the deterministic PII/secret scan.
 - **Add the missing golden cases** for output PII / secret leakage — today there are **zero**; the
@@ -74,7 +74,7 @@ No LLM cost. Mirrors the input cascade so output decisions get a logged reason i
 ## Phase B — Output-audit LLM critic (the "auditor") — DEFERRED
 
 The LLM judge tier on top of A's cascade. Mirrors `classify_with_llm`
-([llm_guard.py:63](../vinchatbot/app/agents/llm_guard.py#L63)): small model (`guard_model`,
+([llm_guard.py:63](../../vinchatbot/app/agents/llm_guard.py#L63)): small model (`guard_model`,
 qwen-2.5-7b), temp 0, strict JSON `{grounded, unsupported_claims, pii, reason}`.
 
 Judges:
@@ -84,11 +84,11 @@ Judges:
 3. **PII / safety backstop** — secondary to A's deterministic scan.
 
 - New flag `ENABLE_OUTPUT_AUDIT` (sibling of `enable_output_moderation`,
-  [config.py:188](../vinchatbot/app/core/config.py#L188)).
+  [config.py:188](../../vinchatbot/app/core/config.py#L188)).
 - **Deterministic-gated**: only invoke the judge when A's cheap tier is uncertain, OR scope it to
   high-stakes intents (financial / calendar point-lookups) — it runs on *every* answer otherwise and
   would double per-turn latency/cost. **Fail-closed.**
-- Insert at [vinuni_agent.py:158](../vinchatbot/app/agents/vinuni_agent.py#L158) (the existing
+- Insert at [vinuni_agent.py:158](../../vinchatbot/app/agents/vinuni_agent.py#L158) (the existing
   output-moderation seam); on an unsupported-claim verdict reuse
   `build_graceful_degradation_response`.
 
@@ -130,8 +130,8 @@ why C is the prerequisite and is being done first.
 Maps directly to **UPDATE_PLAN.md CODEX-appendix P0: "Full Eval Plus Cost/Latency Ledger."**
 
 Today there is **no per-stage breakdown**: latency is one whole-turn number
-([vinuni_agent.py:55](../vinchatbot/app/agents/vinuni_agent.py#L55)); `sum_token_usage` only sees the
-answer stage ([observability.py:98-111](../vinchatbot/app/core/observability.py#L98-L111)) — supervisor,
+([vinuni_agent.py:55](../../vinchatbot/app/agents/vinuni_agent.py#L55)); `sum_token_usage` only sees the
+answer stage ([observability.py:98-111](../../vinchatbot/app/core/observability.py#L98-L111)) — supervisor,
 expansion, and guard calls are uncounted locally; the eval report records **zero** cost/latency.
 
 - **Stage ledger** (contextvar, in-place-mutated dict so it survives LangGraph task boundaries):

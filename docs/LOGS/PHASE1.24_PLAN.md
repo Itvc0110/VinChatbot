@@ -7,7 +7,7 @@
 ## Why (the problem this solves)
 The policy doc-pin (Phase 1.21/1.21b) works, but its topic index is a **hand-curated** `keyword → slug`
 table for **17** student-facing policies (`POLICY_TOPICS` in
-[policy_lookup.py](../vinchatbot/app/rag/policy_lookup.py)). Two real limits the user flagged:
+[policy_lookup.py](../../vinchatbot/app/rag/policy_lookup.py)). Two real limits the user flagged:
 1. **It does not scale to staff-uploaded policies.** When admin upload lands (Phase 3 doc-management),
    a brand-new policy is **not** in the map → no pin → the VI "magnet" mis-citation returns for it.
 2. **It is not universal coverage.** Only 17 of ~155 canonical pages are mapped; the rest fall back to

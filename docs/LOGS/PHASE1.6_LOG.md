@@ -22,10 +22,10 @@ promotion; **one eval at a time** (PHASE1.4 quota lesson); build on existing cod
 ## Root cause (traced 2026-06-15)
 
 - Query expansion (`expand_query`, `ENABLE_QUERY_EXPANSION=true`, `max_variants=2`) → up to **3 query
-  variants** ([query_engineering.py](../vinchatbot/app/rag/query_engineering.py)).
-- `_search()` ([tools.py:39-58](../vinchatbot/app/agents/tools.py#L39)) runs `retriever.search()` once
+  variants** ([query_engineering.py](../../vinchatbot/app/rag/query_engineering.py)).
+- `_search()` ([tools.py:39-58](../../vinchatbot/app/agents/tools.py#L39)) runs `retriever.search()` once
   **per variant** (`asyncio.gather`); each `search()` reranks its own 40-doc candidate pool
-  ([retriever.py:159-169](../vinchatbot/app/rag/retriever.py#L159)). RRF fusion happens **after**
+  ([retriever.py:159-169](../../vinchatbot/app/rag/retriever.py#L159)). RRF fusion happens **after**
   per-variant rerank → **~3 rerank calls per tool invocation**.
 - Cohere bills per *search* (≤100 docs), so reranking 40 vs 20 docs is the same price — **the lever is
   the number of rerank calls, not pool size**.
@@ -51,23 +51,23 @@ unchanged.
 - [x] Added public `search_candidates()` (= `_fetch_candidates` + dedup, **no rerank**) and
   `rerank_fused()` (= `_finalize` on a passed-in fused list) to the `Retriever` Protocol +
   `QdrantHybridRetriever`; trivial impls on `InMemoryRetriever`.
-- [x] `_search()` multi-query branch ([tools.py](../vinchatbot/app/agents/tools.py)): when the flag is
+- [x] `_search()` multi-query branch ([tools.py](../../vinchatbot/app/agents/tools.py)): when the flag is
   on, `gather(search_candidates(v))` → `reciprocal_rank_fusion` → `dedup_by_text` → cap to
   `retrieval_candidate_k` → `rerank_fused(original_query, fused)`. Flag-off path kept verbatim.
-- [x] Gated behind `ENABLE_RERANK_AFTER_FUSION` ([config.py](../vinchatbot/app/core/config.py),
+- [x] Gated behind `ENABLE_RERANK_AFTER_FUSION` ([config.py](../../vinchatbot/app/core/config.py),
   default `false`; `.env.example`). Fail-open via the unchanged flag-off fallback.
 - [x] **Measurement:** per-turn rerank-call counter (contextvar in
-  [observability.py](../vinchatbot/app/core/observability.py), incremented in
-  [reranker.py](../vinchatbot/app/rag/reranker.py), reset per turn) surfaced as `rerank_calls` in the
-  `_log_turn` line ([vinuni_agent.py](../vinchatbot/app/agents/vinuni_agent.py)).
+  [observability.py](../../vinchatbot/app/core/observability.py), incremented in
+  [reranker.py](../../vinchatbot/app/rag/reranker.py), reset per turn) surfaced as `rerank_calls` in the
+  `_log_turn` line ([vinuni_agent.py](../../vinchatbot/app/agents/vinuni_agent.py)).
 
 ### Files
-- [retriever.py](../vinchatbot/app/rag/retriever.py) · [tools.py](../vinchatbot/app/agents/tools.py) ·
-  [reranker.py](../vinchatbot/app/rag/reranker.py) · [vinuni_agent.py](../vinchatbot/app/agents/vinuni_agent.py)
-  (turn-log field) · [config.py](../vinchatbot/app/core/config.py) + `.env.example`.
+- [retriever.py](../../vinchatbot/app/rag/retriever.py) · [tools.py](../../vinchatbot/app/agents/tools.py) ·
+  [reranker.py](../../vinchatbot/app/rag/reranker.py) · [vinuni_agent.py](../../vinchatbot/app/agents/vinuni_agent.py)
+  (turn-log field) · [config.py](../../vinchatbot/app/core/config.py) + `.env.example`.
 
 ## Validation
-- [x] Unit ([tests/test_retrieval.py](../tests/test_retrieval.py)): counting fake retriever +
+- [x] Unit ([tests/test_retrieval.py](../../tests/test_retrieval.py)): counting fake retriever +
   monkeypatched 3-variant `expand_query` — flag-on path calls `rerank_fused` **exactly once**
   (`search_candidates` ×3, `search` ×0); flag-off path calls `search` ×3. Both pass.
 - [x] `pytest -m "not live"` → **112 passed**, 2 failed (pre-existing `test_chunker.py` docx/markdown,
@@ -134,7 +134,7 @@ cut **without** the −2 calendar loss. Needs its own A/B.
 ### 2026-06-16 — SHIPPED ON (user decision) + root-cause deep-dive
 
 **Decision reversed → ship:** user accepted the ~1-case quality cost for the >66.7% rerank saving.
-`enable_rerank_after_fusion` default → `true` ([config.py](../vinchatbot/app/core/config.py)),
+`enable_rerank_after_fusion` default → `true` ([config.py](../../vinchatbot/app/core/config.py)),
 `.env.example` → `true`. Offline gates re-confirmed green (ruff clean; retrieval tests pass). Current
 default behavior is now the fused-rerank path at the **0.919** band.
 

@@ -1,6 +1,6 @@
 # VinChatbot frontend
 
-Baseline student Q&A screen — **Pattern 1: Chat + Context Panel** (see `../GUIDELINE.md`).
+Baseline student Q&A screen — **Pattern 1: Chat + Context Panel** (see `../docs/GUIDELINE.md`).
 Chat on the left, official-source citations on the right.
 
 ## Run

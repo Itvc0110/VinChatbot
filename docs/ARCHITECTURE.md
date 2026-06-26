@@ -19,7 +19,7 @@ Mermaid (render in GitHub and the VS Code Mermaid preview). Pairs with [PRD.md](
 > - **Output-guard unification** (Phase 1.25 Phase A): `resolve_output_decision` (secret-leak incl.
 >   de-obfuscated/zero-width + citation/degrade + faithfulness), logged reasons (§3). The LLM output-audit
 >   critic was rejected and is kept inert (`ENABLE_OUTPUT_AUDIT=false`).
-> - Baseline: **0.968/188** golden ([data/eval/baseline.json](data/eval/baseline.json)); guards 1.000.
+> - Baseline: **0.968/188** golden ([data/eval/baseline.json](../data/eval/baseline.json)); guards 1.000.
 
 ---
 
@@ -97,8 +97,8 @@ flowchart TD
 
 ## 2b. Retrieval pipeline detail (adaptive — Phase 1.6 / 1.7)
 
-Every tool call enters `_search` ([tools.py](vinchatbot/app/agents/tools.py)). A cheap router
-(`is_point_lookup`, [query_engineering.py](vinchatbot/app/rag/query_engineering.py)) splits **prose**
+Every tool call enters `_search` ([tools.py](../vinchatbot/app/agents/tools.py)). A cheap router
+(`is_point_lookup`, [query_engineering.py](../vinchatbot/app/rag/query_engineering.py)) splits **prose**
 from **point-lookups** (exact dates/amounts/codes — routed category `calendar`/`financial`, or a
 year/term/amount in the query). Two shipped levers: **Phase 1.6** reranks the RRF-fused pool **once**
 (not per variant — ~67% fewer rerank calls); **Phase 1.7** routes point-lookups to **full-section
@@ -109,19 +109,19 @@ to revert).
 
 **Deterministic layers that run BEFORE / around vector search** (added Phase 1.19–1.27, each flag-gated +
 fail-open → any miss falls through to the vector path byte-identically):
-- **Structured lookup** ([structured_lookup.py](vinchatbot/app/rag/structured_lookup.py)) — for
+- **Structured lookup** ([structured_lookup.py](../vinchatbot/app/rag/structured_lookup.py)) — for
   calendar/financial turns, a pure dict/regex record match on the USER's raw question returns the ONE exact
   row (date/fee) — never the adjacent near-row vector leaks. **List mode** (Phase 1.27, `is_list_lookup` +
   `ENABLE_LIST_MODE`): "all/each/compare" questions return the **full fee matrix** (`_match_fee`) or **all
   matching calendar events** (`_match_calendar`) deterministically, and widen the vector path
   (`RETRIEVAL_LIST_MAX_K`) + enumerate. Built by `scripts/build_structured_index.py` →
   `data/processed/structured_records.json`.
-- **Policy doc-pin** ([policy_lookup.py](vinchatbot/app/rag/policy_lookup.py)) — a confident single-topic
+- **Policy doc-pin** ([policy_lookup.py](../vinchatbot/app/rag/policy_lookup.py)) — a confident single-topic
   policy match pins that canonical all-policies page by `source_url` (gap-proof doc selection). The curated
   17-topic map (precedence) + an **ingest auto-index** (title fallback for the other ~138 pages, built by
   `scripts/build_policy_topic_index.py`). VI policy questions also force an EN translation variant
   (cross-lingual escalation) so the often-EN canonical doc is RRF-fused in.
-- **Exact-match cache** ([cache.py](vinchatbot/app/core/cache.py)) — LLM responses (via
+- **Exact-match cache** ([cache.py](../vinchatbot/app/core/cache.py)) — LLM responses (via
   `langchain` `set_llm_cache`) + rerank scores, keyed on the full prompt/content + `CACHE_VERSION`, in Redis.
   Reproducible runs (kills run-to-run noise on exact repeats) + cost cuts; fail-open (any Redis error → miss).
 

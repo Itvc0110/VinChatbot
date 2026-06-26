@@ -24,12 +24,12 @@ gets a *confident* score on the *wrong* doc.
   record VI status) — blocked by OOM. A few cases may be revised/dropped after it runs.
 
 ## Phase C — The VI cross-lingual fix (CODE DONE, gated, A/B pending)
-- **Lever 1 — cross-lingual policy escalation** ([tools.py](../vinchatbot/app/agents/tools.py) `_search`):
+- **Lever 1 — cross-lingual policy escalation** ([tools.py](../../vinchatbot/app/agents/tools.py) `_search`):
   for a VI question routed to the policy domain (`subcat == "student_affairs"`), force `cross_lingual=True`
   → existing reactive `_multi_search` retrieves the EN variant and **RRF-fuses** it → canonical doc
   surfaces. Matches the USER's raw question (`get_user_message()`), not the agent's reformulation.
   Calendar/financial excluded. Flag `ENABLE_CROSSLINGUAL_POLICY` (default off).
-- **Lever 2 — canonical policy-page boost** ([context.py](../vinchatbot/app/rag/context.py)
+- **Lever 2 — canonical policy-page boost** ([context.py](../../vinchatbot/app/rag/context.py)
   `apply_metadata_boosts`): ×1.15 when `document_type in {policy_html, financial_policy}` under a
   `prefer_canonical` hint (set in `_search` for the policy domain). Flag `ENABLE_CANONICAL_POLICY_BOOST`
   (default off). Lifts in-pool canonical pages over governance PDFs.
@@ -128,8 +128,8 @@ Cross-lingual is solved for free: `_multi_search` threads the expanded variants 
 translation) as a new `topic_terms` hint, so a VI query matches the EN title. Title-gating ⇒ OFF-topic
 canonical pages are **not** boosted, and the `policy_pdf` magnets are **never** eligible — by construction
 this removes the blanket v1's EN regressions (intern/escalation/conduct).
-- Files: [context.py](../vinchatbot/app/rag/context.py) (`_fold`/`_salient_terms`/`_topic_matches_title`
-  + gated boost in `apply_metadata_boosts`); [tools.py](../vinchatbot/app/agents/tools.py) (`topic_terms`
+- Files: [context.py](../../vinchatbot/app/rag/context.py) (`_fold`/`_salient_terms`/`_topic_matches_title`
+  + gated boost in `apply_metadata_boosts`); [tools.py](../../vinchatbot/app/agents/tools.py) (`topic_terms`
   threading in `_multi_search`, only when `prefer_canonical`). Same flag `ENABLE_CANONICAL_POLICY_BOOST`.
 - Tests: `test_policy_retrieval.py` — fires on-topic, **skipped off-topic** (anti-regression), cross-lingual
   `topic_terms` lifts the EN title for a VI query, `topic_terms` threaded for VI. **Full suite 298 green, ruff clean.**
