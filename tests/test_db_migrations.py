@@ -35,9 +35,33 @@ def test_discover_migrations_sorts_and_checksums(tmp_path):
 def test_discover_repo_migrations_includes_initial_app_schema():
     migrations = db_migrate.discover_migrations()
 
-    assert "000002_initial_app_schema.sql" in [
-        migration.filename for migration in migrations
-    ]
+    filenames = [migration.filename for migration in migrations]
+
+    assert "000002_initial_app_schema.sql" in filenames
+    assert "000003_seed_base_reference_data.sql" in filenames
+
+
+def test_base_reference_seed_contains_only_roles_and_institutes():
+    migration_path = (
+        db_migrate.DEFAULT_MIGRATIONS_DIR / "000003_seed_base_reference_data.sql"
+    )
+    migration_sql = migration_path.read_text(encoding="utf-8")
+    migration_sql_lower = migration_sql.lower()
+
+    for role_code in ["student", "institute_admin", "global_admin", "staff"]:
+        assert role_code in migration_sql
+
+    for institute_code in ["VIB", "CECS", "CHS", "CASE"]:
+        assert institute_code in migration_sql
+
+    assert "insert into roles" in migration_sql_lower
+    assert "insert into institutes" in migration_sql_lower
+    assert "on conflict (code) do update" in migration_sql_lower
+    assert "insert into users" not in migration_sql_lower
+    assert "insert into conversations" not in migration_sql_lower
+    assert "insert into tickets" not in migration_sql_lower
+    assert "insert into notifications" not in migration_sql_lower
+    assert "insert into schedules" not in migration_sql_lower
 
 
 def test_discover_migrations_rejects_duplicate_versions(tmp_path):
