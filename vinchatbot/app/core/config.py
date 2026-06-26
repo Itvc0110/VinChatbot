@@ -11,6 +11,18 @@ class Settings(BaseSettings):
 
     app_name: str = "VinChatbot"
     app_env: str = Field(default="development", validation_alias="APP_ENV")
+    app_database_url_direct: str | None = Field(
+        default=None, validation_alias="APP_DATABASE_URL_DIRECT"
+    )
+    app_database_url_pooled: str | None = Field(
+        default=None, validation_alias="APP_DATABASE_URL_POOLED"
+    )
+    app_database_pool_min_size: int = Field(
+        default=1, validation_alias="APP_DATABASE_POOL_MIN_SIZE"
+    )
+    app_database_pool_max_size: int = Field(
+        default=5, validation_alias="APP_DATABASE_POOL_MAX_SIZE"
+    )
     default_answer_language: str = Field(default="vi", validation_alias="DEFAULT_ANSWER_LANGUAGE")
 
     # Time awareness (Phase 1.9). Inject today's date + current academic year/term into each turn so
