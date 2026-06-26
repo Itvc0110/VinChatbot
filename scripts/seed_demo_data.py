@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import base64
-import hashlib
-import secrets
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -17,6 +14,7 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - used when executed as python scripts/seed_demo_data.py
     from db_migrate import MigrationError, connect_direct
 from vinchatbot.app.core.config import Settings, get_settings
+from vinchatbot.app.security.passwords import hash_password
 
 DEMO_PASSWORD = "Demo@123456"
 DEMO_NAMESPACE = uuid.UUID("0c33c4dd-b75b-4e78-ae57-b4f7646f3c7b")
@@ -359,15 +357,6 @@ class StudentGroup:
 
 def deterministic_uuid(label: str) -> uuid.UUID:
     return uuid.uuid5(DEMO_NAMESPACE, label)
-
-
-def hash_password(password: str) -> str:
-    iterations = 210_000
-    salt = secrets.token_bytes(16)
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations)
-    salt_b64 = base64.urlsafe_b64encode(salt).decode("ascii")
-    digest_b64 = base64.urlsafe_b64encode(digest).decode("ascii")
-    return f"pbkdf2_sha256${iterations}${salt_b64}${digest_b64}"
 
 
 def validate_seed_environment(app_env: str) -> None:
