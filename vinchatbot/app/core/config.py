@@ -84,8 +84,11 @@ class Settings(BaseSettings):
 
     qdrant_url: str | None = Field(default=None, validation_alias="QDRANT_URL")
     qdrant_api_key: str | None = Field(default=None, validation_alias="QDRANT_API_KEY")
+    # The live collection (Phase 1.28): e5-large embeddings, `--student-only` filtered rebuild that drops
+    # non-student noise chunks. Default points here so a missing env var fails safe to the right collection
+    # (was `vinuni_documents`, the ancient 3-small collection).
     qdrant_collection: str = Field(
-        default="vinuni_documents", validation_alias="QDRANT_COLLECTION"
+        default="vinuni_full_e5_v2", validation_alias="QDRANT_COLLECTION"
     )
     qdrant_local_path: str = Field(default="data/qdrant", validation_alias="QDRANT_LOCAL_PATH")
     qdrant_timeout_seconds: int = Field(default=120, validation_alias="QDRANT_TIMEOUT_SECONDS")
