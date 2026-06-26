@@ -6,33 +6,48 @@
     {
       "id": "fee-nursing-semester-en",
       "question": "What is the listed tuition fee per semester for the Bachelor of Nursing program?",
-      "required_facts": ["174,825,000"],
-      "forbidden_facts": ["407,925,000", "349,650,000"],
-      "expected_source": ["financial-regulations-and-tariff-for-student", "tai-chinh-va-bieu-phi"],
+      "required_facts": [
+        "174,825,000"
+      ],
+      "forbidden_facts": [
+        "407,925,000",
+        "349,650,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "language": "en"
-    },
-    {
-      "id": "fee-nursing-semester-vi",
-      "question": "Học phí niêm yết mỗi học kỳ của chương trình Cử nhân Điều dưỡng là bao nhiêu?",
-      "required_facts": ["174,825,000"],
-      "forbidden_facts": ["407,925,000", "349,650,000"],
-      "expected_source": ["financial-regulations-and-tariff-for-student", "tai-chinh-va-bieu-phi"],
-      "language": "vi"
     },
     {
       "id": "fee-medicine-credit-en",
       "question": "What is the listed tuition fee per credit for the Doctor of Medicine program?",
-      "required_facts": ["27,195,000"],
-      "forbidden_facts": ["9,780,000"],
-      "expected_source": ["financial-regulations-and-tariff-for-student", "tai-chinh-va-bieu-phi"],
+      "required_facts": [
+        "27,195,000"
+      ],
+      "forbidden_facts": [
+        "9,780,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "language": "en"
     },
     {
       "id": "fee-medicine-semester-vi",
       "question": "Học phí niêm yết mỗi học kỳ của chương trình Doctor of Medicine là bao nhiêu?",
-      "required_facts": ["407,925,000"],
-      "forbidden_facts": ["174,825,000", "815,850,000"],
-      "expected_source": ["financial-regulations-and-tariff-for-student", "tai-chinh-va-bieu-phi"],
+      "required_facts": [
+        "407,925,000"
+      ],
+      "forbidden_facts": [
+        "174,825,000",
+        "815,850,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "language": "vi"
     }
   ]

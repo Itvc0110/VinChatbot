@@ -91,6 +91,31 @@ def test_noise_line_without_keyword_still_excluded():
     assert extract_calendar_events(raw) == []
 
 
+def test_phase131_holidays_now_captured():
+    # Phase 1.31: the authoritative calendar PDF lists these one-per-line with no keyword the old gate
+    # matched ("Victory Day"/"Labor Day"/"Vietnam Culture Day"/"Independent Study Week"), so they were
+    # dropped from the structured index → date lookups (e.g. calendar-victory-day-vi) hedged. The gate now
+    # carries these holiday/period keywords.
+    raw = _calendar_raw(
+        "# Trang 1\n\n"
+        "30-Apr Victory Day\n"
+        "1-May Labor Day\n"
+        "24-Nov Vietnam Culture Day (tentatively)\n"
+        "4-8-Jan Independent Study Week\n"
+    )
+    names = [e.event_name for e in extract_calendar_events(raw)]
+    assert any("Victory Day" in n for n in names)
+    assert any("Labor Day" in n for n in names)
+    assert any("Vietnam Culture Day" in n for n in names)
+    assert any("Independent Study Week" in n for n in names)
+
+
+def test_version_stamp_line_still_excluded():
+    # The calendar PDF's "Version: 5/25/2026" line must NOT become an event (no event keyword added for it).
+    raw = _calendar_raw("# Trang 1\n\nVersion: 5/25/2026\n")
+    assert extract_calendar_events(raw) == []
+
+
 # --- Fix 3: no hardcoded year when academic year is unknown ---
 
 def test_no_year_context_returns_none_not_guess():

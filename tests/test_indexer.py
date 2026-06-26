@@ -83,10 +83,15 @@ def _install_fake_qdrant_models(monkeypatch) -> None:
     class PayloadSchemaType:
         KEYWORD = "keyword"
 
+    class PointIdsList:
+        def __init__(self, points):
+            self.points = points
+
     models.FieldCondition = FieldCondition
     models.Filter = Filter
     models.MatchValue = MatchValue
     models.PayloadSchemaType = PayloadSchemaType
+    models.PointIdsList = PointIdsList
     package.models = models
     monkeypatch.setitem(sys.modules, "qdrant_client", package)
     monkeypatch.setitem(sys.modules, "qdrant_client.models", models)
@@ -253,6 +258,147 @@ def test_index_chunks_replaces_existing_parent_doc_chunks(monkeypatch):
     assert Store.instance.client.deleted_parent_doc_ids == ["doc-1"]
     assert [str(UUID(point_id)) for point_id in Store.instance.added_ids] == Store.instance.added_ids
     assert Store.instance.batch_size == 16
+
+
+def _incremental_store(existing_ids: list[str], reported_count: int | None = None):
+    """A fake QdrantVectorStore whose client.scroll/count report `existing_ids` and which records
+    add/delete/index calls. `reported_count` overrides client.count (to simulate an incomplete scroll)."""
+
+    class Client:
+        def __init__(self):
+            self.deleted: list[str] = []
+            self.delete_called = False
+            self.created_indexes: list[str] = []
+
+        def create_payload_index(self, collection_name, field_name, field_schema, wait, timeout):
+            self.created_indexes.append(field_name)
+
+        def scroll(self, collection_name, with_payload, with_vectors, limit, offset):
+            return [SimpleNamespace(id=point_id) for point_id in existing_ids], None
+
+        def count(self, collection_name, exact):
+            count = len(existing_ids) if reported_count is None else reported_count
+            return SimpleNamespace(count=count)
+
+        def delete(self, collection_name, points_selector, wait, timeout):
+            self.delete_called = True
+            self.deleted.extend(points_selector.points)  # points_selector is a PointIdsList
+
+    class Store:
+        instance = None
+
+        def __init__(self):
+            self.client = Client()
+            self.added_ids = None
+            self.batch_size = None
+            self.add_called = False
+
+        @classmethod
+        def from_existing_collection(cls, **kwargs):
+            cls.instance = cls()
+            return cls.instance
+
+        @classmethod
+        def from_documents(cls, *args, **kwargs):
+            raise AssertionError("incremental ingest must not recreate the collection")
+
+        def add_documents(self, documents, ids, batch_size):
+            self.add_called = True
+            self.added_ids = ids
+            self.batch_size = batch_size
+
+    return Store
+
+
+def _run_incremental(monkeypatch, store, chunks):
+    _install_fake_qdrant_models(monkeypatch)  # PointIdsList (delete) + PayloadSchemaType (ensure indexes)
+    _install_common_fakes(monkeypatch, store)
+    monkeypatch.setattr(indexer, "_qdrant_collection_exists", lambda collection_name, location_kwargs: True)
+    return indexer.index_chunks(chunks, _settings(), incremental=True)
+
+
+def test_index_chunks_incremental_skips_existing_and_deletes_stale(monkeypatch):
+    keep = _chunk(chunk_id="keep")
+    new = _chunk(chunk_id="new")
+    id_keep = indexer._qdrant_point_ids([keep])[0]
+    id_new = indexer._qdrant_point_ids([new])[0]
+    id_stale = indexer._qdrant_point_ids([_chunk(chunk_id="stale")])[0]
+
+    store = _incremental_store([id_keep, id_stale])
+    added = _run_incremental(monkeypatch, store, [keep, new])
+
+    assert added == 1  # only the new chunk re-embedded; "keep" reused its stored vector
+    assert store.instance.added_ids == [id_new]
+    assert store.instance.batch_size == 16
+    assert store.instance.client.deleted == [id_stale]  # stale point removed (via PointIdsList)
+    assert store.instance.client.created_indexes  # payload indexes ensured on the incremental path
+
+
+def test_index_chunks_incremental_no_op_when_all_unchanged(monkeypatch):
+    keep = _chunk(chunk_id="keep")
+    id_keep = indexer._qdrant_point_ids([keep])[0]
+
+    store = _incremental_store([id_keep])
+    added = _run_incremental(monkeypatch, store, [keep])
+
+    assert added == 0
+    assert store.instance.add_called is False  # nothing re-embedded
+    assert store.instance.client.delete_called is False  # nothing stale
+
+
+def test_index_chunks_incremental_aborts_when_deletion_exceeds_floor(monkeypatch):
+    # Collection has 251 points; the re-crawl re-finds only 1 → would delete 250 (> floor 200) → abort
+    # before any embed/delete, so a partial/failed crawl cannot wipe the collection.
+    only_new = _chunk(chunk_id="only-new")
+    id_only_new = indexer._qdrant_point_ids([only_new])[0]
+    existing = [id_only_new] + [f"old-{i}" for i in range(250)]  # overlap=1 (skips the zero-overlap guard)
+
+    store = _incremental_store(existing)
+    with pytest.raises(RuntimeError, match="would delete"):
+        _run_incremental(monkeypatch, store, [only_new])
+
+    assert store.instance.add_called is False
+    assert store.instance.client.deleted == []
+
+
+def test_index_chunks_incremental_allows_churn_below_fraction_cap(monkeypatch):
+    # Large collection: the delete cap scales to 10% of existing, so normal re-chunk churn above the flat
+    # 200 floor (but below the fraction cap) proceeds instead of forcing --recreate.
+    keep = [_chunk(chunk_id=f"k{i}") for i in range(3000)]
+    keep_ids = indexer._qdrant_point_ids(keep)
+    existing = keep_ids + [f"stale-{i}" for i in range(250)]  # 3250 existing; cap = max(200, 325) = 325
+
+    store = _incremental_store(existing)
+    added = _run_incremental(monkeypatch, store, keep)
+
+    assert added == 0  # all 3000 kept chunks reused their stored vectors
+    assert len(store.instance.client.deleted) == 250  # 250 stale (> flat floor 200, < cap 325) → allowed
+
+
+def test_index_chunks_incremental_aborts_on_zero_overlap(monkeypatch):
+    # A large existing collection with NO content-address overlap = wrong hashing/embedding scheme → abort.
+    chunk = _chunk(chunk_id="c1")
+    existing = [f"unrelated-{i}" for i in range(150)]
+
+    store = _incremental_store(existing)
+    with pytest.raises(RuntimeError, match="ZERO content-address overlap"):
+        _run_incremental(monkeypatch, store, [chunk])
+
+    assert store.instance.add_called is False
+    assert store.instance.client.deleted == []
+
+
+def test_index_chunks_incremental_aborts_on_incomplete_scroll(monkeypatch):
+    # scroll yields 1 id but the collection reports 100 points → the guard math can't be trusted → abort.
+    chunk = _chunk(chunk_id="c1")
+    id_c1 = indexer._qdrant_point_ids([chunk])[0]
+
+    store = _incremental_store([id_c1], reported_count=100)
+    with pytest.raises(RuntimeError, match="incomplete"):
+        _run_incremental(monkeypatch, store, [chunk])
+
+    assert store.instance.add_called is False
+    assert store.instance.client.deleted == []
 
 
 def test_qdrant_point_ids_are_stable_valid_uuids():

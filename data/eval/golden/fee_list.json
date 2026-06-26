@@ -6,50 +6,59 @@
     {
       "id": "feelist-per-credit-all-en",
       "question": "What is the listed tuition fee per credit for all VinUni programs?",
-      "required_facts": ["9,780,000", "27,195,000"],
-      "forbidden_facts": ["349,650,000", "815,850,000", "174,825,000", "407,925,000"],
-      "expected_source": ["financial-regulations-and-tariff-for-student", "tai-chinh-va-bieu-phi"],
+      "required_facts": [
+        "9,780,000",
+        "27,195,000"
+      ],
+      "forbidden_facts": [
+        "349,650,000",
+        "815,850,000",
+        "174,825,000",
+        "407,925,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "language": "en"
-    },
-    {
-      "id": "feelist-per-credit-all-vi",
-      "question": "Học phí niêm yết mỗi tín chỉ của tất cả các chương trình tại VinUni là bao nhiêu?",
-      "required_facts": ["9,780,000", "27,195,000"],
-      "forbidden_facts": ["349,650,000", "815,850,000", "174,825,000", "407,925,000"],
-      "expected_source": ["financial-regulations-and-tariff-for-student", "tai-chinh-va-bieu-phi"],
-      "language": "vi"
     },
     {
       "id": "feelist-per-year-all-en",
       "question": "List the listed tuition fee per academic year for every program at VinUni.",
-      "required_facts": ["349,650,000", "815,850,000"],
-      "forbidden_facts": ["9,780,000", "27,195,000", "174,825,000", "407,925,000"],
-      "expected_source": ["financial-regulations-and-tariff-for-student", "tai-chinh-va-bieu-phi"],
+      "required_facts": [
+        "349,650,000",
+        "815,850,000"
+      ],
+      "forbidden_facts": [
+        "9,780,000",
+        "27,195,000",
+        "174,825,000",
+        "407,925,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "language": "en"
-    },
-    {
-      "id": "feelist-per-year-all-vi",
-      "question": "Liệt kê học phí niêm yết mỗi năm học của từng chương trình tại VinUni.",
-      "required_facts": ["349,650,000", "815,850,000"],
-      "forbidden_facts": ["9,780,000", "27,195,000", "174,825,000", "407,925,000"],
-      "expected_source": ["financial-regulations-and-tariff-for-student", "tai-chinh-va-bieu-phi"],
-      "language": "vi"
     },
     {
       "id": "feelist-per-semester-all-en",
       "question": "What is the listed tuition fee per semester across all programs at VinUni?",
-      "required_facts": ["174,825,000", "407,925,000"],
-      "forbidden_facts": ["349,650,000", "815,850,000", "9,780,000", "27,195,000"],
-      "expected_source": ["financial-regulations-and-tariff-for-student", "tai-chinh-va-bieu-phi"],
+      "required_facts": [
+        "174,825,000",
+        "407,925,000"
+      ],
+      "forbidden_facts": [
+        "349,650,000",
+        "815,850,000",
+        "9,780,000",
+        "27,195,000"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
       "language": "en"
-    },
-    {
-      "id": "feelist-per-semester-all-vi",
-      "question": "Học phí niêm yết mỗi học kỳ của tất cả các chương trình là bao nhiêu?",
-      "required_facts": ["174,825,000", "407,925,000"],
-      "forbidden_facts": ["349,650,000", "815,850,000", "9,780,000", "27,195,000"],
-      "expected_source": ["financial-regulations-and-tariff-for-student", "tai-chinh-va-bieu-phi"],
-      "language": "vi"
     }
   ]
 }

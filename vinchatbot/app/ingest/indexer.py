@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
@@ -12,6 +13,23 @@ from vinchatbot.app.storage.qdrant_store import (
     qdrant_location_kwargs,
 )
 from vinchatbot.app.storage.vector_metadata import compact_vector_metadata
+
+logger = logging.getLogger(__name__)
+
+# Incremental ingest tuning. _SCROLL_PAGE_SIZE: ids fetched per scroll page (ids only, no payload/vectors).
+# _DELETE_BATCH_SIZE: stale ids deleted per request.
+_SCROLL_PAGE_SIZE = 10000
+_DELETE_BATCH_SIZE = 2000
+# Data-loss guard: a growth/maintenance re-crawl should delete only a little (a superset re-finds its old
+# chunks; some churn is normal because chunk_id embeds the positional index, so an edited page re-chunks its
+# tail). Abort when deletions exceed max(_FLOOR, _FRACTION × existing) — small enough to catch a partial/
+# failed crawl or a changed hashing scheme (which drop a large fraction), large enough not to block a genuine
+# growth crawl's normal edit churn. Use --recreate for an intentional full rebuild that drops many points.
+_INCREMENTAL_DELETE_ABORT_FLOOR = 200
+_INCREMENTAL_DELETE_ABORT_FRACTION = 0.10
+# Above this many existing points, ZERO content-address overlap means the stored points were built with a
+# different chunk_id hashing / embedding scheme → abort instead of mass re-embed + mass delete.
+_INCREMENTAL_LARGE_COLLECTION = 100
 
 
 def chunks_to_langchain_documents(chunks: Iterable[DocumentChunk], compact_metadata: bool = False):
@@ -34,7 +52,10 @@ def chunks_to_langchain_documents(chunks: Iterable[DocumentChunk], compact_metad
 
 
 def index_chunks(
-    chunks: list[DocumentChunk], settings: Settings | None = None, recreate: bool = False
+    chunks: list[DocumentChunk],
+    settings: Settings | None = None,
+    recreate: bool = False,
+    incremental: bool = False,
 ) -> int:
     if not chunks:
         return 0
@@ -42,7 +63,7 @@ def index_chunks(
     settings = settings or get_settings()
     backend = settings.vector_store_backend.lower().strip()
     if backend == "qdrant":
-        return _index_qdrant_chunks(chunks, settings, recreate=recreate)
+        return _index_qdrant_chunks(chunks, settings, recreate=recreate, incremental=incremental)
     if backend == "chroma":
         return _index_chroma_chunks(chunks, settings)
     if backend == "pinecone":
@@ -54,7 +75,10 @@ def index_chunks(
 
 
 def _index_qdrant_chunks(
-    chunks: list[DocumentChunk], settings: Settings, recreate: bool = False
+    chunks: list[DocumentChunk],
+    settings: Settings,
+    recreate: bool = False,
+    incremental: bool = False,
 ) -> int:
     try:
         from langchain_qdrant import QdrantVectorStore, RetrievalMode
@@ -62,6 +86,8 @@ def _index_qdrant_chunks(
         raise RuntimeError("Install langchain-qdrant to index chunks.") from exc
 
     from vinchatbot.app.embeddings.openrouter_embeddings import build_embeddings
+
+    incremental = incremental or getattr(settings, "enable_incremental_ingest", False)
 
     documents = chunks_to_langchain_documents(chunks)
     ids = _qdrant_point_ids(chunks)
@@ -89,6 +115,7 @@ def _index_qdrant_chunks(
         except Exception as exc:
             raise RuntimeError(f"Qdrant collection is not available: {exc}") from exc
     else:
+        # Nothing to reuse on a fresh collection — incremental is a no-op (every chunk is embedded once).
         return _create_qdrant_collection(
             documents=documents,
             ids=ids,
@@ -98,6 +125,16 @@ def _index_qdrant_chunks(
             retrieval_mode=RetrievalMode.HYBRID,
             location_kwargs=location_kwargs,
             qdrant_vector_store=QdrantVectorStore,
+        )
+
+    if incremental:
+        return _incremental_upsert(
+            vector_store,
+            documents,
+            ids,
+            settings.qdrant_collection,
+            settings.qdrant_batch_size,
+            settings.qdrant_timeout_seconds,
         )
 
     _delete_existing_parent_chunks(
@@ -111,6 +148,158 @@ def _index_qdrant_chunks(
     except Exception as exc:
         raise RuntimeError(f"Failed to upsert chunks into Qdrant: {exc}") from exc
     return len(chunks)
+
+
+def _incremental_upsert(
+    vector_store: Any,
+    documents: list[Any],
+    ids: list[str],
+    collection_name: str,
+    batch_size: int,
+    timeout_seconds: int | None,
+) -> int:
+    """Reconcile an EXISTING collection to the current full-corpus batch, re-embedding ONLY new chunks and
+    deleting genuinely-stale points. Point ids are content-addressed (uuid5 of a content-hash chunk_id), so
+    an id already present means an identical chunk is already embedded → skip it (reuse the stored vector).
+    Chunks whose id is absent are embedded + upserted; points whose id is absent from the batch are stale.
+
+    Returns the count of chunks actually embedded + added.
+
+    Safety (this DELETES from a live collection):
+    - ASSUMES `documents`/`ids` are the COMPLETE intended corpus (true for scripts/ingest_documents.py).
+    - Cross-checks the scrolled id set against the collection's reported point count (an incomplete scroll
+      would corrupt the guard math) and aborts on mismatch.
+    - Aborts if there is ZERO content-address overlap with a large existing collection (the stored points
+      use a different chunk_id/embedding scheme → reuse is invalid; use --recreate).
+    - Aborts if it would delete more than `_INCREMENTAL_DELETE_ABORT_FLOOR` points — a growth/maintenance
+      re-crawl should delete almost nothing, so a large stale set signals a partial/failed crawl. Use
+      --recreate for an intentional full rebuild.
+
+    Known limitation: the point id is derived from chunk TEXT (chunk_id = parent_doc_id:index:text), not the
+    full stored payload. A chunk whose text is byte-identical but whose metadata changed (e.g. a re-stamped
+    policy_code/date) keeps its id, is treated as unchanged, and retains its OLD payload. Run --recreate to
+    fully reconcile payload metadata. (The default non-incremental path overwrites payloads every run.)
+    """
+    client = getattr(vector_store, "client", None)
+    if client is None:
+        raise RuntimeError("Qdrant vector store does not expose a client for incremental ingest.")
+
+    # Idempotent: guarantees keyword payload indexes exist (covers fields added since the collection's build).
+    _ensure_payload_indexes(vector_store, collection_name, timeout_seconds)
+
+    existing_ids = _existing_point_ids(client, collection_name)
+    reported_count = _collection_point_count(client, collection_name)
+    if reported_count is None:
+        logger.warning(
+            "Incremental ingest could not read the collection point count for %s — skipping the "
+            "scroll-completeness cross-check (the delete-floor + overlap guards still apply).",
+            collection_name,
+        )
+    elif len(existing_ids) != reported_count:
+        raise RuntimeError(
+            f"Incremental ingest scrolled {len(existing_ids)} ids but the collection reports "
+            f"{reported_count} points — the scroll was incomplete, so the safety guards cannot be trusted. "
+            "Aborting (retry, or use --recreate)."
+        )
+
+    new_id_set = set(ids)
+    overlap = len(existing_ids & new_id_set)
+    to_add = [
+        (doc, point_id)
+        for doc, point_id in zip(documents, ids, strict=True)
+        if point_id not in existing_ids
+    ]
+    to_delete = sorted(existing_ids - new_id_set)
+
+    if len(existing_ids) > _INCREMENTAL_LARGE_COLLECTION and overlap == 0:
+        raise RuntimeError(
+            f"Incremental ingest found ZERO content-address overlap with the existing collection "
+            f"({len(existing_ids)} points) — its points were built with a different chunk_id hashing or "
+            "embedding scheme, so reusing vectors is invalid. Use --recreate for a clean rebuild."
+        )
+    delete_cap = max(
+        _INCREMENTAL_DELETE_ABORT_FLOOR, int(_INCREMENTAL_DELETE_ABORT_FRACTION * len(existing_ids))
+    )
+    if len(to_delete) > delete_cap:
+        raise RuntimeError(
+            f"Incremental ingest would delete {len(to_delete)} of {len(existing_ids)} existing points "
+            f"(cap {delete_cap}; overlap={overlap}, adding={len(to_add)}). A growth/maintenance re-crawl "
+            "should delete only a little — this looks like a partial/failed crawl or a changed hashing "
+            "scheme. Aborting to avoid data loss; re-run with --recreate for an intentional full rebuild."
+        )
+
+    if to_add:
+        add_documents = [doc for doc, _ in to_add]
+        add_ids = [point_id for _, point_id in to_add]
+        try:
+            vector_store.add_documents(add_documents, ids=add_ids, batch_size=batch_size)
+        except Exception as exc:
+            raise RuntimeError(f"Failed to upsert new chunks into Qdrant: {exc}") from exc
+    if to_delete:
+        _delete_point_ids(client, collection_name, to_delete, timeout_seconds)
+
+    logger.info(
+        "Incremental ingest collection=%s total=%s unchanged=%s added=%s deleted=%s overlap=%s",
+        collection_name,
+        len(ids),
+        len(ids) - len(to_add),
+        len(to_add),
+        len(to_delete),
+        overlap,
+    )
+    return len(to_add)
+
+
+def _existing_point_ids(client: Any, collection_name: str) -> set[str]:
+    ids: set[str] = set()
+    next_offset = None
+    while True:
+        current_offset = next_offset
+        points, next_offset = client.scroll(
+            collection_name=collection_name,
+            with_payload=False,
+            with_vectors=False,
+            limit=_SCROLL_PAGE_SIZE,
+            offset=current_offset,
+        )
+        if not points:
+            break
+        for point in points:
+            ids.add(str(point.id))
+        # loop safety: stop on the last page (None) or a non-advancing offset (buggy/old server)
+        if next_offset is None or next_offset == current_offset:
+            break
+    return ids
+
+
+def _collection_point_count(client: Any, collection_name: str) -> int | None:
+    """Authoritative point count for the scroll-completeness cross-check. None if unavailable (the
+    delete-floor + overlap guards still protect; the cross-check is simply skipped)."""
+    try:
+        result = client.count(collection_name=collection_name, exact=True)
+    except Exception:
+        return None
+    return getattr(result, "count", None)
+
+
+def _delete_point_ids(
+    client: Any, collection_name: str, point_ids: list[str], timeout_seconds: int | None
+) -> None:
+    try:
+        from qdrant_client.models import PointIdsList
+    except ImportError as exc:
+        raise RuntimeError("Install qdrant-client to delete stale points.") from exc
+    for start in range(0, len(point_ids), _DELETE_BATCH_SIZE):
+        batch = point_ids[start : start + _DELETE_BATCH_SIZE]
+        try:
+            client.delete(
+                collection_name=collection_name,
+                points_selector=PointIdsList(points=batch),
+                wait=True,
+                timeout=timeout_seconds,
+            )
+        except Exception as exc:
+            raise RuntimeError(f"Failed to delete stale Qdrant points: {exc}") from exc
 
 
 def _create_qdrant_collection(

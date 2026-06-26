@@ -63,6 +63,41 @@ def is_list_lookup(query: str, category: str | None = None) -> bool:
     return bool(_LISTLOOKUP_RE.search(query or ""))
 
 
+# Identity-query detection (Phase 1.28/D9). Targets person/role IDENTITY ("who is X" / "X là ai") and ROLE
+# ENUMERATION ("who are the presidents" / "VinUni có những hiệu trưởng nào") — the queries where a grounded
+# answer can still name the WRONG-role person (Council-President vs Rector). Scoped to gate the
+# intent-satisfaction auditor; deliberately NOT person-identity: policy "who is eligible/responsible/allowed…"
+# is excluded so the auditor doesn't fire on eligibility questions.
+_IDENTITY_RE = re.compile(
+    r"\bwho\s+(?:is|are|was|were|has\s+been|have\s+been|served|serves)\b"
+    r"|\b(?:là ai|la ai|ai là|ai la|là những ai|la nhung ai|gồm những ai|gom nhung ai)\b",
+    re.IGNORECASE,
+)
+_IDENTITY_EXCLUDE_RE = re.compile(
+    r"\b(eligible|responsible|allowed|able|required|affected|entitled|qualified|liable|in charge)\b"
+    r"|đủ điều kiện|du dieu kien|chịu trách nhiệm|chiu trach nhiem|được phép|duoc phep",
+    re.IGNORECASE,
+)
+_ROLE_RE = re.compile(
+    r"\bpresident|rector|provost|chancellor|\bdean\b|founder|leadership|\bboard\b"
+    r"|hiệu trưởng|hieu truong|hiệu phó|hieu pho|chủ tịch|chu tich|trưởng khoa|truong khoa|lãnh đạo|lanh dao",
+    re.IGNORECASE,
+)
+_ENUM_RE = re.compile(r"\b(who|which|list|all|name|every)\b|những|nhung|nào|nao|gồm|gom|liệt kê|liet ke", re.IGNORECASE)
+
+
+def is_identity_query(query: str, category: str | None = None) -> bool:
+    """True for person/role IDENTITY or ROLE ENUMERATION questions (Phase 1.28/D9) — the class where a
+    grounded answer can still name a person with the WRONG role for the one asked. Gates the
+    intent-satisfaction auditor. Excludes policy 'who is eligible/responsible/…' (not person-identity)."""
+    q = query or ""
+    if _IDENTITY_EXCLUDE_RE.search(q):
+        return False
+    if _IDENTITY_RE.search(q):
+        return True
+    return bool(_ROLE_RE.search(q) and _ENUM_RE.search(q))
+
+
 # Deterministic month+year date normalization (Phase 1.12). The reported failure: "events for 6/2026"
 # worked but "tháng 6 năm 2026" (VI) did not — same date, different surface form. These regexes detect a
 # (month, year) in any of the common VI/EN/numeric forms and emit the OTHER canonical forms, so a date

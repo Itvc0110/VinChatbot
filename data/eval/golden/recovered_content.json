@@ -1,0 +1,43 @@
+{
+  "name": "vinuni_recovered_content_regression",
+  "description": "Phase 1.28 regression guards for the content the ingest-filter fix RECOVERED (see LOGS/INGEST_FILTER_AUDIT.md): registrar form PDFs, student-guide/handbook PDFs, and the main-domain /global_exchange/ section — all previously dropped by --student-only. Structural facts (form names, guide existence, the Cornell founding partner), authored from the recovered sources, so these fail loudly if the filter ever silently drops these types again. Complements the ingest drop-report.",
+  "source": "registrar.vinuni / experience.vinuni / vinuni.edu.vn global_exchange",
+  "cases": [
+    {
+      "id": "rc-form-leave-of-absence-en",
+      "question": "What form do I use to request a leave of absence, defer, or withdraw at VinUni?",
+      "required_facts": ["Defer|Withdraw|leave of absence"],
+      "forbidden_facts": [],
+      "expected_source": ["registrar.vinuni", "leave-of-absence", "FRM07"],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "rc-form-leave-of-absence-vi",
+      "question": "Tôi cần dùng mẫu đơn nào để xin nghỉ học tạm thời hoặc rút khỏi chương trình tại VinUni?",
+      "required_facts": ["nghỉ học|rút|Defer|Withdraw|leave of absence"],
+      "forbidden_facts": [],
+      "expected_source": ["registrar.vinuni", "leave-of-absence", "FRM07"],
+      "language": "vi",
+      "held_out": true
+    },
+    {
+      "id": "rc-student-guide-en",
+      "question": "Where can I find the VinUni student guide or handbook?",
+      "required_facts": ["student guide|handbook|STUDENT-GUIDE"],
+      "forbidden_facts": [],
+      "expected_source": ["STUDENT-GUIDE", "student-guide", "experience.vinuni"],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "rc-global-exchange-cornell-en",
+      "question": "Which universities can VinUni students go on a global exchange with?",
+      "required_facts": ["Cornell"],
+      "forbidden_facts": [],
+      "expected_source": ["exchange", "global_exchange", "partnership"],
+      "language": "en",
+      "held_out": false
+    }
+  ]
+}
