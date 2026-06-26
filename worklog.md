@@ -175,13 +175,13 @@ Baseline progression this phase: **0.969/226 → 0.965/199 (prune) → 0.98/199*
   re-measure a roadmap fix's actual gap before building (the system outgrew D1–D9 — D1 had 0 whole-refusal
   targets; G1 was 3 cases).
 
-## Phase 1.33 — Multi-domain FAN-OUT (built, flag-gated OFF; pre-promotion)
+## Phase 1.33 — Multi-domain FAN-OUT (PROMOTED — `ENABLE_FAN_OUT` default ON)
 - **Feature.** Supervisor `plan_dispatch` emits a PLAN: SINGLE (~90%, byte-identical single path), DECOMPOSE
   (compound → per-domain subtasks run in parallel), or HEDGE (route-ambiguous → same question to 2 candidate
   specialists). `fanout_node` runs subtasks concurrently (error-isolated), synthesis merges (citations union
   over all subtasks' ToolMessages, no service change). **L2 reactive loop**: re-run a PUNTED subtask once with
-  a critique, keep the good parts, cap=1, can't fabricate. All behind `ENABLE_FAN_OUT` (default off). 19 fan-out
-  unit tests; suite 394 green. See `LOGS/PHASE1.33_LOG.md`.
+  a critique, keep the good parts, cap=1, can't fabricate. Behind `ENABLE_FAN_OUT` (now **default ON**; set
+  false to revert). 21 fan-out unit tests; full suite 397 green. See `LOGS/PHASE1.33_LOG.md`.
 - **Planner calibration (lesson).** Initial decompose 3/16 was IDENTICAL across gpt-4o-mini→sonnet — a stronger
   model fixed nothing. Manual raw-output inspection: the Tier-0 keyword fast-path returned `single` BEFORE the
   LLM ran. Fixed the gate → cheap gpt-4o-mini: 76% mode-match, 0 under-fire. *Measure the raw artifact before

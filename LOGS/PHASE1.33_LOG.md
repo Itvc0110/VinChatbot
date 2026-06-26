@@ -201,7 +201,7 @@ Fresh OFF-199 vs ON-199, all fixes, cache-off, --runs 1 (user chose the rigorous
   now run with `fanout=False` (collapse fired → single path) and pass; `d9-rectors` passes on re-run (it was
   answer-gen noise, never a fan-out regression). The scored-set regression is resolved; ON ≈ OFF.
 
-### Honest verdict (the decisive finding)
+### Honest verdict (the decisive finding) — ⚠️ SUPERSEDED by §1.33g (user PROMOTED fan-out; default ON)
 Fan-out's value is **multi-domain coverage**, which lives in the authored hard set — **the scored 199 has no
 genuine compounds**, so post-fix fan-out is **NEUTRAL there (no regression, no gain)**. Promotion is therefore
 not justified by the current scored eval; the feature is **kept merged + flag-OFF** (done, tested, all fixes

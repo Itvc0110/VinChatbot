@@ -314,7 +314,7 @@ but **rejected/off** (over-degraded correct answers) — kept for a future secur
 | Area | Modules |
 |------|---------|
 | API | `app/main.py`, `app/api/routes_chat.py`, `app/api/routes_ingest.py` |
-| Agents | `agents/graph.py` (single-specialist graph + `fanout_node`, gated off), `supervisor.py` (`route_intent` + `plan_dispatch` fan-out planner), `specialists.py`, `prompts.py` (incl. `DISPATCH_SYSTEM`/`SYNTHESIS_SYSTEM`), `tools.py`, `vinuni_agent.py`, `agents/output_audit.py` (critic, gated off) |
+| Agents | `agents/graph.py` (graph + `fanout_node`, default ON), `supervisor.py` (`route_intent` + `plan_dispatch` fan-out planner), `specialists.py`, `prompts.py` (incl. `DISPATCH_SYSTEM`/`SYNTHESIS_SYSTEM`), `tools.py`, `vinuni_agent.py`, `agents/output_audit.py` (critic, gated off) |
 | Guards | `agents/guardrails.py` (input `resolve_guardrail_decision` + output `resolve_output_decision`: regex/deobf/secret/faithfulness), `agents/llm_guard.py` (injection/scope), `agents/safety_guard.py` (omni-moderation/Llama Guard) |
 | RAG | `rag/retriever.py`, `rag/reranker.py`, `rag/context.py` (LITM/dedup/dynamic-k), `rag/query_engineering.py` (`is_point_lookup`/`is_list_lookup`), `rag/structured_lookup.py` (calendar+fee deterministic + list mode), `rag/policy_lookup.py` (doc-pin + auto-index), `rag/citations.py` |
 | Core | `core/config.py` (all `ENABLE_*` flags), `core/cache.py` (Redis LLM+rerank cache), `core/observability.py` (per-stage ledger) |
