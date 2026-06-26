@@ -180,14 +180,22 @@ def _split_markdown_prose(content: str, config: ChunkingConfig) -> list[_PageTag
     headers = [("#", "h1"), ("##", "h2"), ("###", "h3"), ("####", "h4")][: max(1, config.header_levels)]
     try:
         md_splitter = MarkdownHeaderTextSplitter(headers, strip_headers=False)
+        header_docs = md_splitter.split_text(content)
+    except Exception:
+        return None
+    try:
         char_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
             encoding_name="cl100k_base",
             chunk_size=config.max_tokens,
             chunk_overlap=config.overlap_tokens,
         )
-        header_docs = md_splitter.split_text(content)
     except Exception:
-        return None
+        chunk_size = max(1, config.max_chars)
+        chunk_overlap = max(0, min(config.overlap_chars, chunk_size - 1))
+        char_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+        )
 
     results: list[_PageTagged] = []
     current_page: int | None = None

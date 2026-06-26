@@ -11,8 +11,11 @@ import contextvars
 import hashlib
 import logging
 import re
+import uuid
 from collections.abc import Iterable
 from typing import Any
+
+from fastapi import FastAPI, Request
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +37,23 @@ def reset_request_id(token: contextvars.Token) -> None:
 
 def get_request_id() -> str | None:
     return _request_id.get()
+
+
+def add_request_id_middleware(app: FastAPI) -> None:
+    """Add fail-open request-id middleware to a FastAPI app."""
+
+    @app.middleware("http")
+    async def request_id_middleware(request: Request, call_next):
+        # Honor an inbound correlation id (e.g. from a gateway) or mint one; expose it on the
+        # response and bind it to logs for this request. Fail-open: never block the request.
+        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
+        token = set_request_id(request_id)
+        try:
+            response = await call_next(request)
+            response.headers["X-Request-ID"] = request_id
+            return response
+        finally:
+            reset_request_id(token)
 
 
 # Per-turn rerank-call counter. Rerank uses raw httpx (not LangChain), so Langfuse can't trace it;

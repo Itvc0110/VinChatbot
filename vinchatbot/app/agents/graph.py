@@ -70,6 +70,9 @@ def build_agent_graph(
             intent = await route_intent(text, settings=settings, model=model)
         return {"intent": intent if intent in INTENTS else "services"}
 
+    async def route_after_supervisor(state: VinUniState) -> str:
+        return state.get("intent", "services")
+
     def make_specialist_node(agent: Any):
         async def node(state: VinUniState) -> dict:
             # Bounded ReAct loop (Phase 1.17): cap super-steps so an agent-decided cross_lingual retry
@@ -89,7 +92,7 @@ def build_agent_graph(
     builder.add_edge(START, "supervisor")
     builder.add_conditional_edges(
         "supervisor",
-        lambda state: state.get("intent", "services"),
+        route_after_supervisor,
         {intent: intent for intent in INTENTS},
     )
     for intent in INTENTS:

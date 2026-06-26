@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-import uuid
-
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 
 from vinchatbot.app.api.ratelimit import add_rate_limit_middleware
 from vinchatbot.app.api.routes_chat import router as chat_router
 from vinchatbot.app.api.routes_ingest import router as ingest_router
 from vinchatbot.app.core.config import get_settings
 from vinchatbot.app.core.logging import configure_logging
-from vinchatbot.app.core.observability import reset_request_id, set_request_id
+from vinchatbot.app.core.observability import add_request_id_middleware
 
 
 def create_app() -> FastAPI:
@@ -22,18 +20,7 @@ def create_app() -> FastAPI:
     # No-op unless RATE_LIMIT_ENABLED. /health + OPTIONS are exempt.
     add_rate_limit_middleware(app, settings)
 
-    @app.middleware("http")
-    async def request_id_middleware(request: Request, call_next):
-        # Honor an inbound correlation id (e.g. from a gateway) or mint one; expose it on the
-        # response and bind it to logs for this request. Fail-open: never block the request.
-        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
-        token = set_request_id(request_id)
-        try:
-            response = await call_next(request)
-            response.headers["X-Request-ID"] = request_id
-            return response
-        finally:
-            reset_request_id(token)
+    add_request_id_middleware(app)
 
     @app.get("/health", tags=["system"])
     async def health() -> dict[str, str]:
@@ -49,4 +36,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-
