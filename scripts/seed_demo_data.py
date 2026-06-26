@@ -21,6 +21,8 @@ DEMO_NAMESPACE = uuid.UUID("0c33c4dd-b75b-4e78-ae57-b4f7646f3c7b")
 DEMO_ACADEMIC_YEAR = "2026-2027"
 DEMO_SEMESTER = "Fall 2026"
 DEMO_ACTIVITY_START = datetime(2026, 10, 1, tzinfo=UTC)
+DEMO_ACTIVITY_VISIBLE_FROM_DAYS_AGO = 14
+DEMO_ACTIVITY_VISIBLE_UNTIL_DAYS = 90
 ALLOWED_SEED_ENVS = {"development", "dev", "local", "test"}
 REQUIRED_ROLE_CODES = {"student", "institute_admin", "global_admin", "staff"}
 REQUIRED_INSTITUTE_CODES = {"VIB", "CECS", "CHS", "CASE"}
@@ -359,6 +361,10 @@ def deterministic_uuid(label: str) -> uuid.UUID:
     return uuid.uuid5(DEMO_NAMESPACE, label)
 
 
+def seed_runtime_now() -> datetime:
+    return datetime.now(UTC).replace(microsecond=0)
+
+
 def validate_seed_environment(app_env: str) -> None:
     env = (app_env or "").strip().lower()
     if env == "production":
@@ -528,14 +534,19 @@ def build_seed_plan() -> DemoSeedPlan:
     )
 
 
-def build_activity_seed_plan(academic_plan: DemoSeedPlan | None = None) -> DemoActivitySeedPlan:
+def build_activity_seed_plan(
+    academic_plan: DemoSeedPlan | None = None,
+    *,
+    seed_now: datetime | None = None,
+) -> DemoActivitySeedPlan:
     academic_plan = academic_plan or build_seed_plan()
+    seed_now = seed_now or seed_runtime_now()
     course_lookup = course_lookup_by_key(list(academic_plan.courses))
     courses_by_institute = group_courses_by_institute(list(academic_plan.courses))
     enrollments_by_student = group_enrollments_by_student(list(academic_plan.enrollments))
     profiles_by_email = {profile.user_email: profile for profile in academic_plan.student_profiles}
 
-    notifications = build_activity_notifications(courses_by_institute)
+    notifications = build_activity_notifications(courses_by_institute, seed_now=seed_now)
     notification_reads = build_notification_reads(notifications, academic_plan)
     events = build_activity_events()
     conversations, messages = build_conversations_and_messages(
@@ -561,6 +572,7 @@ def build_activity_seed_plan(academic_plan: DemoSeedPlan | None = None) -> DemoA
         tickets,
         question_trends,
         courses_by_institute,
+        seed_now=seed_now,
     )
 
     return DemoActivitySeedPlan(
@@ -580,9 +592,13 @@ def build_activity_seed_plan(academic_plan: DemoSeedPlan | None = None) -> DemoA
 
 def build_activity_notifications(
     courses_by_institute: dict[str, list[DemoCourse]],
+    *,
+    seed_now: datetime,
 ) -> list[DemoNotification]:
     bus230 = next(course for course in courses_by_institute["VIB"] if course.course_code == "BUS230")
     csc330 = next(course for course in courses_by_institute["CECS"] if course.course_code == "CSC330")
+    visible_from = seed_now - timedelta(days=DEMO_ACTIVITY_VISIBLE_FROM_DAYS_AGO)
+    visible_until = seed_now + timedelta(days=DEMO_ACTIVITY_VISIBLE_UNTIL_DAYS)
     rows = (
         (
             "final-exam-schedule",
@@ -598,8 +614,8 @@ def build_activity_notifications(
             None,
             None,
             DEMO_ACTIVITY_START + timedelta(days=72),
-            DEMO_ACTIVITY_START,
-            DEMO_ACTIVITY_START + timedelta(days=80),
+            visible_from,
+            visible_until,
             "Exam Office demo notice",
         ),
         (
@@ -616,8 +632,8 @@ def build_activity_notifications(
             None,
             DEMO_ACTIVITY_START + timedelta(days=14),
             None,
-            DEMO_ACTIVITY_START,
-            DEMO_ACTIVITY_START + timedelta(days=14),
+            visible_from,
+            visible_until,
             "Registrar demo notice",
         ),
         (
@@ -634,8 +650,8 @@ def build_activity_notifications(
             None,
             DEMO_ACTIVITY_START + timedelta(days=21),
             None,
-            DEMO_ACTIVITY_START,
-            DEMO_ACTIVITY_START + timedelta(days=21),
+            visible_from,
+            visible_until,
             "Financial Aid demo notice",
         ),
         (
@@ -652,8 +668,8 @@ def build_activity_notifications(
             None,
             None,
             DEMO_ACTIVITY_START + timedelta(days=24),
-            DEMO_ACTIVITY_START,
-            DEMO_ACTIVITY_START + timedelta(days=24),
+            visible_from,
+            visible_until,
             "Career Center demo notice",
         ),
         (
@@ -670,8 +686,8 @@ def build_activity_notifications(
             2026,
             None,
             None,
-            DEMO_ACTIVITY_START + timedelta(days=6),
-            DEMO_ACTIVITY_START + timedelta(days=10),
+            visible_from,
+            visible_until,
             "Advising demo notice",
         ),
         (
@@ -688,8 +704,8 @@ def build_activity_notifications(
             None,
             DEMO_ACTIVITY_START + timedelta(days=12),
             None,
-            DEMO_ACTIVITY_START,
-            DEMO_ACTIVITY_START + timedelta(days=12),
+            visible_from,
+            visible_until,
             "CECS demo notice",
         ),
         (
@@ -706,8 +722,8 @@ def build_activity_notifications(
             None,
             None,
             DEMO_ACTIVITY_START + timedelta(days=18),
-            DEMO_ACTIVITY_START,
-            DEMO_ACTIVITY_START + timedelta(days=18),
+            visible_from,
+            visible_until,
             "CASE demo notice",
         ),
         (
@@ -724,8 +740,8 @@ def build_activity_notifications(
             None,
             None,
             None,
-            DEMO_ACTIVITY_START + timedelta(days=45),
-            DEMO_ACTIVITY_START + timedelta(days=78),
+            visible_from,
+            visible_until,
             "Library demo notice",
         ),
         (
@@ -742,8 +758,8 @@ def build_activity_notifications(
             None,
             DEMO_ACTIVITY_START + timedelta(days=30),
             None,
-            DEMO_ACTIVITY_START,
-            DEMO_ACTIVITY_START + timedelta(days=30),
+            visible_from,
+            visible_until,
             "Student Finance demo notice",
         ),
         (
@@ -760,8 +776,8 @@ def build_activity_notifications(
             None,
             None,
             None,
-            DEMO_ACTIVITY_START,
-            DEMO_ACTIVITY_START + timedelta(days=60),
+            visible_from,
+            visible_until,
             "Student Success demo notice",
         ),
         (
@@ -778,8 +794,8 @@ def build_activity_notifications(
             None,
             DEMO_ACTIVITY_START + timedelta(days=16),
             DEMO_ACTIVITY_START + timedelta(days=16),
-            DEMO_ACTIVITY_START,
-            DEMO_ACTIVITY_START + timedelta(days=16),
+            visible_from,
+            visible_until,
             "CHS demo notice",
         ),
         (
@@ -796,8 +812,8 @@ def build_activity_notifications(
             None,
             DEMO_ACTIVITY_START + timedelta(days=9),
             None,
-            DEMO_ACTIVITY_START,
-            DEMO_ACTIVITY_START + timedelta(days=9),
+            visible_from,
+            visible_until,
             "VIB course demo notice",
         ),
         (
@@ -814,8 +830,8 @@ def build_activity_notifications(
             None,
             None,
             DEMO_ACTIVITY_START + timedelta(days=34),
-            DEMO_ACTIVITY_START,
-            DEMO_ACTIVITY_START + timedelta(days=34),
+            visible_from,
+            visible_until,
             "CECS course demo notice",
         ),
     )
@@ -1301,9 +1317,11 @@ def build_suggested_questions(
     tickets: list[DemoTicket],
     trends: list[DemoQuestionTrend],
     courses_by_institute: dict[str, list[DemoCourse]],
+    *,
+    seed_now: datetime,
 ) -> list[DemoSuggestedQuestion]:
-    valid_from = DEMO_ACTIVITY_START
-    valid_until = DEMO_ACTIVITY_START + timedelta(days=120)
+    valid_from = seed_now - timedelta(days=DEMO_ACTIVITY_VISIBLE_FROM_DAYS_AGO)
+    valid_until = seed_now + timedelta(days=DEMO_ACTIVITY_VISIBLE_UNTIL_DAYS)
     suggestions: list[DemoSuggestedQuestion] = []
 
     for trend in trends:

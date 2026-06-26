@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from collections import Counter
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from scripts import seed_demo_data
+
+SEED_NOW = datetime(2026, 6, 26, 12, 0, tzinfo=UTC)
 
 
 def test_demo_seed_plan_has_expected_user_counts():
@@ -112,6 +115,31 @@ def test_activity_seed_plan_has_expected_counts():
     assert activity_plan.ticket_status_history
     assert activity_plan.question_events
     assert activity_plan.suggested_questions
+
+
+def test_activity_seed_suggestions_are_active_around_seed_now():
+    activity_plan = seed_demo_data.build_activity_seed_plan(seed_now=SEED_NOW)
+
+    assert activity_plan.suggested_questions
+    for suggestion in activity_plan.suggested_questions:
+        assert suggestion.valid_from == SEED_NOW - timedelta(
+            days=seed_demo_data.DEMO_ACTIVITY_VISIBLE_FROM_DAYS_AGO
+        )
+        assert suggestion.valid_until == SEED_NOW + timedelta(
+            days=seed_demo_data.DEMO_ACTIVITY_VISIBLE_UNTIL_DAYS
+        )
+        assert suggestion.valid_from <= SEED_NOW <= suggestion.valid_until
+
+
+def test_published_demo_notifications_are_visible_around_seed_now():
+    activity_plan = seed_demo_data.build_activity_seed_plan(seed_now=SEED_NOW)
+
+    assert activity_plan.notifications
+    for notification in activity_plan.notifications:
+        assert notification.status == "published"
+        assert notification.start_date is not None
+        assert notification.end_date is not None
+        assert notification.start_date <= SEED_NOW <= notification.end_date
 
 
 def test_activity_seed_plan_required_demo_accounts_have_activity():
