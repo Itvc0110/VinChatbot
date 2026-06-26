@@ -89,6 +89,101 @@ def test_demo_seed_requires_confirmation_before_connecting(monkeypatch):
 
 def test_demo_seed_summary_does_not_expose_password():
     plan = seed_demo_data.build_seed_plan()
-    summary = "\n".join(seed_demo_data.seed_summary_lines(plan))
+    activity_plan = seed_demo_data.build_activity_seed_plan(plan)
+    summary = "\n".join(
+        [
+            *seed_demo_data.seed_summary_lines(plan),
+            *seed_demo_data.activity_seed_summary_lines(activity_plan),
+        ]
+    )
 
     assert seed_demo_data.DEMO_PASSWORD not in summary
+
+
+def test_activity_seed_plan_has_expected_counts():
+    activity_plan = seed_demo_data.build_activity_seed_plan()
+
+    assert 10 <= len(activity_plan.notifications) <= 15
+    assert 8 <= len(activity_plan.events) <= 12
+    assert 20 <= len(activity_plan.tickets) <= 30
+    assert activity_plan.notification_reads
+    assert activity_plan.messages
+    assert activity_plan.ticket_messages
+    assert activity_plan.ticket_status_history
+    assert activity_plan.question_events
+    assert activity_plan.suggested_questions
+
+
+def test_activity_seed_plan_required_demo_accounts_have_activity():
+    academic_plan = seed_demo_data.build_seed_plan()
+    activity_plan = seed_demo_data.build_activity_seed_plan(academic_plan)
+    student_id_by_email = {
+        profile.user_email: profile.student_id for profile in academic_plan.student_profiles
+    }
+    conversation_counts = Counter(
+        conversation.user_email for conversation in activity_plan.conversations
+    )
+    tickets_by_student_id = {}
+    for ticket in activity_plan.tickets:
+        tickets_by_student_id.setdefault(ticket.student_id, []).append(ticket)
+
+    for email in seed_demo_data.DEMO_STUDENT_EMAILS:
+        student_id = student_id_by_email[email]
+        statuses = {ticket.status for ticket in tickets_by_student_id[student_id]}
+
+        assert 3 <= conversation_counts[email] <= 5
+        assert statuses & {"submitted", "open"}
+        assert "resolved" in statuses
+
+
+def test_activity_seed_plan_trends_and_suggestions_cover_all_institutes():
+    activity_plan = seed_demo_data.build_activity_seed_plan()
+    trend_institutes = {
+        trend.institute_code
+        for trend in activity_plan.question_trends
+        if trend.institute_code is not None
+    }
+    suggestion_institutes = {
+        question.institute_code
+        for question in activity_plan.suggested_questions
+        if question.institute_code is not None
+    }
+
+    assert trend_institutes == seed_demo_data.REQUIRED_INSTITUTE_CODES
+    assert seed_demo_data.REQUIRED_INSTITUTE_CODES <= suggestion_institutes
+
+
+def test_activity_seed_plan_uses_stable_ids_for_idempotency():
+    first = seed_demo_data.build_activity_seed_plan()
+    second = seed_demo_data.build_activity_seed_plan()
+
+    assert [item.id for item in first.notifications] == [
+        item.id for item in second.notifications
+    ]
+    assert [item.id for item in first.conversations] == [
+        item.id for item in second.conversations
+    ]
+    assert [item.id for item in first.tickets] == [item.id for item in second.tickets]
+    assert len({item.id for item in first.messages}) == len(first.messages)
+    assert len({item.id for item in first.suggested_questions}) == len(
+        first.suggested_questions
+    )
+
+
+def test_activity_seed_plan_uses_schema_allowed_values():
+    activity_plan = seed_demo_data.build_activity_seed_plan()
+
+    assert {message.role for message in activity_plan.messages} <= {"user", "assistant"}
+    assert {ticket.status for ticket in activity_plan.tickets} <= {
+        "submitted",
+        "open",
+        "in_progress",
+        "waiting_on_student",
+        "resolved",
+        "closed",
+    }
+    assert {question.source_type for question in activity_plan.suggested_questions} <= {
+        "trend",
+        "notification",
+        "manual",
+    }
