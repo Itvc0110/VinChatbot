@@ -175,6 +175,39 @@ Baseline progression this phase: **0.969/226 → 0.965/199 (prune) → 0.98/199*
   re-measure a roadmap fix's actual gap before building (the system outgrew D1–D9 — D1 had 0 whole-refusal
   targets; G1 was 3 cases).
 
+## Phase 1.33 — Multi-domain FAN-OUT (built, flag-gated OFF; pre-promotion)
+- **Feature.** Supervisor `plan_dispatch` emits a PLAN: SINGLE (~90%, byte-identical single path), DECOMPOSE
+  (compound → per-domain subtasks run in parallel), or HEDGE (route-ambiguous → same question to 2 candidate
+  specialists). `fanout_node` runs subtasks concurrently (error-isolated), synthesis merges (citations union
+  over all subtasks' ToolMessages, no service change). **L2 reactive loop**: re-run a PUNTED subtask once with
+  a critique, keep the good parts, cap=1, can't fabricate. All behind `ENABLE_FAN_OUT` (default off). 19 fan-out
+  unit tests; suite 394 green. See `LOGS/PHASE1.33_LOG.md`.
+- **Planner calibration (lesson).** Initial decompose 3/16 was IDENTICAL across gpt-4o-mini→sonnet — a stronger
+  model fixed nothing. Manual raw-output inspection: the Tier-0 keyword fast-path returned `single` BEFORE the
+  LLM ran. Fixed the gate → cheap gpt-4o-mini: 76% mode-match, 0 under-fire. *Measure the raw artifact before
+  blaming the model.*
+- **Hard-set A/B (86 adversarial cases, --runs 1, cache-off): ON 0.721 vs OFF 0.663.** 8 of OFF's 29 failures
+  fixed (4 decompose + 3 hedge + 1 underspec — the structural gap the old flow gets categorically wrong);
+  single path made byte-identical via single-assignment deferral to `route_intent`; latency +31% on fan-out
+  turns (parallel). `est_cost` undercounts ON — fan-out subtasks run in `asyncio.gather` child tasks whose
+  `record_stage` contextvars don't propagate back; **latency is the honest cost signal**.
+- **Root-cause win (1.33e).** Scoped *why* the gain was modest instead of promoting. The dominant fan-out
+  failure was a **contextvar leak**, NOT a retrieval cap: the turn pins `set_user_message(compound)`, and every
+  subtask's tools key structured-lookup/list-mode/cross-lingual off `get_user_message()`, so a subtask ran its
+  deterministic lookup against the whole compound → punt. Facts were retrieved at rank 0; specialists answered
+  them correctly STANDALONE. Fix: set the contextvar to the subtask per `_run_subtask` (isolated per asyncio
+  task). Verified end-to-end: `dc-3part` (regression) and `cross-late-payment` (both_fail) both recover.
+- **Full-199 A/B + DECISION (PROMOTED, default ON).** OFF 0.970 vs ON 0.945 (pre-fix net-negative): the scored
+  199 has ~no genuine compounds, so fan-out had nothing to gain there but **over-fired** on 4 same-specialist
+  splits (services+services / policy+policy / calendar+calendar). Fixed with a deterministic **same-intent
+  collapse** (all-one-intent plan → SINGLE; genuine cross-domain spans ≥2 intents → still fans out) → post-fix
+  ON ≈ OFF (neutral), **confirmed on the 5 regressed cases (~10 turns): OFF 5/5, ON 5/5, all 4 over-fires now
+  `fanout=False`**. **Decision: PROMOTED** (`ENABLE_FAN_OUT` default ON) — neutral on the current single-domain
+  scored set, adds the multi-domain coverage the single router structurally can't, reversible via the flag.
+  Also shipped: chat-client **request timeout/retries** (a hung LLM call with no timeout previously froze the
+  turn / a fan-out gather — root-caused from repeated eval hangs) + fee-lookup **negation**. Live flow is now
+  the dispatch planner; a single-domain question takes the single-specialist path byte-identically.
+
 ## Honest caveats / known limitations
 - **`policy_conduct` 0.571 is largely a measurement artifact**, not a flow weakness: of 3 fails, 2 are
   eval-scorer issues (token-morphology "temporary"≠"temporarily"; an `expected_source` hardcoded to

@@ -50,6 +50,12 @@ class Settings(BaseSettings):
     # the proven root of "same question, different answer" was sampling. Raise toward 0.1–0.3 only if
     # answer diversity is wanted at the cost of run-to-run stability. Guard models keep their own temp.
     llm_temperature: float = Field(default=0.0, validation_alias="LLM_TEMPERATURE")
+    # Per-request timeout + retries on the chat client (Phase 1.33 reliability fix). The OpenAI SDK default
+    # is 600s with no app override — a stalled OpenRouter connection then freezes the whole turn (and, in a
+    # fan-out turn, blocks the asyncio.gather over subtasks). Fail-fast + a couple retries keeps a user's turn
+    # responsive and stops long eval runs from hanging for minutes on one bad call.
+    llm_request_timeout_s: float = Field(default=60.0, validation_alias="LLM_REQUEST_TIMEOUT_S")
+    llm_max_retries: int = Field(default=2, validation_alias="LLM_MAX_RETRIES")
     # ReAct loop bound (Phase 1.17): max LangGraph super-steps per specialist turn. Agent-decided
     # cross-lingual adds ~one retry tool call (~2 steps); this caps runaway loops while leaving room for
     # native-search → cross_lingual retry → get_source_detail → answer. ~2 super-steps per tool call.
@@ -209,6 +215,21 @@ class Settings(BaseSettings):
     # deterministic-first gate (a strong, unambiguous keyword signal routes WITHOUT the LLM). Fail-safe: off
     # = current router behaviour byte-identical.
     enable_router_v2: bool = Field(default=False, validation_alias="ENABLE_ROUTER_V2")
+    # Multi-domain FAN-OUT (Phase 1.33, PROMOTED — default ON). The supervisor is a DISPATCH PLANNER that may
+    # emit >1 {query,intent} assignment — DECOMPOSE a compound question into per-domain subtasks, or HEDGE an
+    # ambiguous route to the candidate specialists — dispatched in parallel and merged by a synthesis node.
+    # A single-assignment plan (the ~90%) takes the single-specialist path, byte-identical (single-assignment
+    # defers to route_intent; same-intent over-fires collapse to one specialist). Set ENABLE_FAN_OUT=false to
+    # revert. Post over-fire-fix the full-set A/B is neutral on single-domain traffic (no regression); fan-out
+    # adds the multi-domain coverage the single router structurally can't. fan_out_max_subtasks caps cost;
+    # reroute_min_score is the per-subtask low-coverage threshold for a one-shot re-route to `services`.
+    enable_fan_out: bool = Field(default=True, validation_alias="ENABLE_FAN_OUT")
+    fan_out_max_subtasks: int = Field(default=3, validation_alias="FAN_OUT_MAX_SUBTASKS")
+    fan_out_reroute_min_score: float = Field(default=0.3, validation_alias="FAN_OUT_REROUTE_MIN_SCORE")
+    # Optional stronger model for the dispatch planner's 1-vs-many decision (the routing model gpt-4o-mini
+    # under-fires decompose/hedge). Empty = use openrouter_chat_model. The planner call is small (~700 in/
+    # ~80 out tokens) so even a premium model is ~cents/1000-calls — optimize for decision quality + latency.
+    planner_model: str = Field(default="", validation_alias="PLANNER_MODEL")
     # Cross-lingual expansion (Phase 1.8). ALWAYS-ON translation, default OFF since Phase 1.14: the e5
     # multilingual embedding matches VI↔EN natively, so the always-on LLM translation is unnecessary
     # noise + the dominant run-to-run nondeterminism source (it hurt VI calendar in the 1.14 A/B). Set

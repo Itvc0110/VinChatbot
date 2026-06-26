@@ -4,10 +4,17 @@ Visual reference for how data and a chat turn move through the system. Diagrams 
 Mermaid (render in GitHub and the VS Code Mermaid preview). Pairs with [PRD.md](PRD.md) /
 [UPDATE_PLAN.md](UPDATE_PLAN.md).
 
-> State (2026-06-23, post-Phase 1.27): the flows, multi-agent routing, layered guards, and module map
+> State (2026-06-26, post-Phase 1.33): the flows, multi-agent routing, layered guards, and module map
 > below match the current code. Serving is **plain-text** on **`gpt-4o-mini`**. Major additions since
 > Phase 1.7 (all `ENABLE_*`-flag-gated + fail-open; see [LOGS/SESSION_CLOSEOUT.md](LOGS/SESSION_CLOSEOUT.md)
 > for the full done/deferred state and [UPDATE_PLAN.md](UPDATE_PLAN.md) for the roadmap):
+> - **Multi-domain fan-out** (Phase 1.33, `ENABLE_FAN_OUT`, **PROMOTED → default ON**, the live flow): the
+>   supervisor is a dispatch planner that DECOMPOSEs a genuine cross-domain compound into per-domain subtasks
+>   run in PARALLEL, or HEDGEs a route-ambiguous question to 2 candidate specialists, then a synthesis node
+>   merges (union of citations). A single-assignment plan (the ~87%) takes the single-specialist path,
+>   byte-identical (defers to `route_intent`; same-intent over-fires collapse). Neutral on the single-domain
+>   scored set (no regression after the over-fire fix) and adds the multi-domain coverage the single router
+>   structurally can't. Set `ENABLE_FAN_OUT=false` to revert. See **§2c**.
 > - **Deterministic structured lookup** (calendar + fee) runs BEFORE vector search — exact-row match for
 >   point-lookups, **list mode** (Phase 1.27) returns the full fee matrix / all matching calendar events for
 >   "all/each" questions (§2b). `ENABLE_STRUCTURED_LOOKUP`, `ENABLE_LIST_MODE`.
@@ -19,7 +26,8 @@ Mermaid (render in GitHub and the VS Code Mermaid preview). Pairs with [PRD.md](
 > - **Output-guard unification** (Phase 1.25 Phase A): `resolve_output_decision` (secret-leak incl.
 >   de-obfuscated/zero-width + citation/degrade + faithfulness), logged reasons (§3). The LLM output-audit
 >   critic was rejected and is kept inert (`ENABLE_OUTPUT_AUDIT=false`).
-> - Baseline: **0.968/188** golden ([data/eval/baseline.json](data/eval/baseline.json)); guards 1.000.
+> - Baseline: **≈0.98/199** golden, fan-out OFF ([data/eval/baseline.json](data/eval/baseline.json)); guards
+>   1.000 (single-run noise ≈ ±3 cases).
 
 ---
 
@@ -72,8 +80,8 @@ flowchart TD
     lang["detect language<br/>(answer_language) → directive"]
 
     subgraph graph["Multi-agent graph (LangGraph, graph.py) — see §2a for detail"]
-        sup["Supervisor (supervisor.py)<br/>route intent: calendar|policy|financial|services"]
-        spec["Selected specialist (1 of 4)<br/>ReAct agent, own prompt + tool subset"]
+        sup["Supervisor / dispatch planner (supervisor.py)<br/>1 specialist (calendar|policy|financial|services),<br/>or fan-out to several (§2c)"]
+        spec["Selected specialist(s)<br/>ReAct agent, own prompt + tool subset<br/>(parallel + synthesis when fanned out)"]
     end
 
     retr["Retrieval pipeline (adaptive)<br/>tool _search → QdrantHybridRetriever<br/>— full detail in §2b"]
@@ -115,7 +123,9 @@ fail-open → any miss falls through to the vector path byte-identically):
   `ENABLE_LIST_MODE`): "all/each/compare" questions return the **full fee matrix** (`_match_fee`) or **all
   matching calendar events** (`_match_calendar`) deterministically, and widen the vector path
   (`RETRIEVAL_LIST_MAX_K`) + enumerate. Built by `scripts/build_structured_index.py` →
-  `data/processed/structured_records.json`.
+  `data/processed/structured_records.json`. **Negation-aware** (Phase 1.33): a program named only to be
+  EXCLUDED ("non-Nursing Bachelor", "không phải điều dưỡng") is dropped from program matching, so the fee
+  lookup MISSES (→ vector, which carries the full tuition table) instead of false-matching the Nursing row.
 - **Policy doc-pin** ([policy_lookup.py](vinchatbot/app/rag/policy_lookup.py)) — a confident single-topic
   policy match pins that canonical all-policies page by `source_url` (gap-proof doc selection). The curated
   17-topic map (precedence) + an **ingest auto-index** (title fallback for the other ~138 pages, built by
@@ -161,10 +171,11 @@ flowchart TD
 
 ## 2a. Multi-agent: supervisor → specialists → tools (and where MCP/A2A would fit)
 
-How the "multi-agent" actually works today: the supervisor (a cheap LLM intent classifier
-with a keyword-heuristic fallback) routes each turn to **one of four specialist ReAct
-agents**. Each specialist is its own `create_agent` instance with its **own system prompt
-and a focused subset of tools**. Tools are **in-process Python functions** (`tools.py`,
+How the "multi-agent" actually works today: the supervisor is a **dispatch planner**
+(`ENABLE_FAN_OUT` default ON — **§2c**) that routes a clear single-domain question to **one of
+four specialist ReAct agents** (the ~87% common case shown below) or fans a genuine compound
+out to several in parallel. Each specialist is its own `create_agent` instance with its **own
+system prompt and a focused subset of tools**. Tools are **in-process Python functions** (`tools.py`,
 LangChain `@tool`) — every tool ultimately calls the same retrieval pipeline. Memory is the
 shared LangGraph checkpointer keyed by `conversation_id`.
 
@@ -218,6 +229,54 @@ flowchart TD
     specs -. "could be split into" .-> a2a
 ```
 
+## 2c. Multi-domain fan-out (Phase 1.33 — `ENABLE_FAN_OUT`, PROMOTED, default ON)
+
+**The live flow.** It solves two single-route failures the old flow gets *categorically* wrong: **(a) compound
+coverage** ("MD tuition **and** when does Fall start?" — single routing answers one half, silently drops the
+other) and **(b) route ambiguity** (a boundary question mis-routed to the wrong single specialist). It is
+**neutral on the single-domain scored set** (no regression after the same-intent over-fire fix) and adds the
+multi-domain coverage that shows on the authored hard set `data/eval/golden_targets/`. Set `ENABLE_FAN_OUT=false`
+to revert to plain single-specialist routing (§2a).
+
+The supervisor calls the **dispatch planner** ([`plan_dispatch`, supervisor.py](vinchatbot/app/agents/supervisor.py))
+instead of `route_intent`; the planner emits a PLAN = `list[{query,intent}]` in three modes:
+
+```mermaid
+flowchart TD
+    msg["allowed, language-tagged message"]
+    plan["plan_dispatch (supervisor.py)<br/>Tier-0 keyword fast-path → else LLM planner (DISPATCH_SYSTEM)"]
+    collapse{"all assignments<br/>SAME intent?"}
+    n{"len(plan)?"}
+    single["SINGLE → route_intent(message)<br/>→ existing specialist node (BYTE-IDENTICAL to §2a)"]
+    fan["fanout_node (graph.py)"]
+
+    msg --> plan --> collapse
+    collapse -->|"yes (over-fire)"| single
+    collapse -->|"no / single"| n
+    n -->|"1"| single
+    n -->|">1 (distinct intents)"| fan
+
+    subgraph fo["fanout_node — parallel, error-isolated"]
+        gather["asyncio.gather over subtasks<br/>each: FRESH single-subtask msg +<br/>set_user_message(subtask) so the tools'<br/>structured-lookup/list-mode key off the SUBTASK"]
+        l2["L2 reactive retry (cap=1):<br/>re-run a PUNTED subtask with a critique;<br/>keep good parts, can't fabricate"]
+        syn["synthesis (SYNTHESIS_SYSTEM):<br/>merge grounded parts, dedupe,<br/>emit ToolMessages (citation union) + answer"]
+        gather --> l2 --> syn
+    end
+    fan --> fo --> done["→ END (service layer guards as usual, §3)"]
+    single --> done
+```
+
+Key engineering (each a measured fix, see [LOGS/PHASE1.33_LOG.md](LOGS/PHASE1.33_LOG.md)):
+- **SINGLE is byte-identical**: a single-assignment plan defers to `route_intent` — the planner only decides
+  single-vs-many, never the single-domain intent (letting it pick regressed scored cases).
+- **Same-intent collapse**: a multi-assignment plan whose parts ALL route to one specialist is an over-fire →
+  collapsed to SINGLE (one specialist answers all facets better from the whole-question context). Genuine
+  DECOMPOSE/HEDGE always span ≥2 DISTINCT intents, so they still fan out.
+- **Contextvar per subtask**: the turn pins `get_user_message()` to the whole compound; each subtask resets it
+  to its own query (isolated per asyncio task) so the deterministic lookups don't key off the wrong text.
+- **Synthesis emits the subtasks' ToolMessages** so the service-layer citation/faithfulness guards (§3) work on
+  the **union** with no change; the audit is scoped to groundedness-only for a fused multi-domain answer.
+
 ## 3. Guard layering (cost-aware: cheap tier first)
 
 ```mermaid
@@ -255,7 +314,7 @@ but **rejected/off** (over-degraded correct answers) — kept for a future secur
 | Area | Modules |
 |------|---------|
 | API | `app/main.py`, `app/api/routes_chat.py`, `app/api/routes_ingest.py` |
-| Agents | `agents/graph.py`, `supervisor.py`, `specialists.py`, `prompts.py`, `tools.py`, `vinuni_agent.py`, `agents/output_audit.py` (critic, gated off) |
+| Agents | `agents/graph.py` (single-specialist graph + `fanout_node`, gated off), `supervisor.py` (`route_intent` + `plan_dispatch` fan-out planner), `specialists.py`, `prompts.py` (incl. `DISPATCH_SYSTEM`/`SYNTHESIS_SYSTEM`), `tools.py`, `vinuni_agent.py`, `agents/output_audit.py` (critic, gated off) |
 | Guards | `agents/guardrails.py` (input `resolve_guardrail_decision` + output `resolve_output_decision`: regex/deobf/secret/faithfulness), `agents/llm_guard.py` (injection/scope), `agents/safety_guard.py` (omni-moderation/Llama Guard) |
 | RAG | `rag/retriever.py`, `rag/reranker.py`, `rag/context.py` (LITM/dedup/dynamic-k), `rag/query_engineering.py` (`is_point_lookup`/`is_list_lookup`), `rag/structured_lookup.py` (calendar+fee deterministic + list mode), `rag/policy_lookup.py` (doc-pin + auto-index), `rag/citations.py` |
 | Core | `core/config.py` (all `ENABLE_*` flags), `core/cache.py` (Redis LLM+rerank cache), `core/observability.py` (per-stage ledger) |

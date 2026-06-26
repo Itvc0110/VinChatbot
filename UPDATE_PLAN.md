@@ -57,9 +57,15 @@ Built and validated end-to-end (crawl → ingest → chat → eval). **Current: 
   (de-obfuscated secret scan, `resolve_output_decision`) shipped; **1.25 Phase B critic REJECTED** (gated off,
   kept for future security).
 - ✅ **1.27a/b** **list mode** (`ENABLE_LIST_MODE`): fee-matrix + calendar aggregation for "all/each" questions.
+- ✅ **1.33** multi-domain **fan-out** PROMOTED (`ENABLE_FAN_OUT` default **ON**): dispatch planner
+  (SINGLE / DECOMPOSE / HEDGE) → parallel specialists → synthesis + L2 reactive retry; single path byte-identical
+  (single-assignment defers to `route_intent`), same-intent over-fire collapsed. Neutral on the single-domain
+  scored set (no regression after the over-fire fix) + adds the multi-domain coverage the single router can't;
+  reversible via the flag. Also shipped: fee-lookup **negation-awareness** + chat-client **request
+  timeout/retries** (a hung LLM call previously froze the turn). Log `LOGS/PHASE1.33_LOG.md`.
 - ⏸ **DEFERRED** (paused for teammate merge): **1.26/A5** refusal & don't-over-refuse (restricted_data hybrid
-  → `record-privacy-vi`; soft-scope A/B; clarification → merge) — plan `LOGS/PHASE1.26_PLAN.md`; **1.27c**
-  cross-domain fan-out; **1.28/A7** contextual retrieval; multi-question decomposition (ReAct covers it) +
+  → `record-privacy-vi`; soft-scope A/B; clarification → merge) — plan `LOGS/PHASE1.26_PLAN.md`;
+  **1.28/A7** contextual retrieval; multi-question decomposition (ReAct covers it) +
   output PII scan; **Track B perf** (1.29 async, B2 semantic cache). Resume order in `SESSION_CLOSEOUT.md`.
 
 ---

@@ -306,6 +306,20 @@ def test_fee_no_program_named_is_miss(tmp_path):
     assert lookup.lookup("What is the tuition fee per credit?", "fee") is None
 
 
+def test_fee_negated_program_does_not_false_match(tmp_path):
+    lookup = _lookup(tmp_path)
+    # Phase 1.33: "non-Nursing Bachelor" must NOT match the Nursing row via substring — it MISSES so the
+    # richer tuition table reaches the answer via vector retrieval (instead of pre-empting with Nursing).
+    assert lookup.lookup(
+        "What is the listed tuition fee per academic year for non-Nursing Bachelor programs?", "fee"
+    ) is None
+    assert lookup.lookup("học phí mỗi năm cho chương trình không phải điều dưỡng", "fee") is None
+    # A plain (non-negated) Nursing query still resolves deterministically.
+    assert "349,650,000" in _fee_text(
+        lookup.lookup("What is the tuition per academic year for the Bachelor of Nursing program?", "fee")
+    )
+
+
 def test_fee_list_mode_all_programs_one_granularity(tmp_path):
     lookup = _lookup(tmp_path)
     # Phase 1.27a: "per-credit tuition for ALL programs" → every program's per-credit cell, and NO

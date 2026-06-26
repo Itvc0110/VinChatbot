@@ -15,6 +15,10 @@ Backend MVP cho chatbot hỗ trợ sinh viên VinUni bằng RAG + ReAct agent.
   "tất cả/mỗi" (các tính năng đều `ENABLE_*`-gated, fail-open).
 - Guard 2 lớp: **input** (`resolve_guardrail_decision`) và **output** (`resolve_output_decision`: rò rỉ
   secret + grounding). Cache Redis (LLM + rerank) để tái lập kết quả và giảm chi phí.
+- **Fan-out đa lĩnh vực** (Phase 1.33, `ENABLE_FAN_OUT`, mặc định **BẬT** — đã promote): supervisor là dispatch
+  planner — tách câu hỏi đa lĩnh vực thành các subtask chạy song song rồi tổng hợp (hoặc hedge khi định tuyến
+  mơ hồ); câu đơn lĩnh vực (~87%) vẫn đi đường single-specialist (byte-identical). Đặt `ENABLE_FAN_OUT=false`
+  để quay lại. Chi tiết: ARCHITECTURE §2c.
 - Ngôn ngữ trả lời mặc định là tiếng Việt. Trạng thái/lộ trình: [LOGS/SESSION_CLOSEOUT.md](LOGS/SESSION_CLOSEOUT.md).
 
 ## Cài đặt

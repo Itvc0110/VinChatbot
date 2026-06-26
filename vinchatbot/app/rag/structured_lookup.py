@@ -230,6 +230,27 @@ def _classify(text: str, table: tuple[tuple[str, tuple[str, ...]], ...]) -> str 
     return None
 
 
+# Negation markers that flip a program mention into an EXCLUSION ("non-Nursing Bachelor", "không phải điều
+# dưỡng", "other than nursing"). Without this, the substring match treats "non-nursing" as nursing and the fee
+# lookup early-returns the WRONG row, pre-empting vector retrieval (Phase 1.33: cross-other-bachelor).
+_NEG_MARKERS = ("non ", "not ", "other than ", "ngoài ", "ngoai ", "không phải ", "khong phai ", "khác ", "khac ")
+
+
+def _negated_programs(low: str) -> set[str]:
+    """Program labels mentioned in a NEGATED context (a negation marker within the ~16 chars before the
+    keyword). Hyphens are already spaces in `low`, so 'non-nursing' reads as 'non nursing'."""
+    negated: set[str] = set()
+    for label, keywords in _PROGRAM_KEYWORDS:
+        for kw in keywords:
+            idx = low.find(kw)
+            while idx != -1:
+                if any(marker in low[max(0, idx - 16):idx] for marker in _NEG_MARKERS):
+                    negated.add(label)
+                    break
+                idx = low.find(kw, idx + 1)
+    return negated
+
+
 def _amount(cell: str) -> str | None:
     """Extract the comma-formatted amount from a tariff cell ("349,650,000/year" → "349,650,000")."""
     match = re.search(r"\d[\d,]{3,}\d", cell or "")
@@ -475,7 +496,12 @@ class StructuredLookup:
             )
         if not self._fee_matrix:
             return None
-        program = _classify(low, _PROGRAM_KEYWORDS)
+        # Drop programs named only to be EXCLUDED ("non-Nursing Bachelor") so a negated mention can't
+        # false-match its row; if nothing else matches we MISS → vector retrieval (which carries the full
+        # tuition table) rather than early-returning the wrong row.
+        negated = _negated_programs(low)
+        active = tuple((label, kws) for label, kws in _PROGRAM_KEYWORDS if label not in negated)
+        program = _classify(low, active)
         granularity = _classify(low, _GRANULARITY_KEYWORDS)
         # Phase 1.27a list mode: enumerate the full matrix when the answer spans >1 cell — a granularity
         # across ALL programs (no program named), or all granularities for one program. Deterministic from

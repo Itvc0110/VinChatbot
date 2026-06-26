@@ -6,7 +6,7 @@ import time
 from collections.abc import Iterable
 from typing import Any
 
-from vinchatbot.app.agents.graph import build_agent_graph
+from vinchatbot.app.agents.graph import FANOUT_ROUTE, build_agent_graph
 from vinchatbot.app.agents.guardrails import (
     CONVERSATIONAL_ACTIONS,
     OutputAuditDecision,
@@ -222,8 +222,17 @@ class VinUniAgentService:
         # intent-satisfaction (the named person's role must match the role asked) — a grounded answer that
         # names the wrong-role "President" is degraded to a hedge. `check_intent` only when run_intent so the
         # point-lookup groundedness path is byte-identical when the intent flag is off.
+        # Phase 1.33: a fan-out turn fuses MULTIPLE domains into one answer, so the single-intent
+        # role/identity-satisfaction check no longer applies (it would judge a multi-domain answer against
+        # one intent and wrongly degrade it). Scope the audit to GROUNDEDNESS-ONLY for fused answers; the
+        # groundedness check runs over the union of all subtasks' evidence. Single-path is byte-identical.
+        fused = result.get("intent") == FANOUT_ROUTE
         run_audit = self.settings.enable_output_audit and is_point_lookup(request.message, result.get("intent"))
-        run_intent = self.settings.enable_intent_audit and is_identity_query(request.message, result.get("intent"))
+        run_intent = (
+            self.settings.enable_intent_audit
+            and not fused
+            and is_identity_query(request.message, result.get("intent"))
+        )
         if run_audit or run_intent:
             verdict = await audit_output(
                 answer, retrieved_texts, request.message, self.settings, check_intent=run_intent
