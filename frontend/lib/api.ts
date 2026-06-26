@@ -37,6 +37,141 @@ import {
   delay,
 } from "./mock";
 
+export const AUTH_TOKEN_STORAGE_KEY = "vinuni-copilot-access-token";
+
+export type BackendRole = "student" | "institute_admin" | "global_admin" | "staff" | string;
+
+export interface BackendInstitute {
+  id: string;
+  code: string;
+  name_vi: string;
+  name_en: string;
+}
+
+export interface BackendStudentProfile {
+  id: string;
+  student_id: string;
+  program?: string | null;
+  major?: string | null;
+  cohort?: number | null;
+  academic_year?: number | null;
+  student_status: string;
+  preferred_language: string;
+  advisor_name?: string | null;
+  advisor_email?: string | null;
+  ai_personalization_enabled: boolean;
+}
+
+export interface BackendCurrentUser {
+  id: string;
+  email: string;
+  full_name: string;
+  preferred_name?: string | null;
+  roles: BackendRole[];
+  student_profile?: BackendStudentProfile | null;
+  institute?: BackendInstitute | null;
+}
+
+export interface LoginResponse {
+  access_token: string;
+  token_type: "bearer" | string;
+  user: BackendCurrentUser;
+}
+
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+function browserStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function getStoredAccessToken(): string | null {
+  return browserStorage()?.getItem(AUTH_TOKEN_STORAGE_KEY) ?? null;
+}
+
+export function setStoredAccessToken(token: string): void {
+  browserStorage()?.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+}
+
+export function clearStoredAccessToken(): void {
+  browserStorage()?.removeItem(AUTH_TOKEN_STORAGE_KEY);
+}
+
+export function authenticatedHeaders(
+  headers?: HeadersInit,
+  token: string | null = getStoredAccessToken()
+): Headers {
+  const next = new Headers(headers);
+  if (token) next.set("Authorization", `Bearer ${token}`);
+  return next;
+}
+
+async function responseError(res: Response, fallback: string): Promise<ApiError> {
+  let detail = fallback;
+  try {
+    const body = await res.json();
+    if (typeof body?.detail === "string") detail = body.detail;
+  } catch {
+    /* keep fallback */
+  }
+  return new ApiError(detail, res.status);
+}
+
+export async function apiRequest<T>(
+  url: string,
+  init: RequestInit & { token?: string | null } = {}
+): Promise<T> {
+  const { token = getStoredAccessToken(), headers, ...rest } = init;
+  const res = await fetch(url, {
+    ...rest,
+    headers: authenticatedHeaders(headers, token),
+  });
+  if (!res.ok) {
+    throw await responseError(res, `Request failed (${res.status}) for ${url}`);
+  }
+  return (await res.json()) as T;
+}
+
+export async function login(email: string, password: string): Promise<LoginResponse> {
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    throw await responseError(res, "Invalid email or password.");
+  }
+  return (await res.json()) as LoginResponse;
+}
+
+export async function getMe(token: string = getStoredAccessToken() ?? ""): Promise<BackendCurrentUser> {
+  return apiRequest<BackendCurrentUser>("/api/auth/me", {
+    method: "GET",
+    token,
+    headers: { Accept: "application/json" },
+  });
+}
+
+export async function logout(token: string = getStoredAccessToken() ?? ""): Promise<{ success: boolean }> {
+  return apiRequest<{ success: boolean }>("/api/auth/logout", {
+    method: "POST",
+    token,
+    headers: { Accept: "application/json" },
+  });
+}
+
 // Single point the UI uses to reach the backend. Calls the Next proxy (/api/chat),
 // which rewrites to FastAPI POST /chat. No provider SDK is ever imported here.
 // An optional AbortSignal lets the caller cancel an in-flight request (Stop button).
@@ -48,7 +183,7 @@ export async function postChat(
   try {
     res = await fetch("/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authenticatedHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(req),
       signal,
     });
@@ -95,7 +230,7 @@ export async function postChatStream(
 ): Promise<ChatResponse> {
   const res = await fetch("/api/chat/stream", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(req),
     signal: opts.signal,
   });
@@ -164,9 +299,7 @@ export async function postChatStream(
 // =============================================================================
 
 async function getJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const res = await fetch(url, { signal, headers: { Accept: "application/json" } });
-  if (!res.ok) throw new Error(`Request failed (${res.status}) for ${url}`);
-  return (await res.json()) as T;
+  return apiRequest<T>(url, { signal, headers: { Accept: "application/json" } });
 }
 
 // ---- Student profile --------------------------------------------------------

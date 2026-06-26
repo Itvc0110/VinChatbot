@@ -2,15 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth, type Role } from "@/lib/auth";
+import { useAuth, type SessionUser } from "@/lib/auth";
 import { usePortal } from "@/lib/portalI18n";
 import { IconCap, IconShield } from "@/components/shell/icons";
 
-// Academic Horizon login (Stitch "Student Copilot" login): centered card, brand, title/subtitle,
-// university email + password inputs with leading icons, a primary sign-in button, a VinUni SSO
-// button, and quick demo-account access. Auth is still the demo session (no backend auth endpoint),
-// so submitting signs in as the student demo and the demo buttons cover both roles — behavior is
-// preserved; only the presentation is rebuilt.
+const DEMO_PASSWORD = "Demo@123456";
+const DEMO_STUDENT_EMAIL = "student.cs.demo@vinuni.edu.vn";
+const DEMO_ADMIN_EMAIL = "admin.global.demo@vinuni.edu.vn";
+
 function MailIcon() {
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
@@ -37,10 +36,30 @@ export function LoginCard() {
   const { p } = usePortal();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const signIn = (role: Role) => {
-    login(role);
-    router.replace(role === "admin" ? "/admin/dashboard" : "/student/dashboard");
+  const routeAfterLogin = (user: SessionUser) => {
+    router.replace(user.role === "admin" ? "/admin/dashboard" : "/student/dashboard");
+  };
+
+  const signIn = async (nextEmail = email, nextPassword = password) => {
+    setError(null);
+    setBusy(true);
+    try {
+      const user = await login(nextEmail.trim(), nextPassword);
+      routeAfterLogin(user);
+    } catch {
+      setError("Invalid email or password.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const signInDemo = async (nextEmail: string) => {
+    setEmail(nextEmail);
+    setPassword(DEMO_PASSWORD);
+    await signIn(nextEmail, DEMO_PASSWORD);
   };
 
   return (
@@ -60,9 +79,9 @@ export function LoginCard() {
         <p className="ah-login-sub">{p.login.subtitle}</p>
 
         <form
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            signIn("student");
+            await signIn();
           }}
         >
           <div className="ah-field">
@@ -81,6 +100,8 @@ export function LoginCard() {
                 placeholder="you@vinuni.edu.vn"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={busy}
+                required
               />
             </div>
           </div>
@@ -101,12 +122,20 @@ export function LoginCard() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={busy}
+                required
               />
             </div>
           </div>
 
-          <button type="submit" className="ah-btn-primary-full">
-            {p.login.signIn}
+          {error && (
+            <p className="ah-login-error" role="alert">
+              {error}
+            </p>
+          )}
+
+          <button type="submit" className="ah-btn-primary-full" disabled={busy}>
+            {busy ? "Signing in..." : p.login.signIn}
           </button>
         </form>
 
@@ -117,8 +146,8 @@ export function LoginCard() {
         <button
           type="button"
           className="ah-btn-outline-full"
-          onClick={() => signIn("student")}
-          title={p.login.ssoHint}
+          disabled
+          title="VinUni SSO is not configured in this demo environment."
         >
           <LockIcon />
           {p.login.sso}
@@ -128,20 +157,28 @@ export function LoginCard() {
           <button
             type="button"
             className="ah-login-demo-btn"
-            onClick={() => signIn("student")}
+            onClick={() => signInDemo(DEMO_STUDENT_EMAIL)}
+            disabled={busy}
           >
             <IconCap size={15} /> {p.login.continueStudent}
           </button>
           <button
             type="button"
             className="ah-login-demo-btn"
-            onClick={() => signIn("admin")}
+            onClick={() => signInDemo(DEMO_ADMIN_EMAIL)}
+            disabled={busy}
           >
             <IconShield size={15} /> {p.login.continueAdmin}
           </button>
         </div>
 
-        <p className="ah-login-foot">🔒 {p.login.securityNote}</p>
+        <div className="ah-login-demo-hint">
+          <span>{p.login.demoStudent}: {DEMO_STUDENT_EMAIL}</span>
+          <span>{p.login.demoAdmin}: {DEMO_ADMIN_EMAIL}</span>
+          <span>Password: {DEMO_PASSWORD}</span>
+        </div>
+
+        <p className="ah-login-foot">{p.login.securityNote}</p>
       </div>
     </div>
   );

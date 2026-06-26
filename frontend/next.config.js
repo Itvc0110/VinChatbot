@@ -1,14 +1,17 @@
 /** @type {import('next').NextConfig} */
 
-// The browser only ever talks to FastAPI's /chat contract. We proxy /api/chat to the
-// backend so there is no CORS change on the Python side and the hinge rule holds:
-// the UI never imports an LLM SDK — it calls the FastAPI route, full stop.
+// The browser talks to FastAPI through /api/* rewrites, so there is no CORS change
+// on the Python side and no provider SDK ever reaches the client.
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
 
 const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
     return [
+      {
+        source: "/api/auth/:path*",
+        destination: `${BACKEND_URL}/auth/:path*`,
+      },
       // Order matters: the more specific /stream rule must precede the catch-all /chat.
       {
         source: "/api/chat/stream",

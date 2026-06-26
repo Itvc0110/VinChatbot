@@ -16,19 +16,23 @@ export function ProtectedRoute({
   role: Role;
   children: React.ReactNode;
 }) {
-  const { user, hydrated } = useAuth();
+  const { user, hydrated, hasRole } = useAuth();
   const router = useRouter();
+  const allowed =
+    role === "student"
+      ? hasRole("student")
+      : hasRole("global_admin") || hasRole("institute_admin") || hasRole("staff");
 
   useEffect(() => {
     if (!hydrated) return;
     if (!user) {
       router.replace("/login");
-    } else if (user.role !== role) {
+    } else if (!allowed) {
       router.replace("/403");
     }
-  }, [hydrated, user, role, router]);
+  }, [allowed, hydrated, user, router]);
 
-  if (!hydrated || !user || user.role !== role) {
+  if (!hydrated || !user || !allowed) {
     return (
       <div className="route-guard" role="status" aria-busy="true">
         <span className="guard-spinner" />
