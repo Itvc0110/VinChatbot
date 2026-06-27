@@ -2,7 +2,8 @@
 
 Tài liệu này tổng hợp các field chính liên quan đến một sinh viên trong database và Student API.
 Nguồn chính: `migrations/000002_initial_app_schema.sql`, `migrations/000004_forum_schema.sql`,
-`migrations/000005_admin_notification_workflow.sql`, và `vinchatbot/app/schemas/students.py`.
+`migrations/000005_admin_notification_workflow.sql`, `migrations/000007_academic_demo_database_core.sql`,
+và `vinchatbot/app/schemas/students.py`.
 
 ## Tổng quan
 
@@ -38,6 +39,8 @@ Thông tin tài khoản đăng nhập của sinh viên.
 | `created_at` | `timestamptz` | Yes | Thời điểm tạo tài khoản. |
 | `updated_at` | `timestamptz` | Yes | Thời điểm cập nhật gần nhất. |
 
+Ghi chú: tất cả field trên là **cũ** so với Phase 13A. Không có field mới được thêm vào `users`.
+
 ## 2. `student_profiles`
 
 Bảng hồ sơ sinh viên chính.
@@ -59,6 +62,18 @@ Bảng hồ sơ sinh viên chính.
 | `ai_personalization_enabled` | `boolean` | Yes | Bật/tắt cá nhân hóa AI. |
 | `created_at` | `timestamptz` | Yes | Thời điểm tạo profile. |
 | `updated_at` | `timestamptz` | Yes | Thời điểm cập nhật profile gần nhất. |
+
+Field mới thêm ở Phase 13A:
+
+| Field | Type | Ghi chú |
+| --- | --- | --- |
+| `student_code` | `text` | Mã sinh viên chuẩn hóa. |
+| `full_name` | `text` | Họ tên đầy đủ, tách rõ khỏi `users.full_name`. |
+| `faculty_id` | `uuid` | FK đến `faculties.id`. |
+| `program_id` | `uuid` | FK đến `programs.id`. |
+| `cohort_year` | `integer` | Năm khóa/cohort chuẩn hóa. |
+| `current_year` | `integer` | Năm học hiện tại chuẩn hóa. |
+| `status` | `text` | Trạng thái sinh viên chuẩn hóa. |
 
 ## 3. `institutes`
 
@@ -113,6 +128,17 @@ Thông tin môn học mà sinh viên có thể được enroll.
 | `academic_year` | `text` | No | Năm học. |
 | `instructor` | `text` | No | Giảng viên. |
 | `is_active` | `boolean` | Yes | Môn còn active hay không. |
+
+Field mới thêm ở Phase 13A:
+
+| Field | Type | Ghi chú |
+| --- | --- | --- |
+| `code` | `text` | Mã môn chuẩn hóa. |
+| `name` | `text` | Tên môn chuẩn hóa. |
+| `course_level` | `integer` | Mức độ môn học. |
+| `department_code` | `text` | Mã bộ môn/khoa phụ trách. |
+| `is_general_education` | `boolean` | Có phải môn đại cương không. |
+| `description` | `text` | Mô tả môn học. |
 
 ## 7. `schedules`
 
@@ -258,6 +284,115 @@ thông qua `user_id`, `student_profile_id`, hoặc các quan hệ dẫn xuất.
 | `tickets` | `body` | `text` | Nội dung ticket. |
 | `tickets` | `department` | `text` | Phòng ban xử lý. |
 | `tickets` | `category` | `text` | Nhóm vấn đề. |
+
+## 13. Academic demo core mới ở Phase 13A
+
+Các bảng dưới đây là schema mới được thêm cho dữ liệu học thuật demo:
+
+### `faculties`
+
+| Field | Type | Ghi chú |
+| --- | --- | --- |
+| `id` | `uuid` | Primary key. |
+| `code` | `text` | Mã faculty. |
+| `name` | `text` | Tên faculty. |
+
+### `programs`
+
+| Field | Type | Ghi chú |
+| --- | --- | --- |
+| `id` | `uuid` | Primary key. |
+| `faculty_id` | `uuid` | FK đến `faculties.id`. |
+| `code` | `text` | Mã chương trình. |
+| `name` | `text` | Tên chương trình. |
+| `degree_level` | `text` | Bậc đào tạo. |
+| `curriculum_year` | `integer` | Năm curriculum. |
+| `total_required_credits` | `integer` | Tổng tín chỉ cần hoàn thành. |
+
+### `academic_terms`
+
+| Field | Type | Ghi chú |
+| --- | --- | --- |
+| `id` | `uuid` | Primary key. |
+| `code` | `text` | Mã term. |
+| `name` | `text` | Tên term. |
+| `start_date` | `date` | Ngày bắt đầu. |
+| `end_date` | `date` | Ngày kết thúc. |
+| `academic_year` | `integer` | Năm học. |
+| `term_order` | `integer` | Thứ tự term. |
+
+### `curriculum_courses`
+
+| Field | Type | Ghi chú |
+| --- | --- | --- |
+| `program_id` | `uuid` | FK đến `programs.id`. |
+| `course_id` | `uuid` | FK đến `courses.id`. |
+| `category` | `text` | `general_education`, `foundation`, `major_core`, `major_elective`, `physical_education`, `capstone`. |
+| `is_required` | `boolean` | Bắt buộc hay tự chọn. |
+| `suggested_year` | `integer` | Năm học gợi ý. |
+| `suggested_term` | `integer` | Term gợi ý. |
+| `min_required_grade_4` | `numeric` | Điểm tối thiểu trên thang 4. |
+
+### `course_requisites`
+
+| Field | Type | Ghi chú |
+| --- | --- | --- |
+| `course_id` | `uuid` | Môn đang xét. |
+| `required_course_id` | `uuid` | Môn điều kiện. |
+| `requisite_type` | `text` | `prerequisite` hoặc `corequisite`. |
+| `min_grade_4` | `numeric` | Điểm tối thiểu của môn điều kiện. |
+| `note` | `text` | Ghi chú bổ sung. |
+
+### `student_course_enrollments`
+
+| Field | Type | Ghi chú |
+| --- | --- | --- |
+| `student_id` | `uuid` | FK đến `student_profiles.id`. |
+| `course_id` | `uuid` | FK đến `courses.id`. |
+| `term_id` | `uuid` | FK đến `academic_terms.id`. |
+| `section_id` | `uuid` | FK nullable đến `course_sections.id`. |
+| `status` | `text` | `planned`, `enrolled`, `completed`, `failed`, `withdrawn`, `retaking`, `improvement`. |
+| `attempt_no` | `integer` | Số lần học. |
+| `is_improvement` | `boolean` | Có phải lần học cải thiện điểm không. |
+| `retake_of_enrollment_id` | `uuid` | FK tự tham chiếu đến lần học trước. |
+| `grade_10` | `numeric` | Điểm thang 10. |
+| `grade_4` | `numeric` | Điểm thang 4. |
+| `letter_grade` | `text` | Điểm chữ. |
+| `passed` | `boolean` | Qua hay rớt. |
+| `earned_credits` | `integer` | Tín chỉ tích lũy từ enrollment này. |
+| `is_gpa_counted` | `boolean` | Có được tính vào GPA/CPA không. |
+| `completed_at` | `timestamptz` | Thời điểm hoàn tất. |
+
+### `rooms`
+
+| Field | Type | Ghi chú |
+| --- | --- | --- |
+| `building` | `text` | Tên tòa nhà. |
+| `room_name` | `text` | Tên phòng. |
+| `capacity` | `integer` | Sức chứa. |
+
+### `course_sections`
+
+| Field | Type | Ghi chú |
+| --- | --- | --- |
+| `course_id` | `uuid` | FK đến `courses.id`. |
+| `term_id` | `uuid` | FK đến `academic_terms.id`. |
+| `section_code` | `text` | Mã section. |
+| `instructor_name` | `text` | Tên giảng viên. |
+| `capacity` | `integer` | Sức chứa lớp. |
+| `status` | `text` | Trạng thái section. |
+
+### `class_meetings`
+
+| Field | Type | Ghi chú |
+| --- | --- | --- |
+| `section_id` | `uuid` | FK đến `course_sections.id`. |
+| `title` | `text` | Tiêu đề buổi học. |
+| `meeting_type` | `text` | `lecture`, `lab`, `tutorial`, `seminar`, `exam`, `office_hour`, `deadline`. |
+| `start_at` | `timestamptz` | Thời gian bắt đầu. |
+| `end_at` | `timestamptz` | Thời gian kết thúc. |
+| `room_id` | `uuid` | FK nullable đến `rooms.id`. |
+| `note` | `text` | Ghi chú. |
 | `tickets` | `priority` | `text` | `low`, `medium`, `high`, hoặc `urgent`. |
 | `tickets` | `status` | `text` | `submitted`, `open`, `in_progress`, `waiting_on_student`, `resolved`, hoặc `closed`. |
 | `tickets` | `confirmed_by_user` | `boolean` | Sinh viên đã xác nhận tạo ticket. |
