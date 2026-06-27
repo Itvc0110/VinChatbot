@@ -482,6 +482,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const messages = active?.messages ?? [];
   const busy = active?.busy ?? false;
   const conversationId = active?.threadId ?? "";
+  const dbConversationId = active?.dbConversationId ?? undefined;
   const messagesLoading = active?.messagesLoading ?? false;
   const messagesError = active?.messagesError ?? null;
 
@@ -864,12 +865,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         category: "other",
         priority: "medium",
         include_chat_context: false,
-        source_conversation_id: conversationId,
+        source_conversation_id: dbConversationId,
         origin_question: question,
         context_preview: shortSummary(question, response.answer),
       });
     },
-    [conversationId]
+    [dbConversationId]
   );
 
   // `seed` lets a manual entry point (CreateTicketModal) pre-fill the draft before it hands
@@ -884,12 +885,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         category: "academic",
         priority: "medium",
         include_chat_context: false,
-        source_conversation_id: conversationId,
+        source_conversation_id: dbConversationId,
         context_preview: "",
         ...seed,
       });
     },
-    [conversationId]
+    [dbConversationId]
   );
 
   const updateDraft = useCallback((patch: Partial<TicketDraft>) => {

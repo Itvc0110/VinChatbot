@@ -43,12 +43,13 @@ export const DEFAULT_ADMIN_TICKET_FILTERS: TicketFilterState = {
 
 const STATUSES: TicketStatus[] = [
   "submitted",
-  "in_review",
-  "waiting_for_student",
+  "open",
+  "in_progress",
+  "waiting_on_student",
   "resolved",
   "closed",
 ];
-const PRIORITIES: TicketPriority[] = ["low", "medium", "high"];
+const PRIORITIES: TicketPriority[] = ["low", "medium", "high", "urgent"];
 const CATEGORIES: TicketCategory[] = [
   "academic",
   "schedule",

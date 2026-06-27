@@ -12,7 +12,7 @@ const CATEGORIES: TicketCategory[] = [
   "technical",
   "other",
 ];
-const PRIORITIES: TicketPriority[] = ["low", "medium", "high"];
+const PRIORITIES: TicketPriority[] = ["low", "medium", "high", "urgent"];
 
 // PLAN22.6 Review Ticket drawer. Vinnie prepares a DRAFT (held in ChatProvider state); this
 // drawer lets the student edit it and is the ONLY surface that submits a ticket to admin.

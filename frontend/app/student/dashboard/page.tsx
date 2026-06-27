@@ -62,12 +62,22 @@ function getScheduleItemState(
   return "upcoming";
 }
 
-const ACTIVE_STATUSES: TicketStatus[] = ["submitted", "in_review", "waiting_for_student"];
+const ACTIVE_STATUSES: TicketStatus[] = [
+  "submitted",
+  "open",
+  "in_review",
+  "in_progress",
+  "waiting_for_student",
+  "waiting_on_student",
+];
 const TICKET_CHIP: Record<TicketStatus, string> = {
   draft: "neutral",
   submitted: "info",
+  open: "info",
   in_review: "warning",
+  in_progress: "warning",
   waiting_for_student: "warning",
+  waiting_on_student: "warning",
   resolved: "success",
   closed: "neutral",
 };
@@ -78,16 +88,22 @@ const TICKET_STATUS_LABEL: Record<Lang, Record<TicketStatus, string>> = {
   en: {
     draft: "Draft",
     submitted: "Submitted",
+    open: "Open",
     in_review: "In Progress",
+    in_progress: "In Progress",
     waiting_for_student: "Needs Input",
+    waiting_on_student: "Needs Input",
     resolved: "Resolved",
     closed: "Closed",
   },
   vi: {
     draft: "Bản nháp",
     submitted: "Đã gửi",
+    open: "Đang mở",
     in_review: "Đang xử lý",
+    in_progress: "Đang xử lý",
     waiting_for_student: "Cần phản hồi",
+    waiting_on_student: "Cần phản hồi",
     resolved: "Đã giải quyết",
     closed: "Đã đóng",
   },
@@ -269,7 +285,10 @@ export default function StudentDashboardPage() {
     });
   }
   const needsInput = (tickets.status === "success" ? tickets.data : []).find(
-    (t) => t.status === "waiting_for_student" && !t.archived && !t.deleted
+    (t) =>
+      (t.status === "waiting_for_student" || t.status === "waiting_on_student") &&
+      !t.archived &&
+      !t.deleted
   );
   if (needsInput) {
     recs.push({

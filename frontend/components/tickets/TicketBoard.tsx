@@ -20,25 +20,30 @@ interface BucketDef {
 }
 
 const STUDENT_BUCKETS: BucketDef[] = [
-  { key: "open", statuses: ["submitted"], label: (p) => p.tickets.colOpen },
-  { key: "in_progress", statuses: ["in_review"], label: (p) => p.tickets.colInProgress },
-  { key: "waiting", statuses: ["waiting_for_student"], label: (p) => p.tickets.colWaiting },
+  { key: "open", statuses: ["submitted", "open"], label: (p) => p.tickets.colOpen },
+  { key: "in_progress", statuses: ["in_review", "in_progress"], label: (p) => p.tickets.colInProgress },
+  { key: "waiting", statuses: ["waiting_for_student", "waiting_on_student"], label: (p) => p.tickets.colWaiting },
   { key: "closed", statuses: ["resolved", "closed"], label: (p) => p.tickets.colClosed },
 ];
 
 const ADMIN_BUCKETS: BucketDef[] = [
-  { key: "open", statuses: ["submitted"], label: (p) => p.tickets.colOpen },
-  { key: "in_progress", statuses: ["in_review"], label: (p) => p.tickets.colInProgress },
+  { key: "open", statuses: ["submitted", "open"], label: (p) => p.tickets.colOpen },
+  { key: "in_progress", statuses: ["in_review", "in_progress"], label: (p) => p.tickets.colInProgress },
   {
     key: "waiting",
-    statuses: ["waiting_for_student"],
+    statuses: ["waiting_for_student", "waiting_on_student"],
     label: (p) => p.adminTickets.colWaitingStudent,
   },
   { key: "resolved", statuses: ["resolved"], label: (p) => p.adminTickets.colResolved },
   { key: "closed", statuses: ["closed"], label: (p) => p.tickets.colClosed },
 ];
 
-const PRIORITY_RANK: Record<SupportTicket["priority"], number> = { high: 3, medium: 2, low: 1 };
+const PRIORITY_RANK: Record<SupportTicket["priority"], number> = {
+  urgent: 4,
+  high: 3,
+  medium: 2,
+  low: 1,
+};
 const SLA_RANK = { overdue: 0, due_soon: 1, ok: 2 } as const;
 
 function comparator(sort: TicketSort): (a: SupportTicket, b: SupportTicket) => number {

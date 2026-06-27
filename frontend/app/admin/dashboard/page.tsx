@@ -29,7 +29,14 @@ import type {
   TicketCategory,
 } from "@/lib/portalTypes";
 
-const OPEN: TicketStatus[] = ["submitted", "in_review", "waiting_for_student"];
+const OPEN: TicketStatus[] = [
+  "submitted",
+  "open",
+  "in_review",
+  "in_progress",
+  "waiting_for_student",
+  "waiting_on_student",
+];
 
 const STR = {
   en: {
@@ -169,7 +176,9 @@ export default function AdminDashboardPage() {
   const nt = notifications.status === "success" ? notifications.data : [];
 
   const openTickets = tk.filter((t) => OPEN.includes(t.status) && !t.archived && !t.deleted);
-  const needAdmin = openTickets.filter((t) => t.status === "submitted" || t.status === "in_review");
+  const needAdmin = openTickets.filter(
+    (t) => t.status === "submitted" || t.status === "open" || t.status === "in_progress"
+  );
   const pendingReview = src.filter((x) => x.status === "pending").length;
   const failedIndex = src.filter((x) => x.status === "failed").length || (s?.failed_crawls ?? 0);
   const indexed = src.filter((x) => x.status === "indexed").length;

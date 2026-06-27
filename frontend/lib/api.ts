@@ -15,8 +15,12 @@ import type {
   StudentProfile,
   SuggestedQuestion,
   SupportTicket,
+  TicketCategory,
   TicketDraft,
+  TicketMessage,
+  TicketPriority,
   TicketStatus,
+  TicketStatusHistory,
   TuitionStatus,
   UnansweredQuestion,
 } from "./portalTypes";
@@ -226,6 +230,95 @@ export interface UpdateConversationPayload {
 
 export interface DeleteConversationResponse {
   deleted: boolean;
+}
+
+export interface BackendTicketMessage {
+  id: string;
+  ticket_id: string;
+  sender_user_id?: string | null;
+  sender_email?: string | null;
+  sender_full_name?: string | null;
+  author_type: string;
+  body: string;
+  created_at: string;
+}
+
+export interface BackendTicketStatusHistory {
+  id: string;
+  old_status?: string | null;
+  new_status: string;
+  changed_by?: string | null;
+  changed_by_email?: string | null;
+  changed_by_full_name?: string | null;
+  changed_at: string;
+}
+
+export interface BackendTicketSummary {
+  id: string;
+  student_profile_id: string;
+  student_id?: string | null;
+  student_name?: string | null;
+  institute_id?: string | null;
+  institute_code?: string | null;
+  subject: string;
+  body: string;
+  department?: string | null;
+  category?: string | null;
+  priority: string;
+  status: string;
+  confirmed_by_user: boolean;
+  created_by_ai: boolean;
+  include_chat_context: boolean;
+  source_conversation_id?: string | null;
+  origin_question?: string | null;
+  assigned_admin_id?: string | null;
+  assignee?: string | null;
+  submitted_at?: string | null;
+  due_at?: string | null;
+  sla_hours?: number | null;
+  resolution?: string | null;
+  archived: boolean;
+  deleted: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackendTicketDetail extends BackendTicketSummary {
+  included_context?: string | null;
+  messages: BackendTicketMessage[];
+  status_history: BackendTicketStatusHistory[];
+}
+
+export interface CreateTicketPayload {
+  subject?: string;
+  body?: string;
+  title?: string;
+  description?: string;
+  department?: string | null;
+  category?: TicketCategory | string | null;
+  priority?: TicketPriority | string;
+  include_chat_context?: boolean;
+  included_context?: string | null;
+  source_conversation_id?: string | null;
+  origin_question?: string | null;
+}
+
+export interface AddTicketMessagePayload {
+  body: string;
+}
+
+export interface AdminTicketFilters {
+  status?: TicketStatus | "all";
+  priority?: TicketPriority | "all";
+  include_archived?: boolean;
+}
+
+export interface AdminUpdateTicketPayload {
+  status?: TicketStatus;
+  priority?: TicketPriority;
+  assigned_admin_id?: string | null;
+  resolution?: string | null;
+  archived?: boolean;
 }
 
 export class ApiError extends Error {
@@ -728,52 +821,191 @@ export async function getTuitionStatus(): Promise<TuitionStatus> {
 }
 
 // ---- Support tickets --------------------------------------------------------
-// [MOCK] TODO backend contract: GET /students/me/tickets -> SupportTicket[]
+const TICKET_STATUSES: TicketStatus[] = [
+  "draft",
+  "submitted",
+  "open",
+  "in_review",
+  "in_progress",
+  "waiting_for_student",
+  "waiting_on_student",
+  "resolved",
+  "closed",
+];
+const TICKET_PRIORITIES: TicketPriority[] = ["low", "medium", "high", "urgent"];
+const TICKET_CATEGORIES: TicketCategory[] = [
+  "academic",
+  "schedule",
+  "student_services",
+  "technical",
+  "other",
+];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function safeTicketStatus(status?: string | null): TicketStatus {
+  return TICKET_STATUSES.includes(status as TicketStatus)
+    ? (status as TicketStatus)
+    : "submitted";
+}
+
+function backendTicketStatus(status?: TicketStatus): string | undefined {
+  if (!status) return undefined;
+  if (status === "in_review") return "in_progress";
+  if (status === "waiting_for_student") return "waiting_on_student";
+  if (status === "draft") return undefined;
+  return status;
+}
+
+function safeTicketPriority(priority?: string | null): TicketPriority {
+  return TICKET_PRIORITIES.includes(priority as TicketPriority)
+    ? (priority as TicketPriority)
+    : "medium";
+}
+
+function safeTicketCategory(category?: string | null): TicketCategory {
+  return TICKET_CATEGORIES.includes(category as TicketCategory)
+    ? (category as TicketCategory)
+    : "other";
+}
+
+function mapTicketMessage(message: BackendTicketMessage): TicketMessage {
+  const author =
+    message.author_type === "admin" || message.author_type === "system"
+      ? message.author_type
+      : "student";
+  return {
+    id: message.id,
+    author,
+    body: message.body,
+    created_at: message.created_at,
+    sender_user_id: message.sender_user_id ?? undefined,
+    sender_email: message.sender_email ?? undefined,
+    sender_full_name: message.sender_full_name ?? undefined,
+  };
+}
+
+function mapTicketStatusHistory(row: BackendTicketStatusHistory): TicketStatusHistory {
+  return {
+    id: row.id,
+    old_status: row.old_status ? safeTicketStatus(row.old_status) : undefined,
+    new_status: safeTicketStatus(row.new_status),
+    changed_by: row.changed_by ?? undefined,
+    changed_by_email: row.changed_by_email ?? undefined,
+    changed_by_full_name: row.changed_by_full_name ?? undefined,
+    changed_at: row.changed_at,
+  };
+}
+
+function mapTicket(ticket: BackendTicketSummary | BackendTicketDetail): SupportTicket {
+  const messages =
+    "messages" in ticket && Array.isArray(ticket.messages)
+      ? ticket.messages.map(mapTicketMessage)
+      : undefined;
+  return {
+    id: ticket.id,
+    subject: ticket.subject,
+    body: ticket.body,
+    department: ticket.department ?? "Student Support",
+    category: safeTicketCategory(ticket.category),
+    status: safeTicketStatus(ticket.status),
+    priority: safeTicketPriority(ticket.priority),
+    created_at: ticket.created_at,
+    updated_at: ticket.updated_at,
+    confirmed_by_user: ticket.confirmed_by_user,
+    created_by_ai: ticket.created_by_ai,
+    include_chat_context: ticket.include_chat_context,
+    included_context:
+      "included_context" in ticket ? ticket.included_context ?? undefined : undefined,
+    source_conversation_id: ticket.source_conversation_id ?? undefined,
+    origin_question: ticket.origin_question ?? undefined,
+    submitted_at: ticket.submitted_at ?? undefined,
+    student_id: ticket.student_id ?? undefined,
+    due_at: ticket.due_at ?? undefined,
+    sla_hours: ticket.sla_hours ?? undefined,
+    assignee: ticket.assignee ?? undefined,
+    student_name: ticket.student_name ?? undefined,
+    resolution: ticket.resolution ?? undefined,
+    archived: ticket.archived,
+    deleted: ticket.deleted,
+    messages,
+    status_history:
+      "status_history" in ticket && Array.isArray(ticket.status_history)
+        ? ticket.status_history.map(mapTicketStatusHistory)
+        : undefined,
+  };
+}
+
+function ticketCreatePayload(payload: CreateTicketPayload): Record<string, unknown> {
+  const subject = (payload.subject ?? payload.title ?? "").trim();
+  const body = (payload.body ?? payload.description ?? "").trim();
+  const sourceConversationId =
+    payload.source_conversation_id && UUID_RE.test(payload.source_conversation_id)
+      ? payload.source_conversation_id
+      : undefined;
+  return {
+    subject: subject || "Support request",
+    body: body || subject || "Support request",
+    department: payload.department ?? undefined,
+    category: payload.category ?? undefined,
+    priority: payload.priority ?? "medium",
+    include_chat_context: payload.include_chat_context ?? false,
+    included_context:
+      payload.include_chat_context && payload.included_context
+        ? payload.included_context
+        : undefined,
+    source_conversation_id: sourceConversationId,
+    origin_question: payload.origin_question ?? undefined,
+  };
+}
+
+// [LIVE] GET /tickets/me -> SupportTicket[]
 export async function getSupportTickets(): Promise<SupportTicket[]> {
-  return delay([...MOCK_TICKETS]);
+  const rows = await getJSON<BackendTicketSummary[]>("/api/tickets/me");
+  return rows.map(mapTicket);
 }
 
 // PLAN22.6 — Vinnie NEVER auto-submits. The only path that creates an admin-visible ticket
 // is submitTicket(), reachable only from the explicit "Send to Admin" button after the
 // student has reviewed the draft. A draft is built in memory by chat.tsx and is never sent
 // here until submit, so there is no "create-on-forward" function anymore.
-//
-// [MOCK] TODO backend contract: POST /tickets
-//   body: { subject, body, department, category, priority, source_conversation_id?,
-//           include_chat_context, included_context?, created_by_ai } -> SupportTicket
-//   The server stores it as status "submitted" + confirmed_by_user true, owns student_name
-//   (resolved from the session) and may set due_at/sla_hours from category+priority policy.
 export async function submitTicket(draft: TicketDraft): Promise<SupportTicket> {
-  const now = new Date().toISOString();
-  // Demo SLA window: high → 24h, medium → 72h, low → 168h from submission.
-  const slaHours = draft.priority === "high" ? 24 : draft.priority === "medium" ? 72 : 168;
-  const ticket: SupportTicket = {
-    id: `TKT-${Math.floor(1000 + Math.random() * 9000)}`,
-    subject: draft.subject.trim() || "Support request",
-    body: draft.body.trim(),
+  return createTicket({
+    subject: draft.subject,
+    body: draft.body,
     department: draft.department,
     category: draft.category,
-    status: "submitted",
     priority: draft.priority,
-    created_at: now,
-    updated_at: now,
-    submitted_at: now,
-    // New PLAN23.6.01 fields — server owns these for real; mocked here.
-    student_name: MOCK_PROFILE.full_name,
-    sla_hours: slaHours,
-    due_at: new Date(Date.now() + slaHours * 3_600_000).toISOString(),
-    confirmed_by_user: true,
-    created_by_ai: draft.origin_question != null,
-    // Privacy: the chat-context summary is attached ONLY when the student opted in.
     include_chat_context: draft.include_chat_context,
-    included_context: draft.include_chat_context ? draft.context_preview : undefined,
+    included_context: draft.context_preview,
     source_conversation_id: draft.source_conversation_id,
     origin_question: draft.origin_question,
-    messages: [{ id: "m1", author: "student", body: draft.body.trim(), created_at: now }],
-  };
-  // Prepend so the new ticket shows at the top of the list on the next fetch.
-  MOCK_TICKETS.unshift(ticket);
-  return delay(ticket, 400);
+  });
+}
+
+export async function createTicket(payload: CreateTicketPayload): Promise<SupportTicket> {
+  const row = await apiRequest<BackendTicketDetail>("/api/tickets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(ticketCreatePayload(payload)),
+  });
+  return mapTicket(row);
+}
+
+export async function getTicket(ticketId: string): Promise<SupportTicket> {
+  const row = await getJSON<BackendTicketDetail>(`/api/tickets/${ticketId}`);
+  return mapTicket(row);
+}
+
+export async function addTicketMessage(
+  ticketId: string,
+  payload: AddTicketMessagePayload
+): Promise<TicketMessage> {
+  const row = await apiRequest<BackendTicketMessage>(`/api/tickets/${ticketId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return mapTicketMessage(row);
 }
 
 // [MOCK] No network in MVP — drafts live in ChatProvider React state only (privacy: an
@@ -784,51 +1016,68 @@ export async function saveTicketDraft(draft: TicketDraft): Promise<TicketDraft> 
   return delay({ ...draft }, 150);
 }
 
-// [MOCK] TODO backend contract: GET /admin/tickets?status&priority&category -> SupportTicket[]
-// The backend MUST enforce this draft/unconfirmed exclusion server-side (RBAC); the client
-// filter here is defense-in-depth, not the gate.
-export async function getAdminTickets(): Promise<SupportTicket[]> {
-  const visible = MOCK_TICKETS.filter(
-    (t) => t.status !== "draft" && t.confirmed_by_user === true
-  ).map((t) => ({ ...t }));
-  return delay(visible);
+// [LIVE] GET /admin/tickets -> SupportTicket[]
+export async function getAdminTickets(filters: AdminTicketFilters = {}): Promise<SupportTicket[]> {
+  const params = new URLSearchParams();
+  const status = backendTicketStatus(filters.status === "all" ? undefined : filters.status);
+  if (status) params.set("status", status);
+  if (filters.priority && filters.priority !== "all") params.set("priority", filters.priority);
+  if (filters.include_archived) params.set("include_archived", "true");
+  const query = params.toString();
+  const rows = await getJSON<BackendTicketSummary[]>(`/api/admin/tickets${query ? `?${query}` : ""}`);
+  return rows.map(mapTicket);
 }
 
-// [MOCK] TODO backend contract: GET /admin/tickets/{id} -> SupportTicket
+export async function getAdminTicket(ticketId: string): Promise<SupportTicket> {
+  const row = await getJSON<BackendTicketDetail>(`/api/admin/tickets/${ticketId}`);
+  return mapTicket(row);
+}
+
 export async function getAdminTicketDetail(ticketId: string): Promise<SupportTicket> {
-  const found = MOCK_TICKETS.find(
-    (t) => t.id === ticketId && t.status !== "draft" && t.confirmed_by_user === true
-  );
-  if (!found) throw new Error(`Ticket ${ticketId} not found`);
-  return delay({ ...found });
+  return getAdminTicket(ticketId);
 }
 
-// [MOCK] TODO backend contract: PATCH /admin/tickets/{id} { status } -> SupportTicket
+export async function updateAdminTicket(
+  ticketId: string,
+  payload: AdminUpdateTicketPayload
+): Promise<SupportTicket> {
+  const row = await apiRequest<BackendTicketDetail>(`/api/admin/tickets/${ticketId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      ...payload,
+      status: backendTicketStatus(payload.status),
+    }),
+  });
+  return mapTicket(row);
+}
+
 export async function updateTicketStatus(
   ticketId: string,
   status: TicketStatus
 ): Promise<SupportTicket> {
-  return delay(patchTicket(ticketId, { status }), 200);
+  return updateAdminTicket(ticketId, { status });
 }
 
-// [MOCK] TODO backend contract: POST /admin/tickets/{id}/messages { body } -> SupportTicket
-// Appends an admin reply to the ticket thread (visible to the student).
+export async function addAdminTicketMessage(
+  ticketId: string,
+  payload: AddTicketMessagePayload
+): Promise<TicketMessage> {
+  const row = await apiRequest<BackendTicketMessage>(`/api/admin/tickets/${ticketId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return mapTicketMessage(row);
+}
+
 export async function respondToTicket(ticketId: string, body: string): Promise<SupportTicket> {
-  const t = MOCK_TICKETS.find((x) => x.id === ticketId);
-  if (!t) throw new Error(`Ticket ${ticketId} not found`);
-  const now = new Date().toISOString();
-  const messages = [
-    ...(t.messages ?? []),
-    { id: `m${(t.messages?.length ?? 0) + 1}`, author: "admin" as const, body, created_at: now },
-  ];
-  return delay(patchTicket(ticketId, { messages, status: "waiting_for_student" }), 250);
+  await addAdminTicketMessage(ticketId, { body });
+  return getAdminTicket(ticketId);
 }
 
-// [MOCK] TODO backend contract: GET /tickets/{id} -> SupportTicket
 export async function getSupportTicketDetail(ticketId: string): Promise<SupportTicket> {
-  const found = MOCK_TICKETS.find((t) => t.id === ticketId);
-  if (!found) throw new Error(`Ticket ${ticketId} not found`);
-  return delay({ ...found });
+  return getTicket(ticketId);
 }
 
 // Ticket visibility mutations. The backend has no permanent-delete endpoint, so archive

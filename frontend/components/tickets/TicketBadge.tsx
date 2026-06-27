@@ -16,8 +16,11 @@ import { usePortal } from "@/lib/portalI18n";
 export const STATUS_TONE: Record<TicketStatus, BadgeTone> = {
   draft: "neutral",
   submitted: "info",
+  open: "info",
   in_review: "warning",
+  in_progress: "warning",
   waiting_for_student: "gold",
+  waiting_on_student: "gold",
   resolved: "success",
   closed: "neutral",
 };
@@ -26,6 +29,7 @@ export const PRIORITY_TONE: Record<TicketPriority, BadgeTone> = {
   low: "neutral",
   medium: "info",
   high: "danger",
+  urgent: "danger",
 };
 
 type TicketBadgeProps =
