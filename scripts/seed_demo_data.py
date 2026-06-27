@@ -1884,6 +1884,20 @@ def fetch_course_ids(
     return ids
 
 
+def course_department_code(course_code: str) -> str:
+    prefix = []
+    for char in course_code:
+        if char.isdigit():
+            break
+        prefix.append(char)
+    return "".join(prefix) or course_code
+
+
+def course_level(course_code: str) -> int | None:
+    digits = "".join(char for char in course_code if char.isdigit())
+    return int(digits) if digits else None
+
+
 def upsert_users(conn: psycopg.Connection[Any], users: tuple[DemoUser, ...]) -> None:
     for user in users:
         conn.execute(
@@ -1938,16 +1952,23 @@ def upsert_courses(
             """
             insert into courses (
                 id, institute_id, course_code, course_title, credits,
-                semester, academic_year, instructor, is_active
+                semester, academic_year, instructor, is_active, code, name,
+                course_level, department_code, is_general_education, description
             )
-            values (%s, %s, %s, %s, %s, %s, %s, %s, true)
+            values (%s, %s, %s, %s, %s, %s, %s, %s, true, %s, %s, %s, %s, false, %s)
             on conflict (course_code, semester, academic_year) do update
             set
                 institute_id = excluded.institute_id,
                 course_title = excluded.course_title,
                 credits = excluded.credits,
                 instructor = excluded.instructor,
-                is_active = true
+                is_active = true,
+                code = excluded.code,
+                name = excluded.name,
+                course_level = excluded.course_level,
+                department_code = excluded.department_code,
+                is_general_education = excluded.is_general_education,
+                description = excluded.description
             """,
             (
                 course.id,
@@ -1958,6 +1979,11 @@ def upsert_courses(
                 course.semester,
                 course.academic_year,
                 course.instructor,
+                course.course_code,
+                course.course_title,
+                course_level(course.course_code),
+                course_department_code(course.course_code),
+                f"Phase 5A mock demo course for {course.course_title}.",
             ),
         )
 

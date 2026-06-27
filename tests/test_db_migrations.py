@@ -42,6 +42,7 @@ def test_discover_repo_migrations_includes_initial_app_schema():
     assert "000004_forum_schema.sql" in filenames
     assert "000005_admin_notification_workflow.sql" in filenames
     assert "000006_seed_forum_demo_data.sql" in filenames
+    assert "000007_academic_demo_database_core.sql" in filenames
 
 
 def test_admin_notification_workflow_migration_extends_lifecycle_values():
@@ -88,6 +89,77 @@ def test_forum_demo_seed_migration_is_idempotent_and_read_focused():
     assert "on conflict" in migration_sql
     assert "insert into users" not in migration_sql
     assert "token_hash" not in migration_sql
+
+
+def test_academic_demo_core_migration_includes_required_tables_and_rules():
+    migration_path = (
+        db_migrate.DEFAULT_MIGRATIONS_DIR / "000007_academic_demo_database_core.sql"
+    )
+    migration_sql = migration_path.read_text(encoding="utf-8").lower()
+
+    for table in [
+        "faculties",
+        "programs",
+        "academic_terms",
+        "curriculum_courses",
+        "course_requisites",
+        "student_course_enrollments",
+        "rooms",
+        "course_sections",
+        "class_meetings",
+    ]:
+        assert f"create table if not exists {table}" in migration_sql
+
+    for column in [
+        "student_code",
+        "full_name",
+        "faculty_id",
+        "program_id",
+        "cohort_year",
+        "current_year",
+    ]:
+        assert f"add column if not exists {column}" in migration_sql
+
+    assert "courses_supported_credits_check" in migration_sql
+    assert "credits in (0, 2, 3, 4)" in migration_sql
+    assert "normalize_student_course_enrollment" in migration_sql
+    assert "idx_student_course_enrollments_one_cpa_attempt" in migration_sql
+
+
+def test_academic_demo_core_migration_seeds_mock_academic_data():
+    migration_path = (
+        db_migrate.DEFAULT_MIGRATIONS_DIR / "000007_academic_demo_database_core.sql"
+    )
+    migration_sql = migration_path.read_text(encoding="utf-8").lower()
+
+    for value in [
+        "computer science",
+        "business administration",
+        "health sciences",
+        "2026-summer",
+        "2026-06-01",
+        "2026-07-31",
+        "gen101",
+        "cs102",
+        "cap401",
+        "student.cs02.demo@vinuni.edu.vn",
+        "retaking",
+        "improvement",
+    ]:
+        assert value in migration_sql
+
+    for requisite in [
+        "('cs102', 'cs101', 'prerequisite'",
+        "('cs201', 'cs102', 'prerequisite'",
+        "('cs201', 'math102', 'corequisite'",
+        "('cs301', 'cs102', 'prerequisite'",
+        "('cap401', 'cs201', 'prerequisite'",
+    ]:
+        assert requisite in migration_sql
+
+    assert "official vinuni curriculum" in migration_sql
+    assert "password_hash, full_name" in migration_sql
+    assert "demo@123456" not in migration_sql
 
 
 def test_base_reference_seed_contains_only_roles_and_institutes():
@@ -217,6 +289,15 @@ def test_reset_tracks_initial_schema_app_objects():
         "question_trends",
         "suggested_questions",
         "audit_logs",
+        "faculties",
+        "programs",
+        "academic_terms",
+        "curriculum_courses",
+        "course_requisites",
+        "student_course_enrollments",
+        "rooms",
+        "course_sections",
+        "class_meetings",
         "schema_migrations",
     }
 
@@ -231,7 +312,13 @@ def test_reset_tracks_initial_schema_app_objects():
     assert table_order["ticket_messages"] < table_order["tickets"]
     assert table_order["forum_comments"] < table_order["forum_topics"]
     assert table_order["forum_topics"] < table_order["forum_categories"]
+    assert table_order["class_meetings"] < table_order["course_sections"]
+    assert table_order["student_course_enrollments"] < table_order["course_sections"]
+    assert table_order["course_sections"] < table_order["courses"]
+    assert table_order["programs"] > table_order["student_profiles"]
+    assert table_order["faculties"] > table_order["programs"]
     assert table_order["student_profiles"] < table_order["users"]
+    assert "normalize_student_course_enrollment" in db_reset.APP_MANAGED_FUNCTIONS
     assert (
         "forum_topics",
         "forum_topics_official_comment_fk",

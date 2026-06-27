@@ -31,12 +31,21 @@ APP_MANAGED_TABLES = (
     "forum_comments",
     "forum_topics",
     "forum_categories",
+    "class_meetings",
+    "student_course_enrollments",
+    "course_requisites",
+    "curriculum_courses",
+    "course_sections",
+    "rooms",
+    "academic_terms",
     "deadlines",
     "schedules",
     "academic_summaries",
     "enrollments",
     "courses",
     "student_profiles",
+    "programs",
+    "faculties",
     "institutes",
     "sessions",
     "user_roles",
@@ -44,7 +53,7 @@ APP_MANAGED_TABLES = (
     "users",
     "schema_migrations",
 )
-APP_MANAGED_FUNCTIONS = ("set_updated_at",)
+APP_MANAGED_FUNCTIONS = ("normalize_student_course_enrollment", "set_updated_at")
 APP_MANAGED_TYPES: tuple[str, ...] = ()
 APP_MANAGED_PRE_DROP_CONSTRAINTS = (
     ("forum_topics", "forum_topics_official_comment_fk"),
