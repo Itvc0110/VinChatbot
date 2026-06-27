@@ -40,8 +40,6 @@ import {
   MOCK_ADMIN_STATS,
   MOCK_ANALYTICS,
   MOCK_NOTIFICATIONS,
-  MOCK_PROFILE,
-  MOCK_SOURCES,
   MOCK_TICKETS,
   MOCK_TUITION,
   MOCK_UNANSWERED,
@@ -836,7 +834,7 @@ export async function getStudentDeadlines(): Promise<Deadline[]> {
   return rows.map(mapDeadline).sort((a, b) => a.due_at.localeCompare(b.due_at));
 }
 
-// [MOCK] TODO backend contract: GET /students/me/tuition -> TuitionStatus
+// [MOCK] TODO future backend contract: GET /students/me/tuition -> TuitionStatus
 export async function getTuitionStatus(): Promise<TuitionStatus> {
   return delay(MOCK_TUITION);
 }
@@ -1031,7 +1029,7 @@ export async function addTicketMessage(
 
 // [MOCK] No network in MVP — drafts live in ChatProvider React state only (privacy: an
 // unconfirmed, possibly sensitive draft must never be persisted to a DB or localStorage).
-// TODO backend contract (Phase 2): POST /tickets { status: "draft" } scoped to the student
+// TODO future backend contract: POST /tickets { status: "draft" } scoped to the student
 // (admin queries MUST never return drafts).
 export async function saveTicketDraft(draft: TicketDraft): Promise<TicketDraft> {
   return delay({ ...draft }, 150);
@@ -1101,10 +1099,10 @@ export async function getSupportTicketDetail(ticketId: string): Promise<SupportT
   return getTicket(ticketId);
 }
 
-// Ticket visibility mutations. The backend has no permanent-delete endpoint, so archive
-// and delete are modelled as frontend state on the ticket (filtered by the visibility
-// control). These mutate the in-memory demo store so the change persists across reloads.
-// [MOCK] TODO backend contract: PATCH /tickets/{id} { archived } -> SupportTicket
+// Legacy student ticket visibility adapters. Phase 10D backend supports create/reply/detail,
+// but not student archive/delete mutations; active student pages keep visibility local in
+// component state. Keep these isolated until Phase 11 adds real mutation endpoints.
+// [MOCK] TODO Phase 11 backend contract: PATCH /tickets/{id} { archived } -> SupportTicket
 function patchTicket(ticketId: string, patch: Partial<SupportTicket>): SupportTicket {
   const t = MOCK_TICKETS.find((x) => x.id === ticketId);
   if (!t) throw new Error(`Ticket ${ticketId} not found`);
@@ -1120,7 +1118,7 @@ export async function restoreSupportTicket(ticketId: string): Promise<SupportTic
   return delay(patchTicket(ticketId, { archived: false, deleted: false }), 250);
 }
 
-// [MOCK] TODO backend contract: DELETE /tickets/{id} -> { ok: true }
+// [MOCK] TODO Phase 11 backend contract: DELETE /tickets/{id} -> { ok: true }
 // No permanent delete exists; modelled as a "deleted" visibility state instead.
 export async function deleteSupportTicket(ticketId: string): Promise<SupportTicket> {
   return delay(patchTicket(ticketId, { deleted: true }), 250);
@@ -1140,12 +1138,12 @@ function patchNotification(id: string, patch: Partial<Notification>): Notificati
   return { ...n };
 }
 
-// Local-only until notification mutation endpoints exist.
+// Local-only until Phase 11 notification mutation endpoints exist.
 export async function markNotificationRead(id: string, read = true): Promise<Notification> {
   return delay({ id, read } as Notification, 150);
 }
 
-// Local-only until notification mutation endpoints exist.
+// Local-only until Phase 11 notification mutation endpoints exist.
 export async function markNotificationImportant(
   id: string,
   important: boolean
@@ -1153,23 +1151,23 @@ export async function markNotificationImportant(
   return delay({ id, important } as Notification, 150);
 }
 
-// Local-only until notification mutation endpoints exist.
+// Local-only until Phase 11 notification mutation endpoints exist.
 export async function archiveNotification(id: string): Promise<Notification> {
   return delay({ id, archived: true } as Notification, 150);
 }
 
-// Local-only until notification mutation endpoints exist.
+// Local-only until Phase 11 notification mutation endpoints exist.
 export async function deleteNotification(_id: string): Promise<{ ok: true }> {
   return delay({ ok: true } as const, 150);
 }
 
 // ---- Admin notifications + suggested questions (PLAN22.6) -------------------
-// [MOCK] TODO backend contract: GET /admin/notifications -> Notification[] (all statuses)
+// [MOCK] TODO Phase 11 backend contract: GET /admin/notifications -> Notification[] (all statuses)
 export async function getAdminNotifications(): Promise<Notification[]> {
   return delay(MOCK_NOTIFICATIONS.map((n) => ({ ...n })));
 }
 
-// [MOCK] TODO backend contract: POST /admin/notifications { ... } -> Notification
+// [MOCK] TODO Phase 11 backend contract: POST /admin/notifications { ... } -> Notification
 // Admin authors a notification (optionally with reviewed/approved suggested questions). A
 // "published" notification with active questions immediately drives student suggestions.
 export async function createNotification(input: {
@@ -1209,7 +1207,7 @@ export async function createNotification(input: {
   return delay(notification, 300);
 }
 
-// [MOCK] TODO backend contract: PATCH /admin/notifications/{id} { ... } -> Notification
+// [MOCK] TODO Phase 11 backend contract: PATCH /admin/notifications/{id} { ... } -> Notification
 export async function updateNotification(
   id: string,
   patch: Partial<Notification>
@@ -1217,7 +1215,7 @@ export async function updateNotification(
   return delay(patchNotification(id, { ...patch, updated_at: new Date().toISOString() }), 200);
 }
 
-// [MOCK] TODO backend contract: POST /admin/notifications/{id}/publish -> Notification
+// [MOCK] TODO Phase 11 backend contract: POST /admin/notifications/{id}/publish -> Notification
 // Publishes the notification and activates its admin-approved suggested questions.
 export async function publishNotification(id: string): Promise<Notification> {
   const n = MOCK_NOTIFICATIONS.find((x) => x.id === id);
@@ -1239,7 +1237,7 @@ export async function publishNotification(id: string): Promise<Notification> {
 // [MOCK] Rule-based for MVP — runs the lib/suggestedQuestions.ts template engine for the
 // notification's current deadline phase. Returns UNSAVED candidates for the admin to
 // review/edit/approve before publishing.
-// TODO backend contract (Phase 2): POST /admin/notifications/{id}/suggested-questions/generate (AI).
+// TODO Phase 11 backend contract: POST /admin/notifications/{id}/suggested-questions/generate (AI).
 export async function generateSuggestedQuestions(input: {
   id?: string;
   type: NotificationType;
@@ -1307,8 +1305,8 @@ export async function getStudentCalendar(
 
 // ---- Knowledge sources (admin) ---------------------------------------------
 // [LIVE] GET /api/sources -> SourceSummary[]  (FastAPI GET /sources)
-// Mapped onto the richer KnowledgeSource shape the admin table renders. Falls back
-// to demo data if the backend is unreachable so the admin screens stay demoable.
+// Mapped onto the richer KnowledgeSource shape the admin table renders. If the
+// backend is unreachable, the page should show its normal error/retry state.
 function inferCategory(title: string): SourceCategory {
   const t = title.toLowerCase();
   if (/(tuition|fee|payment|financial)/.test(t)) return "Tuition";
@@ -1339,14 +1337,8 @@ function mapSummaryToSource(s: SourceSummary, i: number): KnowledgeSource {
 }
 
 export async function getKnowledgeSources(): Promise<KnowledgeSource[]> {
-  try {
-    const summaries = await getJSON<SourceSummary[]>("/api/sources");
-    if (!Array.isArray(summaries) || summaries.length === 0) return MOCK_SOURCES;
-    return summaries.map(mapSummaryToSource);
-  } catch {
-    // Backend not running / no corpus yet — keep the admin table demoable.
-    return MOCK_SOURCES;
-  }
+  const summaries = await getJSON<SourceSummary[]>("/api/sources");
+  return Array.isArray(summaries) ? summaries.map(mapSummaryToSource) : [];
 }
 
 // [LIVE-ish] POST /api/ingest/run  (FastAPI POST /ingest/run)
@@ -1370,23 +1362,15 @@ export async function uploadKnowledgeSource(input: {
   source_type?: "pdf" | "docx" | "url";
 }): Promise<IngestRunResponse> {
   if (input.url) {
-    try {
-      const res = await fetch("/api/ingest/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ urls: [input.url], force: true }),
-      });
-      if (!res.ok) throw new Error(`Ingest failed (${res.status})`);
-      return (await res.json()) as IngestRunResponse;
-    } catch {
-      // Fall through to a simulated result so the upload flow stays demoable offline.
-      return delay(
-        { crawled_documents: 1, indexed_chunks: 14, skipped_documents: 0, sources: [input.url] },
-        900
-      );
-    }
+    const res = await fetch("/api/ingest/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ urls: [input.url], force: true }),
+    });
+    if (!res.ok) throw new Error(`Ingest failed (${res.status})`);
+    return (await res.json()) as IngestRunResponse;
   }
-  // [MOCK] TODO backend contract: POST /ingest/upload (multipart: file, category)
+  // [MOCK] TODO future backend contract: POST /ingest/upload (multipart: file, category)
   //   -> IngestRunResponse. No FastAPI route exists for binary uploads yet.
   return delay(
     {
@@ -1401,32 +1385,28 @@ export async function uploadKnowledgeSource(input: {
 
 // [LIVE-ish] Re-crawl a source by URL through POST /ingest/run (force=true).
 export async function recrawlSource(sourceUrl: string): Promise<IngestRunResponse> {
-  try {
-    const res = await fetch("/api/ingest/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ urls: [sourceUrl], force: true }),
-    });
-    if (!res.ok) throw new Error(`Re-crawl failed (${res.status})`);
-    return (await res.json()) as IngestRunResponse;
-  } catch {
-    return delay({ crawled_documents: 1, indexed_chunks: 12, skipped_documents: 0, sources: [sourceUrl] }, 800);
-  }
+  const res = await fetch("/api/ingest/run", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ urls: [sourceUrl], force: true }),
+  });
+  if (!res.ok) throw new Error(`Re-crawl failed (${res.status})`);
+  return (await res.json()) as IngestRunResponse;
 }
 
-// [MOCK] TODO backend contract: POST /sources/{id}/disable -> { ok: true }
+// [MOCK] TODO future backend contract: POST /sources/{id}/disable -> { ok: true }
 export async function disableSource(sourceId: string): Promise<{ ok: true }> {
   return delay({ ok: true } as const, 300);
 }
 
 // ---- Unanswered questions (admin) ------------------------------------------
-// [MOCK] TODO backend contract: GET /admin/unanswered -> UnansweredQuestion[]
+// [MOCK] TODO future backend contract: GET /admin/unanswered -> UnansweredQuestion[]
 //   (populated from chat turns where deriveState == "degraded"/"refusal").
 export async function getUnansweredQuestions(): Promise<UnansweredQuestion[]> {
   return delay([...MOCK_UNANSWERED]);
 }
 
-// [MOCK] TODO backend contract: POST /admin/unanswered/{id}/resolve
+// [MOCK] TODO future backend contract: POST /admin/unanswered/{id}/resolve
 //   body: ResolveQuestionPayload -> UnansweredQuestion (updated)
 export async function resolveUnansweredQuestion(
   questionId: string,
@@ -1448,12 +1428,12 @@ export async function getAdminDashboard(): Promise<AdminDashboard> {
   return getJSON<AdminDashboard>("/api/admin/dashboard");
 }
 
-// [MOCK] TODO backend contract: GET /admin/stats -> AdminStats
+// [MOCK] TODO future backend contract: GET /admin/stats -> AdminStats
 export async function getAdminStats(): Promise<AdminStats> {
   return delay(MOCK_ADMIN_STATS);
 }
 
-// [MOCK] TODO backend contract: GET /admin/analytics -> AnalyticsOverview
+// [MOCK] TODO future backend contract: GET /admin/analytics -> AnalyticsOverview
 export async function getAnalytics(): Promise<AnalyticsOverview> {
   return delay(MOCK_ANALYTICS);
 }

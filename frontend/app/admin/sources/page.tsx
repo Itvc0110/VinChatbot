@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/primitives";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
+import { useAuth } from "@/lib/auth";
 import { getKnowledgeSources, recrawlSource, disableSource } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
 import type {
@@ -91,8 +92,9 @@ function Summary({ value, label, tone = "default" }: { value: number; label: str
 
 export default function SourcesPage() {
   const { p, lang } = usePortal();
+  const { token } = useAuth();
   const tr = STR[lang];
-  const sources = useAsync(getKnowledgeSources, []);
+  const sources = useAsync(getKnowledgeSources, [token]);
   const [toast, setToast] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [search, setSearch] = useState("");

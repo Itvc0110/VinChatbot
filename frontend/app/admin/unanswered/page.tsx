@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AsyncBoundary, EmptyState, Toast } from "@/components/ui/primitives";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
+import { useAuth } from "@/lib/auth";
 import { getUnansweredQuestions, resolveUnansweredQuestion } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
 import type { QuestionStatus, UnansweredQuestion } from "@/lib/portalTypes";
@@ -63,11 +64,19 @@ function Stat({ value, label }: { value: number; label: string }) {
 export default function UnansweredPage() {
   const { p, lang } = usePortal();
   const s = STR[lang];
-  const loaded = useAsync(getUnansweredQuestions, []);
+  const { token } = useAuth();
+  const loaded = useAsync(getUnansweredQuestions, [token]);
   const [items, setItems] = useState<UnansweredQuestion[] | null>(null);
   const [filter, setFilter] = useState<"all" | QuestionStatus>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    setItems(null);
+    setFilter("all");
+    setBusyId(null);
+    setToast(null);
+  }, [token]);
 
   useEffect(() => {
     if (loaded.status === "success") setItems(loaded.data);

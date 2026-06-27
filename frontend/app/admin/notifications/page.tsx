@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AsyncBoundary, EmptyState, Toast } from "@/components/ui/primitives";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
+import { useAuth } from "@/lib/auth";
 import {
   getAdminNotifications,
   createNotification,
@@ -41,8 +42,9 @@ const STR = {
 
 export default function AdminNotificationsPage() {
   const { p, lang } = usePortal();
+  const { token } = useAuth();
   const s = STR[lang];
-  const loaded = useAsync(getAdminNotifications, []);
+  const loaded = useAsync(getAdminNotifications, [token]);
   const [items, setItems] = useState<Notification[] | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -55,6 +57,18 @@ export default function AdminNotificationsPage() {
   const [deadline, setDeadline] = useState("");
   const [candidates, setCandidates] = useState<SuggestedQuestion[]>([]);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setItems(null);
+    setToast(null);
+    setTitle("");
+    setMessage("");
+    setAudience("");
+    setEventDate("");
+    setDeadline("");
+    setCandidates([]);
+    setBusy(false);
+  }, [token]);
 
   useEffect(() => {
     if (loaded.status === "success") setItems((cur) => cur ?? loaded.data);

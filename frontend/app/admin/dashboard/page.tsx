@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { getAdminDashboard } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
+import { useAuth } from "@/lib/auth";
 import { usePortal } from "@/lib/portalI18n";
 import type { AdminDashboardCount, AdminDashboardUpcomingItem, TicketPriority, TicketStatus } from "@/lib/portalTypes";
 import { useAsync } from "@/lib/useAsync";
@@ -138,8 +139,9 @@ function itemIcon(item: AdminDashboardUpcomingItem) {
 
 export default function AdminDashboardPage() {
   const { p, lang } = usePortal();
+  const { token } = useAuth();
   const tr = STR[lang];
-  const dashboard = useAsync(() => getAdminDashboard(), []);
+  const dashboard = useAsync(() => getAdminDashboard(), [token]);
 
   if (dashboard.status === "loading") {
     return (

@@ -390,6 +390,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, [activeId]);
 
   useEffect(() => {
+    if (authLoading) return;
+
+    personalData.current = { profile: null, schedule: [], deadlines: [], tuition: null };
+    if (!isAuthenticated || !token) return;
+
     let alive = true;
     Promise.all([
       getStudentProfile(),
@@ -404,7 +409,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [authLoading, isAuthenticated, token]);
 
   useEffect(() => {
     if (authLoading) return;

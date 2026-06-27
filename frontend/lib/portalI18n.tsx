@@ -1058,7 +1058,7 @@ const en: PortalStrings = {
     disableFailed: "Couldn't disable the source.",
     chunksInfo: (name, n) => `“${name}” has ${n} indexed chunks.`,
     sourcesNote:
-      "Live data from GET /sources; re-crawl posts to /ingest/run. Falls back to demo rows when the backend is offline.",
+      "Live data from GET /sources; re-crawl posts to /ingest/run. Backend errors show the retry state.",
 
     stepSource: "Source",
     stepPreview: "Preview",
@@ -1718,7 +1718,7 @@ const vi: PortalStrings = {
     disableFailed: "Không tắt được nguồn này.",
     chunksInfo: (name, n) => `“${name}” có ${n} đoạn đã lập chỉ mục.`,
     sourcesNote:
-      "Dữ liệu trực tiếp từ GET /sources; thu thập lại gọi /ingest/run. Hiển thị dữ liệu demo khi backend ngoại tuyến.",
+      "Dữ liệu trực tiếp từ GET /sources; thu thập lại gọi /ingest/run. Lỗi backend sẽ hiển thị trạng thái thử lại.",
 
     stepSource: "Nguồn",
     stepPreview: "Xem trước",

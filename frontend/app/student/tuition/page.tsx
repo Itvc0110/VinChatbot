@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/primitives";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
+import { useAuth } from "@/lib/auth";
 import { getTuitionStatus } from "@/lib/api";
 import { formatVnd, formatDate } from "@/lib/format";
 import type { TuitionItemStatus } from "@/lib/portalTypes";
@@ -24,7 +25,8 @@ const STATUS_TONE: Record<TuitionItemStatus, BadgeTone> = {
 
 export default function StudentTuitionPage() {
   const { p, lang } = usePortal();
-  const tuition = useAsync(getTuitionStatus, []);
+  const { token } = useAuth();
+  const tuition = useAsync(getTuitionStatus, [token]);
   const locale = lang === "vi" ? "vi-VN" : "en-US";
 
   return (

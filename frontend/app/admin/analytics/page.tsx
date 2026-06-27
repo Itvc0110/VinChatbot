@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
+import { useAuth } from "@/lib/auth";
 import { getAnalytics, getAdminStats, getKnowledgeSources, getUnansweredQuestions } from "@/lib/api";
 import {
   IconChat,
@@ -69,11 +70,12 @@ function Stat({ value, label, icon, tone = "default" }: { value: React.ReactNode
 
 export default function AnalyticsPage() {
   const { p, lang } = usePortal();
+  const { token } = useAuth();
   const tr = STR[lang];
-  const analytics = useAsync(() => getAnalytics(), []);
-  const stats = useAsync(() => getAdminStats(), []);
-  const sources = useAsync(() => getKnowledgeSources(), []);
-  const questions = useAsync(() => getUnansweredQuestions(), []);
+  const analytics = useAsync(() => getAnalytics(), [token]);
+  const stats = useAsync(() => getAdminStats(), [token]);
+  const sources = useAsync(() => getKnowledgeSources(), [token]);
+  const questions = useAsync(() => getUnansweredQuestions(), [token]);
 
   const a = analytics.status === "success" ? analytics.data : null;
   const s = stats.status === "success" ? stats.data : null;

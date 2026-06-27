@@ -17,6 +17,7 @@ import {
 } from "@/components/notifications/NotificationList";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
+import { useAuth } from "@/lib/auth";
 import {
   getStudentNotifications,
   markNotificationRead,
@@ -42,17 +43,24 @@ function matchesFilter(n: Notification, f: NotifFilter): boolean {
 
 export default function StudentNotificationsPage() {
   const { p } = usePortal();
-  const loaded = useAsync(getStudentNotifications, []);
+  const { token } = useAuth();
+  const loaded = useAsync(getStudentNotifications, [token]);
   const [items, setItems] = useState<Notification[] | null>(null);
   const [filter, setFilter] = useState<NotifFilter>("all");
   const [toast, setToast] = useState<string | null>(null);
 
   // Seed the working copy from the backend; mutations below are UI-local until
-  // notification mutation endpoints exist.
+  // notification mutation endpoints exist in Phase 11.
+  useEffect(() => {
+    setItems(null);
+    setFilter("all");
+    setToast(null);
+  }, [token]);
+
   useEffect(() => {
     if (loaded.status === "success") setItems(loaded.data);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded.status]);
+  }, [loaded.status, loaded.status === "success" ? loaded.data : null]);
 
   const all = (items ?? []).filter((n) => !n.archived);
   const unreadCount = all.filter((n) => !n.read).length;

@@ -7,6 +7,7 @@ import { EventDetailDrawer } from "@/components/calendar/EventDetailDrawer";
 import { DayEventsPopup } from "@/components/calendar/DayEventsPopup";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
+import { useAuth } from "@/lib/auth";
 import { getStudentCalendar } from "@/lib/api";
 import type { CalendarEvent } from "@/lib/portalTypes";
 import { addDays, addMonths, monthTitle, weekTitle, timeLabel, ymd } from "@/lib/calendar";
@@ -115,9 +116,10 @@ function nearestCalendarEventDate(events: CalendarEvent[], today = new Date()): 
 
 export default function StudentCalendarPage() {
   const { p, lang } = usePortal();
+  const { token } = useAuth();
   const s = STR[lang];
   const locale = lang === "vi" ? "vi-VN" : "en-US";
-  const cal = useAsync(() => getStudentCalendar(), []);
+  const cal = useAsync(() => getStudentCalendar(), [token]);
 
   const [view, setView] = useState<ViewMode>("month");
   const [cursor, setCursor] = useState<Date>(() => new Date());
@@ -127,6 +129,14 @@ export default function StudentCalendarPage() {
   const [toast, setToast] = useState<string | null>(null);
   const autoCursorApplied = useRef(false);
   const manualCursorNavigation = useRef(false);
+
+  useEffect(() => {
+    autoCursorApplied.current = false;
+    manualCursorNavigation.current = false;
+    setCursor(new Date());
+    setSelected(null);
+    setPopupDay(null);
+  }, [token]);
 
   const events = cal.status === "success" ? cal.data : [];
   useEffect(() => {

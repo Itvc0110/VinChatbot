@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   AsyncBoundary,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/primitives";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal, DEPARTMENTS } from "@/lib/portalI18n";
+import { useAuth } from "@/lib/auth";
 import { getUnansweredQuestions, resolveUnansweredQuestion } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 import type { QuestionPriority, ResolveQuestionPayload } from "@/lib/portalTypes";
@@ -26,12 +27,13 @@ const PRIORITY_TONE: Record<QuestionPriority, BadgeTone> = {
 
 export default function QuestionDetailPage() {
   const { p, lang } = usePortal();
+  const { token } = useAuth();
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const id = params.id;
   const locale = lang === "vi" ? "vi-VN" : "en-US";
 
-  const all = useAsync(getUnansweredQuestions, []);
+  const all = useAsync(getUnansweredQuestions, [token]);
   const [toast, setToast] = useState<string | null>(null);
   const [working, setWorking] = useState<string | null>(null);
 
@@ -39,6 +41,15 @@ export default function QuestionDetailPage() {
   const [addToKb, setAddToKb] = useState(true);
   const [department, setDepartment] = useState(DEPARTMENTS[0]);
   const [sourceUrl, setSourceUrl] = useState("");
+
+  useEffect(() => {
+    setToast(null);
+    setWorking(null);
+    setAnswer("");
+    setAddToKb(true);
+    setDepartment(DEPARTMENTS[0]);
+    setSourceUrl("");
+  }, [token]);
 
   async function act(
     action: ResolveQuestionPayload["action"],

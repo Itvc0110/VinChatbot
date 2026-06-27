@@ -210,7 +210,7 @@ export default function StudentDashboardPage() {
   const { p, lang } = usePortal();
   const s = STR[lang];
   const locale = lang === "vi" ? "vi-VN" : "en-US";
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const router = useRouter();
 
   // Local clock for time-aware schedule states. Starts null so SSR and the first
@@ -223,11 +223,11 @@ export default function StudentDashboardPage() {
     return () => clearInterval(id);
   }, []);
 
-  const profile = useAsync(() => getStudentProfile(), []);
-  const schedule = useAsync(() => getStudentSchedule(), []);
-  const deadlines = useAsync(() => getStudentDeadlines(), []);
-  const tickets = useAsync(() => getSupportTickets(), []);
-  const calendar = useAsync(() => getStudentCalendar(), []);
+  const profile = useAsync(() => getStudentProfile(), [token]);
+  const schedule = useAsync(() => getStudentSchedule(), [token]);
+  const deadlines = useAsync(() => getStudentDeadlines(), [token]);
+  const tickets = useAsync(() => getSupportTickets(), [token]);
+  const calendar = useAsync(() => getStudentCalendar(), [token]);
 
   const go = (q: string) => router.push(`/student/chat?q=${encodeURIComponent(q)}`);
 

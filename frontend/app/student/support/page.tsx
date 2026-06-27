@@ -12,6 +12,7 @@ import { TicketDetailDrawer } from "@/components/tickets/TicketDetailDrawer";
 import { CreateTicketModal } from "@/components/tickets/CreateTicketModal";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
+import { useAuth } from "@/lib/auth";
 import { useChat } from "@/lib/chat";
 import {
   getSupportTickets,
@@ -69,14 +70,23 @@ function Chevron({ dir }: { dir: "left" | "right" }) {
 export default function StudentSupportPage() {
   const { p, lang } = usePortal();
   const s = STR[lang];
+  const { token } = useAuth();
   const { ticketsRevision } = useChat();
-  const loaded = useAsync(getSupportTickets, []);
+  const loaded = useAsync(getSupportTickets, [token]);
   const [items, setItems] = useState<SupportTicket[] | null>(null);
   const [filters, setFilters] = useState<TicketFilterState>(DEFAULT_TICKET_FILTERS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setItems(null);
+    setSelectedId(null);
+    setCreating(false);
+    setToast(null);
+    setPage(1);
+  }, [token]);
 
   useEffect(() => {
     if (loaded.status === "success") setItems(loaded.data);

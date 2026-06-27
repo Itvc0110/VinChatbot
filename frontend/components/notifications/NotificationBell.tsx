@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { usePortal } from "@/lib/portalI18n";
+import { useAuth } from "@/lib/auth";
 import { useAsync } from "@/lib/useAsync";
 import { getStudentNotifications } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
@@ -14,7 +15,7 @@ import type { Notification, NotificationType } from "@/lib/portalTypes";
 
 // Facebook-style notification dropdown for the student top nav. Reads the current
 // student's backend notifications, renders a compact recent list in a popover, and
-// supports a local-only mark-as-read overlay until mutation endpoints exist.
+// supports a local-only mark-as-read overlay until Phase 11 mutation endpoints exist.
 const TYPE_TONE: Record<NotificationType, BadgeTone> = {
   academic: "info",
   schedule: "info",
@@ -29,14 +30,15 @@ const RECENT_LIMIT = 6;
 
 export function NotificationBell({ ariaLabel }: { ariaLabel: string }) {
   const { p, lang } = usePortal();
+  const { token } = useAuth();
   const pathname = usePathname();
-  const loaded = useAsync(getStudentNotifications, []);
+  const loaded = useAsync(getStudentNotifications, [token]);
 
   const [open, setOpen] = useState(false);
   // The notification whose full-detail popup is open (null = none).
   const [detail, setDetail] = useState<Notification | null>(null);
   // Local-only "read" overlay — clicking an item marks it read in the UI without
-  // mutating the source data or calling the backend.
+  // mutating the source data or calling the backend until Phase 11 adds mutations.
   const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
   const wrapRef = useRef<HTMLDivElement>(null);
 
@@ -44,6 +46,12 @@ export function NotificationBell({ ariaLabel }: { ariaLabel: string }) {
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    setOpen(false);
+    setDetail(null);
+    setReadIds(new Set());
+  }, [token]);
 
   // While open: close on outside click and on Escape.
   useEffect(() => {

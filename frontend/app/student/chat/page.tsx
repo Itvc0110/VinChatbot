@@ -23,11 +23,11 @@ const SUGG_ICONS = [IconClock, IconBell, IconTicket, IconCalendar];
 // panel. The streaming/SSE logic in lib/chat + ChatColumn is unchanged.
 function ChatView() {
   const { p, lang } = usePortal();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const chat = useChat();
   const searchParams = useSearchParams();
 
-  const suggested = useAsync(() => getActiveSuggestedQuestions(lang), [lang]);
+  const suggested = useAsync(() => getActiveSuggestedQuestions(lang), [lang, token]);
   const chips =
     suggested.status === "success" && suggested.data.length > 0
       ? suggested.data.map((q) => q.question_text)
