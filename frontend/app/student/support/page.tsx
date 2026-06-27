@@ -15,10 +15,8 @@ import { usePortal } from "@/lib/portalI18n";
 import { useChat } from "@/lib/chat";
 import {
   getSupportTickets,
-  updateTicketStatus,
-  archiveSupportTicket,
-  restoreSupportTicket,
-  deleteSupportTicket,
+  getSupportTicketDetail,
+  addTicketMessage,
 } from "@/lib/api";
 import type { SupportTicket, TicketStatus } from "@/lib/portalTypes";
 import { IconTicket } from "@/components/shell/icons";
@@ -101,7 +99,7 @@ export default function StudentSupportPage() {
   useEffect(() => {
     if (loaded.status === "success") setItems(loaded.data);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded.status]);
+  }, [loaded.status, loaded.status === "success" ? loaded.data : null]);
 
   useEffect(() => {
     if (ticketsRevision > 0) loaded.reload();
@@ -122,17 +120,14 @@ export default function StudentSupportPage() {
     onView: (t) => setSelectedId(t.id),
     onArchive: (t) => {
       patch(t.id, { archived: true });
-      archiveSupportTicket(t.id).catch(() => setToast(p.tickets.actionFailed));
       setToast(p.tickets.archivedToast);
     },
     onRestore: (t) => {
       patch(t.id, { archived: false, deleted: false });
-      restoreSupportTicket(t.id).catch(() => setToast(p.tickets.actionFailed));
       setToast(p.tickets.restoredToast);
     },
     onDelete: (t) => {
       patch(t.id, { deleted: true });
-      deleteSupportTicket(t.id).catch(() => setToast(p.tickets.actionFailed));
       setToast(p.tickets.deletedToast);
       if (selectedId === t.id) setSelectedId(null);
     },
@@ -140,7 +135,46 @@ export default function StudentSupportPage() {
 
   const onSetStatus = (t: SupportTicket, status: TicketStatus) => {
     patch(t.id, { status });
-    updateTicketStatus(t.id, status).catch(() => setToast(p.tickets.actionFailed));
+  };
+
+  useEffect(() => {
+    if (!selectedId) return;
+    let alive = true;
+    getSupportTicketDetail(selectedId)
+      .then((ticket) => {
+        if (!alive) return;
+        setItems((cur) => {
+          const list = cur ?? [];
+          return list.some((item) => item.id === ticket.id)
+            ? list.map((item) => (item.id === ticket.id ? ticket : item))
+            : [ticket, ...list];
+        });
+      })
+      .catch(() => {
+        if (alive) setToast(p.tickets.actionFailed);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [p.tickets.actionFailed, selectedId]);
+
+  const onRespond = (t: SupportTicket, body: string) => {
+    if (!body.trim()) return;
+    addTicketMessage(t.id, { body })
+      .then((message) => {
+        setItems((cur) =>
+          (cur ?? []).map((item) =>
+            item.id === t.id
+              ? {
+                  ...item,
+                  messages: [...(item.messages ?? []), message],
+                  updated_at: message.created_at,
+                }
+              : item
+          )
+        );
+      })
+      .catch(() => setToast(p.tickets.actionFailed));
   };
 
   const visible = useMemo(
@@ -262,6 +296,7 @@ export default function StudentSupportPage() {
         onArchive={handlers.onArchive}
         onRestore={handlers.onRestore}
         onDelete={handlers.onDelete}
+        onRespond={onRespond}
       />
 
       <CreateTicketModal open={creating} onClose={() => setCreating(false)} />

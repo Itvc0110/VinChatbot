@@ -5,6 +5,7 @@ import type {
   CalendarEvent,
   ClassSession,
   Deadline,
+  DeadlineKind,
   KnowledgeSource,
   Notification,
   NotificationType,
@@ -14,28 +15,487 @@ import type {
   StudentProfile,
   SuggestedQuestion,
   SupportTicket,
+  TicketCategory,
   TicketDraft,
+  TicketMessage,
+  TicketPriority,
   TicketStatus,
+  TicketStatusHistory,
   TuitionStatus,
   UnansweredQuestion,
 } from "./portalTypes";
-import { generate as generateQuestions, rankForStudent } from "./suggestedQuestions";
+import { generate as generateQuestions } from "./suggestedQuestions";
 import type { Lang } from "./i18n";
 import {
   MOCK_ADMIN_STATS,
   MOCK_ANALYTICS,
-  MOCK_DEADLINES,
-  MOCK_EVENTS,
   MOCK_NOTIFICATIONS,
   MOCK_PROFILE,
-  MOCK_REMINDERS,
-  MOCK_SCHEDULE,
   MOCK_SOURCES,
   MOCK_TICKETS,
   MOCK_TUITION,
   MOCK_UNANSWERED,
   delay,
 } from "./mock";
+
+export const AUTH_TOKEN_STORAGE_KEY = "vinuni-copilot-access-token";
+
+export type BackendRole = "student" | "institute_admin" | "global_admin" | "staff" | string;
+
+export interface BackendInstitute {
+  id: string;
+  code: string;
+  name_vi: string;
+  name_en: string;
+}
+
+export interface BackendStudentProfile {
+  id: string;
+  student_id: string;
+  program?: string | null;
+  major?: string | null;
+  cohort?: number | null;
+  academic_year?: number | null;
+  student_status: string;
+  preferred_language: string;
+  advisor_name?: string | null;
+  advisor_email?: string | null;
+  ai_personalization_enabled: boolean;
+}
+
+export interface BackendAcademicSummary {
+  gpa?: string | number | null;
+  credits_earned: number;
+  credits_required: number;
+  current_semester?: string | null;
+  academic_status: string;
+  updated_at?: string | null;
+}
+
+export interface BackendStudentMe extends BackendStudentProfile {
+  institute: BackendInstitute;
+  academic_summary?: BackendAcademicSummary | null;
+}
+
+export interface BackendCourse {
+  id: string;
+  course_code: string;
+  course_title: string;
+  credits: number;
+  semester?: string | null;
+  academic_year?: string | null;
+  instructor?: string | null;
+  institute?: BackendInstitute | null;
+}
+
+export interface BackendScheduleItem {
+  id: string;
+  course_id?: string | null;
+  course_code?: string | null;
+  course_title?: string | null;
+  title: string;
+  schedule_type: string;
+  start_time: string;
+  end_time: string;
+  location?: string | null;
+  building?: string | null;
+  room?: string | null;
+  instructor?: string | null;
+  recurrence_rule?: string | null;
+}
+
+export interface BackendDeadline {
+  id: string;
+  course_id?: string | null;
+  course_code?: string | null;
+  course_title?: string | null;
+  title: string;
+  kind?: string | null;
+  due_at: string;
+  source_title?: string | null;
+  source_url?: string | null;
+}
+
+export interface BackendNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  priority: string;
+  status: string;
+  target_scope: string;
+  institute_id?: string | null;
+  institute_code?: string | null;
+  course_id?: string | null;
+  course_code?: string | null;
+  cohort?: number | null;
+  deadline?: string | null;
+  event_date?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  source_title?: string | null;
+  source_url?: string | null;
+  created_at: string;
+  updated_at: string;
+  is_read: boolean;
+  important: boolean;
+  archived: boolean;
+}
+
+export interface BackendSuggestedQuestion {
+  id: string;
+  question_text: string;
+  source_type: string;
+  source_id?: string | null;
+  notification_id?: string | null;
+  topic?: string | null;
+  intent?: string | null;
+  category?: string | null;
+  trigger_phase?: string | null;
+  institute_id?: string | null;
+  institute_code?: string | null;
+  course_id?: string | null;
+  course_code?: string | null;
+  cohort?: number | null;
+  score: string | number;
+  priority: number;
+  created_by_ai: boolean;
+  approved_by_admin: boolean;
+  is_active: boolean;
+  valid_from?: string | null;
+  valid_until?: string | null;
+}
+
+export interface BackendSuggestedQuestionGroups {
+  for_you: BackendSuggestedQuestion[];
+  trending_now: BackendSuggestedQuestion[];
+  from_announcements: BackendSuggestedQuestion[];
+  from_events: BackendSuggestedQuestion[];
+}
+
+export interface BackendCurrentUser {
+  id: string;
+  email: string;
+  full_name: string;
+  preferred_name?: string | null;
+  roles: BackendRole[];
+  student_profile?: BackendStudentProfile | null;
+  institute?: BackendInstitute | null;
+}
+
+export interface LoginResponse {
+  access_token: string;
+  token_type: "bearer" | string;
+  user: BackendCurrentUser;
+}
+
+export interface BackendConversationMessage {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant" | "system" | "tool" | string;
+  content: string;
+  answer_json?: Record<string, unknown> | null;
+  intent?: string | null;
+  topic?: string | null;
+  confidence?: number | null;
+  needs_human_review: boolean;
+  created_at: string;
+}
+
+export interface BackendConversationSummary {
+  id: string;
+  title?: string | null;
+  title_manual?: boolean;
+  topic?: string | null;
+  created_at: string;
+  updated_at: string;
+  last_message_at?: string | null;
+}
+
+export interface BackendConversationDetail extends BackendConversationSummary {
+  messages: BackendConversationMessage[];
+}
+
+export interface CreateConversationPayload {
+  title?: string;
+  topic?: string;
+  initial_message?: string;
+}
+
+export interface UpdateConversationPayload {
+  title?: string;
+  topic?: string | null;
+  title_manual?: boolean;
+}
+
+export interface DeleteConversationResponse {
+  deleted: boolean;
+}
+
+export interface BackendTicketMessage {
+  id: string;
+  ticket_id: string;
+  sender_user_id?: string | null;
+  sender_email?: string | null;
+  sender_full_name?: string | null;
+  author_type: string;
+  body: string;
+  created_at: string;
+}
+
+export interface BackendTicketStatusHistory {
+  id: string;
+  old_status?: string | null;
+  new_status: string;
+  changed_by?: string | null;
+  changed_by_email?: string | null;
+  changed_by_full_name?: string | null;
+  changed_at: string;
+}
+
+export interface BackendTicketSummary {
+  id: string;
+  student_profile_id: string;
+  student_id?: string | null;
+  student_name?: string | null;
+  institute_id?: string | null;
+  institute_code?: string | null;
+  subject: string;
+  body: string;
+  department?: string | null;
+  category?: string | null;
+  priority: string;
+  status: string;
+  confirmed_by_user: boolean;
+  created_by_ai: boolean;
+  include_chat_context: boolean;
+  source_conversation_id?: string | null;
+  origin_question?: string | null;
+  assigned_admin_id?: string | null;
+  assignee?: string | null;
+  submitted_at?: string | null;
+  due_at?: string | null;
+  sla_hours?: number | null;
+  resolution?: string | null;
+  archived: boolean;
+  deleted: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackendTicketDetail extends BackendTicketSummary {
+  included_context?: string | null;
+  messages: BackendTicketMessage[];
+  status_history: BackendTicketStatusHistory[];
+}
+
+export interface CreateTicketPayload {
+  subject?: string;
+  body?: string;
+  title?: string;
+  description?: string;
+  department?: string | null;
+  category?: TicketCategory | string | null;
+  priority?: TicketPriority | string;
+  include_chat_context?: boolean;
+  included_context?: string | null;
+  source_conversation_id?: string | null;
+  origin_question?: string | null;
+}
+
+export interface AddTicketMessagePayload {
+  body: string;
+}
+
+export interface AdminTicketFilters {
+  status?: TicketStatus | "all";
+  priority?: TicketPriority | "all";
+  include_archived?: boolean;
+}
+
+export interface AdminUpdateTicketPayload {
+  status?: TicketStatus;
+  priority?: TicketPriority;
+  assigned_admin_id?: string | null;
+  resolution?: string | null;
+  archived?: boolean;
+}
+
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+function browserStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function getStoredAccessToken(): string | null {
+  return browserStorage()?.getItem(AUTH_TOKEN_STORAGE_KEY) ?? null;
+}
+
+export function setStoredAccessToken(token: string): void {
+  browserStorage()?.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+}
+
+export function clearStoredAccessToken(): void {
+  browserStorage()?.removeItem(AUTH_TOKEN_STORAGE_KEY);
+}
+
+export function authenticatedHeaders(
+  headers?: HeadersInit,
+  token: string | null = getStoredAccessToken()
+): Headers {
+  const next = new Headers(headers);
+  if (token) next.set("Authorization", `Bearer ${token}`);
+  return next;
+}
+
+async function responseError(res: Response, fallback: string): Promise<ApiError> {
+  let detail = fallback;
+  try {
+    const body = await res.json();
+    if (typeof body?.detail === "string") detail = body.detail;
+  } catch {
+    /* keep fallback */
+  }
+  return new ApiError(detail, res.status);
+}
+
+export async function apiRequest<T>(
+  url: string,
+  init: RequestInit & { token?: string | null } = {}
+): Promise<T> {
+  const { token = getStoredAccessToken(), headers, ...rest } = init;
+  const res = await fetch(url, {
+    ...rest,
+    headers: authenticatedHeaders(headers, token),
+  });
+  if (!res.ok) {
+    throw await responseError(res, `Request failed (${res.status}) for ${url}`);
+  }
+  return (await res.json()) as T;
+}
+
+export async function login(email: string, password: string): Promise<LoginResponse> {
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    throw await responseError(res, "Invalid email or password.");
+  }
+  return (await res.json()) as LoginResponse;
+}
+
+export async function getMe(token: string = getStoredAccessToken() ?? ""): Promise<BackendCurrentUser> {
+  return apiRequest<BackendCurrentUser>("/api/auth/me", {
+    method: "GET",
+    token,
+    headers: { Accept: "application/json" },
+  });
+}
+
+export async function logout(token: string = getStoredAccessToken() ?? ""): Promise<{ success: boolean }> {
+  return apiRequest<{ success: boolean }>("/api/auth/logout", {
+    method: "POST",
+    token,
+    headers: { Accept: "application/json" },
+  });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeConversationSummary(value: unknown): BackendConversationSummary | null {
+  if (!isRecord(value) || typeof value.id !== "string") return null;
+  const createdAt = typeof value.created_at === "string" ? value.created_at : "";
+  const updatedAt =
+    typeof value.updated_at === "string" ? value.updated_at : createdAt || new Date(0).toISOString();
+  return {
+    id: value.id,
+    title: typeof value.title === "string" ? value.title : "New conversation",
+    title_manual: typeof value.title_manual === "boolean" ? value.title_manual : false,
+    topic: typeof value.topic === "string" ? value.topic : null,
+    created_at: createdAt || updatedAt,
+    updated_at: updatedAt,
+    last_message_at: typeof value.last_message_at === "string" ? value.last_message_at : null,
+  };
+}
+
+export async function getConversations(): Promise<BackendConversationSummary[]> {
+  const body = await apiRequest<unknown>("/api/conversations", {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+  if (!Array.isArray(body)) return [];
+  return body
+    .map(normalizeConversationSummary)
+    .filter((conversation): conversation is BackendConversationSummary => conversation !== null);
+}
+
+export async function createConversation(
+  payload: CreateConversationPayload = {}
+): Promise<BackendConversationDetail> {
+  return apiRequest<BackendConversationDetail>("/api/conversations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getConversation(
+  conversationId: string
+): Promise<BackendConversationDetail> {
+  return apiRequest<BackendConversationDetail>(`/api/conversations/${conversationId}`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+}
+
+export async function getConversationMessages(
+  conversationId: string
+): Promise<BackendConversationMessage[]> {
+  return apiRequest<BackendConversationMessage[]>(
+    `/api/conversations/${conversationId}/messages`,
+    {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    }
+  );
+}
+
+export async function updateConversation(
+  conversationId: string,
+  payload: UpdateConversationPayload
+): Promise<BackendConversationDetail> {
+  return apiRequest<BackendConversationDetail>(`/api/conversations/${conversationId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteConversation(
+  conversationId: string
+): Promise<DeleteConversationResponse> {
+  return apiRequest<DeleteConversationResponse>(`/api/conversations/${conversationId}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json" },
+  });
+}
 
 // Single point the UI uses to reach the backend. Calls the Next proxy (/api/chat),
 // which rewrites to FastAPI POST /chat. No provider SDK is ever imported here.
@@ -48,7 +508,7 @@ export async function postChat(
   try {
     res = await fetch("/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authenticatedHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(req),
       signal,
     });
@@ -95,7 +555,7 @@ export async function postChatStream(
 ): Promise<ChatResponse> {
   const res = await fetch("/api/chat/stream", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(req),
     signal: opts.signal,
   });
@@ -164,26 +624,195 @@ export async function postChatStream(
 // =============================================================================
 
 async function getJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const res = await fetch(url, { signal, headers: { Accept: "application/json" } });
-  if (!res.ok) throw new Error(`Request failed (${res.status}) for ${url}`);
-  return (await res.json()) as T;
+  return apiRequest<T>(url, { signal, headers: { Accept: "application/json" } });
+}
+
+const SCHEDULE_DAYS: ScheduleDay[] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const NOTIFICATION_TYPES: NotificationType[] = [
+  "academic",
+  "schedule",
+  "deadline",
+  "event",
+  "student_services",
+  "system",
+];
+const DEADLINE_KINDS: DeadlineKind[] = [
+  "assignment",
+  "exam",
+  "registration",
+  "tuition",
+  "administrative",
+];
+
+export type StudentCourse = BackendCourse;
+
+function isoTime(iso: string): string {
+  const date = new Date(iso);
+  return date.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+function safeNotificationType(type: string): NotificationType {
+  return NOTIFICATION_TYPES.includes(type as NotificationType)
+    ? (type as NotificationType)
+    : "system";
+}
+
+function safeDeadlineKind(kind?: string | null): DeadlineKind {
+  return DEADLINE_KINDS.includes(kind as DeadlineKind)
+    ? (kind as DeadlineKind)
+    : "administrative";
+}
+
+function suggestionPhase(phase?: string | null): SuggestedQuestion["trigger_phase"] {
+  if (phase === "early" || phase === "near_deadline" || phase === "overdue") return phase;
+  return "active";
+}
+
+function mapStudentProfile(profile: BackendStudentMe): StudentProfile {
+  const summary = profile.academic_summary;
+  const program = profile.program ?? profile.major ?? "Program not set";
+  return {
+    student_id: profile.student_id,
+    full_name: profile.student_id,
+    preferred_name: profile.student_id,
+    program,
+    college: profile.institute.name_en,
+    year: profile.academic_year ?? 1,
+    intake: summary?.current_semester ?? (profile.cohort ? `Cohort ${profile.cohort}` : "—"),
+    email: "",
+    advisor: profile.advisor_name ?? profile.advisor_email ?? "—",
+    gpa: summary?.gpa == null ? 0 : Number(summary.gpa),
+    credits_earned: summary?.credits_earned ?? 0,
+    credits_required: summary?.credits_required ?? 0,
+  };
+}
+
+function mapScheduleItem(item: BackendScheduleItem): ClassSession {
+  const start = new Date(item.start_time);
+  return {
+    id: item.id,
+    course_code: item.course_code ?? item.title,
+    course_title: item.course_title ?? item.title,
+    day: SCHEDULE_DAYS[start.getDay()],
+    start: isoTime(item.start_time),
+    end: isoTime(item.end_time),
+    room: item.room ?? item.location ?? "—",
+    building: item.building ?? item.location ?? "—",
+    instructor: item.instructor ?? "—",
+  };
+}
+
+function mapDeadline(deadline: BackendDeadline): Deadline {
+  return {
+    id: deadline.id,
+    title: deadline.title,
+    course_code: deadline.course_code ?? undefined,
+    kind: safeDeadlineKind(deadline.kind),
+    due_at: deadline.due_at,
+    source_title: deadline.source_title ?? undefined,
+    source_url: deadline.source_url ?? undefined,
+  };
+}
+
+function mapNotification(notification: BackendNotification): Notification {
+  return {
+    id: notification.id,
+    type: safeNotificationType(notification.type),
+    title: notification.title,
+    message: notification.message,
+    created_at: notification.created_at,
+    read: notification.is_read,
+    important: notification.important,
+    archived: notification.archived,
+    source_title: notification.source_title ?? undefined,
+    source_url: notification.source_url ?? undefined,
+    priority: notification.priority as Notification["priority"],
+    target_audience: [notification.target_scope],
+    deadline: notification.deadline ?? undefined,
+    event_date: notification.event_date ?? undefined,
+    start_date: notification.start_date ?? undefined,
+    end_date: notification.end_date ?? undefined,
+    status: notification.status as Notification["status"],
+    updated_at: notification.updated_at,
+  };
+}
+
+function mapSuggestedQuestion(question: BackendSuggestedQuestion): SuggestedQuestion {
+  const category = safeNotificationType(question.category ?? question.source_type);
+  const timestamp = question.valid_from ?? question.valid_until ?? new Date(0).toISOString();
+  return {
+    id: question.id,
+    notification_id: question.notification_id ?? question.source_id ?? "",
+    question_text: question.question_text,
+    category,
+    trigger_phase: suggestionPhase(question.trigger_phase),
+    score: Number(question.score),
+    created_by_ai: question.created_by_ai,
+    approved_by_admin: question.approved_by_admin,
+    is_active: question.is_active,
+    created_at: timestamp,
+    updated_at: timestamp,
+  };
+}
+
+function classEvent(item: BackendScheduleItem): CalendarEvent {
+  const code = item.course_code ?? item.title;
+  return {
+    id: item.id,
+    type: "class",
+    title: item.course_title ?? item.title,
+    start: item.start_time,
+    end: item.end_time,
+    location: [item.room, item.building].filter(Boolean).join(", ") || item.location || undefined,
+    course: code,
+    category: item.schedule_type || "Class",
+    description: item.instructor ? `Instructor: ${item.instructor}` : undefined,
+  };
+}
+
+function deadlineEvent(deadline: BackendDeadline): CalendarEvent {
+  const kind = safeDeadlineKind(deadline.kind);
+  return {
+    id: deadline.id,
+    type: kind === "exam" ? "exam" : "deadline",
+    title: deadline.title,
+    start: deadline.due_at,
+    course: deadline.course_code ?? deadline.course_title ?? undefined,
+    category: kind === "exam" ? "Exam" : "Deadline",
+    source_title: deadline.source_title ?? undefined,
+    source_url: deadline.source_url ?? undefined,
+  };
 }
 
 // ---- Student profile --------------------------------------------------------
-// [MOCK] TODO backend contract: GET /students/me -> StudentProfile
-// (auth via session cookie / bearer; the signed-in student is resolved server-side).
+// [LIVE] GET /students/me -> backend StudentProfileResponse
+export async function getStudentMe(): Promise<BackendStudentMe> {
+  return getJSON<BackendStudentMe>("/api/students/me");
+}
+
 export async function getStudentProfile(): Promise<StudentProfile> {
-  return delay(MOCK_PROFILE);
+  return mapStudentProfile(await getStudentMe());
 }
 
-// [MOCK] TODO backend contract: GET /students/me/schedule -> ClassSession[]
+// [LIVE] GET /students/me/courses -> backend CourseResponse[]
+export async function getStudentCourses(): Promise<StudentCourse[]> {
+  return getJSON<StudentCourse[]>("/api/students/me/courses");
+}
+
+// [LIVE] GET /students/me/schedule -> ClassSession[]
 export async function getStudentSchedule(): Promise<ClassSession[]> {
-  return delay(MOCK_SCHEDULE);
+  const rows = await getJSON<BackendScheduleItem[]>("/api/students/me/schedule");
+  return rows.map(mapScheduleItem);
 }
 
-// [MOCK] TODO backend contract: GET /students/me/deadlines -> Deadline[]
+// [LIVE] GET /students/me/deadlines -> Deadline[]
 export async function getStudentDeadlines(): Promise<Deadline[]> {
-  return delay([...MOCK_DEADLINES].sort((a, b) => a.due_at.localeCompare(b.due_at)));
+  const rows = await getJSON<BackendDeadline[]>("/api/students/me/deadlines");
+  return rows.map(mapDeadline).sort((a, b) => a.due_at.localeCompare(b.due_at));
 }
 
 // [MOCK] TODO backend contract: GET /students/me/tuition -> TuitionStatus
@@ -192,52 +821,191 @@ export async function getTuitionStatus(): Promise<TuitionStatus> {
 }
 
 // ---- Support tickets --------------------------------------------------------
-// [MOCK] TODO backend contract: GET /students/me/tickets -> SupportTicket[]
+const TICKET_STATUSES: TicketStatus[] = [
+  "draft",
+  "submitted",
+  "open",
+  "in_review",
+  "in_progress",
+  "waiting_for_student",
+  "waiting_on_student",
+  "resolved",
+  "closed",
+];
+const TICKET_PRIORITIES: TicketPriority[] = ["low", "medium", "high", "urgent"];
+const TICKET_CATEGORIES: TicketCategory[] = [
+  "academic",
+  "schedule",
+  "student_services",
+  "technical",
+  "other",
+];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function safeTicketStatus(status?: string | null): TicketStatus {
+  return TICKET_STATUSES.includes(status as TicketStatus)
+    ? (status as TicketStatus)
+    : "submitted";
+}
+
+function backendTicketStatus(status?: TicketStatus): string | undefined {
+  if (!status) return undefined;
+  if (status === "in_review") return "in_progress";
+  if (status === "waiting_for_student") return "waiting_on_student";
+  if (status === "draft") return undefined;
+  return status;
+}
+
+function safeTicketPriority(priority?: string | null): TicketPriority {
+  return TICKET_PRIORITIES.includes(priority as TicketPriority)
+    ? (priority as TicketPriority)
+    : "medium";
+}
+
+function safeTicketCategory(category?: string | null): TicketCategory {
+  return TICKET_CATEGORIES.includes(category as TicketCategory)
+    ? (category as TicketCategory)
+    : "other";
+}
+
+function mapTicketMessage(message: BackendTicketMessage): TicketMessage {
+  const author =
+    message.author_type === "admin" || message.author_type === "system"
+      ? message.author_type
+      : "student";
+  return {
+    id: message.id,
+    author,
+    body: message.body,
+    created_at: message.created_at,
+    sender_user_id: message.sender_user_id ?? undefined,
+    sender_email: message.sender_email ?? undefined,
+    sender_full_name: message.sender_full_name ?? undefined,
+  };
+}
+
+function mapTicketStatusHistory(row: BackendTicketStatusHistory): TicketStatusHistory {
+  return {
+    id: row.id,
+    old_status: row.old_status ? safeTicketStatus(row.old_status) : undefined,
+    new_status: safeTicketStatus(row.new_status),
+    changed_by: row.changed_by ?? undefined,
+    changed_by_email: row.changed_by_email ?? undefined,
+    changed_by_full_name: row.changed_by_full_name ?? undefined,
+    changed_at: row.changed_at,
+  };
+}
+
+function mapTicket(ticket: BackendTicketSummary | BackendTicketDetail): SupportTicket {
+  const messages =
+    "messages" in ticket && Array.isArray(ticket.messages)
+      ? ticket.messages.map(mapTicketMessage)
+      : undefined;
+  return {
+    id: ticket.id,
+    subject: ticket.subject,
+    body: ticket.body,
+    department: ticket.department ?? "Student Support",
+    category: safeTicketCategory(ticket.category),
+    status: safeTicketStatus(ticket.status),
+    priority: safeTicketPriority(ticket.priority),
+    created_at: ticket.created_at,
+    updated_at: ticket.updated_at,
+    confirmed_by_user: ticket.confirmed_by_user,
+    created_by_ai: ticket.created_by_ai,
+    include_chat_context: ticket.include_chat_context,
+    included_context:
+      "included_context" in ticket ? ticket.included_context ?? undefined : undefined,
+    source_conversation_id: ticket.source_conversation_id ?? undefined,
+    origin_question: ticket.origin_question ?? undefined,
+    submitted_at: ticket.submitted_at ?? undefined,
+    student_id: ticket.student_id ?? undefined,
+    due_at: ticket.due_at ?? undefined,
+    sla_hours: ticket.sla_hours ?? undefined,
+    assignee: ticket.assignee ?? undefined,
+    student_name: ticket.student_name ?? undefined,
+    resolution: ticket.resolution ?? undefined,
+    archived: ticket.archived,
+    deleted: ticket.deleted,
+    messages,
+    status_history:
+      "status_history" in ticket && Array.isArray(ticket.status_history)
+        ? ticket.status_history.map(mapTicketStatusHistory)
+        : undefined,
+  };
+}
+
+function ticketCreatePayload(payload: CreateTicketPayload): Record<string, unknown> {
+  const subject = (payload.subject ?? payload.title ?? "").trim();
+  const body = (payload.body ?? payload.description ?? "").trim();
+  const sourceConversationId =
+    payload.source_conversation_id && UUID_RE.test(payload.source_conversation_id)
+      ? payload.source_conversation_id
+      : undefined;
+  return {
+    subject: subject || "Support request",
+    body: body || subject || "Support request",
+    department: payload.department ?? undefined,
+    category: payload.category ?? undefined,
+    priority: payload.priority ?? "medium",
+    include_chat_context: payload.include_chat_context ?? false,
+    included_context:
+      payload.include_chat_context && payload.included_context
+        ? payload.included_context
+        : undefined,
+    source_conversation_id: sourceConversationId,
+    origin_question: payload.origin_question ?? undefined,
+  };
+}
+
+// [LIVE] GET /tickets/me -> SupportTicket[]
 export async function getSupportTickets(): Promise<SupportTicket[]> {
-  return delay([...MOCK_TICKETS]);
+  const rows = await getJSON<BackendTicketSummary[]>("/api/tickets/me");
+  return rows.map(mapTicket);
 }
 
 // PLAN22.6 — Vinnie NEVER auto-submits. The only path that creates an admin-visible ticket
 // is submitTicket(), reachable only from the explicit "Send to Admin" button after the
 // student has reviewed the draft. A draft is built in memory by chat.tsx and is never sent
 // here until submit, so there is no "create-on-forward" function anymore.
-//
-// [MOCK] TODO backend contract: POST /tickets
-//   body: { subject, body, department, category, priority, source_conversation_id?,
-//           include_chat_context, included_context?, created_by_ai } -> SupportTicket
-//   The server stores it as status "submitted" + confirmed_by_user true, owns student_name
-//   (resolved from the session) and may set due_at/sla_hours from category+priority policy.
 export async function submitTicket(draft: TicketDraft): Promise<SupportTicket> {
-  const now = new Date().toISOString();
-  // Demo SLA window: high → 24h, medium → 72h, low → 168h from submission.
-  const slaHours = draft.priority === "high" ? 24 : draft.priority === "medium" ? 72 : 168;
-  const ticket: SupportTicket = {
-    id: `TKT-${Math.floor(1000 + Math.random() * 9000)}`,
-    subject: draft.subject.trim() || "Support request",
-    body: draft.body.trim(),
+  return createTicket({
+    subject: draft.subject,
+    body: draft.body,
     department: draft.department,
     category: draft.category,
-    status: "submitted",
     priority: draft.priority,
-    created_at: now,
-    updated_at: now,
-    submitted_at: now,
-    // New PLAN23.6.01 fields — server owns these for real; mocked here.
-    student_name: MOCK_PROFILE.full_name,
-    sla_hours: slaHours,
-    due_at: new Date(Date.now() + slaHours * 3_600_000).toISOString(),
-    confirmed_by_user: true,
-    created_by_ai: draft.origin_question != null,
-    // Privacy: the chat-context summary is attached ONLY when the student opted in.
     include_chat_context: draft.include_chat_context,
-    included_context: draft.include_chat_context ? draft.context_preview : undefined,
+    included_context: draft.context_preview,
     source_conversation_id: draft.source_conversation_id,
     origin_question: draft.origin_question,
-    messages: [{ id: "m1", author: "student", body: draft.body.trim(), created_at: now }],
-  };
-  // Prepend so the new ticket shows at the top of the list on the next fetch.
-  MOCK_TICKETS.unshift(ticket);
-  return delay(ticket, 400);
+  });
+}
+
+export async function createTicket(payload: CreateTicketPayload): Promise<SupportTicket> {
+  const row = await apiRequest<BackendTicketDetail>("/api/tickets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(ticketCreatePayload(payload)),
+  });
+  return mapTicket(row);
+}
+
+export async function getTicket(ticketId: string): Promise<SupportTicket> {
+  const row = await getJSON<BackendTicketDetail>(`/api/tickets/${ticketId}`);
+  return mapTicket(row);
+}
+
+export async function addTicketMessage(
+  ticketId: string,
+  payload: AddTicketMessagePayload
+): Promise<TicketMessage> {
+  const row = await apiRequest<BackendTicketMessage>(`/api/tickets/${ticketId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return mapTicketMessage(row);
 }
 
 // [MOCK] No network in MVP — drafts live in ChatProvider React state only (privacy: an
@@ -248,51 +1016,68 @@ export async function saveTicketDraft(draft: TicketDraft): Promise<TicketDraft> 
   return delay({ ...draft }, 150);
 }
 
-// [MOCK] TODO backend contract: GET /admin/tickets?status&priority&category -> SupportTicket[]
-// The backend MUST enforce this draft/unconfirmed exclusion server-side (RBAC); the client
-// filter here is defense-in-depth, not the gate.
-export async function getAdminTickets(): Promise<SupportTicket[]> {
-  const visible = MOCK_TICKETS.filter(
-    (t) => t.status !== "draft" && t.confirmed_by_user === true
-  ).map((t) => ({ ...t }));
-  return delay(visible);
+// [LIVE] GET /admin/tickets -> SupportTicket[]
+export async function getAdminTickets(filters: AdminTicketFilters = {}): Promise<SupportTicket[]> {
+  const params = new URLSearchParams();
+  const status = backendTicketStatus(filters.status === "all" ? undefined : filters.status);
+  if (status) params.set("status", status);
+  if (filters.priority && filters.priority !== "all") params.set("priority", filters.priority);
+  if (filters.include_archived) params.set("include_archived", "true");
+  const query = params.toString();
+  const rows = await getJSON<BackendTicketSummary[]>(`/api/admin/tickets${query ? `?${query}` : ""}`);
+  return rows.map(mapTicket);
 }
 
-// [MOCK] TODO backend contract: GET /admin/tickets/{id} -> SupportTicket
+export async function getAdminTicket(ticketId: string): Promise<SupportTicket> {
+  const row = await getJSON<BackendTicketDetail>(`/api/admin/tickets/${ticketId}`);
+  return mapTicket(row);
+}
+
 export async function getAdminTicketDetail(ticketId: string): Promise<SupportTicket> {
-  const found = MOCK_TICKETS.find(
-    (t) => t.id === ticketId && t.status !== "draft" && t.confirmed_by_user === true
-  );
-  if (!found) throw new Error(`Ticket ${ticketId} not found`);
-  return delay({ ...found });
+  return getAdminTicket(ticketId);
 }
 
-// [MOCK] TODO backend contract: PATCH /admin/tickets/{id} { status } -> SupportTicket
+export async function updateAdminTicket(
+  ticketId: string,
+  payload: AdminUpdateTicketPayload
+): Promise<SupportTicket> {
+  const row = await apiRequest<BackendTicketDetail>(`/api/admin/tickets/${ticketId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      ...payload,
+      status: backendTicketStatus(payload.status),
+    }),
+  });
+  return mapTicket(row);
+}
+
 export async function updateTicketStatus(
   ticketId: string,
   status: TicketStatus
 ): Promise<SupportTicket> {
-  return delay(patchTicket(ticketId, { status }), 200);
+  return updateAdminTicket(ticketId, { status });
 }
 
-// [MOCK] TODO backend contract: POST /admin/tickets/{id}/messages { body } -> SupportTicket
-// Appends an admin reply to the ticket thread (visible to the student).
+export async function addAdminTicketMessage(
+  ticketId: string,
+  payload: AddTicketMessagePayload
+): Promise<TicketMessage> {
+  const row = await apiRequest<BackendTicketMessage>(`/api/admin/tickets/${ticketId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return mapTicketMessage(row);
+}
+
 export async function respondToTicket(ticketId: string, body: string): Promise<SupportTicket> {
-  const t = MOCK_TICKETS.find((x) => x.id === ticketId);
-  if (!t) throw new Error(`Ticket ${ticketId} not found`);
-  const now = new Date().toISOString();
-  const messages = [
-    ...(t.messages ?? []),
-    { id: `m${(t.messages?.length ?? 0) + 1}`, author: "admin" as const, body, created_at: now },
-  ];
-  return delay(patchTicket(ticketId, { messages, status: "waiting_for_student" }), 250);
+  await addAdminTicketMessage(ticketId, { body });
+  return getAdminTicket(ticketId);
 }
 
-// [MOCK] TODO backend contract: GET /tickets/{id} -> SupportTicket
 export async function getSupportTicketDetail(ticketId: string): Promise<SupportTicket> {
-  const found = MOCK_TICKETS.find((t) => t.id === ticketId);
-  if (!found) throw new Error(`Ticket ${ticketId} not found`);
-  return delay({ ...found });
+  return getTicket(ticketId);
 }
 
 // Ticket visibility mutations. The backend has no permanent-delete endpoint, so archive
@@ -321,15 +1106,10 @@ export async function deleteSupportTicket(ticketId: string): Promise<SupportTick
 }
 
 // ---- Notifications ----------------------------------------------------------
-// [MOCK] TODO backend contract: GET /students/me/notifications -> Notification[]
-// Students only see PUBLISHED notifications — admin drafts/archived are filtered out.
-// (Legacy rows without a status are treated as published.)
+// [LIVE] GET /students/me/notifications -> Notification[]
 export async function getStudentNotifications(): Promise<Notification[]> {
-  return delay(
-    MOCK_NOTIFICATIONS.filter((n) => (n.status ?? "published") === "published").map((n) => ({
-      ...n,
-    }))
-  );
+  const rows = await getJSON<BackendNotification[]>("/api/students/me/notifications");
+  return rows.map(mapNotification);
 }
 
 function patchNotification(id: string, patch: Partial<Notification>): Notification {
@@ -339,28 +1119,26 @@ function patchNotification(id: string, patch: Partial<Notification>): Notificati
   return { ...n };
 }
 
-// [MOCK] TODO backend contract: PATCH /notifications/{id} { read } -> Notification
+// Local-only until notification mutation endpoints exist.
 export async function markNotificationRead(id: string, read = true): Promise<Notification> {
-  return delay(patchNotification(id, { read }), 150);
+  return delay({ id, read } as Notification, 150);
 }
 
-// [MOCK] TODO backend contract: PATCH /notifications/{id} { important } -> Notification
+// Local-only until notification mutation endpoints exist.
 export async function markNotificationImportant(
   id: string,
   important: boolean
 ): Promise<Notification> {
-  return delay(patchNotification(id, { important }), 150);
+  return delay({ id, important } as Notification, 150);
 }
 
-// [MOCK] TODO backend contract: PATCH /notifications/{id} { archived: true } -> Notification
+// Local-only until notification mutation endpoints exist.
 export async function archiveNotification(id: string): Promise<Notification> {
-  return delay(patchNotification(id, { archived: true }), 150);
+  return delay({ id, archived: true } as Notification, 150);
 }
 
-// [MOCK] TODO backend contract: DELETE /notifications/{id} -> { ok: true }
-export async function deleteNotification(id: string): Promise<{ ok: true }> {
-  const idx = MOCK_NOTIFICATIONS.findIndex((x) => x.id === id);
-  if (idx >= 0) MOCK_NOTIFICATIONS.splice(idx, 1);
+// Local-only until notification mutation endpoints exist.
+export async function deleteNotification(_id: string): Promise<{ ok: true }> {
   return delay({ ok: true } as const, 150);
 }
 
@@ -464,95 +1242,46 @@ export async function generateSuggestedQuestions(input: {
   return delay(generateQuestions(draft, new Date(), input.lang ?? "en"), 150);
 }
 
-// [MOCK] TODO backend contract: GET /students/me/suggested-questions?lang= -> SuggestedQuestion[]
-// Single source of truth: a PUBLISHED notification contributes timely questions when the admin
-// approved at least one for it. We (re)generate the questions for the notification's CURRENT
-// deadline phase IN THE SELECTED LANGUAGE (PLAN22.6.2 §5) — so suggestions always match the UI
-// language and stay time-aware — capped to how many the admin approved, then rank across all.
+// [LIVE] GET /suggestions/me -> grouped suggested questions
+export async function getSuggestedQuestions(): Promise<BackendSuggestedQuestionGroups> {
+  return getJSON<BackendSuggestedQuestionGroups>("/api/suggestions/me");
+}
+
 export async function getActiveSuggestedQuestions(
-  lang: Lang = "en"
+  _lang: Lang = "en"
 ): Promise<SuggestedQuestion[]> {
-  const now = new Date();
-  const published = MOCK_NOTIFICATIONS.filter((n) => (n.status ?? "published") === "published");
-  const notifById = new Map(published.map((n) => [n.id, n] as const));
-  const out: SuggestedQuestion[] = [];
-  for (const n of published) {
-    const approvedCount = (n.suggested_questions ?? []).filter(
-      (q) => q.approved_by_admin && q.is_active
-    ).length;
-    if (approvedCount === 0) continue;
-    const localized = generateQuestions(n, now, lang).slice(0, approvedCount);
-    out.push(...localized.map((q) => ({ ...q, approved_by_admin: true, is_active: true })));
-  }
-  return delay(rankForStudent(out, notifById, now));
+  const groups = await getSuggestedQuestions();
+  return [
+    ...groups.for_you,
+    ...groups.trending_now,
+    ...groups.from_announcements,
+    ...groups.from_events,
+  ]
+    .map(mapSuggestedQuestion)
+    .sort((a, b) => b.score - a.score);
 }
 
 // ---- Calendar ---------------------------------------------------------------
-// [MOCK] TODO backend contract: GET /students/me/calendar?from=&to= -> CalendarEvent[]
-// Merges recurring classes (MOCK_SCHEDULE, expanded to dates in [from, to]) with one-off
-// deadlines/exams (MOCK_DEADLINES), campus events (MOCK_EVENTS) and personal reminders
-// (MOCK_REMINDERS) into a single dated feed the calendar grid renders.
-const DAY_INDEX: Record<ScheduleDay, number> = {
-  Mon: 1,
-  Tue: 2,
-  Wed: 3,
-  Thu: 4,
-  Fri: 5,
-  Sat: 6,
-  Sun: 0,
-};
-
-function expandClass(s: ClassSession, from: Date, to: Date): CalendarEvent[] {
-  const out: CalendarEvent[] = [];
-  const target = DAY_INDEX[s.day];
-  const d = new Date(from);
-  d.setHours(0, 0, 0, 0);
-  for (; d <= to; d.setDate(d.getDate() + 1)) {
-    if (d.getDay() !== target) continue;
-    const [sh, sm] = s.start.split(":").map(Number);
-    const [eh, em] = s.end.split(":").map(Number);
-    const start = new Date(d);
-    start.setHours(sh, sm, 0, 0);
-    const end = new Date(d);
-    end.setHours(eh, em, 0, 0);
-    out.push({
-      id: `${s.id}-${start.toISOString().slice(0, 10)}`,
-      type: "class",
-      title: s.course_title,
-      start: start.toISOString(),
-      end: end.toISOString(),
-      location: `${s.room}, ${s.building}`,
-      course: s.course_code,
-      category: "Class",
-      description: `Instructor: ${s.instructor}`,
-    });
-  }
-  return out;
-}
-
+// [LIVE-composed] The backend exposes schedule and deadlines separately in Phase 7.
+// Calendar UI gets a combined feed from those real endpoints; campus event data remains
+// empty until a dedicated student events endpoint exists.
 export async function getStudentCalendar(
   from?: string,
   to?: string
 ): Promise<CalendarEvent[]> {
-  // Default window: 6 weeks back to 10 weeks ahead, enough for any month/week view.
-  const start = from ? new Date(from) : new Date(Date.now() - 42 * 86_400_000);
-  const end = to ? new Date(to) : new Date(Date.now() + 70 * 86_400_000);
+  const [schedule, deadlines] = await Promise.all([
+    getJSON<BackendScheduleItem[]>("/api/students/me/schedule?upcoming_only=false"),
+    getJSON<BackendDeadline[]>("/api/students/me/deadlines?upcoming_only=false"),
+  ]);
+  const events = [...schedule.map(classEvent), ...deadlines.map(deadlineEvent)];
+  if (!from && !to) return events;
 
-  const classes = MOCK_SCHEDULE.flatMap((s) => expandClass(s, start, end));
-  const deadlines: CalendarEvent[] = MOCK_DEADLINES.map((d) => ({
-    id: d.id,
-    type: d.kind === "exam" ? "exam" : "deadline",
-    title: d.title,
-    start: d.due_at,
-    course: d.course_code,
-    category: d.kind === "exam" ? "Exam" : "Deadline",
-    source_title: d.source_title,
-    source_url: d.source_url,
-  }));
-  const events = MOCK_EVENTS.map((e) => ({ ...e }));
-  const reminders = MOCK_REMINDERS.map((e) => ({ ...e }));
-
-  return delay([...classes, ...deadlines, ...events, ...reminders]);
+  const start = from ? new Date(from).getTime() : Number.NEGATIVE_INFINITY;
+  const end = to ? new Date(to).getTime() : Number.POSITIVE_INFINITY;
+  return events.filter((event) => {
+    const at = new Date(event.start).getTime();
+    return at >= start && at <= end;
+  });
 }
 
 // ---- Knowledge sources (admin) ---------------------------------------------

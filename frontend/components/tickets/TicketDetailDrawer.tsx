@@ -10,8 +10,9 @@ import { STATUS_TONE, PRIORITY_TONE, slaState } from "./TicketBadge";
 
 const STATUSES: TicketStatus[] = [
   "submitted",
-  "in_review",
-  "waiting_for_student",
+  "open",
+  "in_progress",
+  "waiting_on_student",
   "resolved",
   "closed",
 ];
@@ -175,7 +176,7 @@ export function TicketDetailDrawer({
                 </div>
               )}
 
-              {mode === "admin" && onRespond && (
+              {onRespond && (
                 <div style={{ marginTop: 14 }}>
                   <label className="field-label" htmlFor="ticket-reply">
                     {p.adminTickets.respond}
@@ -201,22 +202,27 @@ export function TicketDetailDrawer({
                 </div>
               )}
 
-              <div className="ticket-detail-actions">
-                <label className="field-label" htmlFor="ticket-status">
-                  {p.tickets.statusLabel}
-                </label>
-                <select
-                  id="ticket-status"
-                  className="select"
-                  value={ticket.status}
-                  onChange={(e) => onSetStatus(ticket, e.target.value as TicketStatus)}
-                >
-                  {STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {p.enums.ticketStatus[s]}
-                    </option>
-                  ))}
-                </select>
+              {(mode === "admin" || mode === "student") && (
+                <div className="ticket-detail-actions">
+                  {mode === "admin" && (
+                    <>
+                      <label className="field-label" htmlFor="ticket-status">
+                        {p.tickets.statusLabel}
+                      </label>
+                      <select
+                        id="ticket-status"
+                        className="select"
+                        value={ticket.status}
+                        onChange={(e) => onSetStatus(ticket, e.target.value as TicketStatus)}
+                      >
+                        {STATUSES.map((s) => (
+                          <option key={s} value={s}>
+                            {p.enums.ticketStatus[s]}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
 
                 {mode === "student" && (
                   <div className="ticket-detail-buttons">
@@ -238,7 +244,8 @@ export function TicketDetailDrawer({
                     </button>
                   </div>
                 )}
-              </div>
+                </div>
+              )}
             </div>
           </>
         )}

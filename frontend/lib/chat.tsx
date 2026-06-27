@@ -33,6 +33,9 @@ import type {
   TuitionStatus,
 } from "@/lib/portalTypes";
 import {
+  deleteConversation as deleteBackendConversation,
+  getConversationMessages,
+  getConversations,
   postChat,
   postChatStream,
   getStudentProfile,
@@ -41,7 +44,11 @@ import {
   getTuitionStatus,
   submitTicket,
   saveTicketDraft,
+  updateConversation,
+  type BackendConversationMessage,
+  type BackendConversationSummary,
 } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { DEPARTMENTS } from "@/lib/portalI18n";
 import { usePortal } from "@/lib/portalI18n";
 import { friendlyError } from "@/lib/chatErrors";
@@ -50,10 +57,12 @@ import { formatVnd, formatDate } from "@/lib/format";
 let counter = 0;
 const nextId = () => `m${Date.now()}-${counter++}`;
 
-// Monotonic activity stamp used purely for ordering conversations (newest first). A counter,
-// not the wall clock, so ordering is stable and tie-free.
-let activitySeq = 0;
-const nextActivity = () => ++activitySeq;
+// Activity ordering: backend rows sort by server timestamps; local drafts/sends get a separate
+// priority so a newly created active chat stays first even if demo data has future timestamps.
+let localOrderSeq = 0;
+let stableOrderSeq = 0;
+const nextLocalOrder = () => ++localOrderSeq;
+const nextStableOrder = () => ++stableOrderSeq;
 
 // Compact, plain-text snapshot of the student's context, prepended to the question so the
 // agent can personalize ("when is my next class?") without the user choosing a mode.
@@ -117,11 +126,62 @@ const nextDraftId = () => `draft-${Date.now()}-${draftCounter++}`;
 let convCounter = 0;
 const nextConvId = () => `c${Date.now()}-${convCounter++}`;
 const newThreadId = () => `web-${Math.random().toString(36).slice(2)}`;
+const threadIdForDbConversation = (id: string) => `db-${id}`;
 
 // A short topic title from a free-text message (PLAN22.6.2 §2) — never a generic name.
 function titleFromText(text: string): string {
   const t = text.replace(/\s+/g, " ").trim();
   return t.length > 44 ? `${t.slice(0, 44)}…` : t;
+}
+
+function parseIsoTime(iso?: string | null): number | null {
+  if (!iso) return null;
+  const parsed = Date.parse(iso);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function activityFromIso(iso?: string | null): number {
+  return parseIsoTime(iso) ?? Date.now();
+}
+
+function activityFromSummary(summary: BackendConversationSummary): number {
+  return (
+    parseIsoTime(summary.last_message_at) ??
+    parseIsoTime(summary.updated_at) ??
+    parseIsoTime(summary.created_at) ??
+    0
+  );
+}
+
+function displayContentFromStoredUserMessage(content: string): string {
+  const marker = "\n\nQuestion:";
+  const idx = content.lastIndexOf(marker);
+  if (idx === -1) return content;
+  return content.slice(idx + marker.length).trimStart();
+}
+
+function chatResponseFromStoredMessage(message: BackendConversationMessage): ChatResponse {
+  const raw = message.answer_json;
+  const answer = typeof raw?.answer === "string" ? raw.answer : message.content;
+  return {
+    answer,
+    citations: Array.isArray(raw?.citations) ? (raw.citations as ChatResponse["citations"]) : [],
+    confidence:
+      typeof raw?.confidence === "number"
+        ? raw.confidence
+        : message.confidence ?? 0,
+    tool_trace: Array.isArray(raw?.tool_trace)
+      ? (raw.tool_trace as ChatResponse["tool_trace"])
+      : [],
+    needs_human_review:
+      typeof raw?.needs_human_review === "boolean"
+        ? raw.needs_human_review
+        : message.needs_human_review,
+    db_conversation_id:
+      typeof raw?.db_conversation_id === "string"
+        ? raw.db_conversation_id
+        : message.conversation_id,
+  };
 }
 
 // Internal record for one conversation. `title === null` means "untitled" (the UI shows a
@@ -130,23 +190,81 @@ function titleFromText(text: string): string {
 interface Conversation {
   id: string; // stable UI id
   threadId: string; // backend conversation_id (isolated agent memory per conversation)
+  dbConversationId: string | null; // Postgres conversation UUID used by Phase 9 persistence
   title: string | null;
   titleManual: boolean;
   messages: ChatMessage[];
+  messagesLoaded: boolean;
+  messagesLoading: boolean;
+  messagesError: string | null;
   busy: boolean; // a reply is in flight for THIS conversation
-  lastActivity: number; // ordering key (newest first)
+  lastActivity: number; // backend/server timestamp ordering key (newest first)
+  localOrder: number; // local draft/send priority; non-zero sorts above persisted history
+  stableOrder: number; // tie-breaker that preserves deterministic ordering
 }
 
-function makeConversation(): Conversation {
+function makeConversation(patch: Partial<Conversation> = {}): Conversation {
   return {
     id: nextConvId(),
     threadId: newThreadId(),
+    dbConversationId: null,
     title: null,
     titleManual: false,
     messages: [],
+    messagesLoaded: true,
+    messagesLoading: false,
+    messagesError: null,
     busy: false,
-    lastActivity: nextActivity(),
+    lastActivity: Date.now(),
+    localOrder: nextLocalOrder(),
+    stableOrder: nextStableOrder(),
+    ...patch,
   };
+}
+
+function conversationFromSummary(
+  summary: BackendConversationSummary,
+  stableOrder: number
+): Conversation {
+  return makeConversation({
+    id: summary.id,
+    threadId: threadIdForDbConversation(summary.id),
+    dbConversationId: summary.id,
+    title: summary.title || null,
+    titleManual: Boolean(summary.title_manual),
+    messages: [],
+    messagesLoaded: false,
+    lastActivity: activityFromSummary(summary),
+    localOrder: 0,
+    stableOrder,
+  });
+}
+
+function sortConversations(a: Conversation, b: Conversation): number {
+  if (a.localOrder !== b.localOrder) return b.localOrder - a.localOrder;
+  if (a.lastActivity !== b.lastActivity) return b.lastActivity - a.lastActivity;
+  return a.stableOrder - b.stableOrder;
+}
+
+function chatMessageFromBackend(message: BackendConversationMessage): ChatMessage | null {
+  if (message.role === "user") {
+    return {
+      id: message.id,
+      role: "user",
+      text: displayContentFromStoredUserMessage(message.content),
+    };
+  }
+  if (message.role === "assistant") {
+    const response = chatResponseFromStoredMessage(message);
+    return {
+      id: message.id,
+      role: "assistant",
+      text: response.answer,
+      response,
+      personalized: true,
+    };
+  }
+  return null;
 }
 
 export interface SourceFocus {
@@ -161,6 +279,7 @@ export interface ConversationSummary {
   active: boolean;
   empty: boolean;
   busy: boolean; // still receiving an answer (shows a subtle indicator in the rail)
+  persisted: boolean;
 }
 
 interface ChatContextValue {
@@ -174,10 +293,14 @@ interface ChatContextValue {
   retry: (errorId: string) => void;
   editLast: (text: string) => void;
   questionFor: (assistantId: string) => string;
-  // Conversation history (PLAN22.6.2 §2). In-memory only — conversations are NOT persisted
-  // to storage, so sensitive student data never lingers across sessions.
+  // Conversation history. Persisted conversations come from the backend; unsent local drafts
+  // remain in memory only and are never stored in localStorage.
   conversations: ConversationSummary[];
   activeConversationId: string;
+  historyLoading: boolean;
+  historyError: string | null;
+  messagesLoading: boolean;
+  messagesError: string | null;
   newConversation: () => void;
   switchConversation: (id: string) => void;
   renameConversation: (id: string, title: string) => void;
@@ -215,11 +338,14 @@ const ChatContext = createContext<ChatContextValue | null>(null);
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const { p, lang } = usePortal();
+  const { isAuthenticated, isLoading: authLoading, token } = useAuth();
 
   // All conversations live here; the active one is identified by `activeId`. Each conversation
   // carries its own messages + busy flag, so streaming is naturally per-conversation.
   const [conversations, setConversations] = useState<Conversation[]>(() => [makeConversation()]);
   const [activeId, setActiveId] = useState<string>(() => conversations[0].id);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   const [toast, setToast] = useState<string | null>(null);
   const [ticketDraft, setTicketDraft] = useState<TicketDraft | null>(null);
@@ -231,6 +357,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [sourceFocus, setSourceFocus] = useState<SourceFocus | null>(null);
   const [unread, setUnread] = useState(0);
   const focusNonce = useRef(0);
+  const historyRequestId = useRef(0);
+  const historyToken = useRef<string | null>(null);
+  const conversationsRef = useRef(conversations);
+  const activeIdRef = useRef(activeId);
 
   // How many surfaces (full page / open widget) are currently showing the conversation.
   // While >0, completed answers don't bump the unread badge.
@@ -246,6 +376,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     deadlines: Deadline[];
     tuition: TuitionStatus | null;
   }>({ profile: null, schedule: [], deadlines: [], tuition: null });
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
+  useEffect(() => {
+    activeIdRef.current = activeId;
+  }, [activeId]);
 
   useEffect(() => {
     let alive = true;
@@ -264,10 +402,76 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated || !token) {
+      historyRequestId.current += 1;
+      historyToken.current = null;
+      const empty = makeConversation();
+      conversationsRef.current = [empty];
+      activeIdRef.current = empty.id;
+      setConversations([empty]);
+      setActiveId(empty.id);
+      setHistoryLoading(false);
+      setHistoryError(null);
+      setSourceMessageId(null);
+      setSourceFocus(null);
+      setTicketDraft(null);
+      setUnread(0);
+      return;
+    }
+
+    const tokenChanged = historyToken.current !== token;
+    historyToken.current = token;
+    if (tokenChanged) {
+      abortMap.current.forEach((controller) => controller.abort());
+      abortMap.current.clear();
+      const empty = makeConversation();
+      conversationsRef.current = [empty];
+      activeIdRef.current = empty.id;
+      setConversations([empty]);
+      setActiveId(empty.id);
+      setSourceMessageId(null);
+      setSourceFocus(null);
+      setTicketDraft(null);
+      setUnread(0);
+    }
+
+    const requestId = historyRequestId.current + 1;
+    historyRequestId.current = requestId;
+    setHistoryLoading(true);
+    setHistoryError(null);
+
+    getConversations()
+      .then((rows) => {
+        if (historyRequestId.current !== requestId) return;
+        const remote = rows.map((row, index) => conversationFromSummary(row, index));
+        const local = conversationsRef.current.filter(
+          (c) => !tokenChanged && !c.dbConversationId && (c.messages.length > 0 || c.busy)
+        );
+        const next = [...local, ...remote];
+        const fallback = next.length ? next : [makeConversation()];
+        const sortedFallback = [...fallback].sort(sortConversations);
+        const nextActiveId =
+          sortedFallback.find((c) => c.id === activeIdRef.current)?.id ??
+          sortedFallback[0]?.id ??
+          null;
+        setConversations(fallback);
+        if (nextActiveId) setActiveId(nextActiveId);
+      })
+      .catch((error) => {
+        if (historyRequestId.current !== requestId) return;
+        setHistoryError(friendlyError(error, lang));
+      })
+      .finally(() => {
+        if (historyRequestId.current === requestId) setHistoryLoading(false);
+      });
+  }, [authLoading, isAuthenticated, lang, token]);
+
   // If the active conversation disappears (deleted), fall back to the most-recent remaining one.
   useEffect(() => {
     if (conversations.some((c) => c.id === activeId)) return;
-    const top = [...conversations].sort((a, b) => b.lastActivity - a.lastActivity)[0];
+    const top = [...conversations].sort(sortConversations)[0];
     if (top) setActiveId(top.id);
   }, [conversations, activeId]);
 
@@ -278,6 +482,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const messages = active?.messages ?? [];
   const busy = active?.busy ?? false;
   const conversationId = active?.threadId ?? "";
+  const dbConversationId = active?.dbConversationId ?? undefined;
+  const messagesLoading = active?.messagesLoading ?? false;
+  const messagesError = active?.messagesError ?? null;
 
   const latestAssistantId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -317,6 +524,52 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  const loadConversationMessages = useCallback(
+    async (id: string) => {
+      const conv = conversations.find((c) => c.id === id);
+      if (
+        !conv?.dbConversationId ||
+        conv.messagesLoaded ||
+        conv.messagesLoading ||
+        conv.messagesError ||
+        conv.busy
+      ) {
+        return;
+      }
+
+      patchConversation(id, { messagesLoading: true, messagesError: null });
+      try {
+        const rows = await getConversationMessages(conv.dbConversationId);
+        const loadedMessages = rows
+          .map(chatMessageFromBackend)
+          .filter((message): message is ChatMessage => message !== null);
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === id
+              ? {
+                  ...c,
+                  messages: loadedMessages,
+                  messagesLoaded: true,
+                  messagesLoading: false,
+                  messagesError: null,
+                }
+              : c
+          )
+        );
+      } catch (error) {
+        patchConversation(id, {
+          messagesLoading: false,
+          messagesError: friendlyError(error, lang),
+        });
+      }
+    },
+    [conversations, lang, patchConversation]
+  );
+
+  useEffect(() => {
+    void loadConversationMessages(activeId);
+  }, [activeId, loadConversationMessages]);
+
   // Marks a finished answer: bumps the unread badge if nothing is on screen to read it.
   const settle = useCallback(
     (convId: string, msgId: string, patch: Partial<ChatMessage>) => {
@@ -331,7 +584,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // Run a question against a SPECIFIC conversation (by UI id + backend thread id). All updates
   // are routed to that conversation, regardless of which one is active when the reply lands.
   const ask = useCallback(
-    async (convId: string, threadId: string, text: string) => {
+    async (
+      convId: string,
+      threadId: string,
+      dbConversationId: string | null,
+      text: string,
+      titleHint: string | null,
+      titleManual: boolean
+    ) => {
       const controller = new AbortController();
       abortMap.current.set(convId, controller);
       patchConversation(convId, { busy: true });
@@ -356,10 +616,44 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         personalData.current.deadlines,
         personalData.current.tuition
       )}\n\nQuestion: ${text}`;
+      const request = {
+        message: sent,
+        conversation_id: threadId,
+        db_conversation_id: dbConversationId,
+      };
+      const adoptDbConversation = (resp: ChatResponse) => {
+        const nextDbConversationId = resp.db_conversation_id ?? dbConversationId;
+        if (!nextDbConversationId) return;
+
+        patchConversation(convId, {
+          dbConversationId: nextDbConversationId,
+          messagesLoaded: true,
+          lastActivity: Date.now(),
+        });
+
+        if (!dbConversationId && titleHint) {
+          void updateConversation(nextDbConversationId, {
+            title: titleHint,
+            title_manual: titleManual,
+          })
+            .then((updated) => {
+              patchConversation(convId, {
+                title: updated.title || titleHint,
+                titleManual: Boolean(updated.title_manual),
+                lastActivity: activityFromIso(
+                  updated.last_message_at ?? updated.updated_at
+                ),
+              });
+            })
+            .catch(() => {
+              /* The chat is already persisted; title sync can be retried by manual rename. */
+            });
+        }
+      };
 
       try {
         const resp = await postChatStream(
-          { message: sent, conversation_id: threadId },
+          request,
           {
             signal: controller.signal,
             onDelta: (chunk) => {
@@ -386,16 +680,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             },
           }
         );
+        adoptDbConversation(resp);
         settle(convId, assistantId, { text: resp.answer, response: resp, streaming: false });
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           patchConvMessage(convId, assistantId, { text: "", cancelled: true, streaming: false });
         } else if (!received) {
           try {
-            const resp = await postChat(
-              { message: sent, conversation_id: threadId },
-              controller.signal
-            );
+            const resp = await postChat(request, controller.signal);
+            adoptDbConversation(resp);
             settle(convId, assistantId, { text: resp.answer, response: resp, streaming: false });
           } catch (err2) {
             if (err2 instanceof DOMException && err2.name === "AbortError") {
@@ -442,11 +735,20 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             ...c,
             title: nextTitle,
             messages: [...c.messages, { id: userId, role: "user", text }],
-            lastActivity: nextActivity(),
+            lastActivity: Date.now(),
+            localOrder: nextLocalOrder(),
           };
         })
       );
-      void ask(conv.id, conv.threadId, text);
+      const titleHint = conv.titleManual ? conv.title : conv.title ?? titleFromText(text);
+      void ask(
+        conv.id,
+        conv.threadId,
+        conv.dbConversationId,
+        text,
+        titleHint,
+        conv.titleManual
+      );
     },
     [conversations, activeId, ask]
   );
@@ -474,7 +776,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           c.id === conv.id ? { ...c, messages: c.messages.filter((m) => m.id !== errorId) } : c
         )
       );
-      if (userText) void ask(conv.id, conv.threadId, userText);
+      if (userText) {
+        void ask(
+          conv.id,
+          conv.threadId,
+          conv.dbConversationId,
+          userText,
+          conv.title,
+          conv.titleManual
+        );
+      }
     },
     [conversations, activeId, ask]
   );
@@ -500,11 +811,19 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           return {
             ...c,
             messages: [...kept, { id: nextId(), role: "user", text }],
-            lastActivity: nextActivity(),
+            lastActivity: Date.now(),
+            localOrder: nextLocalOrder(),
           };
         })
       );
-      void ask(conv.id, conv.threadId, text);
+      void ask(
+        conv.id,
+        conv.threadId,
+        conv.dbConversationId,
+        text,
+        conv.title ?? titleFromText(text),
+        conv.titleManual
+      );
     },
     [conversations, activeId, ask]
   );
@@ -546,12 +865,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         category: "other",
         priority: "medium",
         include_chat_context: false,
-        source_conversation_id: conversationId,
+        source_conversation_id: dbConversationId,
         origin_question: question,
         context_preview: shortSummary(question, response.answer),
       });
     },
-    [conversationId]
+    [dbConversationId]
   );
 
   // `seed` lets a manual entry point (CreateTicketModal) pre-fill the draft before it hands
@@ -566,12 +885,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         category: "academic",
         priority: "medium",
         include_chat_context: false,
-        source_conversation_id: conversationId,
+        source_conversation_id: dbConversationId,
         context_preview: "",
         ...seed,
       });
     },
-    [conversationId]
+    [dbConversationId]
   );
 
   const updateDraft = useCallback((patch: Partial<TicketDraft>) => {
@@ -616,7 +935,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // empty new chat, stay there (no point stacking empties).
   const newConversation = useCallback(() => {
     const cur = conversations.find((c) => c.id === activeId);
-    if (cur && cur.messages.length === 0) return;
+    if (cur && !cur.dbConversationId && cur.messages.length === 0) return;
     const conv = makeConversation();
     setConversations((prev) => [...prev, conv]);
     setActiveId(conv.id);
@@ -628,51 +947,82 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const switchConversation = useCallback(
     (id: string) => {
       if (id === activeId) return;
+      patchConversation(id, { messagesError: null });
       setActiveId(id);
       closeSources();
     },
-    [activeId, closeSources]
+    [activeId, closeSources, patchConversation]
   );
 
   // Rename. A non-empty title is treated as a manual name (never auto-overwritten); clearing
   // it reverts to auto-titling from the first user message.
-  const renameConversation = useCallback((id: string, title: string) => {
-    const trimmed = title.trim();
-    setConversations((prev) =>
-      prev.map((c) => {
-        if (c.id !== id) return c;
-        if (!trimmed) {
-          const firstUser = c.messages.find((m) => m.role === "user");
-          return { ...c, title: firstUser ? titleFromText(firstUser.text) : null, titleManual: false };
-        }
-        return { ...c, title: trimmed, titleManual: true };
-      })
-    );
-  }, []);
+  const renameConversation = useCallback(
+    (id: string, title: string) => {
+      const conv = conversations.find((c) => c.id === id);
+      if (!conv) return;
+      const trimmed = title.trim();
+      const firstUser = conv.messages.find((m) => m.role === "user");
+      const nextTitle = trimmed || (firstUser ? titleFromText(firstUser.text) : null);
+      const titleManual = Boolean(trimmed);
+
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === id ? { ...c, title: nextTitle, titleManual } : c
+        )
+      );
+
+      if (conv.dbConversationId && nextTitle) {
+        void updateConversation(conv.dbConversationId, {
+          title: nextTitle,
+          title_manual: titleManual,
+        })
+          .then((updated) => {
+            patchConversation(id, {
+              title: updated.title || nextTitle,
+              titleManual: Boolean(updated.title_manual),
+              lastActivity: activityFromIso(updated.last_message_at ?? updated.updated_at),
+            });
+          })
+          .catch((error) => setToast(friendlyError(error, lang)));
+      }
+    },
+    [conversations, lang, patchConversation]
+  );
 
   // Delete a conversation (aborting its in-flight reply if any). Never leaves the list empty —
   // an empty list is replaced with a fresh conversation; the active-id effect re-points.
-  const deleteConversation = useCallback((id: string) => {
-    abortMap.current.get(id)?.abort();
-    abortMap.current.delete(id);
-    setConversations((prev) => {
-      const remaining = prev.filter((c) => c.id !== id);
-      return remaining.length ? remaining : [makeConversation()];
-    });
-    setSourceMessageId(null);
-    setSourceFocus(null);
-  }, []);
+  const deleteConversation = useCallback(
+    (id: string) => {
+      const conv = conversations.find((c) => c.id === id);
+      abortMap.current.get(id)?.abort();
+      abortMap.current.delete(id);
+      setConversations((prev) => {
+        const remaining = prev.filter((c) => c.id !== id);
+        return remaining.length ? remaining : [makeConversation()];
+      });
+      setSourceMessageId(null);
+      setSourceFocus(null);
+
+      if (conv?.dbConversationId) {
+        void deleteBackendConversation(conv.dbConversationId).catch((error) =>
+          setToast(friendlyError(error, lang))
+        );
+      }
+    },
+    [conversations, lang]
+  );
 
   const conversationsView = useMemo<ConversationSummary[]>(
     () =>
       [...conversations]
-        .sort((a, b) => b.lastActivity - a.lastActivity)
+        .sort(sortConversations)
         .map((c) => ({
           id: c.id,
           title: c.title,
           active: c.id === activeId,
           empty: c.messages.length === 0,
           busy: c.busy,
+          persisted: Boolean(c.dbConversationId),
         })),
     [conversations, activeId]
   );
@@ -707,6 +1057,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     questionFor,
     conversations: conversationsView,
     activeConversationId: activeId,
+    historyLoading,
+    historyError,
+    messagesLoading,
+    messagesError,
     newConversation,
     switchConversation,
     renameConversation,

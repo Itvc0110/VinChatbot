@@ -12,7 +12,7 @@ const CATEGORIES: TicketCategory[] = [
   "technical",
   "other",
 ];
-const PRIORITIES: TicketPriority[] = ["low", "medium", "high"];
+const PRIORITIES: TicketPriority[] = ["low", "medium", "high", "urgent"];
 
 // PLAN23.6.01 manual create flow: a light intake form. "Continue to review" seeds a blank
 // draft (chat.prepareBlankDraft) and closes — the globally-mounted ReviewTicketDrawer then

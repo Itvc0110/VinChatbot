@@ -5,13 +5,13 @@ import { AsyncBoundary, EmptyState, Toast } from "@/components/ui/primitives";
 import { TicketBadge } from "@/components/tickets/TicketBadge";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
-import { getAdminTickets, updateTicketStatus, respondToTicket } from "@/lib/api";
+import { getAdminTicket, getAdminTickets, updateAdminTicket, respondToTicket } from "@/lib/api";
 import { initials, formatDateTime, relativeTime } from "@/lib/format";
 import type { SupportTicket, TicketStatus, TicketPriority } from "@/lib/portalTypes";
 import { IconTicket, IconArrow, IconCheck } from "@/components/shell/icons";
 
-const STATUS_OPTS: TicketStatus[] = ["submitted", "in_review", "waiting_for_student", "resolved", "closed"];
-const PRIORITY_OPTS: TicketPriority[] = ["low", "medium", "high"];
+const STATUS_OPTS: TicketStatus[] = ["submitted", "open", "in_progress", "waiting_on_student", "resolved", "closed"];
+const PRIORITY_OPTS: TicketPriority[] = ["low", "medium", "high", "urgent"];
 
 // Colocated bilingual strings for UI chrome not covered by the portal dictionary.
 const STR = {
@@ -40,6 +40,7 @@ const STR = {
     quickActions: "Quick Actions",
     markInReview: "Mark in review",
     requestInfo: "Request info",
+    priority: "Priority",
     resolve: "Resolve",
     close: "Close",
     replyPlaceholder: "Write a reply to the student…",
@@ -70,6 +71,7 @@ const STR = {
     quickActions: "Thao tác nhanh",
     markInReview: "Đánh dấu đang xem xét",
     requestInfo: "Yêu cầu bổ sung",
+    priority: "Ưu tiên",
     resolve: "Giải quyết",
     close: "Đóng",
     replyPlaceholder: "Viết phản hồi cho sinh viên…",
@@ -93,7 +95,7 @@ export default function AdminTicketsPage() {
   useEffect(() => {
     if (loaded.status === "success") setItems(loaded.data);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded.status]);
+  }, [loaded.status, loaded.status === "success" ? loaded.data : null]);
 
   const all = items ?? [];
 
@@ -105,9 +107,27 @@ export default function AdminTicketsPage() {
     );
   }
 
+  function replaceTicket(ticket: SupportTicket) {
+    setItems((cur) => {
+      const list = cur ?? [];
+      return list.some((item) => item.id === ticket.id)
+        ? list.map((item) => (item.id === ticket.id ? ticket : item))
+        : [ticket, ...list];
+    });
+  }
+
   const onSetStatus = (t: SupportTicket, status: TicketStatus) => {
     patch(t.id, { status });
-    updateTicketStatus(t.id, status)
+    updateAdminTicket(t.id, { status })
+      .then(replaceTicket)
+      .then(() => setToast(p.adminTickets.statusUpdated))
+      .catch(() => setToast(p.adminTickets.actionFailed));
+  };
+
+  const onSetPriority = (t: SupportTicket, priority: TicketPriority) => {
+    patch(t.id, { priority });
+    updateAdminTicket(t.id, { priority })
+      .then(replaceTicket)
       .then(() => setToast(p.adminTickets.statusUpdated))
       .catch(() => setToast(p.adminTickets.actionFailed));
   };
@@ -116,7 +136,7 @@ export default function AdminTicketsPage() {
     if (!body.trim()) return;
     respondToTicket(t.id, body)
       .then((updated) => {
-        patch(t.id, { messages: updated.messages, status: updated.status });
+        replaceTicket(updated);
         setToast(p.adminTickets.replySent);
       })
       .catch(() => setToast(p.adminTickets.actionFailed));
@@ -146,6 +166,22 @@ export default function AdminTicketsPage() {
   }, [visible.length]);
 
   const selected = all.find((t) => t.id === selectedId) ?? null;
+
+  useEffect(() => {
+    if (!selectedId) return;
+    let alive = true;
+    getAdminTicket(selectedId)
+      .then((ticket) => {
+        if (alive) replaceTicket(ticket);
+      })
+      .catch(() => {
+        if (alive) setToast(p.adminTickets.actionFailed);
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   return (
     <div className="page-inner">
@@ -311,10 +347,10 @@ export default function AdminTicketsPage() {
                     <div className="atik-section">
                       <h3 className="atik-section-title">{s.quickActions}</h3>
                       <div className="atik-actions" style={{ marginBottom: 12 }}>
-                        <button className="btn btn-outline btn-sm" onClick={() => onSetStatus(selected, "in_review")}>
+                        <button className="btn btn-outline btn-sm" onClick={() => onSetStatus(selected, "in_progress")}>
                           {s.markInReview}
                         </button>
-                        <button className="btn btn-outline btn-sm" onClick={() => onSetStatus(selected, "waiting_for_student")}>
+                        <button className="btn btn-outline btn-sm" onClick={() => onSetStatus(selected, "waiting_on_student")}>
                           {s.requestInfo}
                         </button>
                         <button className="btn btn-primary btn-sm" onClick={() => onSetStatus(selected, "resolved")}>
@@ -323,6 +359,21 @@ export default function AdminTicketsPage() {
                         <button className="btn btn-ghost btn-sm" onClick={() => onSetStatus(selected, "closed")}>
                           {s.close}
                         </button>
+                        <label className="field-label" htmlFor="atik-priority" style={{ margin: "0 0 0 4px" }}>
+                          {s.priority}
+                        </label>
+                        <select
+                          id="atik-priority"
+                          className="select"
+                          value={selected.priority}
+                          onChange={(e) => onSetPriority(selected, e.target.value as TicketPriority)}
+                        >
+                          {PRIORITY_OPTS.map((pr) => (
+                            <option key={pr} value={pr}>
+                              {p.enums.ticketPriority[pr]}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       <div className="atik-reply">
                         <textarea

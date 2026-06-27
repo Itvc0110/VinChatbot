@@ -1101,12 +1101,15 @@ const en: PortalStrings = {
     ticketStatus: {
       draft: "draft",
       submitted: "submitted",
+      open: "open",
       in_review: "in review",
+      in_progress: "in progress",
       waiting_for_student: "waiting for you",
+      waiting_on_student: "waiting for student",
       resolved: "resolved",
       closed: "closed",
     },
-    ticketPriority: { low: "low", medium: "medium", high: "high" },
+    ticketPriority: { low: "low", medium: "medium", high: "high", urgent: "urgent" },
     ticketCategory: {
       academic: "Academic",
       schedule: "Schedule",
@@ -1691,12 +1694,15 @@ const vi: PortalStrings = {
     ticketStatus: {
       draft: "bản nháp",
       submitted: "đã gửi",
+      open: "đang mở",
       in_review: "đang xem xét",
+      in_progress: "đang xử lý",
       waiting_for_student: "chờ bạn phản hồi",
+      waiting_on_student: "chờ sinh viên",
       resolved: "đã xử lý",
       closed: "đã đóng",
     },
-    ticketPriority: { low: "thấp", medium: "trung bình", high: "cao" },
+    ticketPriority: { low: "thấp", medium: "trung bình", high: "cao", urgent: "khẩn cấp" },
     ticketCategory: {
       academic: "Học vụ",
       schedule: "Lịch học",

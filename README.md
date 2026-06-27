@@ -4,7 +4,7 @@ Backend MVP cho chatbot hỗ trợ sinh viên VinUni bằng RAG + ReAct agent.
 
 ## Kiến trúc nhanh
 
-> Sơ đồ luồng (ingest, query, guard layering) ở [ARCHITECTURE.md](ARCHITECTURE.md).
+> Sơ đồ luồng (ingest, query, guard layering) ở [ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 - FastAPI cung cấp `/chat`, `/ingest/run`, `/sources`, `/health`.
 - LangChain `create_agent` chạy ReAct tool loop trên LangGraph.
@@ -19,7 +19,7 @@ Backend MVP cho chatbot hỗ trợ sinh viên VinUni bằng RAG + ReAct agent.
   planner — tách câu hỏi đa lĩnh vực thành các subtask chạy song song rồi tổng hợp (hoặc hedge khi định tuyến
   mơ hồ); câu đơn lĩnh vực (~87%) vẫn đi đường single-specialist (byte-identical). Đặt `ENABLE_FAN_OUT=false`
   để quay lại. Chi tiết: ARCHITECTURE §2c.
-- Ngôn ngữ trả lời mặc định là tiếng Việt. Trạng thái/lộ trình: [LOGS/SESSION_CLOSEOUT.md](LOGS/SESSION_CLOSEOUT.md).
+- Ngôn ngữ trả lời mặc định là tiếng Việt. Trạng thái/lộ trình: [LOGS/SESSION_CLOSEOUT.md](docs/LOGS/SESSION_CLOSEOUT.md).
 
 ## Cài đặt
 

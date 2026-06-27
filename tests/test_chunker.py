@@ -68,6 +68,8 @@ def test_chunker_v2_builds_section_path_from_markdown_headers(monkeypatch):
     # Markdown chunking is off by default (shelved); force it on for this test.
     from types import SimpleNamespace
 
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+
     from vinchatbot.app.ingest import chunker
 
     monkeypatch.setattr(
@@ -80,6 +82,16 @@ def test_chunker_v2_builds_section_path_from_markdown_headers(monkeypatch):
             chunk_header_levels=2,
         ),
     )
+
+    def _raise_tokenizer_unavailable(*args, **kwargs):
+        raise RuntimeError("tokenizer unavailable")
+
+    monkeypatch.setattr(
+        RecursiveCharacterTextSplitter,
+        "from_tiktoken_encoder",
+        _raise_tokenizer_unavailable,
+    )
+
     raw = RawDocument(
         source_url="https://policy.vinuni.edu.vn/all-policies/leave/",
         canonical_url="https://policy.vinuni.edu.vn/all-policies/leave/",
@@ -112,4 +124,3 @@ def test_parse_docx_emits_markdown_headings_and_lists():
     assert "# Leave of Absence" in raw.content
     assert "Full-time students may apply." in raw.content
     assert "- Prepare the form" in raw.content
-

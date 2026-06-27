@@ -1,111 +1,215 @@
 "use client";
 
-// Frontend demo auth layer. The FastAPI backend has no auth/session endpoint (only
-// /chat, /chat/stream, /sources, /ingest/run, /health), so role is held client-side in
-// localStorage. This is intentionally a DEMO session — swap login()/logout() for real
-// calls (e.g. POST /auth/login -> {token, role}) when the backend grows auth; the rest
-// of the app only depends on the `useAuth()` shape below.
-
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
+import {
+  ApiError,
+  clearStoredAccessToken,
+  getMe,
+  getStoredAccessToken,
+  login as apiLogin,
+  logout as apiLogout,
+  setStoredAccessToken,
+  type BackendCurrentUser,
+  type BackendRole,
+} from "@/lib/api";
 
 export type Role = "student" | "admin";
 
-export interface SessionUser {
+const ADMIN_ROLES = new Set(["global_admin", "institute_admin", "staff"]);
+const USER_STORAGE_KEY = "vinuni-copilot-user";
+
+export interface SessionUser extends BackendCurrentUser {
   role: Role;
   name: string;
-  // student-only
   program?: string;
   year?: number;
   student_id?: string;
-  // admin-only
   department?: string;
 }
 
-// Demo accounts surfaced on the login screen.
-export const DEMO_STUDENT: SessionUser = {
-  role: "student",
-  name: "Minh Anh",
-  program: "BS Computer Science",
-  year: 2,
-  student_id: "V2024001",
-};
-
-export const DEMO_ADMIN: SessionUser = {
-  role: "admin",
-  name: "Academic Office Admin",
-  department: "Student Services / Academic Office",
-};
-
-const STORAGE_KEY = "vinuni-copilot-session";
-
 interface AuthContextValue {
   user: SessionUser | null;
-  // false until the first client read of localStorage completes — guards SSR/first paint
-  // so ProtectedRoute doesn't redirect before the session is known.
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  // Backward-compatible alias used by existing route guards.
   hydrated: boolean;
-  login: (role: Role) => SessionUser;
-  loginAs: (user: SessionUser) => void;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<SessionUser>;
+  logout: () => Promise<void>;
+  hasRole: (role: BackendRole) => boolean;
+}
+
+function browserStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function primaryRole(roles: BackendRole[]): Role {
+  return roles.some((role) => ADMIN_ROLES.has(role)) ? "admin" : "student";
+}
+
+function adminDepartment(user: BackendCurrentUser): string | undefined {
+  if (user.roles.includes("global_admin")) return "Global Administration";
+  if (user.institute) return `${user.institute.code} · ${user.institute.name_en}`;
+  if (user.roles.includes("staff")) return "Staff";
+  if (user.roles.includes("institute_admin")) return "Institute Administration";
+  return undefined;
+}
+
+function toSessionUser(user: BackendCurrentUser): SessionUser {
+  const role = primaryRole(user.roles);
+  const profile = user.student_profile;
+  return {
+    ...user,
+    role,
+    name: user.preferred_name || user.full_name,
+    program: profile?.program ?? profile?.major ?? undefined,
+    year: profile?.academic_year ?? undefined,
+    student_id: profile?.student_id,
+    department: role === "admin" ? adminDepartment(user) : undefined,
+  };
+}
+
+function persistUser(user: SessionUser | null): void {
+  const storage = browserStorage();
+  if (!storage) return;
+  try {
+    if (user) storage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    else storage.removeItem(USER_STORAGE_KEY);
+  } catch {
+    /* ignore storage errors; auth still lives in memory for this tab */
+  }
+}
+
+function readCachedUser(): SessionUser | null {
+  const storage = browserStorage();
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(USER_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as SessionUser) : null;
+  } catch {
+    storage.removeItem(USER_STORAGE_KEY);
+    return null;
+  }
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
+  token: null,
+  isAuthenticated: false,
+  isLoading: true,
   hydrated: false,
-  login: () => DEMO_STUDENT,
-  loginAs: () => {},
-  logout: () => {},
+  login: async () => {
+    throw new Error("AuthProvider is not mounted.");
+  },
+  logout: async () => {},
+  hasRole: () => false,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setUser(JSON.parse(raw) as SessionUser);
-    } catch {
-      /* corrupt / blocked storage — treat as logged out */
-    }
-    setHydrated(true);
+  const clearSession = useCallback(() => {
+    setUser(null);
+    setToken(null);
+    clearStoredAccessToken();
+    persistUser(null);
   }, []);
 
-  const persist = (next: SessionUser | null) => {
-    try {
-      if (next) localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      else localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      /* ignore storage errors — session still lives in memory for this tab */
+  useEffect(() => {
+    let alive = true;
+    const storedToken = getStoredAccessToken();
+    if (storedToken) {
+      const cachedUser = readCachedUser();
+      if (cachedUser) setUser(cachedUser);
+      setToken(storedToken);
+    } else {
+      persistUser(null);
     }
-  };
 
-  const loginAs = (next: SessionUser) => {
-    setUser(next);
-    persist(next);
-  };
+    async function restore() {
+      if (!storedToken) {
+        if (alive) setIsLoading(false);
+        return;
+      }
 
-  const login = (role: Role): SessionUser => {
-    const next = role === "admin" ? DEMO_ADMIN : DEMO_STUDENT;
-    loginAs(next);
-    return next;
-  };
+      try {
+        const currentUser = toSessionUser(await getMe(storedToken));
+        if (!alive) return;
+        setUser(currentUser);
+        persistUser(currentUser);
+      } catch (error) {
+        if (!alive) return;
+        if (error instanceof ApiError && error.status === 401) {
+          clearSession();
+        } else {
+          clearSession();
+        }
+      } finally {
+        if (alive) setIsLoading(false);
+      }
+    }
 
-  const logout = () => {
-    setUser(null);
-    persist(null);
-  };
+    void restore();
+    return () => {
+      alive = false;
+    };
+  }, [clearSession]);
 
-  return (
-    <AuthContext.Provider value={{ user, hydrated, login, loginAs, logout }}>
-      {children}
-    </AuthContext.Provider>
+  const login = useCallback(async (email: string, password: string) => {
+    const response = await apiLogin(email, password);
+    const nextUser = toSessionUser(response.user);
+    setStoredAccessToken(response.access_token);
+    persistUser(nextUser);
+    setToken(response.access_token);
+    setUser(nextUser);
+    return nextUser;
+  }, []);
+
+  const logout = useCallback(async () => {
+    const activeToken = token ?? getStoredAccessToken();
+    try {
+      if (activeToken) await apiLogout(activeToken);
+    } catch {
+      /* logout is best-effort; local session is cleared either way */
+    } finally {
+      clearSession();
+    }
+  }, [clearSession, token]);
+
+  const hasRole = useCallback(
+    (role: BackendRole) => user?.roles.includes(role) ?? false,
+    [user]
   );
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      token,
+      isAuthenticated: Boolean(user && token),
+      isLoading,
+      hydrated: !isLoading,
+      login,
+      logout,
+      hasRole,
+    }),
+    [hasRole, isLoading, login, logout, token, user]
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

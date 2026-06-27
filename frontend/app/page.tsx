@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 
-// Root entry: route to the correct place based on the demo session.
+// Root entry: route to the correct place based on the restored backend session.
 //  - no session  -> /login
 //  - student     -> /student/dashboard
 //  - admin       -> /admin/dashboard

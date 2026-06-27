@@ -90,11 +90,14 @@ export interface TuitionStatus {
 export type TicketStatus =
   | "draft"
   | "submitted"
+  | "open"
   | "in_review"
+  | "in_progress"
   | "waiting_for_student"
+  | "waiting_on_student"
   | "resolved"
   | "closed";
-export type TicketPriority = "low" | "medium" | "high";
+export type TicketPriority = "low" | "medium" | "high" | "urgent";
 export type TicketCategory =
   | "academic"
   | "schedule"
@@ -108,6 +111,9 @@ export interface TicketMessage {
   author: "student" | "admin" | "system";
   body: string;
   created_at: string;
+  sender_user_id?: string;
+  sender_email?: string;
+  sender_full_name?: string;
 }
 
 export interface SupportTicket {
@@ -149,6 +155,7 @@ export interface SupportTicket {
   resolution?: string;
   // Conversation history (student question + admin responses), if any.
   messages?: TicketMessage[];
+  status_history?: TicketStatusHistory[];
   // A source/citation attached to the ticket by an admin, if any.
   source_title?: string;
   source_url?: string;
@@ -156,6 +163,16 @@ export interface SupportTicket {
   // "archive" and "delete" are modelled as state the UI filters on (see lib/api.ts).
   archived?: boolean;
   deleted?: boolean;
+}
+
+export interface TicketStatusHistory {
+  id: string;
+  old_status?: TicketStatus;
+  new_status: TicketStatus;
+  changed_by?: string;
+  changed_by_email?: string;
+  changed_by_full_name?: string;
+  changed_at: string;
 }
 
 // How the ticket board orders tickets within each status column (PLAN23.6.01 filters panel).

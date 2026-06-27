@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from types import SimpleNamespace
 
-from fastapi.testclient import TestClient
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
 
 from vinchatbot.app.core.logging import JsonFormatter, RequestIdFilter
 from vinchatbot.app.core.observability import (
+    add_request_id_middleware,
     estimate_cost_usd,
     get_langfuse_callbacks,
     redact,
@@ -17,7 +20,6 @@ from vinchatbot.app.core.observability import (
     set_request_id,
     sum_token_usage,
 )
-from vinchatbot.app.main import create_app
 
 
 def _record(msg: str = "hello", **extra) -> logging.LogRecord:
@@ -102,12 +104,28 @@ def test_scrub_pii_masks_email_and_phone_but_keeps_amounts():
     assert "2026" in out  # year preserved
 
 
+def _request_id_test_app() -> FastAPI:
+    app = FastAPI()
+    add_request_id_middleware(app)
+
+    @app.get("/health")
+    async def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    return app
+
+
+async def _assert_request_id_headers() -> None:
+    transport = ASGITransport(app=_request_id_test_app())
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        minted = await client.get("/health")
+        assert minted.status_code == 200
+        assert minted.headers.get("X-Request-ID")
+
+        echoed = await client.get("/health", headers={"X-Request-ID": "abc123"})
+        assert echoed.status_code == 200
+        assert echoed.headers.get("X-Request-ID") == "abc123"
+
+
 def test_request_id_header_is_set_and_honored():
-    client = TestClient(create_app())
-
-    minted = client.get("/health")
-    assert minted.status_code == 200
-    assert minted.headers.get("X-Request-ID")
-
-    echoed = client.get("/health", headers={"X-Request-ID": "abc123"})
-    assert echoed.headers.get("X-Request-ID") == "abc123"
+    asyncio.run(asyncio.wait_for(_assert_request_id_headers(), timeout=2.0))

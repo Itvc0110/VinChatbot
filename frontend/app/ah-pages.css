@@ -129,6 +129,23 @@
 .ah-btn-primary-full:hover {
   background: var(--ah-brand-hover);
 }
+.ah-btn-primary-full:disabled,
+.ah-btn-outline-full:disabled,
+.ah-login-demo-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+.ah-login-error {
+  border: 1px solid var(--ah-error);
+  border-radius: var(--ah-radius-sm);
+  background: var(--ah-error-bg);
+  color: var(--ah-error);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0 0 12px;
+  padding: 9px 11px;
+}
 .ah-btn-outline-full {
   width: 100%;
   height: 44px;
@@ -192,6 +209,17 @@
   border-color: var(--ah-brand);
   color: var(--ah-brand);
   background: var(--ah-primary-tint);
+}
+.ah-login-demo-hint {
+  display: grid;
+  gap: 4px;
+  margin-top: 14px;
+  color: var(--ah-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.ah-login-demo-hint span {
+  overflow-wrap: anywhere;
 }
 .ah-login-foot {
   margin: 18px 0 0;

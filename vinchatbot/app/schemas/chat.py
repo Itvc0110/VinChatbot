@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -20,6 +21,7 @@ class RetrievalFilters(BaseModel):
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
     conversation_id: str = Field(default="default", min_length=1, max_length=128)
+    db_conversation_id: uuid.UUID | None = None
     filters: RetrievalFilters | None = None
 
 
@@ -38,6 +40,7 @@ class ChatResponse(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     tool_trace: list[dict[str, Any]] = Field(default_factory=list)
     needs_human_review: bool = False
+    db_conversation_id: uuid.UUID | None = None
 
 
 class IngestRunRequest(BaseModel):
@@ -50,4 +53,3 @@ class IngestRunResponse(BaseModel):
     indexed_chunks: int
     skipped_documents: int = 0
     sources: list[str] = Field(default_factory=list)
-

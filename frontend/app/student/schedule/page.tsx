@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AsyncBoundary, Toast } from "@/components/ui/primitives";
 import { CalendarView } from "@/components/calendar/CalendarView";
@@ -100,6 +100,22 @@ function Chevron({ dir }: { dir: "left" | "right" }) {
   );
 }
 
+function nearestCalendarEventDate(events: CalendarEvent[], today = new Date()): Date {
+  const startOfToday = new Date(today);
+  startOfToday.setHours(0, 0, 0, 0);
+  const todayTime = startOfToday.getTime();
+  const validDates = events
+    .map((event) => new Date(event.start))
+    .filter((date) => !Number.isNaN(date.getTime()))
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  return (
+    validDates.find((date) => date.getTime() >= todayTime) ??
+    validDates[validDates.length - 1] ??
+    today
+  );
+}
+
 export default function StudentCalendarPage() {
   const { p, lang } = usePortal();
   const s = STR[lang];
@@ -112,8 +128,18 @@ export default function StudentCalendarPage() {
   const [filter, setFilter] = useState<CalFilter>("all");
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const autoCursorApplied = useRef(false);
+  const manualCursorNavigation = useRef(false);
 
   const events = cal.status === "success" ? cal.data : [];
+  useEffect(() => {
+    if (cal.status !== "success" || autoCursorApplied.current || manualCursorNavigation.current) {
+      return;
+    }
+    setCursor(nearestCalendarEventDate(cal.data));
+    autoCursorApplied.current = true;
+  }, [cal]);
+
   const filtered = useMemo(
     () => events.filter((e) => matchFilter(e, filter)),
     [events, filter]
@@ -143,6 +169,7 @@ export default function StudentCalendarPage() {
   );
 
   const shift = (dir: number) => {
+    manualCursorNavigation.current = true;
     if (view === "month") setCursor((c) => addMonths(c, dir));
     else if (view === "week") setCursor((c) => addDays(c, dir * 7));
     else if (view === "day") setCursor((c) => addDays(c, dir));
@@ -208,7 +235,13 @@ export default function StudentCalendarPage() {
             </button>
           ))}
         </div>
-        <button className="btn btn-outline btn-sm" onClick={() => setCursor(new Date())}>
+        <button
+          className="btn btn-outline btn-sm"
+          onClick={() => {
+            manualCursorNavigation.current = true;
+            setCursor(new Date());
+          }}
+        >
           {p.cal.today}
         </button>
         {view !== "list" && (
@@ -247,6 +280,7 @@ export default function StudentCalendarPage() {
                   cursor={cursor}
                   onSelectEvent={setSelected}
                   onSelectDay={(d) => {
+                    manualCursorNavigation.current = true;
                     setCursor(d);
                     setView("day");
                   }}
