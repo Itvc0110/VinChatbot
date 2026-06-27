@@ -20,6 +20,7 @@ import { usePortal } from "@/lib/portalI18n";
 import { useAuth } from "@/lib/auth";
 import {
   getStudentNotifications,
+  markAllNotificationsRead,
   markNotificationRead,
   markNotificationImportant,
   archiveNotification,
@@ -48,13 +49,15 @@ export default function StudentNotificationsPage() {
   const [items, setItems] = useState<Notification[] | null>(null);
   const [filter, setFilter] = useState<NotifFilter>("all");
   const [toast, setToast] = useState<string | null>(null);
+  const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
+  const [markingAll, setMarkingAll] = useState(false);
 
-  // Seed the working copy from the backend; mutations below are UI-local until
-  // notification mutation endpoints exist in Phase 11.
   useEffect(() => {
     setItems(null);
     setFilter("all");
     setToast(null);
+    setPendingIds(new Set());
+    setMarkingAll(false);
   }, [token]);
 
   useEffect(() => {
@@ -69,10 +72,27 @@ export default function StudentNotificationsPage() {
     setItems((cur) => (cur ?? []).map((n) => (n.id === id ? { ...n, ...p2 } : n)));
   }
 
+  function setPending(id: string, pending: boolean) {
+    setPendingIds((cur) => {
+      const next = new Set(cur);
+      if (pending) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
   const handlers: NotificationHandlers = {
     onToggleRead: (n) => {
-      patch(n.id, { read: !n.read });
-      markNotificationRead(n.id, !n.read).catch(() => setToast(p.notif.actionFailed));
+      const nextRead = !n.read;
+      setPending(n.id, true);
+      patch(n.id, { read: nextRead });
+      markNotificationRead(n.id, nextRead)
+        .then((updated) => patch(n.id, { read: updated.read }))
+        .catch(() => {
+          patch(n.id, { read: n.read });
+          setToast(p.notif.actionFailed);
+        })
+        .finally(() => setPending(n.id, false));
     },
     onToggleImportant: (n) => {
       patch(n.id, { important: !n.important });
@@ -91,12 +111,15 @@ export default function StudentNotificationsPage() {
   };
 
   function markAllRead() {
+    const previous = items ?? [];
+    setMarkingAll(true);
     setItems((cur) => (cur ?? []).map((n) => ({ ...n, read: true })));
-    all
-      .filter((n) => !n.read)
-      .forEach((n) =>
-        markNotificationRead(n.id, true).catch(() => setToast(p.notif.actionFailed))
-      );
+    markAllNotificationsRead()
+      .catch(() => {
+        setItems(previous);
+        setToast(p.notif.actionFailed);
+      })
+      .finally(() => setMarkingAll(false));
   }
 
   const visible = all.filter((n) => matchesFilter(n, filter));
@@ -108,7 +131,11 @@ export default function StudentNotificationsPage() {
         description={p.notif.unreadCount(unreadCount)}
         actions={
           unreadCount > 0 ? (
-            <button className="btn btn-outline btn-sm" onClick={markAllRead}>
+            <button
+              className="btn btn-outline btn-sm"
+              disabled={markingAll}
+              onClick={markAllRead}
+            >
               <IconCheck size={15} /> {p.notif.markAllRead}
             </button>
           ) : undefined
@@ -128,7 +155,7 @@ export default function StudentNotificationsPage() {
           ) : visible.length === 0 ? (
             <EmptyState icon={<IconBell size={28} />} title={p.notif.noMatch} />
           ) : (
-            <NotificationList items={visible} handlers={handlers} />
+            <NotificationList items={visible} handlers={handlers} pendingIds={pendingIds} />
           )
         }
       </AsyncBoundary>

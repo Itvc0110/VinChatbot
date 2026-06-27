@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { usePortal } from "@/lib/portalI18n";
 import { useAuth } from "@/lib/auth";
 import { useAsync } from "@/lib/useAsync";
-import { getStudentNotifications } from "@/lib/api";
+import { getStudentNotifications, markNotificationRead } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
 import { Badge, type BadgeTone } from "@/components/ui/primitives";
 import { IconBell } from "@/components/shell/icons";
@@ -14,8 +14,7 @@ import { NotificationDetailModal } from "./NotificationDetailModal";
 import type { Notification, NotificationType } from "@/lib/portalTypes";
 
 // Facebook-style notification dropdown for the student top nav. Reads the current
-// student's backend notifications, renders a compact recent list in a popover, and
-// supports a local-only mark-as-read overlay until Phase 11 mutation endpoints exist.
+// student's backend notifications and persists mark-as-read through the student API.
 const TYPE_TONE: Record<NotificationType, BadgeTone> = {
   academic: "info",
   schedule: "info",
@@ -37,9 +36,8 @@ export function NotificationBell({ ariaLabel }: { ariaLabel: string }) {
   const [open, setOpen] = useState(false);
   // The notification whose full-detail popup is open (null = none).
   const [detail, setDetail] = useState<Notification | null>(null);
-  // Local-only "read" overlay — clicking an item marks it read in the UI without
-  // mutating the source data or calling the backend until Phase 11 adds mutations.
   const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
+  const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
   const wrapRef = useRef<HTMLDivElement>(null);
 
   // Close when the route changes (navigating via "View all" or any nav link).
@@ -51,6 +49,7 @@ export function NotificationBell({ ariaLabel }: { ariaLabel: string }) {
     setOpen(false);
     setDetail(null);
     setReadIds(new Set());
+    setPendingIds(new Set());
   }, [token]);
 
   // While open: close on outside click and on Escape.
@@ -77,13 +76,32 @@ export function NotificationBell({ ariaLabel }: { ariaLabel: string }) {
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, RECENT_LIMIT);
 
-  const markRead = (id: string) =>
+  const setPending = (id: string, pending: boolean) =>
+    setPendingIds((cur) => {
+      const next = new Set(cur);
+      if (pending) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+
+  const markRead = (id: string) => {
+    setPending(id, true);
     setReadIds((cur) => {
       if (cur.has(id)) return cur;
       const next = new Set(cur);
       next.add(id);
       return next;
     });
+    markNotificationRead(id, true)
+      .catch(() => {
+        setReadIds((cur) => {
+          const next = new Set(cur);
+          next.delete(id);
+          return next;
+        });
+      })
+      .finally(() => setPending(id, false));
+  };
 
   return (
     <>
@@ -125,8 +143,9 @@ export function NotificationBell({ ariaLabel }: { ariaLabel: string }) {
                   key={n.id}
                   type="button"
                   className={`ah-notif-item ${isRead(n) ? "read" : "unread"}`}
+                  disabled={pendingIds.has(n.id)}
                   onClick={() => {
-                    markRead(n.id);
+                    if (!isRead(n)) markRead(n.id);
                     setDetail(n);
                     setOpen(false);
                   }}

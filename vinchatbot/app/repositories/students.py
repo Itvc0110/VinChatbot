@@ -196,6 +196,121 @@ class StudentRepository:
         )
         return [dict(row) for row in rows]
 
+    async def mark_notification_read(
+        self,
+        *,
+        notification_id: uuid.UUID,
+        user_id: uuid.UUID,
+        profile: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        notification = await self.get_visible_notification(
+            notification_id=notification_id,
+            user_id=user_id,
+            profile=profile,
+        )
+        if notification is None:
+            return None
+
+        await self._execute(
+            """
+            insert into notification_reads (notification_id, user_id, read_at)
+            values (%s, %s, now())
+            on conflict (notification_id, user_id) do update
+            set read_at = excluded.read_at
+            """,
+            (notification_id, user_id),
+        )
+        return {"notification_id": notification_id, "is_read": True}
+
+    async def mark_notification_unread(
+        self,
+        *,
+        notification_id: uuid.UUID,
+        user_id: uuid.UUID,
+        profile: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        notification = await self.get_visible_notification(
+            notification_id=notification_id,
+            user_id=user_id,
+            profile=profile,
+        )
+        if notification is None:
+            return None
+
+        await self._execute(
+            """
+            delete from notification_reads
+            where notification_id = %s
+              and user_id = %s
+            """,
+            (notification_id, user_id),
+        )
+        return {"notification_id": notification_id, "is_read": False}
+
+    async def mark_all_notifications_read(
+        self,
+        *,
+        user_id: uuid.UUID,
+        profile: dict[str, Any],
+    ) -> int:
+        notifications = await self.get_notifications(user_id=user_id, profile=profile)
+        unread_ids = [
+            notification["id"]
+            for notification in notifications
+            if not notification["is_read"] and not notification["archived"]
+        ]
+        for notification_id in unread_ids:
+            await self._execute(
+                """
+                insert into notification_reads (notification_id, user_id, read_at)
+                values (%s, %s, now())
+                on conflict (notification_id, user_id) do update
+                set read_at = excluded.read_at
+                """,
+                (notification_id, user_id),
+            )
+        return len(unread_ids)
+
+    async def get_visible_notification(
+        self,
+        *,
+        notification_id: uuid.UUID,
+        user_id: uuid.UUID,
+        profile: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        course_ids = await self._fetch_enrolled_course_ids(profile["id"])
+        row = await self._fetchone(
+            """
+            select
+                n.id,
+                (nr.id is not null) as is_read
+            from notifications n
+            left join notification_reads nr
+                on nr.notification_id = n.id
+               and nr.user_id = %s
+            where n.id = %s
+              and n.status = 'published'
+              and (n.start_date is null or n.start_date <= now())
+              and (n.end_date is null or n.end_date >= now())
+              and (
+                    n.target_scope = 'all'
+                 or (n.target_scope = 'institute' and n.institute_id = %s)
+                 or (n.target_scope = 'course' and n.course_id = any(%s))
+                 or (n.target_scope = 'cohort' and n.cohort = %s)
+                 or (n.target_scope = 'student' and n.recipient_user_id = %s)
+              )
+            """,
+            (
+                user_id,
+                notification_id,
+                profile["institute"]["id"],
+                course_ids,
+                profile["cohort"],
+                user_id,
+            ),
+        )
+        return dict(row) if row is not None else None
+
     async def get_suggestions(self, profile: dict[str, Any]) -> list[dict[str, Any]]:
         course_ids = await self._fetch_enrolled_course_ids(profile["id"])
         rows = await self._fetchall(
@@ -313,3 +428,8 @@ class StudentRepository:
                 await cur.execute(query, params)
                 rows = await cur.fetchall()
         return list(rows)
+
+    async def _execute(self, query: str, params: tuple[Any, ...]) -> None:
+        async with self.pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, params)

@@ -54,7 +54,15 @@ function TrashIcon() {
   );
 }
 
-function NotificationItem({ n, h }: { n: Notification; h: NotificationHandlers }) {
+function NotificationItem({
+  n,
+  h,
+  disabled,
+}: {
+  n: Notification;
+  h: NotificationHandlers;
+  disabled: boolean;
+}) {
   const { p, lang } = usePortal();
   const [confirming, setConfirming] = useState(false);
 
@@ -123,6 +131,7 @@ function NotificationItem({ n, h }: { n: Notification; h: NotificationHandlers }
           className="icon-action"
           title={n.read ? p.notif.markUnread : p.notif.markRead}
           aria-label={n.read ? p.notif.markUnread : p.notif.markRead}
+          disabled={disabled}
           onClick={() => h.onToggleRead(n)}
         >
           <IconCheck size={15} />
@@ -131,6 +140,7 @@ function NotificationItem({ n, h }: { n: Notification; h: NotificationHandlers }
           className={`icon-action ${n.important ? "active" : ""}`}
           title={n.important ? p.notif.unmarkImportant : p.notif.markImportant}
           aria-label={n.important ? p.notif.unmarkImportant : p.notif.markImportant}
+          disabled={disabled}
           onClick={() => h.onToggleImportant(n)}
         >
           <StarIcon filled={n.important} />
@@ -139,6 +149,7 @@ function NotificationItem({ n, h }: { n: Notification; h: NotificationHandlers }
           className="icon-action"
           title={p.notif.archive}
           aria-label={p.notif.archive}
+          disabled={disabled}
           onClick={() => h.onArchive(n)}
         >
           <ArchiveIcon />
@@ -147,6 +158,7 @@ function NotificationItem({ n, h }: { n: Notification; h: NotificationHandlers }
           className="icon-action danger"
           title={p.notif.delete}
           aria-label={p.notif.delete}
+          disabled={disabled}
           onClick={() => setConfirming(true)}
         >
           <TrashIcon />
@@ -159,14 +171,16 @@ function NotificationItem({ n, h }: { n: Notification; h: NotificationHandlers }
 export function NotificationList({
   items,
   handlers,
+  pendingIds,
 }: {
   items: Notification[];
   handlers: NotificationHandlers;
+  pendingIds?: Set<string>;
 }) {
   return (
     <div className="notif-list">
       {items.map((n) => (
-        <NotificationItem key={n.id} n={n} h={handlers} />
+        <NotificationItem key={n.id} n={n} h={handlers} disabled={pendingIds?.has(n.id) ?? false} />
       ))}
     </div>
   );

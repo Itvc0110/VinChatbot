@@ -153,6 +153,15 @@ export interface BackendNotification {
   archived: boolean;
 }
 
+export interface BackendNotificationReadState {
+  notification_id: string;
+  is_read: boolean;
+}
+
+export interface BackendMarkAllNotificationsReadResponse {
+  updated_count: number;
+}
+
 export interface BackendSuggestedQuestion {
   id: string;
   question_text: string;
@@ -1138,12 +1147,31 @@ function patchNotification(id: string, patch: Partial<Notification>): Notificati
   return { ...n };
 }
 
-// Local-only until Phase 11 notification mutation endpoints exist.
+// [LIVE] POST /students/me/notifications/{id}/read|unread -> read state
 export async function markNotificationRead(id: string, read = true): Promise<Notification> {
-  return delay({ id, read } as Notification, 150);
+  const action = read ? "read" : "unread";
+  const state = await apiRequest<BackendNotificationReadState>(
+    `/api/students/me/notifications/${id}/${action}`,
+    {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    }
+  );
+  return { id: state.notification_id, read: state.is_read } as Notification;
 }
 
-// Local-only until Phase 11 notification mutation endpoints exist.
+// [LIVE] POST /students/me/notifications/mark-all-read -> update count
+export async function markAllNotificationsRead(): Promise<BackendMarkAllNotificationsReadResponse> {
+  return apiRequest<BackendMarkAllNotificationsReadResponse>(
+    "/api/students/me/notifications/mark-all-read",
+    {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    }
+  );
+}
+
+// Local-only until future notification preference endpoints exist.
 export async function markNotificationImportant(
   id: string,
   important: boolean
@@ -1151,12 +1179,12 @@ export async function markNotificationImportant(
   return delay({ id, important } as Notification, 150);
 }
 
-// Local-only until Phase 11 notification mutation endpoints exist.
+// Local-only until future notification archive endpoints exist.
 export async function archiveNotification(id: string): Promise<Notification> {
   return delay({ id, archived: true } as Notification, 150);
 }
 
-// Local-only until Phase 11 notification mutation endpoints exist.
+// Local-only until future notification delete/hide endpoints exist.
 export async function deleteNotification(_id: string): Promise<{ ok: true }> {
   return delay({ ok: true } as const, 150);
 }

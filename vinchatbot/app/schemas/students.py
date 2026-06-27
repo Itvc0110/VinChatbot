@@ -106,6 +106,15 @@ class NotificationResponse(BaseModel):
     archived: bool = False
 
 
+class NotificationReadStateResponse(BaseModel):
+    notification_id: uuid.UUID
+    is_read: bool
+
+
+class NotificationMarkAllReadResponse(BaseModel):
+    updated_count: int
+
+
 class SuggestedQuestionResponse(BaseModel):
     id: uuid.UUID
     question_text: str

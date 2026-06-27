@@ -18,6 +18,9 @@ ADMIN_USER_ID = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
 PROFILE_ID = uuid.UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")
 INSTITUTE_ID = uuid.UUID("dddddddd-dddd-dddd-dddd-dddddddddddd")
 COURSE_ID = uuid.UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
+NOTIFICATION_ID = uuid.UUID("33333333-3333-3333-3333-333333333333")
+SECOND_NOTIFICATION_ID = uuid.UUID("33333333-3333-3333-3333-333333333334")
+INVISIBLE_NOTIFICATION_ID = uuid.UUID("33333333-3333-3333-3333-333333333335")
 NOW = datetime(2026, 10, 1, tzinfo=UTC)
 
 
@@ -50,6 +53,7 @@ def _admin_user() -> AuthenticatedUser:
 class FakeStudentRepository:
     def __init__(self):
         self.profile_ids_seen: list[uuid.UUID] = []
+        self.read_notification_ids: set[uuid.UUID] = {NOTIFICATION_ID}
 
     async def get_current_student_profile(self, user_id):
         if user_id != STUDENT_USER_ID:
@@ -143,7 +147,7 @@ class FakeStudentRepository:
         assert profile["id"] == PROFILE_ID
         return [
             {
-                "id": uuid.UUID("33333333-3333-3333-3333-333333333333"),
+                "id": NOTIFICATION_ID,
                 "type": "academic",
                 "title": "Required CECS lab safety training",
                 "message": "Complete lab safety training before using CECS labs.",
@@ -163,11 +167,60 @@ class FakeStudentRepository:
                 "source_url": None,
                 "created_at": NOW,
                 "updated_at": NOW,
-                "is_read": True,
+                "is_read": NOTIFICATION_ID in self.read_notification_ids,
                 "important": True,
+                "archived": False,
+            },
+            {
+                "id": SECOND_NOTIFICATION_ID,
+                "type": "deadline",
+                "title": "CSC202 assignment due soon",
+                "message": "Submit the next DSA assignment before the deadline.",
+                "priority": "high",
+                "status": "published",
+                "target_scope": "course",
+                "institute_id": None,
+                "institute_code": None,
+                "course_id": COURSE_ID,
+                "course_code": "CSC202",
+                "cohort": None,
+                "deadline": NOW + timedelta(days=5),
+                "event_date": None,
+                "start_date": NOW - timedelta(days=1),
+                "end_date": NOW + timedelta(days=10),
+                "source_title": "CSC202 LMS",
+                "source_url": None,
+                "created_at": NOW,
+                "updated_at": NOW,
+                "is_read": SECOND_NOTIFICATION_ID in self.read_notification_ids,
+                "important": False,
                 "archived": False,
             }
         ]
+
+    async def mark_notification_read(self, *, notification_id, user_id, profile):
+        assert user_id == STUDENT_USER_ID
+        assert profile["id"] == PROFILE_ID
+        if notification_id not in {NOTIFICATION_ID, SECOND_NOTIFICATION_ID}:
+            return None
+        self.read_notification_ids.add(notification_id)
+        return {"notification_id": notification_id, "is_read": True}
+
+    async def mark_notification_unread(self, *, notification_id, user_id, profile):
+        assert user_id == STUDENT_USER_ID
+        assert profile["id"] == PROFILE_ID
+        if notification_id not in {NOTIFICATION_ID, SECOND_NOTIFICATION_ID}:
+            return None
+        self.read_notification_ids.discard(notification_id)
+        return {"notification_id": notification_id, "is_read": False}
+
+    async def mark_all_notifications_read(self, *, user_id, profile):
+        assert user_id == STUDENT_USER_ID
+        assert profile["id"] == PROFILE_ID
+        visible = {NOTIFICATION_ID, SECOND_NOTIFICATION_ID}
+        updated_count = len(visible - self.read_notification_ids)
+        self.read_notification_ids.update(visible)
+        return updated_count
 
     async def get_suggestions(self, profile):
         assert profile["id"] == PROFILE_ID
@@ -256,6 +309,12 @@ async def _get(path: str, app: FastAPI):
         return await client.get(path)
 
 
+async def _post(path: str, app: FastAPI):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        return await client.post(path)
+
+
 def test_students_me_requires_auth():
     response = _run(_get("/students/me", _student_app()))
 
@@ -319,6 +378,105 @@ def test_notifications_include_read_state():
     assert body[0]["is_read"] is True
     assert body[0]["important"] is True
     assert body[0]["archived"] is False
+
+
+def test_mark_notification_read_requires_auth():
+    response = _run(
+        _post(
+            f"/students/me/notifications/{NOTIFICATION_ID}/read",
+            _student_app(repository=FakeStudentRepository()),
+        )
+    )
+
+    assert response.status_code == 401
+
+
+def test_non_student_user_cannot_mark_notification_read():
+    response = _run(
+        _post(
+            f"/students/me/notifications/{NOTIFICATION_ID}/read",
+            _student_app(current_user=_admin_user(), repository=FakeStudentRepository()),
+        )
+    )
+
+    assert response.status_code == 403
+
+
+def test_student_can_mark_visible_notification_read():
+    repository = FakeStudentRepository()
+    repository.read_notification_ids.clear()
+    response = _run(
+        _post(
+            f"/students/me/notifications/{NOTIFICATION_ID}/read",
+            _student_app(current_user=_student_user(), repository=repository),
+        )
+    )
+
+    body = response.json()
+    assert response.status_code == 200
+    assert body == {"notification_id": str(NOTIFICATION_ID), "is_read": True}
+    assert NOTIFICATION_ID in repository.read_notification_ids
+
+
+def test_student_can_mark_visible_notification_unread():
+    repository = FakeStudentRepository()
+    response = _run(
+        _post(
+            f"/students/me/notifications/{NOTIFICATION_ID}/unread",
+            _student_app(current_user=_student_user(), repository=repository),
+        )
+    )
+
+    body = response.json()
+    assert response.status_code == 200
+    assert body == {"notification_id": str(NOTIFICATION_ID), "is_read": False}
+    assert NOTIFICATION_ID not in repository.read_notification_ids
+
+
+def test_notification_read_and_unread_actions_are_idempotent():
+    repository = FakeStudentRepository()
+    app = _student_app(current_user=_student_user(), repository=repository)
+
+    first_read = _run(_post(f"/students/me/notifications/{NOTIFICATION_ID}/read", app))
+    second_read = _run(_post(f"/students/me/notifications/{NOTIFICATION_ID}/read", app))
+    first_unread = _run(_post(f"/students/me/notifications/{NOTIFICATION_ID}/unread", app))
+    second_unread = _run(_post(f"/students/me/notifications/{NOTIFICATION_ID}/unread", app))
+
+    assert first_read.status_code == 200
+    assert second_read.status_code == 200
+    assert first_unread.status_code == 200
+    assert second_unread.status_code == 200
+    assert first_read.json() == second_read.json()
+    assert first_unread.json() == second_unread.json()
+    assert NOTIFICATION_ID not in repository.read_notification_ids
+
+
+def test_mark_all_notifications_read_updates_visible_notifications():
+    repository = FakeStudentRepository()
+    app = _student_app(current_user=_student_user(), repository=repository)
+
+    response = _run(_post("/students/me/notifications/mark-all-read", app))
+    second_response = _run(_post("/students/me/notifications/mark-all-read", app))
+
+    assert response.status_code == 200
+    assert response.json() == {"updated_count": 1}
+    assert second_response.status_code == 200
+    assert second_response.json() == {"updated_count": 0}
+    assert repository.read_notification_ids == {NOTIFICATION_ID, SECOND_NOTIFICATION_ID}
+
+
+def test_student_cannot_mutate_invisible_notification():
+    app = _student_app(current_user=_student_user(), repository=FakeStudentRepository())
+
+    read_response = _run(
+        _post(f"/students/me/notifications/{INVISIBLE_NOTIFICATION_ID}/read", app)
+    )
+    unread_response = _run(
+        _post(f"/students/me/notifications/{INVISIBLE_NOTIFICATION_ID}/unread", app)
+    )
+
+    assert read_response.status_code == 404
+    assert unread_response.status_code == 404
 
 
 def test_suggestions_are_grouped():
