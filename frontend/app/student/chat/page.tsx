@@ -61,7 +61,20 @@ function ChatView() {
         <ConversationRail />
 
         <div className="chat-full">
-          {empty ? (
+          {chat.messagesLoading ? (
+            <div className="vinnie-welcome-wrap">
+              <div className="vinnie-welcome" role="status" aria-busy="true">
+                <span className="guard-spinner" />
+                <p className="vinnie-welcome-sub">Loading conversation...</p>
+              </div>
+            </div>
+          ) : chat.messagesError ? (
+            <div className="vinnie-welcome-wrap">
+              <div className="vinnie-welcome" role="alert">
+                <p className="vinnie-welcome-sub">{chat.messagesError}</p>
+              </div>
+            </div>
+          ) : empty ? (
             <div className="vinnie-welcome-wrap">
               <div className="vinnie-welcome">
                 <span className="vinnie-avatar-lg">

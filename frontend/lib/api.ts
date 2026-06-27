@@ -185,6 +185,49 @@ export interface LoginResponse {
   user: BackendCurrentUser;
 }
 
+export interface BackendConversationMessage {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant" | "system" | "tool" | string;
+  content: string;
+  answer_json?: Record<string, unknown> | null;
+  intent?: string | null;
+  topic?: string | null;
+  confidence?: number | null;
+  needs_human_review: boolean;
+  created_at: string;
+}
+
+export interface BackendConversationSummary {
+  id: string;
+  title?: string | null;
+  title_manual?: boolean;
+  topic?: string | null;
+  created_at: string;
+  updated_at: string;
+  last_message_at?: string | null;
+}
+
+export interface BackendConversationDetail extends BackendConversationSummary {
+  messages: BackendConversationMessage[];
+}
+
+export interface CreateConversationPayload {
+  title?: string;
+  topic?: string;
+  initial_message?: string;
+}
+
+export interface UpdateConversationPayload {
+  title?: string;
+  topic?: string | null;
+  title_manual?: boolean;
+}
+
+export interface DeleteConversationResponse {
+  deleted: boolean;
+}
+
 export class ApiError extends Error {
   status: number;
 
@@ -275,6 +318,88 @@ export async function logout(token: string = getStoredAccessToken() ?? ""): Prom
   return apiRequest<{ success: boolean }>("/api/auth/logout", {
     method: "POST",
     token,
+    headers: { Accept: "application/json" },
+  });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeConversationSummary(value: unknown): BackendConversationSummary | null {
+  if (!isRecord(value) || typeof value.id !== "string") return null;
+  const createdAt = typeof value.created_at === "string" ? value.created_at : "";
+  const updatedAt =
+    typeof value.updated_at === "string" ? value.updated_at : createdAt || new Date(0).toISOString();
+  return {
+    id: value.id,
+    title: typeof value.title === "string" ? value.title : "New conversation",
+    title_manual: typeof value.title_manual === "boolean" ? value.title_manual : false,
+    topic: typeof value.topic === "string" ? value.topic : null,
+    created_at: createdAt || updatedAt,
+    updated_at: updatedAt,
+    last_message_at: typeof value.last_message_at === "string" ? value.last_message_at : null,
+  };
+}
+
+export async function getConversations(): Promise<BackendConversationSummary[]> {
+  const body = await apiRequest<unknown>("/api/conversations", {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+  if (!Array.isArray(body)) return [];
+  return body
+    .map(normalizeConversationSummary)
+    .filter((conversation): conversation is BackendConversationSummary => conversation !== null);
+}
+
+export async function createConversation(
+  payload: CreateConversationPayload = {}
+): Promise<BackendConversationDetail> {
+  return apiRequest<BackendConversationDetail>("/api/conversations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getConversation(
+  conversationId: string
+): Promise<BackendConversationDetail> {
+  return apiRequest<BackendConversationDetail>(`/api/conversations/${conversationId}`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+}
+
+export async function getConversationMessages(
+  conversationId: string
+): Promise<BackendConversationMessage[]> {
+  return apiRequest<BackendConversationMessage[]>(
+    `/api/conversations/${conversationId}/messages`,
+    {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    }
+  );
+}
+
+export async function updateConversation(
+  conversationId: string,
+  payload: UpdateConversationPayload
+): Promise<BackendConversationDetail> {
+  return apiRequest<BackendConversationDetail>(`/api/conversations/${conversationId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteConversation(
+  conversationId: string
+): Promise<DeleteConversationResponse> {
+  return apiRequest<DeleteConversationResponse>(`/api/conversations/${conversationId}`, {
+    method: "DELETE",
     headers: { Accept: "application/json" },
   });
 }
