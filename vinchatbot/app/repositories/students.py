@@ -140,8 +140,28 @@ class StudentRepository:
         profile: dict[str, Any],
     ) -> list[dict[str, Any]]:
         course_ids = await self._fetch_enrolled_course_ids(profile["id"])
+        forum_columns = await self._notification_forum_columns_available()
+        forum_select = (
+            "n.forum_topic_id, n.forum_comment_id"
+            if forum_columns
+            else "null::uuid as forum_topic_id, null::uuid as forum_comment_id"
+        )
+        student_scope_clause = (
+            "or (n.target_scope = 'student' and n.recipient_user_id = %s)"
+            if forum_columns
+            else ""
+        )
+        params: list[Any] = [
+            user_id,
+            profile["institute"]["id"],
+            course_ids,
+            profile["cohort"],
+        ]
+        if forum_columns:
+            params.append(user_id)
+
         rows = await self._fetchall(
-            """
+            f"""
             select
                 n.id,
                 n.type,
@@ -161,8 +181,7 @@ class StudentRepository:
                 n.end_date,
                 n.source_title,
                 n.source_url,
-                n.forum_topic_id,
-                n.forum_comment_id,
+                {forum_select},
                 n.created_at,
                 n.updated_at,
                 (nr.id is not null) as is_read,
@@ -182,17 +201,11 @@ class StudentRepository:
                  or (n.target_scope = 'institute' and n.institute_id = %s)
                  or (n.target_scope = 'course' and n.course_id = any(%s))
                  or (n.target_scope = 'cohort' and n.cohort = %s)
-                 or (n.target_scope = 'student' and n.recipient_user_id = %s)
+                 {student_scope_clause}
               )
             order by n.priority desc, n.created_at desc, n.title
             """,
-            (
-                user_id,
-                profile["institute"]["id"],
-                course_ids,
-                profile["cohort"],
-                user_id,
-            ),
+            tuple(params),
         )
         return [dict(row) for row in rows]
 
@@ -279,8 +292,24 @@ class StudentRepository:
         profile: dict[str, Any],
     ) -> dict[str, Any] | None:
         course_ids = await self._fetch_enrolled_course_ids(profile["id"])
+        forum_columns = await self._notification_forum_columns_available()
+        student_scope_clause = (
+            "or (n.target_scope = 'student' and n.recipient_user_id = %s)"
+            if forum_columns
+            else ""
+        )
+        params: list[Any] = [
+            user_id,
+            notification_id,
+            profile["institute"]["id"],
+            course_ids,
+            profile["cohort"],
+        ]
+        if forum_columns:
+            params.append(user_id)
+
         row = await self._fetchone(
-            """
+            f"""
             select
                 n.id,
                 (nr.id is not null) as is_read
@@ -297,17 +326,10 @@ class StudentRepository:
                  or (n.target_scope = 'institute' and n.institute_id = %s)
                  or (n.target_scope = 'course' and n.course_id = any(%s))
                  or (n.target_scope = 'cohort' and n.cohort = %s)
-                 or (n.target_scope = 'student' and n.recipient_user_id = %s)
+                 {student_scope_clause}
               )
             """,
-            (
-                user_id,
-                notification_id,
-                profile["institute"]["id"],
-                course_ids,
-                profile["cohort"],
-                user_id,
-            ),
+            tuple(params),
         )
         return dict(row) if row is not None else None
 
@@ -362,6 +384,20 @@ class StudentRepository:
             (student_profile_id,),
         )
         return [row["course_id"] for row in rows]
+
+    async def _notification_forum_columns_available(self) -> bool:
+        required = {"recipient_user_id", "forum_topic_id", "forum_comment_id"}
+        rows = await self._fetchall(
+            """
+            select column_name
+            from information_schema.columns
+            where table_schema = current_schema()
+              and table_name = 'notifications'
+              and column_name = any(%s)
+            """,
+            (list(required),),
+        )
+        return required.issubset({row["column_name"] for row in rows})
 
     def _student_profile_from_row(self, row: dict[str, Any]) -> dict[str, Any]:
         academic_summary = None

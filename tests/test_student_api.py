@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -12,6 +13,7 @@ from vinchatbot.app.api.routes_students import get_student_repository
 from vinchatbot.app.api.routes_students import router as students_router
 from vinchatbot.app.dependencies.auth import get_current_user
 from vinchatbot.app.repositories.auth import AuthenticatedUser
+from vinchatbot.app.repositories.students import StudentRepository
 
 STUDENT_USER_ID = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 ADMIN_USER_ID = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
@@ -378,6 +380,17 @@ def test_notifications_include_read_state():
     assert body[0]["is_read"] is True
     assert body[0]["important"] is True
     assert body[0]["archived"] is False
+
+
+def test_student_notification_query_does_not_require_optional_forum_columns():
+    source = inspect.getsource(StudentRepository.get_notifications)
+    helper_source = inspect.getsource(StudentRepository._notification_forum_columns_available)
+
+    assert "_notification_forum_columns_available" in source
+    assert "null::uuid as forum_topic_id" in source
+    assert "null::uuid as forum_comment_id" in source
+    assert "information_schema.columns" in helper_source
+    assert "recipient_user_id" in helper_source
 
 
 def test_mark_notification_read_requires_auth():

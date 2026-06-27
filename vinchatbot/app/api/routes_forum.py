@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
+from collections.abc import Awaitable
+from typing import Annotated, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from psycopg.errors import UndefinedColumn, UndefinedTable
 
 from vinchatbot.app.db.connection import get_app_db_pool
 from vinchatbot.app.dependencies.auth import get_current_user, require_roles
@@ -26,6 +28,7 @@ from vinchatbot.app.schemas.forum import (
 )
 
 router = APIRouter(tags=["forum"])
+T = TypeVar("T")
 
 AuthedUser = Annotated[AuthenticatedUser, Depends(get_current_user)]
 ModUser = Annotated[
@@ -52,12 +55,26 @@ def comment_not_found() -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found.")
 
 
+def forum_schema_unavailable() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="Forum database schema is not available. Apply forum migrations before using forum features.",
+    )
+
+
+async def run_forum_query(awaitable: Awaitable[T]) -> T:
+    try:
+        return await awaitable
+    except (UndefinedColumn, UndefinedTable) as exc:
+        raise forum_schema_unavailable() from exc
+
+
 @router.get("/forum/categories", response_model=list[ForumCategoryResponse])
 async def list_categories(
     _current_user: AuthedUser,
     repository: Annotated[ForumRepository, Depends(get_forum_repository)],
 ) -> list[ForumCategoryResponse]:
-    categories = await repository.list_categories()
+    categories = await run_forum_query(repository.list_categories())
     return [ForumCategoryResponse(**category) for category in categories]
 
 
@@ -67,7 +84,7 @@ async def search_members(
     repository: Annotated[ForumRepository, Depends(get_forum_repository)],
     q: Annotated[str, Query(min_length=1, max_length=80)],
 ) -> list[ForumMemberResponse]:
-    members = await repository.search_members(q)
+    members = await run_forum_query(repository.search_members(q))
     return [ForumMemberResponse(**member) for member in members]
 
 
@@ -79,11 +96,13 @@ async def list_topics(
     sort: Annotated[str, Query(pattern="^(new|top|active)$")] = "active",
     q: Annotated[str | None, Query(max_length=120)] = None,
 ) -> list[ForumTopicSummary]:
-    topics = await repository.list_topics(
-        user_id=current_user.id,
-        category_slug=category,
-        sort=sort,
-        search=q,
+    topics = await run_forum_query(
+        repository.list_topics(
+            user_id=current_user.id,
+            category_slug=category,
+            sort=sort,
+            search=q,
+        )
     )
     return [ForumTopicSummary(**topic) for topic in topics]
 
@@ -98,7 +117,9 @@ async def create_topic(
     current_user: AuthedUser,
     repository: Annotated[ForumRepository, Depends(get_forum_repository)],
 ) -> ForumTopicDetail:
-    topic = await repository.create_topic(author_user_id=current_user.id, request=request)
+    topic = await run_forum_query(
+        repository.create_topic(author_user_id=current_user.id, request=request)
+    )
     if topic is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -113,10 +134,12 @@ async def get_topic(
     current_user: AuthedUser,
     repository: Annotated[ForumRepository, Depends(get_forum_repository)],
 ) -> ForumTopicDetail:
-    topic = await repository.get_topic(
-        topic_id=topic_id,
-        user_id=current_user.id,
-        bump_views=True,
+    topic = await run_forum_query(
+        repository.get_topic(
+            topic_id=topic_id,
+            user_id=current_user.id,
+            bump_views=True,
+        )
     )
     if topic is None:
         raise topic_not_found()
@@ -130,10 +153,12 @@ async def add_comment(
     current_user: AuthedUser,
     repository: Annotated[ForumRepository, Depends(get_forum_repository)],
 ) -> ForumCommentResponse:
-    result = await repository.add_comment(
-        topic_id=topic_id,
-        author_user_id=current_user.id,
-        request=request,
+    result = await run_forum_query(
+        repository.add_comment(
+            topic_id=topic_id,
+            author_user_id=current_user.id,
+            request=request,
+        )
     )
     if result is LOCKED:
         raise HTTPException(
@@ -152,11 +177,13 @@ async def vote_topic(
     current_user: AuthedUser,
     repository: Annotated[ForumRepository, Depends(get_forum_repository)],
 ) -> VoteResponse:
-    result = await repository.set_vote(
-        user_id=current_user.id,
-        target_type="topic",
-        target_id=topic_id,
-        value=request.value,
+    result = await run_forum_query(
+        repository.set_vote(
+            user_id=current_user.id,
+            target_type="topic",
+            target_id=topic_id,
+            value=request.value,
+        )
     )
     if result is None:
         raise topic_not_found()
@@ -170,11 +197,13 @@ async def vote_comment(
     current_user: AuthedUser,
     repository: Annotated[ForumRepository, Depends(get_forum_repository)],
 ) -> VoteResponse:
-    result = await repository.set_vote(
-        user_id=current_user.id,
-        target_type="comment",
-        target_id=comment_id,
-        value=request.value,
+    result = await run_forum_query(
+        repository.set_vote(
+            user_id=current_user.id,
+            target_type="comment",
+            target_id=comment_id,
+            value=request.value,
+        )
     )
     if result is None:
         raise comment_not_found()
@@ -191,7 +220,9 @@ async def create_report(
     current_user: AuthedUser,
     repository: Annotated[ForumRepository, Depends(get_forum_repository)],
 ) -> ForumReportResponse:
-    report = await repository.create_report(reporter_user_id=current_user.id, request=request)
+    report = await run_forum_query(
+        repository.create_report(reporter_user_id=current_user.id, request=request)
+    )
     if report is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -207,10 +238,12 @@ async def moderate_topic(
     current_user: ModUser,
     repository: Annotated[ForumRepository, Depends(get_forum_repository)],
 ) -> ForumTopicDetail:
-    topic = await repository.moderate_topic(
-        topic_id=topic_id,
-        request=request,
-        mod_user_id=current_user.id,
+    topic = await run_forum_query(
+        repository.moderate_topic(
+            topic_id=topic_id,
+            request=request,
+            mod_user_id=current_user.id,
+        )
     )
     if topic is None:
         raise topic_not_found()
@@ -224,10 +257,12 @@ async def moderate_comment(
     current_user: ModUser,
     repository: Annotated[ForumRepository, Depends(get_forum_repository)],
 ) -> ForumCommentResponse:
-    comment = await repository.moderate_comment(
-        comment_id=comment_id,
-        request=request,
-        mod_user_id=current_user.id,
+    comment = await run_forum_query(
+        repository.moderate_comment(
+            comment_id=comment_id,
+            request=request,
+            mod_user_id=current_user.id,
+        )
     )
     if comment is None:
         raise comment_not_found()

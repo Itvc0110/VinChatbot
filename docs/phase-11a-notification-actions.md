@@ -28,3 +28,5 @@ The student notification page and notification bell now call the student notific
 ## Known Limitations
 
 Phase 11A does not add admin notification creation or publishing. Important, archive, delete, and admin notification management remain future backend work for Phase 11B or later.
+
+Forum notification deep links are nullable in the student notification response. If the deployed database has not applied the forum migration yet, student notifications still load and forum endpoints return a controlled `503` explaining that forum migrations must be applied, rather than surfacing raw `UndefinedColumn` or `UndefinedTable` database errors.
