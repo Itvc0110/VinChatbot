@@ -1773,6 +1773,11 @@ export async function getForumTopic(topicId: string): Promise<ForumTopic> {
   return mapForumTopic(await getJSON<BackendForumTopic>(`/api/forum/topics/${topicId}`));
 }
 
+export async function getForumComments(topicId: string): Promise<ForumComment[]> {
+  const rows = await getJSON<BackendForumComment[]>(`/api/forum/topics/${topicId}/comments`);
+  return rows.map(mapForumComment);
+}
+
 export async function createForumTopic(payload: CreateForumTopicPayload): Promise<ForumTopic> {
   const row = await apiRequest<BackendForumTopic>("/api/forum/topics", {
     method: "POST",

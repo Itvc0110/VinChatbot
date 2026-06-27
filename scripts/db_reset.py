@@ -25,6 +25,12 @@ APP_MANAGED_TABLES = (
     "events",
     "notification_reads",
     "notifications",
+    "forum_reports",
+    "forum_mentions",
+    "forum_votes",
+    "forum_comments",
+    "forum_topics",
+    "forum_categories",
     "deadlines",
     "schedules",
     "academic_summaries",
@@ -40,6 +46,9 @@ APP_MANAGED_TABLES = (
 )
 APP_MANAGED_FUNCTIONS = ("set_updated_at",)
 APP_MANAGED_TYPES: tuple[str, ...] = ()
+APP_MANAGED_PRE_DROP_CONSTRAINTS = (
+    ("forum_topics", "forum_topics_official_comment_fk"),
+)
 
 
 def validate_reset_environment(app_env: str) -> None:
@@ -59,6 +68,13 @@ def reset_app_database(settings: Settings | None = None, *, yes: bool = False) -
 
     with connect_direct(settings) as conn:
         with conn.transaction():
+            for table, constraint in APP_MANAGED_PRE_DROP_CONSTRAINTS:
+                conn.execute(
+                    sql.SQL("alter table if exists {} drop constraint if exists {}").format(
+                        sql.Identifier(table),
+                        sql.Identifier(constraint),
+                    )
+                )
             for table in APP_MANAGED_TABLES:
                 conn.execute(
                     sql.SQL("drop table if exists {}").format(sql.Identifier(table))

@@ -39,7 +39,9 @@ def test_discover_repo_migrations_includes_initial_app_schema():
 
     assert "000002_initial_app_schema.sql" in filenames
     assert "000003_seed_base_reference_data.sql" in filenames
+    assert "000004_forum_schema.sql" in filenames
     assert "000005_admin_notification_workflow.sql" in filenames
+    assert "000006_seed_forum_demo_data.sql" in filenames
 
 
 def test_admin_notification_workflow_migration_extends_lifecycle_values():
@@ -52,6 +54,40 @@ def test_admin_notification_workflow_migration_extends_lifecycle_values():
     assert "'scheduled'" in migration_sql
     assert "'student_services'" in migration_sql
     assert "create table" not in migration_sql
+
+
+def test_forum_schema_migration_includes_required_forum_tables():
+    migration_path = db_migrate.DEFAULT_MIGRATIONS_DIR / "000004_forum_schema.sql"
+    migration_sql = migration_path.read_text(encoding="utf-8").lower()
+
+    for table in ["forum_categories", "forum_topics", "forum_comments"]:
+        assert f"create table if not exists {table}" in migration_sql
+
+    assert "author_user_id" in migration_sql
+    assert "category_id" in migration_sql
+    assert "topic_id" in migration_sql
+    assert "is_pinned" in migration_sql
+    assert "is_locked" in migration_sql
+
+
+def test_forum_demo_seed_migration_is_idempotent_and_read_focused():
+    migration_path = db_migrate.DEFAULT_MIGRATIONS_DIR / "000006_seed_forum_demo_data.sql"
+    migration_sql = migration_path.read_text(encoding="utf-8").lower()
+
+    for slug in [
+        "academic-qa",
+        "campus-life",
+        "scholarships-opportunities",
+        "it-student-services",
+    ]:
+        assert slug in migration_sql
+
+    assert "insert into forum_categories" in migration_sql
+    assert "insert into forum_topics" in migration_sql
+    assert "insert into forum_comments" in migration_sql
+    assert "on conflict" in migration_sql
+    assert "insert into users" not in migration_sql
+    assert "token_hash" not in migration_sql
 
 
 def test_base_reference_seed_contains_only_roles_and_institutes():
@@ -166,6 +202,12 @@ def test_reset_tracks_initial_schema_app_objects():
         "notifications",
         "notification_reads",
         "events",
+        "forum_categories",
+        "forum_topics",
+        "forum_comments",
+        "forum_votes",
+        "forum_mentions",
+        "forum_reports",
         "conversations",
         "messages",
         "tickets",
@@ -187,4 +229,10 @@ def test_reset_tracks_initial_schema_app_objects():
     assert "set_updated_at" in db_reset.APP_MANAGED_FUNCTIONS
     assert not {"qdrant", "redis"} & reset_tables
     assert table_order["ticket_messages"] < table_order["tickets"]
+    assert table_order["forum_comments"] < table_order["forum_topics"]
+    assert table_order["forum_topics"] < table_order["forum_categories"]
     assert table_order["student_profiles"] < table_order["users"]
+    assert (
+        "forum_topics",
+        "forum_topics_official_comment_fk",
+    ) in db_reset.APP_MANAGED_PRE_DROP_CONSTRAINTS

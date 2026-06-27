@@ -146,6 +146,20 @@ async def get_topic(
     return ForumTopicDetail(**topic)
 
 
+@router.get("/forum/topics/{topic_id}/comments", response_model=list[ForumCommentResponse])
+async def list_topic_comments(
+    topic_id: uuid.UUID,
+    current_user: AuthedUser,
+    repository: Annotated[ForumRepository, Depends(get_forum_repository)],
+) -> list[ForumCommentResponse]:
+    comments = await run_forum_query(
+        repository.list_comments(topic_id=topic_id, user_id=current_user.id)
+    )
+    if comments is None:
+        raise topic_not_found()
+    return [ForumCommentResponse(**comment) for comment in comments]
+
+
 @router.post("/forum/topics/{topic_id}/comments", response_model=ForumCommentResponse)
 async def add_comment(
     topic_id: uuid.UUID,

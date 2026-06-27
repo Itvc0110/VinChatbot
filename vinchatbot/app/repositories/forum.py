@@ -185,6 +185,20 @@ class ForumRepository:
         topic["comments"] = await self._comment_tree(topic_id, user_id)
         return topic
 
+    async def list_comments(
+        self,
+        *,
+        topic_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> list[dict[str, Any]] | None:
+        topic = await self._fetchone(
+            "select id from forum_topics where id = %s and deleted = false",
+            (topic_id,),
+        )
+        if topic is None:
+            return None
+        return await self._comment_tree(topic_id, user_id)
+
     async def create_topic(
         self,
         *,
