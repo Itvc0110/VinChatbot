@@ -149,3 +149,115 @@ class TranscriptSummaryResponse(BaseModel):
     gpa_credits: int
     gpa: Decimal | None = None
     counted_enrollment_ids: list[uuid.UUID] = Field(default_factory=list)
+
+
+# --- Phase 13B: student-facing read API responses --------------------------------------------
+
+CurriculumProgressStatus = Literal["completed", "in_progress", "failed", "remaining"]
+
+
+class AcademicProfileResponse(BaseModel):
+    id: uuid.UUID
+    student_code: str | None = None
+    full_name: str | None = None
+    current_year: int | None = None
+    cohort_year: int | None = None
+    status: str | None = None
+    faculty: AcademicFacultyResponse | None = None
+    program: AcademicProgramResponse | None = None
+
+
+class AcademicProgressSummary(BaseModel):
+    earned_credits: int
+    required_credits: int
+    completed_required_courses: int
+    remaining_required_courses: int
+    progress_percent: Decimal
+
+
+class ScheduleEventResponse(BaseModel):
+    id: uuid.UUID
+    course_code: str
+    course_name: str
+    section_code: str | None = None
+    instructor_name: str | None = None
+    meeting_type: MeetingType
+    title: str
+    start_at: datetime
+    end_at: datetime
+    room_name: str | None = None
+    building: str | None = None
+    note: str | None = None
+
+
+class AcademicOverviewResponse(BaseModel):
+    profile: AcademicProfileResponse
+    current_term: AcademicTermResponse | None = None
+    current_gpa: Decimal | None = None
+    cumulative_cpa: Decimal | None = None
+    earned_credits: int
+    required_credits: int
+    failed_courses: list[AcademicCourseResponse] = Field(default_factory=list)
+    enrolled_courses: list[AcademicCourseResponse] = Field(default_factory=list)
+    upcoming_meetings: list[ScheduleEventResponse] = Field(default_factory=list)
+    summary: AcademicProgressSummary
+
+
+class TranscriptTermGroupResponse(BaseModel):
+    term: AcademicTermResponse
+    enrollments: list[StudentCourseEnrollmentResponse] = Field(default_factory=list)
+    term_gpa: Decimal | None = None
+    cumulative_cpa: Decimal | None = None
+
+
+class TranscriptResponse(BaseModel):
+    student_id: uuid.UUID
+    terms: list[TranscriptTermGroupResponse] = Field(default_factory=list)
+    summary: TranscriptSummaryResponse
+
+
+class CurriculumProgressCourseResponse(BaseModel):
+    course: AcademicCourseResponse
+    category: CurriculumCategory
+    is_required: bool
+    suggested_year: int | None = None
+    suggested_term: int | None = None
+    status: CurriculumProgressStatus
+    grade_4: Decimal | None = None
+
+
+class CurriculumProgressResponse(BaseModel):
+    program: AcademicProgramResponse | None = None
+    completed: list[CurriculumProgressCourseResponse] = Field(default_factory=list)
+    in_progress: list[CurriculumProgressCourseResponse] = Field(default_factory=list)
+    failed: list[CurriculumProgressCourseResponse] = Field(default_factory=list)
+    remaining_required: list[CurriculumProgressCourseResponse] = Field(default_factory=list)
+    remaining_zero_credit: list[CurriculumProgressCourseResponse] = Field(default_factory=list)
+    summary: AcademicProgressSummary
+
+
+class RequisiteExplanationResponse(BaseModel):
+    requisite_type: RequisiteType
+    required_course: AcademicCourseResponse
+    min_grade_4: Decimal | None = None
+    satisfied: bool
+    reason: str
+
+
+class EligibleCourseResponse(BaseModel):
+    course: AcademicCourseResponse
+    category: CurriculumCategory | None = None
+    is_required: bool = True
+    eligible: bool
+    already_completed: bool
+    currently_enrolled: bool
+    can_retake_or_improve: bool
+    blocking_reasons: list[str] = Field(default_factory=list)
+    prerequisites: list[RequisiteExplanationResponse] = Field(default_factory=list)
+    corequisites: list[RequisiteExplanationResponse] = Field(default_factory=list)
+
+
+class CourseEligibilityResponse(BaseModel):
+    term: AcademicTermResponse | None = None
+    eligible: list[EligibleCourseResponse] = Field(default_factory=list)
+    blocked: list[EligibleCourseResponse] = Field(default_factory=list)
