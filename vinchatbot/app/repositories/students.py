@@ -193,7 +193,7 @@ class StudentRepository:
             left join notification_reads nr
                 on nr.notification_id = n.id
                and nr.user_id = %s
-            where n.status = 'published'
+            where n.status in ('published', 'scheduled')
               and (n.start_date is null or n.start_date <= now())
               and (n.end_date is null or n.end_date >= now())
               and (
@@ -318,7 +318,7 @@ class StudentRepository:
                 on nr.notification_id = n.id
                and nr.user_id = %s
             where n.id = %s
-              and n.status = 'published'
+              and n.status in ('published', 'scheduled')
               and (n.start_date is null or n.start_date <= now())
               and (n.end_date is null or n.end_date >= now())
               and (

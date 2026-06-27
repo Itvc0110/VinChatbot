@@ -153,6 +153,62 @@ export interface BackendNotification {
   archived: boolean;
 }
 
+export interface BackendAdminNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  priority: string;
+  status: string;
+  target_scope: string;
+  institute_id?: string | null;
+  institute_code?: string | null;
+  course_id?: string | null;
+  course_code?: string | null;
+  cohort?: number | null;
+  deadline?: string | null;
+  event_date?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  source_title?: string | null;
+  source_url?: string | null;
+  created_by?: string | null;
+  created_by_email?: string | null;
+  created_by_name?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackendAdminNotificationTarget {
+  id: string;
+  code: string;
+  name_vi: string;
+  name_en: string;
+}
+
+export interface AdminNotificationPayload {
+  type?: NotificationType | string;
+  title?: string;
+  message?: string;
+  priority?: Notification["priority"];
+  status?: Notification["status"];
+  target_scope?: "all" | "institute" | "cohort";
+  institute_id?: string | null;
+  cohort?: number | null;
+  deadline?: string | null;
+  event_date?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  source_title?: string | null;
+  source_url?: string | null;
+}
+
+export type AdminNotificationCreatePayload = AdminNotificationPayload & {
+  title: string;
+  message: string;
+  type: NotificationType | string;
+};
+
 export interface BackendNotificationReadState {
   notification_id: string;
   is_read: boolean;
@@ -769,6 +825,41 @@ function mapNotification(notification: BackendNotification): Notification {
   };
 }
 
+function mapAdminNotification(notification: BackendAdminNotification): Notification {
+  const targetAudience =
+    notification.target_scope === "institute" && notification.institute_code
+      ? [notification.institute_code]
+      : notification.target_scope === "cohort" && notification.cohort
+        ? [`Cohort ${notification.cohort}`]
+        : [notification.target_scope];
+  return {
+    id: notification.id,
+    type: safeNotificationType(notification.type),
+    title: notification.title,
+    message: notification.message,
+    created_at: notification.created_at,
+    read: false,
+    important:
+      notification.priority === "high" || notification.priority === "urgent",
+    archived: notification.status === "archived",
+    source_title: notification.source_title ?? undefined,
+    source_url: notification.source_url ?? undefined,
+    priority: notification.priority as Notification["priority"],
+    target_audience: targetAudience,
+    deadline: notification.deadline ?? undefined,
+    event_date: notification.event_date ?? undefined,
+    start_date: notification.start_date ?? undefined,
+    end_date: notification.end_date ?? undefined,
+    status: notification.status as Notification["status"],
+    created_by:
+      notification.created_by_name ??
+      notification.created_by_email ??
+      notification.created_by ??
+      undefined,
+    updated_at: notification.updated_at,
+  };
+}
+
 function mapSuggestedQuestion(question: BackendSuggestedQuestion): SuggestedQuestion {
   const category = safeNotificationType(question.category ?? question.source_type);
   const timestamp = question.valid_from ?? question.valid_until ?? new Date(0).toISOString();
@@ -1190,76 +1281,125 @@ export async function deleteNotification(_id: string): Promise<{ ok: true }> {
 }
 
 // ---- Admin notifications + suggested questions (PLAN22.6) -------------------
-// [MOCK] TODO Phase 11 backend contract: GET /admin/notifications -> Notification[] (all statuses)
+// [LIVE] GET /admin/notifications -> Notification[] (all statuses)
 export async function getAdminNotifications(): Promise<Notification[]> {
-  return delay(MOCK_NOTIFICATIONS.map((n) => ({ ...n })));
+  const rows = await getJSON<BackendAdminNotification[]>("/api/admin/notifications");
+  return rows.map(mapAdminNotification);
 }
 
-// [MOCK] TODO Phase 11 backend contract: POST /admin/notifications { ... } -> Notification
-// Admin authors a notification (optionally with reviewed/approved suggested questions). A
-// "published" notification with active questions immediately drives student suggestions.
+// [LIVE] GET /admin/notifications/targets -> institutes the admin may target
+export async function getAdminNotificationTargets(): Promise<BackendAdminNotificationTarget[]> {
+  return getJSON<BackendAdminNotificationTarget[]>("/api/admin/notifications/targets");
+}
+
+// [LIVE] POST /admin/notifications { ... } -> Notification
 export async function createNotification(input: {
   title: string;
   message: string;
-  type: NotificationType;
+  type: NotificationType | string;
   priority?: Notification["priority"];
   target_audience?: string[];
-  deadline?: string;
-  event_date?: string;
+  target_scope?: "all" | "institute" | "cohort";
+  institute_id?: string | null;
+  cohort?: number | null;
+  deadline?: string | null;
+  event_date?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
   status?: Notification["status"];
   suggested_questions?: SuggestedQuestion[];
-  source_title?: string;
-  source_url?: string;
+  source_title?: string | null;
+  source_url?: string | null;
 }): Promise<Notification> {
-  const now = new Date().toISOString();
-  const notification: Notification = {
-    id: `n-${Math.floor(1000 + Math.random() * 9000)}`,
-    type: input.type,
-    title: input.title.trim(),
-    message: input.message.trim(),
-    created_at: now,
-    updated_at: now,
-    read: false,
-    important: input.priority === "high" || input.priority === "urgent",
-    priority: input.priority,
-    target_audience: input.target_audience,
-    deadline: input.deadline,
-    event_date: input.event_date,
-    status: input.status ?? "draft",
-    created_by: "admin",
-    source_title: input.source_title,
-    source_url: input.source_url,
-    suggested_questions: input.suggested_questions,
-  };
-  MOCK_NOTIFICATIONS.unshift(notification);
-  return delay(notification, 300);
+  const row = await apiRequest<BackendAdminNotification>("/api/admin/notifications", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      type: input.type,
+      title: input.title.trim(),
+      message: input.message.trim(),
+      priority: input.priority ?? "medium",
+      status: input.status ?? "draft",
+      target_scope: input.target_scope ?? "all",
+      institute_id: input.institute_id ?? null,
+      cohort: input.cohort ?? null,
+      deadline: input.deadline || null,
+      event_date: input.event_date || null,
+      start_date: input.start_date || null,
+      end_date: input.end_date || null,
+      source_title: input.source_title ?? null,
+      source_url: input.source_url ?? null,
+    }),
+  });
+  return mapAdminNotification(row);
 }
 
-// [MOCK] TODO Phase 11 backend contract: PATCH /admin/notifications/{id} { ... } -> Notification
+// [LIVE] PATCH /admin/notifications/{id} { ... } -> Notification
 export async function updateNotification(
   id: string,
-  patch: Partial<Notification>
+  patch: AdminNotificationPayload
 ): Promise<Notification> {
-  return delay(patchNotification(id, { ...patch, updated_at: new Date().toISOString() }), 200);
+  const row = await apiRequest<BackendAdminNotification>(`/api/admin/notifications/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      type: patch.type,
+      title: patch.title,
+      message: patch.message,
+      priority: patch.priority,
+      target_scope: patch.target_scope,
+      institute_id: patch.institute_id,
+      cohort: patch.cohort,
+      deadline: patch.deadline,
+      event_date: patch.event_date,
+      start_date: patch.start_date,
+      end_date: patch.end_date,
+      source_title: patch.source_title,
+      source_url: patch.source_url,
+    }),
+  });
+  return mapAdminNotification(row);
 }
 
-// [MOCK] TODO Phase 11 backend contract: POST /admin/notifications/{id}/publish -> Notification
-// Publishes the notification and activates its admin-approved suggested questions.
+// [LIVE] POST /admin/notifications/{id}/publish -> Notification
 export async function publishNotification(id: string): Promise<Notification> {
-  const n = MOCK_NOTIFICATIONS.find((x) => x.id === id);
-  if (!n) throw new Error(`Notification ${id} not found`);
-  const questions = (n.suggested_questions ?? []).map((q) => ({
-    ...q,
-    is_active: q.approved_by_admin,
-  }));
-  return delay(
-    patchNotification(id, {
-      status: "published",
-      suggested_questions: questions,
-      updated_at: new Date().toISOString(),
-    }),
-    250
+  const row = await apiRequest<BackendAdminNotification>(
+    `/api/admin/notifications/${id}/publish`,
+    {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    }
   );
+  return mapAdminNotification(row);
+}
+
+// [LIVE] POST /admin/notifications/{id}/schedule -> Notification
+export async function scheduleNotification(
+  id: string,
+  publishAt: string,
+  endDate?: string | null
+): Promise<Notification> {
+  const row = await apiRequest<BackendAdminNotification>(
+    `/api/admin/notifications/${id}/schedule`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ publish_at: publishAt, end_date: endDate || null }),
+    }
+  );
+  return mapAdminNotification(row);
+}
+
+// [LIVE] POST /admin/notifications/{id}/archive -> Notification
+export async function archiveAdminNotification(id: string): Promise<Notification> {
+  const row = await apiRequest<BackendAdminNotification>(
+    `/api/admin/notifications/${id}/archive`,
+    {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    }
+  );
+  return mapAdminNotification(row);
 }
 
 // [MOCK] Rule-based for MVP — runs the lib/suggestedQuestions.ts template engine for the

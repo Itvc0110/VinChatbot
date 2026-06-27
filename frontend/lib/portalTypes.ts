@@ -211,7 +211,7 @@ export type NotificationType =
   | "forum";
 
 export type NotificationPriority = "low" | "medium" | "high" | "urgent";
-export type NotificationStatus = "draft" | "published" | "archived";
+export type NotificationStatus = "draft" | "scheduled" | "published" | "archived";
 
 export interface Notification {
   id: string;

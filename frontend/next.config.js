@@ -37,6 +37,10 @@ const nextConfig = {
         destination: `${BACKEND_URL}/admin/dashboard`,
       },
       {
+        source: "/api/admin/notifications/:path*",
+        destination: `${BACKEND_URL}/admin/notifications/:path*`,
+      },
+      {
         source: "/api/forum/:path*",
         destination: `${BACKEND_URL}/forum/:path*`,
       },

@@ -39,6 +39,19 @@ def test_discover_repo_migrations_includes_initial_app_schema():
 
     assert "000002_initial_app_schema.sql" in filenames
     assert "000003_seed_base_reference_data.sql" in filenames
+    assert "000005_admin_notification_workflow.sql" in filenames
+
+
+def test_admin_notification_workflow_migration_extends_lifecycle_values():
+    migration_path = (
+        db_migrate.DEFAULT_MIGRATIONS_DIR / "000005_admin_notification_workflow.sql"
+    )
+    migration_sql = migration_path.read_text(encoding="utf-8").lower()
+
+    assert "notifications_status_check" in migration_sql
+    assert "'scheduled'" in migration_sql
+    assert "'student_services'" in migration_sql
+    assert "create table" not in migration_sql
 
 
 def test_base_reference_seed_contains_only_roles_and_institutes():
