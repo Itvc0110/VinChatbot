@@ -40,6 +40,8 @@ class AdminNotificationResponse(BaseModel):
     end_date: datetime | None = None
     source_title: str | None = None
     source_url: str | None = None
+    forum_topic_id: uuid.UUID | None = None
+    forum_comment_id: uuid.UUID | None = None
     created_by: uuid.UUID | None = None
     created_by_email: str | None = None
     created_by_name: str | None = None
@@ -69,6 +71,8 @@ class AdminNotificationCreateRequest(BaseModel):
     end_date: datetime | None = None
     source_title: str | None = Field(default=None, max_length=500)
     source_url: str | None = Field(default=None, max_length=2000)
+    forum_topic_id: uuid.UUID | None = None
+    forum_comment_id: uuid.UUID | None = None
 
     @field_validator("title", "message")
     @classmethod
@@ -103,6 +107,8 @@ class AdminNotificationUpdateRequest(BaseModel):
     end_date: datetime | None = None
     source_title: str | None = Field(default=None, max_length=500)
     source_url: str | None = Field(default=None, max_length=2000)
+    forum_topic_id: uuid.UUID | None = None
+    forum_comment_id: uuid.UUID | None = None
 
     @field_validator("title", "message")
     @classmethod

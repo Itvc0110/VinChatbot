@@ -16,10 +16,12 @@ export interface TopicModeratePatch {
 export function ModActionBar({
   topic,
   onModerate,
+  onCreateNotification,
   busy = false,
 }: {
   topic: ForumTopic;
   onModerate: (patch: TopicModeratePatch) => void;
+  onCreateNotification?: () => void;
   busy?: boolean;
 }) {
   const { p } = usePortal();
@@ -46,6 +48,17 @@ export function ModActionBar({
       >
         {topic.is_locked ? p.forum.unlock : p.forum.lock}
       </button>
+      {onCreateNotification && !topic.deleted && (
+        <button
+          type="button"
+          className="btn btn-outline btn-sm"
+          onClick={onCreateNotification}
+          disabled={busy}
+          title={p.forum.notificationHint}
+        >
+          {p.forum.createNotification}
+        </button>
+      )}
       {confirmDelete ? (
         <span className="forum-confirm">
           <button

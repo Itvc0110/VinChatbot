@@ -26,6 +26,10 @@ function LockIcon() {
   );
 }
 
+function isStaffAuthor(roles: string[]): boolean {
+  return roles.some((role) => ["global_admin", "institute_admin", "staff"].includes(role));
+}
+
 export function TopicCard({
   topic,
   onVote,
@@ -36,9 +40,10 @@ export function TopicCard({
   const { p, lang } = usePortal();
   const categoryName = lang === "vi" ? topic.category_name_vi : topic.category_name_en;
   const href = `/student/forum/topics/${topic.id}`;
+  const staffAuthor = isStaffAuthor(topic.author_roles);
 
   return (
-    <article className={`forum-topic-card ${topic.is_pinned ? "pinned" : ""}`}>
+    <article className={`forum-topic-card ${topic.is_pinned ? "pinned" : ""} ${topic.deleted ? "archived" : ""}`}>
       <VoteControl
         score={topic.score}
         myVote={topic.my_vote}
@@ -58,7 +63,9 @@ export function TopicCard({
               <LockIcon /> {p.forum.locked}
             </span>
           )}
+          {topic.deleted && <span className="forum-flag archived">{p.forum.archived}</span>}
           {topic.has_official_answer && <Badge tone="success">{p.forum.officialAnswer}</Badge>}
+          {staffAuthor && <span className="forum-flag staff">{p.forum.staffBadge}</span>}
         </div>
 
         <h3 className="forum-topic-title">
@@ -80,7 +87,7 @@ export function TopicCard({
             {p.forum.by} <strong>{topic.author_name ?? "—"}</strong>
           </span>
           <span aria-hidden>·</span>
-          <span>{relativeTime(topic.last_activity_at, lang)}</span>
+          <time dateTime={topic.last_activity_at}>{relativeTime(topic.last_activity_at, lang)}</time>
           <span aria-hidden>·</span>
           <Link href={href} className="forum-topic-comments">
             {p.forum.commentCount(topic.comment_count)}

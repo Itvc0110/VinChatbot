@@ -7,10 +7,19 @@ from typing import Annotated, TypeVar
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from psycopg.errors import UndefinedColumn, UndefinedTable
 
+from vinchatbot.app.api.routes_admin_notifications import get_admin_notification_repository
 from vinchatbot.app.db.connection import get_app_db_pool
 from vinchatbot.app.dependencies.auth import get_current_user, require_roles
+from vinchatbot.app.repositories.admin_notifications import (
+    AdminNotificationRepository,
+    NotificationPermissionError,
+)
 from vinchatbot.app.repositories.auth import AuthenticatedUser
 from vinchatbot.app.repositories.forum import LOCKED, ForumRepository
+from vinchatbot.app.schemas.admin_notifications import (
+    AdminNotificationCreateRequest,
+    AdminNotificationResponse,
+)
 from vinchatbot.app.schemas.forum import (
     CreateCommentRequest,
     CreateReportRequest,
@@ -21,6 +30,7 @@ from vinchatbot.app.schemas.forum import (
     ForumMemberResponse,
     ForumReportResponse,
     ForumTopicDetail,
+    ForumTopicNotificationRequest,
     ForumTopicPatchRequest,
     ForumTopicSummary,
     VoteRequest,
@@ -116,15 +126,30 @@ async def list_topics(
     current_user: AuthedUser,
     repository: Annotated[ForumRepository, Depends(get_forum_repository)],
     category: Annotated[str | None, Query()] = None,
-    sort: Annotated[str, Query(pattern="^(new|top|active)$")] = "active",
+    category_id: Annotated[uuid.UUID | None, Query()] = None,
+    sort: Annotated[
+        str,
+        Query(pattern="^(new|top|active|pinned|newest_activity|most_commented|comments)$"),
+    ] = "active",
     q: Annotated[str | None, Query(max_length=120)] = None,
+    search: Annotated[str | None, Query(max_length=120)] = None,
+    status_filter: Annotated[
+        str,
+        Query(alias="status", pattern="^(active|archived|all)$"),
+    ] = "active",
 ) -> list[ForumTopicSummary]:
+    moderator = is_moderator(current_user)
+    include_deleted = moderator and status_filter in {"archived", "all"}
+    only_deleted = moderator and status_filter == "archived"
     topics = await run_forum_query(
         repository.list_topics(
             user_id=current_user.id,
             category_slug=category,
+            category_id=category_id,
             sort=sort,
-            search=q,
+            search=search or q,
+            include_deleted=include_deleted,
+            only_deleted=only_deleted,
         )
     )
     return [ForumTopicSummary(**topic) for topic in topics]
@@ -157,11 +182,14 @@ async def get_topic(
     current_user: AuthedUser,
     repository: Annotated[ForumRepository, Depends(get_forum_repository)],
 ) -> ForumTopicDetail:
+    moderator = is_moderator(current_user)
     topic = await run_forum_query(
         repository.get_topic(
             topic_id=topic_id,
             user_id=current_user.id,
             bump_views=True,
+            include_deleted=moderator,
+            include_deleted_comments=moderator,
         )
     )
     if topic is None:
@@ -175,8 +203,14 @@ async def list_topic_comments(
     current_user: AuthedUser,
     repository: Annotated[ForumRepository, Depends(get_forum_repository)],
 ) -> list[ForumCommentResponse]:
+    moderator = is_moderator(current_user)
     comments = await run_forum_query(
-        repository.list_comments(topic_id=topic_id, user_id=current_user.id)
+        repository.list_comments(
+            topic_id=topic_id,
+            user_id=current_user.id,
+            include_deleted_topic=moderator,
+            include_deleted_comments=moderator,
+        )
     )
     if comments is None:
         raise topic_not_found()
@@ -495,3 +529,65 @@ async def unhide_comment(
     return await apply_comment_moderation(
         comment_id, ForumCommentPatchRequest(deleted=False), current_user, repository
     )
+
+
+@router.post(
+    "/forum/topics/{topic_id}/notification",
+    response_model=AdminNotificationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_notification_from_topic(
+    topic_id: uuid.UUID,
+    request: ForumTopicNotificationRequest,
+    current_user: ModUser,
+    repository: Annotated[ForumRepository, Depends(get_forum_repository)],
+    notifications: Annotated[
+        AdminNotificationRepository,
+        Depends(get_admin_notification_repository),
+    ],
+) -> AdminNotificationResponse:
+    topic = await run_forum_query(
+        repository.get_topic(
+            topic_id=topic_id,
+            user_id=current_user.id,
+            include_deleted=False,
+            include_deleted_comments=True,
+        )
+    )
+    if topic is None:
+        raise topic_not_found()
+
+    target_scope = request.target_scope
+    if target_scope is None:
+        target_scope = "all" if "global_admin" in current_user.roles else "institute"
+
+    institute_id = request.institute_id
+    if target_scope == "institute" and institute_id is None and current_user.institute:
+        raw_id = current_user.institute.get("id")
+        institute_id = raw_id if isinstance(raw_id, uuid.UUID) else uuid.UUID(str(raw_id))
+    if target_scope == "institute" and institute_id is None:
+        targets = await notifications.list_target_institutes(current_user)
+        if len(targets) == 1:
+            institute_id = targets[0]["id"]
+
+    message = request.message or str(topic.get("excerpt") or topic.get("content") or "").strip()
+    payload = AdminNotificationCreateRequest(
+        type="forum",
+        title=request.title or str(topic["title"]),
+        message=message[:5000] or str(topic["title"]),
+        priority=request.priority,
+        status="published" if request.publish else "draft",
+        target_scope=target_scope,
+        institute_id=institute_id,
+        source_title="Discussion Hub",
+        source_url=None,
+        forum_topic_id=topic_id,
+    )
+    try:
+        notification = await notifications.create_notification(
+            current_user=current_user,
+            request=payload,
+        )
+    except NotificationPermissionError as exc:
+        raise forbidden() from exc
+    return AdminNotificationResponse(**notification)

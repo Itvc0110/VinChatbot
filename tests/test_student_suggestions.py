@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -20,6 +21,7 @@ OTHER_COURSE_ID = uuid.UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeef")
 NOTIFICATION_ID = uuid.UUID("33333333-3333-3333-3333-333333333333")
 DEADLINE_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
 SCHEDULE_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
+FORUM_TOPIC_ID = uuid.UUID("44444444-4444-4444-4444-444444444444")
 
 
 def _run(awaitable):
@@ -112,12 +114,14 @@ def _repository(
     deadlines: list[dict[str, Any]] | None = None,
     schedule: list[dict[str, Any]] | None = None,
     seeded: list[dict[str, Any]] | None = None,
+    forum_topics: list[dict[str, Any]] | None = None,
 ) -> StudentRepository:
     repo = StudentRepository(pool=None)  # type: ignore[arg-type]
     notification_rows = notifications or []
     deadline_rows = deadlines or []
     schedule_rows = schedule or []
     seeded_rows = seeded or []
+    forum_topic_rows = forum_topics or []
 
     async def fetch_course_ids(student_profile_id):
         assert student_profile_id == PROFILE_ID
@@ -143,11 +147,16 @@ def _repository(
         assert upcoming_only is True
         return schedule_rows
 
+    async def fetch_forum_topics(profile):
+        assert profile["id"] == PROFILE_ID
+        return forum_topic_rows
+
     repo._fetch_enrolled_course_ids = fetch_course_ids  # type: ignore[method-assign]
     repo._fetch_seeded_suggestions = fetch_seeded_suggestions  # type: ignore[method-assign]
     repo.get_notifications = get_notifications  # type: ignore[method-assign]
     repo.get_deadlines = get_deadlines  # type: ignore[method-assign]
     repo.get_schedule = get_schedule  # type: ignore[method-assign]
+    repo._fetch_forum_topics_for_suggestions = fetch_forum_topics  # type: ignore[method-assign]
     return repo
 
 
@@ -258,6 +267,64 @@ def test_deadline_and_schedule_items_influence_suggestions():
     source_types = {item["source_type"] for item in suggestions}
     assert "deadline" in source_types
     assert "schedule" in source_types
+
+
+def test_visible_forum_topics_influence_suggestions():
+    now = datetime.now(UTC)
+    repo = _repository(
+        forum_topics=[
+            {
+                "id": FORUM_TOPIC_ID,
+                "title": "Final exam preparation tips",
+                "content": "Share what to review before finals.",
+                "tags": ["exam"],
+                "is_pinned": True,
+                "deleted": False,
+                "created_at": now - timedelta(days=1),
+                "last_activity_at": now,
+                "category_slug": "academic-qa",
+            }
+        ]
+    )
+
+    suggestions = _run(repo.get_suggestions(user_id=STUDENT_USER_ID, profile=_profile()))
+
+    forum_suggestions = [
+        item for item in suggestions if item["source_type"] == "forum_topic"
+    ]
+    assert forum_suggestions
+    assert forum_suggestions[0]["source_id"] == FORUM_TOPIC_ID
+    assert forum_suggestions[0]["question_text"] == "What should I prepare for upcoming exams?"
+
+
+def test_hidden_forum_topics_do_not_influence_suggestions():
+    repo = _repository(
+        forum_topics=[
+            {
+                "id": FORUM_TOPIC_ID,
+                "title": "Archived scholarship Q&A",
+                "content": "Scholarship discussion",
+                "tags": ["scholarship"],
+                "is_pinned": True,
+                "deleted": True,
+                "created_at": datetime.now(UTC) - timedelta(days=1),
+                "last_activity_at": datetime.now(UTC),
+                "category_slug": "scholarships-opportunities",
+            }
+        ]
+    )
+
+    suggestions = _run(repo.get_suggestions(user_id=STUDENT_USER_ID, profile=_profile()))
+
+    assert "forum_topic" not in {item["source_type"] for item in suggestions}
+
+
+def test_forum_topic_suggestion_fetch_filters_archived_and_cross_institute_topics():
+    source = inspect.getsource(StudentRepository._fetch_forum_topics_for_suggestions)
+
+    assert "t.deleted = false" in source
+    assert "cat.is_active = true" in source
+    assert "author_profile.institute_id = %s" in source
 
 
 def test_suggestions_are_deduplicated_limited_and_shape_stable():

@@ -27,11 +27,18 @@ _TOPIC_CORE = """
     cat.name_vi as category_name_vi,
     t.author_user_id,
     coalesce(author.preferred_name, author.full_name) as author_name,
+    (
+        select coalesce(array_agg(r.code order by r.code), '{}')
+        from user_roles ur
+        join roles r on r.id = ur.role_id
+        where ur.user_id = t.author_user_id
+    ) as author_roles,
     t.title,
     t.content,
     t.tags,
     t.is_pinned,
     t.is_locked,
+    t.deleted,
     (t.official_comment_id is not null) as has_official_answer,
     t.view_count,
     t.created_at,
@@ -61,6 +68,12 @@ _COMMENT_SELECT = """
         c.parent_comment_id,
         c.author_user_id,
         coalesce(author.preferred_name, author.full_name) as author_name,
+        (
+            select coalesce(array_agg(r.code order by r.code), '{}')
+            from user_roles ur
+            join roles r on r.id = ur.role_id
+            where ur.user_id = c.author_user_id
+        ) as author_roles,
         c.content,
         c.is_official,
         c.deleted,
@@ -122,14 +135,24 @@ class ForumRepository:
         *,
         user_id: uuid.UUID,
         category_slug: str | None = None,
+        category_id: uuid.UUID | None = None,
         sort: str = "active",
         search: str | None = None,
+        include_deleted: bool = False,
+        only_deleted: bool = False,
     ) -> list[dict[str, Any]]:
-        clauses = ["t.deleted = false"]
+        clauses = ["cat.is_active = true"]
         params: list[Any] = [user_id]
+        if only_deleted:
+            clauses.append("t.deleted = true")
+        elif not include_deleted:
+            clauses.append("t.deleted = false")
         if category_slug:
             clauses.append("cat.slug = %s")
             params.append(category_slug)
+        if category_id:
+            clauses.append("cat.id = %s")
+            params.append(category_id)
         if search and search.strip():
             clauses.append("(t.title ilike %s or t.content ilike %s)")
             like = f"%{search.strip()}%"
@@ -137,9 +160,11 @@ class ForumRepository:
 
         if sort == "new":
             order = "t.is_pinned desc, t.created_at desc"
+        elif sort in {"most_commented", "comments"}:
+            order = "t.is_pinned desc, comment_count desc, t.last_activity_at desc"
         elif sort == "top":
             order = "t.is_pinned desc, score desc, t.created_at desc"
-        else:  # "active" (default)
+        else:  # "active" / "newest_activity" / "pinned" (default)
             order = "t.is_pinned desc, t.last_activity_at desc"
 
         rows = await self._fetchall(
@@ -162,6 +187,7 @@ class ForumRepository:
         user_id: uuid.UUID,
         bump_views: bool = False,
         include_deleted: bool = False,
+        include_deleted_comments: bool = False,
     ) -> dict[str, Any] | None:
         if bump_views:
             await self._execute(
@@ -184,7 +210,11 @@ class ForumRepository:
         topic = self._topic_from_row(row)
         topic["attachments"] = row.get("attachments") or []
         topic["official_comment_id"] = row.get("official_comment_id")
-        topic["comments"] = await self._comment_tree(topic_id, user_id)
+        topic["comments"] = await self._comment_tree(
+            topic_id,
+            user_id,
+            include_deleted_content=include_deleted_comments,
+        )
         return topic
 
     async def list_comments(
@@ -192,14 +222,21 @@ class ForumRepository:
         *,
         topic_id: uuid.UUID,
         user_id: uuid.UUID,
+        include_deleted_topic: bool = False,
+        include_deleted_comments: bool = False,
     ) -> list[dict[str, Any]] | None:
+        deleted_clause = "" if include_deleted_topic else " and deleted = false"
         topic = await self._fetchone(
-            "select id from forum_topics where id = %s and deleted = false",
+            f"select id from forum_topics where id = %s{deleted_clause}",
             (topic_id,),
         )
         if topic is None:
             return None
-        return await self._comment_tree(topic_id, user_id)
+        return await self._comment_tree(
+            topic_id,
+            user_id,
+            include_deleted_content=include_deleted_comments,
+        )
 
     async def create_topic(
         self,
@@ -680,6 +717,8 @@ class ForumRepository:
         self,
         topic_id: uuid.UUID,
         user_id: uuid.UUID,
+        *,
+        include_deleted_content: bool = False,
     ) -> list[dict[str, Any]]:
         rows = await self._fetchall(
             f"""
@@ -692,7 +731,7 @@ class ForumRepository:
         nodes: dict[uuid.UUID, dict[str, Any]] = {}
         roots: list[dict[str, Any]] = []
         for row in rows:
-            node = self._comment_from_row(row)
+            node = self._comment_from_row(row, include_deleted_content=include_deleted_content)
             nodes[node["id"]] = node
         for row in rows:
             node = nodes[row["id"]]
@@ -817,14 +856,22 @@ class ForumRepository:
         data = dict(row)
         data["excerpt"] = self._excerpt(data.get("content") or "")
         data["tags"] = list(data.get("tags") or [])
+        data["author_roles"] = list(data.get("author_roles") or [])
         return data
 
-    def _comment_from_row(self, row: dict[str, Any]) -> dict[str, Any]:
+    def _comment_from_row(
+        self,
+        row: dict[str, Any],
+        *,
+        include_deleted_content: bool = False,
+    ) -> dict[str, Any]:
         data = dict(row)
         data["replies"] = []
-        if data.get("deleted"):
-            data["content"] = "[removed]"
+        data["author_roles"] = list(data.get("author_roles") or [])
+        if data.get("deleted") and not include_deleted_content:
+            data["content"] = "[hidden by moderator]"
             data["author_name"] = None
+            data["author_roles"] = []
         return data
 
     async def _fetchone(self, query: str, params: tuple[Any, ...]) -> dict[str, Any] | None:

@@ -118,9 +118,11 @@ class AdminNotificationRepository:
                 end_date,
                 source_title,
                 source_url,
+                forum_topic_id,
+                forum_comment_id,
                 created_by
             )
-            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             returning id
             """,
             (
@@ -138,6 +140,8 @@ class AdminNotificationRepository:
                 request.end_date,
                 request.source_title,
                 request.source_url,
+                request.forum_topic_id,
+                request.forum_comment_id,
                 current_user.id,
             ),
         )
@@ -185,6 +189,8 @@ class AdminNotificationRepository:
             "end_date",
             "source_title",
             "source_url",
+            "forum_topic_id",
+            "forum_comment_id",
         }
         for field_name in field_names.intersection(request.model_fields_set):
             fields.append(sql.SQL("{} = %s").format(sql.Identifier(field_name)))
@@ -365,6 +371,8 @@ class AdminNotificationRepository:
                 n.end_date,
                 n.source_title,
                 n.source_url,
+                n.forum_topic_id,
+                n.forum_comment_id,
                 n.created_by,
                 creator.email as created_by_email,
                 creator.full_name as created_by_name,

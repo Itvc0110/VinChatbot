@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AsyncBoundary, EmptyState, Toast } from "@/components/ui/primitives";
 import { CategoryList } from "@/components/forum/CategoryList";
 import { TopicCard } from "@/components/forum/TopicCard";
 import { CreateTopicModal } from "@/components/forum/CreateTopicModal";
 import { useAsync } from "@/lib/useAsync";
+import { useAuth } from "@/lib/auth";
 import { usePortal } from "@/lib/portalI18n";
 import { getForumCategories, getForumTopics, voteForumTopic } from "@/lib/api";
 import type { ForumSort, ForumTopic, ForumVoteValue } from "@/lib/portalTypes";
@@ -32,16 +33,30 @@ function Chevron({ dir }: { dir: "left" | "right" }) {
   );
 }
 
-const SORTS: ForumSort[] = ["active", "new", "top"];
+const SORTS: ForumSort[] = ["pinned", "newest_activity", "most_commented"];
+type ForumStatusFilter = "active" | "archived" | "all";
+
+function sortFromQuery(value: string | null): ForumSort {
+  return SORTS.includes(value as ForumSort) ? (value as ForumSort) : "pinned";
+}
+
+function statusFromQuery(value: string | null): ForumStatusFilter {
+  return value === "archived" || value === "all" ? value : "active";
+}
 
 export default function StudentForumPage() {
   const { p } = usePortal();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { token, user } = useAuth();
+  const canModerate =
+    user?.roles.some((role) => ["global_admin", "institute_admin", "staff"].includes(role)) ?? false;
 
-  const [category, setCategory] = useState<string | null>(null);
-  const [sort, setSort] = useState<ForumSort>("active");
-  const [search, setSearch] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
+  const [category, setCategory] = useState<string | null>(searchParams.get("category"));
+  const [sort, setSort] = useState<ForumSort>(sortFromQuery(searchParams.get("sort")));
+  const [status, setStatus] = useState<ForumStatusFilter>(statusFromQuery(searchParams.get("status")));
+  const [search, setSearch] = useState(searchParams.get("q") ?? "");
+  const [appliedSearch, setAppliedSearch] = useState((searchParams.get("q") ?? "").trim());
   const [creating, setCreating] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -53,10 +68,33 @@ export default function StudentForumPage() {
     return () => clearTimeout(handle);
   }, [search]);
 
-  const categoriesState = useAsync(getForumCategories, []);
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (category) params.set("category", category);
+    if (sort !== "pinned") params.set("sort", sort);
+    if (canModerate && status !== "active") params.set("status", status);
+    if (appliedSearch) params.set("q", appliedSearch);
+    const query = params.toString();
+    router.replace(`/student/forum${query ? `?${query}` : ""}`, { scroll: false });
+  }, [appliedSearch, canModerate, category, router, sort, status]);
+
+  useEffect(() => {
+    setItems(null);
+    setCreating(false);
+    setToast(null);
+    setPage(1);
+  }, [token, user?.id]);
+
+  const categoriesState = useAsync(getForumCategories, [token, user?.id]);
   const topicsState = useAsync(
-    () => getForumTopics({ category: category ?? undefined, sort, q: appliedSearch }),
-    [category, sort, appliedSearch]
+    () =>
+      getForumTopics({
+        category: category ?? undefined,
+        sort,
+        q: appliedSearch,
+        status: canModerate ? status : "active",
+      }),
+    [category, sort, appliedSearch, status, canModerate, token, user?.id]
   );
 
   useEffect(() => {
@@ -64,10 +102,19 @@ export default function StudentForumPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topicsState.status, topicsState.status === "success" ? topicsState.data : null]);
 
-  useEffect(() => setPage(1), [category, sort, appliedSearch]);
+  useEffect(() => setPage(1), [category, sort, status, appliedSearch]);
 
   const categories = categoriesState.status === "success" ? categoriesState.data : [];
   const all = items ?? [];
+  const filtersActive = Boolean(category || appliedSearch || sort !== "pinned" || status !== "active");
+
+  const clearFilters = () => {
+    setCategory(null);
+    setSort("pinned");
+    setStatus("active");
+    setSearch("");
+    setAppliedSearch("");
+  };
 
   const onVote = (topicId: string, value: ForumVoteValue) => {
     setItems((cur) =>
@@ -118,7 +165,11 @@ export default function StudentForumPage() {
                   aria-pressed={sort === s}
                   onClick={() => setSort(s)}
                 >
-                  {s === "active" ? p.forum.sortActive : s === "new" ? p.forum.sortNew : p.forum.sortTop}
+                  {s === "pinned"
+                    ? p.forum.sortPinned
+                    : s === "newest_activity"
+                      ? p.forum.sortActive
+                      : p.forum.sortCommented}
                 </button>
               ))}
             </div>
@@ -129,6 +180,29 @@ export default function StudentForumPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+            {canModerate && (
+              <div className="seg forum-status-seg" role="group" aria-label={p.forum.archived}>
+                {(["active", "archived", "all"] as ForumStatusFilter[]).map((value) => (
+                  <button
+                    key={value}
+                    className={`seg-opt ${status === value ? "active" : ""}`}
+                    aria-pressed={status === value}
+                    onClick={() => setStatus(value)}
+                  >
+                    {value === "active"
+                      ? p.forum.statusActive
+                      : value === "archived"
+                        ? p.forum.archived
+                        : p.forum.statusAll}
+                  </button>
+                ))}
+              </div>
+            )}
+            {filtersActive && (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={clearFilters}>
+                {p.forum.clearFilters}
+              </button>
+            )}
           </div>
 
           <AsyncBoundary state={topicsState} onRetry={topicsState.reload}>
@@ -137,7 +211,7 @@ export default function StudentForumPage() {
                 <EmptyState
                   icon={<IconForum size={28} />}
                   title={p.forum.emptyTitle}
-                  description={p.forum.emptyDesc}
+                  description={filtersActive ? p.forum.emptyFilteredDesc : p.forum.emptyDesc}
                 />
               ) : (
                 <>

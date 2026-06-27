@@ -350,6 +350,7 @@ class StudentRepository:
         notifications = await self.get_notifications(user_id=user_id, profile=profile)
         deadlines = await self.get_deadlines(profile["id"], upcoming_only=True)
         schedule = await self.get_schedule(profile["id"], upcoming_only=True)
+        forum_topics = await self._fetch_forum_topics_for_suggestions(profile)
 
         suggestions: list[dict[str, Any]] = []
         suggestions.extend(
@@ -369,6 +370,11 @@ class StudentRepository:
         suggestions.extend(
             self._schedule_suggestion(profile=profile, schedule_item=item, now=now)
             for item in schedule
+        )
+        suggestions.extend(
+            self._forum_topic_suggestion(profile=profile, topic=topic, now=now)
+            for topic in forum_topics
+            if self._forum_topic_can_influence_suggestions(topic)
         )
         suggestions.extend(seeded_suggestions)
 
@@ -420,6 +426,46 @@ class StudentRepository:
             order by sq.priority desc, sq.score desc, sq.question_text
             """,
             (profile["institute"]["id"], course_ids, profile["cohort"]),
+        )
+        return [dict(row) for row in rows]
+
+    async def _fetch_forum_topics_for_suggestions(
+        self,
+        profile: dict[str, Any],
+        *,
+        limit: int = 6,
+    ) -> list[dict[str, Any]]:
+        rows = await self._fetchall(
+            """
+            select
+                t.id,
+                t.title,
+                t.content,
+                t.tags,
+                t.is_pinned,
+                t.is_locked,
+                t.deleted,
+                t.created_at,
+                t.updated_at,
+                t.last_activity_at,
+                cat.slug as category_slug,
+                cat.name_en as category_name_en,
+                author_profile.institute_id as author_institute_id,
+                author_institute.code as author_institute_code
+            from forum_topics t
+            join forum_categories cat on cat.id = t.category_id
+            left join student_profiles author_profile on author_profile.user_id = t.author_user_id
+            left join institutes author_institute on author_institute.id = author_profile.institute_id
+            where t.deleted = false
+              and cat.is_active = true
+              and (
+                    author_profile.institute_id is null
+                 or author_profile.institute_id = %s
+              )
+            order by t.is_pinned desc, t.last_activity_at desc, t.created_at desc
+            limit %s
+            """,
+            (profile["institute"]["id"], limit),
         )
         return [dict(row) for row in rows]
 
@@ -537,6 +583,63 @@ class StudentRepository:
             intent="prepare",
             course_id=schedule_item.get("course_id"),
             course_code=schedule_item.get("course_code"),
+            cohort=profile.get("cohort"),
+        )
+
+    def _forum_topic_suggestion(
+        self,
+        *,
+        profile: dict[str, Any],
+        topic: dict[str, Any],
+        now: datetime,
+    ) -> dict[str, Any]:
+        title = str(topic.get("title") or "this forum topic").strip()
+        text_blob = f"{title} {topic.get('content') or ''} {' '.join(topic.get('tags') or [])}".lower()
+
+        if "exam" in text_blob or "thi" in text_blob:
+            question_text = "What should I prepare for upcoming exams?"
+            category = "academic"
+            intent = "prepare_for_exam"
+        elif "scholarship" in text_blob or "học bổng" in text_blob or "hoc bong" in text_blob:
+            question_text = "What scholarship deadlines should I know about?"
+            category = "student_services"
+            intent = "clarify_scholarship_deadlines"
+        elif (
+            "it" in text_blob
+            or "wifi" in text_blob
+            or "wi-fi" in text_blob
+            or "portal" in text_blob
+            or "login" in text_blob
+        ):
+            question_text = "How do I fix common student IT issues?"
+            category = "student_services"
+            intent = "resolve_it_issue"
+        elif "registration" in text_blob or "add/drop" in text_blob or "advising" in text_blob:
+            question_text = "What should I check before changing my course registration?"
+            category = "academic"
+            intent = "plan_registration"
+        else:
+            question_text = f"What should I know about {title}?"
+            category = "forum"
+            intent = "learn_from_forum_topic"
+
+        priority = 78 if topic.get("is_pinned") else 62
+        return self._suggestion_record(
+            profile=profile,
+            question_text=question_text,
+            source_type="forum_topic",
+            source_id=topic["id"],
+            notification_id=None,
+            category=category,
+            trigger_phase="active",
+            priority=priority,
+            score=Decimal(priority) / Decimal("10"),
+            valid_from=topic.get("created_at") or now - timedelta(days=1),
+            valid_until=now + timedelta(days=21 if topic.get("is_pinned") else 10),
+            topic=str(topic.get("category_slug") or "forum"),
+            intent=intent,
+            course_id=None,
+            course_code=None,
             cohort=profile.get("cohort"),
         )
 
@@ -688,6 +791,9 @@ class StudentRepository:
         if target_scope == "student":
             return True
         return False
+
+    def _forum_topic_can_influence_suggestions(self, topic: dict[str, Any]) -> bool:
+        return bool(topic.get("id")) and not topic.get("deleted")
 
     def _aware_datetime(self, value: Any) -> datetime | None:
         if not isinstance(value, datetime):

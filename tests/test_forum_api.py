@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from psycopg.errors import UndefinedTable
 
+from vinchatbot.app.api.routes_admin_notifications import get_admin_notification_repository
 from vinchatbot.app.api.routes_forum import get_forum_repository
 from vinchatbot.app.api.routes_forum import router as forum_router
 from vinchatbot.app.dependencies.auth import get_current_user
@@ -19,9 +20,12 @@ USER_ID = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 OTHER_USER_ID = uuid.UUID("99999999-9999-9999-9999-999999999999")
 ADMIN_ID = uuid.UUID("88888888-8888-8888-8888-888888888888")
 CATEGORY_ID = uuid.UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")
+CATEGORY_ID_TWO = uuid.UUID("cccccccc-cccc-cccc-cccc-cccccccccccd")
 TOPIC_ID = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+TOPIC_ID_TWO = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbc")
 COMMENT_ID = uuid.UUID("dddddddd-dddd-dddd-dddd-dddddddddddd")
 MISSING_TOPIC_ID = uuid.UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
+NOTIFICATION_ID = uuid.UUID("77777777-7777-7777-7777-777777777777")
 NOW = datetime(2026, 6, 27, 12, 0, tzinfo=UTC)
 
 
@@ -69,6 +73,7 @@ def _comment(**overrides: Any) -> dict[str, Any]:
         "parent_comment_id": None,
         "author_user_id": USER_ID,
         "author_name": "CECS Student",
+        "author_roles": ["student"],
         "content": "Check your advising notes before add/drop week.",
         "is_official": False,
         "deleted": False,
@@ -91,6 +96,7 @@ def _topic(*, comments: list[dict[str, Any]] | None = None, **overrides: Any) ->
         "category_name_vi": "Hỏi đáp học thuật",
         "author_user_id": USER_ID,
         "author_name": "CECS Student",
+        "author_roles": ["student"],
         "title": "How do I prepare for add/drop week?",
         "excerpt": "I am checking my Fall 2026 schedule.",
         "tags": ["registration"],
@@ -135,10 +141,18 @@ def _comment_state(comment: dict[str, Any], topic: dict[str, Any]) -> dict[str, 
 
 
 class FakeForumRepository:
-    def __init__(self, *, empty: bool = False, locked: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        empty: bool = False,
+        locked: bool = False,
+        topics: list[dict[str, Any]] | None = None,
+        comment: dict[str, Any] | None = None,
+    ) -> None:
         self.empty = empty
-        self.topic = _topic(is_locked=locked, comments=[_comment()])
-        self.comment = _comment()
+        self.comment = comment or _comment()
+        self.topic = topics[0] if topics else _topic(is_locked=locked, comments=[self.comment])
+        self.topics = topics or [self.topic]
 
     async def list_categories(self) -> list[dict[str, Any]]:
         if self.empty:
@@ -158,28 +172,79 @@ class FakeForumRepository:
             }
         ]
 
-    async def list_topics(self, **_kwargs: Any) -> list[dict[str, Any]]:
-        if self.empty or self.topic["deleted"]:
+    async def list_topics(self, **kwargs: Any) -> list[dict[str, Any]]:
+        if self.empty:
             return []
-        return [self.topic]
+        topics = list(self.topics)
+        category_slug = kwargs.get("category_slug")
+        category_id = kwargs.get("category_id")
+        search = (kwargs.get("search") or "").strip().lower()
+        include_deleted = kwargs.get("include_deleted", False)
+        only_deleted = kwargs.get("only_deleted", False)
+        if only_deleted:
+            topics = [topic for topic in topics if topic["deleted"]]
+        elif not include_deleted:
+            topics = [topic for topic in topics if not topic["deleted"]]
+        if category_slug:
+            topics = [topic for topic in topics if topic["category_slug"] == category_slug]
+        if category_id:
+            topics = [topic for topic in topics if topic["category_id"] == category_id]
+        if search:
+            topics = [
+                topic
+                for topic in topics
+                if search in topic["title"].lower()
+                or search in str(topic.get("content") or "").lower()
+            ]
+        sort = kwargs.get("sort", "active")
+        if sort in {"most_commented", "comments"}:
+            topics.sort(
+                key=lambda topic: (
+                    not topic["is_pinned"],
+                    -int(topic["comment_count"]),
+                    -topic["last_activity_at"].timestamp(),
+                )
+            )
+        elif sort == "new":
+            topics.sort(
+                key=lambda topic: (not topic["is_pinned"], -topic["created_at"].timestamp()),
+            )
+        else:
+            topics.sort(
+                key=lambda topic: (
+                    not topic["is_pinned"],
+                    -topic["last_activity_at"].timestamp(),
+                ),
+            )
+        return topics
 
     async def get_topic(self, **kwargs: Any) -> dict[str, Any] | None:
         include_deleted = kwargs.get("include_deleted", False)
         if kwargs["topic_id"] == MISSING_TOPIC_ID or self.empty:
             return None
-        if self.topic["deleted"] and not include_deleted:
+        topic = next((item for item in self.topics if item["id"] == kwargs["topic_id"]), None)
+        if topic is None:
             return None
-        return {**self.topic, "comments": [self.comment]}
+        if topic["deleted"] and not include_deleted:
+            return None
+        comments = list(topic.get("comments") or [self.comment])
+        if not kwargs.get("include_deleted_comments", False):
+            comments = [_hidden_comment_placeholder(comment) for comment in comments]
+        return {**topic, "comments": comments}
 
     async def list_comments(self, **kwargs: Any) -> list[dict[str, Any]] | None:
         if kwargs["topic_id"] == MISSING_TOPIC_ID or self.empty:
             return None
-        return [self.comment]
+        comments = [self.comment]
+        if not kwargs.get("include_deleted_comments", False):
+            comments = [_hidden_comment_placeholder(comment) for comment in comments]
+        return comments
 
     async def get_topic_state(self, topic_id: uuid.UUID) -> dict[str, Any] | None:
         if topic_id == MISSING_TOPIC_ID or self.empty:
             return None
-        return _topic_state(self.topic)
+        topic = next((item for item in self.topics if item["id"] == topic_id), None)
+        return _topic_state(topic) if topic else None
 
     async def get_comment_state(self, comment_id: uuid.UUID) -> dict[str, Any] | None:
         if comment_id != COMMENT_ID or self.empty:
@@ -194,6 +259,7 @@ class FakeForumRepository:
             is_pinned=False,
             comments=[],
         )
+        self.topics = [self.topic]
         return self.topic
 
     async def add_comment(self, *, author_user_id: uuid.UUID, request: Any, **_kwargs: Any):
@@ -214,6 +280,7 @@ class FakeForumRepository:
         for field in request.model_fields_set:
             if field in self.topic:
                 self.topic[field] = getattr(request, field)
+        self.topics = [self.topic if topic["id"] == self.topic["id"] else topic for topic in self.topics]
         if self.topic["deleted"] and not include_deleted:
             return None
         return {**self.topic, "comments": [self.comment]}
@@ -223,6 +290,64 @@ class FakeForumRepository:
             if field in self.comment:
                 self.comment[field] = getattr(request, field)
         return self.comment
+
+
+def _hidden_comment_placeholder(comment: dict[str, Any]) -> dict[str, Any]:
+    if not comment.get("deleted"):
+        return comment
+    return {
+        **comment,
+        "author_name": None,
+        "author_roles": [],
+        "content": "[hidden by moderator]",
+    }
+
+
+class FakeForumNotificationRepository:
+    def __init__(self) -> None:
+        self.created: list[dict[str, Any]] = []
+
+    async def list_target_institutes(self, _current_user: AuthenticatedUser):
+        return [
+            {
+                "id": CATEGORY_ID,
+                "code": "CECS",
+                "name_vi": "CECS",
+                "name_en": "CECS",
+            }
+        ]
+
+    async def create_notification(self, *, current_user: AuthenticatedUser, request: Any):
+        payload = request.model_dump()
+        row = {
+            "id": NOTIFICATION_ID,
+            "type": payload["type"],
+            "title": payload["title"],
+            "message": payload["message"],
+            "priority": payload["priority"],
+            "status": payload["status"],
+            "target_scope": payload["target_scope"],
+            "institute_id": payload["institute_id"],
+            "institute_code": None,
+            "course_id": None,
+            "course_code": None,
+            "cohort": payload["cohort"],
+            "deadline": payload["deadline"],
+            "event_date": payload["event_date"],
+            "start_date": payload["start_date"],
+            "end_date": payload["end_date"],
+            "source_title": payload["source_title"],
+            "source_url": payload["source_url"],
+            "forum_topic_id": payload["forum_topic_id"],
+            "forum_comment_id": payload["forum_comment_id"],
+            "created_by": current_user.id,
+            "created_by_email": current_user.email,
+            "created_by_name": current_user.full_name,
+            "created_at": NOW,
+            "updated_at": NOW,
+        }
+        self.created.append(row)
+        return row
 
 
 class MissingForumSchemaRepository:
@@ -244,6 +369,7 @@ def _forum_app(
     *,
     authenticated: bool = True,
     user: AuthenticatedUser | None = None,
+    notification_repository: FakeForumNotificationRepository | None = None,
 ) -> FastAPI:
     app = FastAPI()
     app.include_router(forum_router)
@@ -261,6 +387,13 @@ def _forum_app(
             return repository
 
         app.dependency_overrides[get_forum_repository] = fake_forum_repository
+
+    if notification_repository is not None:
+
+        async def fake_notification_repository():
+            return notification_repository
+
+        app.dependency_overrides[get_admin_notification_repository] = fake_notification_repository
 
     return app
 
@@ -305,6 +438,92 @@ def test_forum_topics_returns_200():
     body = response.json()
     assert body[0]["id"] == str(TOPIC_ID)
     assert body[0]["title"] == "How do I prepare for add/drop week?"
+
+
+def test_forum_topics_support_search_title_and_body():
+    repo = FakeForumRepository(
+        topics=[
+            _topic(title="Final exam preparation tips", content="Study plan"),
+            _topic(
+                id=TOPIC_ID_TWO,
+                title="Campus printers",
+                content="Portal login troubleshooting steps",
+                is_pinned=False,
+            ),
+        ]
+    )
+
+    title_response = _run(_get("/forum/topics?search=final", _forum_app(repo)))
+    body_response = _run(_get("/forum/topics?q=troubleshooting", _forum_app(repo)))
+
+    assert title_response.status_code == 200
+    assert [item["title"] for item in title_response.json()] == [
+        "Final exam preparation tips"
+    ]
+    assert body_response.status_code == 200
+    assert [item["title"] for item in body_response.json()] == ["Campus printers"]
+
+
+def test_forum_topics_support_category_slug_and_id_filters():
+    repo = FakeForumRepository(
+        topics=[
+            _topic(category_slug="academic-qa", category_id=CATEGORY_ID),
+            _topic(
+                id=TOPIC_ID_TWO,
+                category_id=CATEGORY_ID_TWO,
+                category_slug="it-student-services",
+                category_name_en="IT / Student Services",
+                category_name_vi="CNTT / Dịch vụ sinh viên",
+                title="Portal login checklist",
+                is_pinned=False,
+            ),
+        ]
+    )
+
+    by_slug = _run(_get("/forum/topics?category=it-student-services", _forum_app(repo)))
+    by_id = _run(_get(f"/forum/topics?category_id={CATEGORY_ID_TWO}", _forum_app(repo)))
+
+    assert by_slug.status_code == 200
+    assert [item["id"] for item in by_slug.json()] == [str(TOPIC_ID_TWO)]
+    assert by_id.status_code == 200
+    assert [item["id"] for item in by_id.json()] == [str(TOPIC_ID_TWO)]
+
+
+def test_forum_topics_sort_pinned_newest_activity_and_most_commented():
+    older_pinned = _topic(
+        title="Pinned orientation Q&A",
+        is_pinned=True,
+        last_activity_at=NOW - timedelta(days=7),
+        created_at=NOW - timedelta(days=10),
+        comments=[],
+    )
+    active = _topic(
+        id=TOPIC_ID_TWO,
+        title="Recent active thread",
+        is_pinned=False,
+        last_activity_at=NOW,
+        created_at=NOW,
+        comments=[_comment(id=uuid.UUID("dddddddd-dddd-dddd-dddd-ddddddddddde"))],
+    )
+    busy = _topic(
+        id=uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbd"),
+        title="Many comments",
+        is_pinned=False,
+        last_activity_at=NOW - timedelta(hours=2),
+        created_at=NOW - timedelta(days=2),
+        comment_count=5,
+    )
+    repo = FakeForumRepository(topics=[active, busy, older_pinned])
+
+    active_response = _run(_get("/forum/topics?sort=newest_activity", _forum_app(repo)))
+    commented_response = _run(_get("/forum/topics?sort=most_commented", _forum_app(repo)))
+
+    assert active_response.status_code == 200
+    assert active_response.json()[0]["title"] == "Pinned orientation Q&A"
+    assert active_response.json()[1]["title"] == "Recent active thread"
+    assert commented_response.status_code == 200
+    assert commented_response.json()[0]["title"] == "Pinned orientation Q&A"
+    assert commented_response.json()[1]["title"] == "Many comments"
 
 
 def test_forum_topic_detail_returns_200_for_existing_topic():
@@ -504,6 +723,22 @@ def test_admin_can_hide_and_unhide_comment():
     assert unhide_response.json()["deleted"] is False
 
 
+def test_hidden_comments_show_placeholder_to_students_and_content_to_admins():
+    hidden = _comment(deleted=True, content="Moderator-only context")
+    repo = FakeForumRepository(comment=hidden)
+
+    student_response = _run(_get(f"/forum/topics/{TOPIC_ID}", _forum_app(repo)))
+    admin_response = _run(
+        _get(f"/forum/topics/{TOPIC_ID}", _forum_app(repo, user=_admin_user()))
+    )
+
+    assert student_response.status_code == 200
+    assert student_response.json()["comments"][0]["content"] == "[hidden by moderator]"
+    assert student_response.json()["comments"][0]["author_name"] is None
+    assert admin_response.status_code == 200
+    assert admin_response.json()["comments"][0]["content"] == "Moderator-only context"
+
+
 def test_archived_topic_is_hidden_from_student_list():
     repo = FakeForumRepository()
     app = _forum_app(repo, user=_admin_user())
@@ -514,6 +749,47 @@ def test_archived_topic_is_hidden_from_student_list():
     assert archive_response.status_code == 200
     assert topics_response.status_code == 200
     assert topics_response.json() == []
+
+
+def test_archived_topic_detail_and_list_are_visible_to_admins_only():
+    archived_topic = _topic(deleted=True, title="Archived moderation topic")
+    repo = FakeForumRepository(topics=[archived_topic])
+
+    student_detail = _run(_get(f"/forum/topics/{TOPIC_ID}", _forum_app(repo)))
+    admin_detail = _run(_get(f"/forum/topics/{TOPIC_ID}", _forum_app(repo, user=_admin_user())))
+    admin_archived = _run(
+        _get("/forum/topics?status=archived", _forum_app(repo, user=_admin_user()))
+    )
+
+    assert student_detail.status_code == 404
+    assert admin_detail.status_code == 200
+    assert admin_detail.json()["deleted"] is True
+    assert admin_archived.status_code == 200
+    assert admin_archived.json()[0]["title"] == "Archived moderation topic"
+
+
+def test_admin_can_create_notification_from_forum_topic():
+    notification_repo = FakeForumNotificationRepository()
+    app = _forum_app(
+        FakeForumRepository(),
+        user=_admin_user(),
+        notification_repository=notification_repo,
+    )
+
+    response = _run(
+        _post(
+            f"/forum/topics/{TOPIC_ID}/notification",
+            app,
+            {"target_scope": "all", "priority": "high"},
+        )
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["type"] == "forum"
+    assert body["status"] == "published"
+    assert body["forum_topic_id"] == str(TOPIC_ID)
+    assert notification_repo.created[0]["forum_topic_id"] == TOPIC_ID
 
 
 def test_forum_blank_title_and_comment_body_validation():

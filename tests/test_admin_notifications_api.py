@@ -92,6 +92,8 @@ class NotificationStore:
             "end_date": payload.get("end_date"),
             "source_title": payload.get("source_title"),
             "source_url": payload.get("source_url"),
+            "forum_topic_id": payload.get("forum_topic_id"),
+            "forum_comment_id": payload.get("forum_comment_id"),
             "created_by": created_by,
             "created_by_email": "admin.global.demo@vinuni.edu.vn",
             "created_by_name": "Global Admin",
@@ -266,8 +268,8 @@ class FakeStudentNotificationRepository:
             visible.append(
                 {
                     **row,
-                    "forum_topic_id": None,
-                    "forum_comment_id": None,
+                    "forum_topic_id": row.get("forum_topic_id"),
+                    "forum_comment_id": row.get("forum_comment_id"),
                     "is_read": row["id"] in self.read_ids,
                     "important": False,
                     "archived": False,
@@ -441,6 +443,40 @@ def test_institute_target_visible_only_to_matching_student():
     assert cecs_notifications.json()[0]["title"] == "CECS only"
     assert vib_notifications.status_code == 200
     assert vib_notifications.json() == []
+
+
+def test_student_notification_response_can_reference_forum_topic():
+    forum_topic_id = uuid.UUID("77777777-7777-4777-8777-777777777777")
+    store = NotificationStore()
+    admin_app = _app(_global_admin(), store)
+    created = _run(
+        _request(
+            admin_app,
+            "POST",
+            "/admin/notifications",
+            {
+                "title": "Forum topic",
+                "message": "Discussion to review",
+                "type": "forum",
+                "forum_topic_id": str(forum_topic_id),
+            },
+        )
+    )
+    _run(
+        _request(
+            admin_app,
+            "POST",
+            f"/admin/notifications/{created.json()['id']}/publish",
+        )
+    )
+
+    student_notifications = _run(
+        _request(_app(_student(), store), "GET", "/students/me/notifications")
+    )
+
+    assert student_notifications.status_code == 200
+    assert student_notifications.json()[0]["type"] == "forum"
+    assert student_notifications.json()[0]["forum_topic_id"] == str(forum_topic_id)
 
 
 def test_institute_admin_cannot_target_outside_scope():

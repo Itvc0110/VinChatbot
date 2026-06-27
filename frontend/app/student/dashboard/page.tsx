@@ -267,8 +267,8 @@ export default function StudentDashboardPage() {
 
   // Recommended-for-you: prefer backend contextual suggestions, then fall back to
   // local dashboard cues if the endpoint is empty/loading/error.
-  const recs: { icon: React.ReactNode; text: string; onClick: () => void }[] = [];
-  const addRec = (item: { icon: React.ReactNode; text: string; onClick: () => void }) => {
+  const recs: { icon: React.ReactNode; text: string; onClick: () => void; relatedHref?: string }[] = [];
+  const addRec = (item: { icon: React.ReactNode; text: string; onClick: () => void; relatedHref?: string }) => {
     if (recs.some((rec) => rec.text === item.text)) return;
     recs.push(item);
   };
@@ -287,6 +287,10 @@ export default function StudentDashboardPage() {
       icon,
       text: question.question_text,
       onClick: () => go(question.question_text),
+      relatedHref:
+        question.source_type === "forum_topic" && question.source_id
+          ? `/student/forum/topics/${question.source_id}`
+          : undefined,
     });
   });
   if (todays[0]) {
@@ -362,10 +366,17 @@ export default function StudentDashboardPage() {
             </div>
             <div className="rec-strip">
               {recs.slice(0, 3).map((r, i) => (
-                <button key={i} className="rec-card" onClick={r.onClick}>
-                  <span className="rec-icon">{r.icon}</span>
-                  <span className="rec-text">{r.text}</span>
-                </button>
+                <div key={i} className="rec-card-wrap">
+                  <button className="rec-card" onClick={r.onClick}>
+                    <span className="rec-icon">{r.icon}</span>
+                    <span className="rec-text">{r.text}</span>
+                  </button>
+                  {r.relatedHref && (
+                    <Link className="rec-related" href={r.relatedHref}>
+                      {p.forum.relatedForumTopic}
+                    </Link>
+                  )}
+                </div>
               ))}
             </div>
           </div>

@@ -20,6 +20,7 @@ export interface CommentHandlers {
   onToast: (message: string) => void;
   canModerate: boolean;
   currentUserId?: string;
+  topicAuthorId?: string;
   locked: boolean;
 }
 
@@ -40,6 +41,10 @@ function CommentItem({
   const [draft, setDraft] = useState(comment.content);
   const [busy, setBusy] = useState(false);
   const mine = !!handlers.currentUserId && comment.author_user_id === handlers.currentUserId;
+  const authorOfTopic = !!handlers.topicAuthorId && comment.author_user_id === handlers.topicAuthorId;
+  const staffAuthor = comment.author_roles.some((role) =>
+    ["global_admin", "institute_admin", "staff"].includes(role)
+  );
 
   useEffect(() => {
     setDraft(comment.content);
@@ -84,7 +89,10 @@ function CommentItem({
             <span className="forum-comment-author">
               {comment.deleted ? "—" : mine ? p.forum.you : comment.author_name ?? "—"}
             </span>
+            {authorOfTopic && !comment.deleted && <Badge tone="info">{p.forum.authorBadge}</Badge>}
+            {staffAuthor && !comment.deleted && <span className="forum-flag staff">{p.forum.staffBadge}</span>}
             {comment.is_official && <Badge tone="success">{p.forum.officialAnswer}</Badge>}
+            {comment.deleted && <Badge tone="neutral">{p.forum.hiddenCommentBadge}</Badge>}
             <span className="forum-comment-time">{relativeTime(comment.created_at, lang)}</span>
           </div>
 
@@ -120,7 +128,7 @@ function CommentItem({
               </div>
             </div>
           ) : (
-            <p className="forum-comment-text">{comment.content}</p>
+            <p className="forum-comment-text">{comment.deleted && !handlers.canModerate ? p.forum.hiddenComment : comment.content}</p>
           )}
 
           {!comment.deleted ? (

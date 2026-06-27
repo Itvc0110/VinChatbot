@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ChatColumn } from "@/components/ChatColumn";
 import { Composer } from "@/components/Composer";
@@ -15,6 +16,11 @@ import { getActiveSuggestedQuestions } from "@/lib/api";
 import { IconClock, IconBell, IconTicket, IconCalendar, IconChat } from "@/components/shell/icons";
 
 const SUGG_ICONS = [IconClock, IconBell, IconTicket, IconCalendar];
+
+interface SuggestionItem {
+  text: string;
+  relatedHref?: string;
+}
 
 // Full "Ask Vinnie" page. The chat state lives in the shared ChatProvider (mounted in the
 // student shell), so this page and the floating bubble are the SAME conversation. Layout only:
@@ -53,7 +59,16 @@ function ChatView() {
   // ChatColumn takes over and these are gone.
   const empty = chat.messages.length === 0;
   const firstName = (user?.name ?? "").split(" ").slice(-1)[0] || user?.name || "";
-  const suggestionCards = chips.slice(0, 4);
+  const suggestionItems: SuggestionItem[] =
+    suggested.status === "success" && suggested.data.length > 0
+      ? suggested.data.slice(0, 4).map((question) => ({
+          text: question.question_text,
+          relatedHref:
+            question.source_type === "forum_topic" && question.source_id
+              ? `/student/forum/topics/${question.source_id}`
+              : undefined,
+        }))
+      : p.chatSuggested.slice(0, 4).map((text) => ({ text }));
 
   return (
     <div className="chat-shell">
@@ -83,20 +98,26 @@ function ChatView() {
                 <h1 className="vinnie-welcome-title">{p.chatWelcomeTitle(firstName)}</h1>
                 <p className="vinnie-welcome-sub">{p.chatWelcomeSub}</p>
                 <div className="vinnie-sugg-grid">
-                  {suggestionCards.map((q, i) => {
+                  {suggestionItems.map((item, i) => {
                     const Ic = SUGG_ICONS[i % SUGG_ICONS.length];
                     return (
-                      <button
-                        key={q}
-                        className="vinnie-sugg-card"
-                        disabled={chat.busy}
-                        onClick={() => chat.send(q)}
-                      >
-                        <span className="vinnie-sugg-icon">
-                          <Ic size={18} />
-                        </span>
-                        <span className="vinnie-sugg-text">{q}</span>
-                      </button>
+                      <div key={item.text} className="vinnie-sugg-wrap">
+                        <button
+                          className="vinnie-sugg-card"
+                          disabled={chat.busy}
+                          onClick={() => chat.send(item.text)}
+                        >
+                          <span className="vinnie-sugg-icon">
+                            <Ic size={18} />
+                          </span>
+                          <span className="vinnie-sugg-text">{item.text}</span>
+                        </button>
+                        {item.relatedHref && (
+                          <Link className="vinnie-sugg-related" href={item.relatedHref}>
+                            {p.forum.relatedForumTopic}
+                          </Link>
+                        )}
+                      </div>
                     );
                   })}
                 </div>

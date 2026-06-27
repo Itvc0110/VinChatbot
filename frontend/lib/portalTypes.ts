@@ -255,6 +255,8 @@ export type SuggestedQuestionPhase = "early" | "near_deadline" | "overdue" | "ac
 export interface SuggestedQuestion {
   id: string;
   notification_id: string;
+  source_type?: string;
+  source_id?: string;
   question_text: string;
   category: NotificationType;
   trigger_phase: SuggestedQuestionPhase;
@@ -440,7 +442,7 @@ export interface AdminDashboard {
 // ---- Forum / Discussion Hub -------------------------------------------------
 // Public peer discussion, deliberately separate from private support tickets.
 
-export type ForumSort = "active" | "new" | "top";
+export type ForumSort = "active" | "pinned" | "newest_activity" | "most_commented" | "new" | "top";
 export type ForumVoteValue = -1 | 0 | 1;
 export type ForumVoteTarget = "topic" | "comment";
 
@@ -476,6 +478,7 @@ export interface ForumComment {
   parent_comment_id?: string;
   author_user_id?: string;
   author_name?: string;
+  author_roles: string[];
   content: string;
   is_official: boolean;
   deleted: boolean;
@@ -494,11 +497,13 @@ export interface ForumTopic {
   category_name_vi?: string;
   author_user_id?: string;
   author_name?: string;
+  author_roles: string[];
   title: string;
   excerpt?: string;
   tags: string[];
   is_pinned: boolean;
   is_locked: boolean;
+  deleted: boolean;
   has_official_answer: boolean;
   view_count: number;
   comment_count: number;

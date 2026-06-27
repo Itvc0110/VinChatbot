@@ -16,6 +16,7 @@ import { relativeTime } from "@/lib/format";
 import {
   addForumComment,
   archiveForumTopic,
+  createForumTopicNotification,
   deleteForumComment,
   deleteForumTopic,
   getForumTopic,
@@ -37,11 +38,11 @@ export default function ForumTopicDetailPage() {
   const topicId = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
   const { p, lang } = usePortal();
-  const { user } = useAuth();
+  const { token, user } = useAuth();
   const canModerate =
     user?.roles.some((role) => ["global_admin", "institute_admin", "staff"].includes(role)) ?? false;
 
-  const topicState = useAsync(() => getForumTopic(topicId), [topicId]);
+  const topicState = useAsync(() => getForumTopic(topicId), [topicId, token, user?.id]);
   const [topic, setTopic] = useState<ForumTopic | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [modBusy, setModBusy] = useState(false);
@@ -49,6 +50,16 @@ export default function ForumTopicDetailPage() {
   const [topicTitle, setTopicTitle] = useState("");
   const [topicContent, setTopicContent] = useState("");
   const [topicBusy, setTopicBusy] = useState(false);
+
+  useEffect(() => {
+    setTopic(null);
+    setToast(null);
+    setModBusy(false);
+    setEditingTopic(false);
+    setTopicTitle("");
+    setTopicContent("");
+    setTopicBusy(false);
+  }, [token, user?.id, topicId]);
 
   useEffect(() => {
     if (topicState.status === "success") {
@@ -89,7 +100,8 @@ export default function ForumTopicDetailPage() {
   const handlers: CommentHandlers = {
     currentUserId: user?.id,
     canModerate,
-    locked: topic?.is_locked ?? false,
+    topicAuthorId: topic?.author_user_id,
+    locked: Boolean(topic?.is_locked || topic?.deleted),
     onToast: setToast,
     onVote: (commentId, value) => {
       voteForumComment(commentId, value)
@@ -134,6 +146,19 @@ export default function ForumTopicDetailPage() {
         .then(refreshTopic)
         .catch(() => setToast(p.forum.actionFailed));
     },
+  };
+
+  const createTopicNotification = async () => {
+    if (modBusy) return;
+    setModBusy(true);
+    try {
+      await createForumTopicNotification(topicId);
+      setToast(p.forum.notificationCreated);
+    } catch {
+      setToast(p.forum.actionFailed);
+    } finally {
+      setModBusy(false);
+    }
   };
 
   const onModerateTopic = (patch: TopicModeratePatch) => {
@@ -200,6 +225,10 @@ export default function ForumTopicDetailPage() {
           const categoryName = lang === "vi" ? t.category_name_vi : t.category_name_en;
           const comments = t.comments ?? [];
           const mine = !!user?.id && t.author_user_id === user.id;
+          const readOnly = t.is_locked || t.deleted;
+          const staffAuthor = t.author_roles.some((role) =>
+            ["global_admin", "institute_admin", "staff"].includes(role)
+          );
           return (
             <>
               <article className="forum-post">
@@ -210,7 +239,9 @@ export default function ForumTopicDetailPage() {
                     {categoryName && <Badge tone="info">{categoryName}</Badge>}
                     {t.is_pinned && <span className="forum-flag pinned">{p.forum.pinned}</span>}
                     {t.is_locked && <span className="forum-flag locked">{p.forum.locked}</span>}
+                    {t.deleted && <span className="forum-flag archived">{p.forum.archived}</span>}
                     {t.has_official_answer && <Badge tone="success">{p.forum.officialAnswer}</Badge>}
+                    {staffAuthor && <span className="forum-flag staff">{p.forum.staffBadge}</span>}
                   </div>
 
                   {editingTopic ? (
@@ -258,6 +289,7 @@ export default function ForumTopicDetailPage() {
                   <div className="forum-post-meta">
                     <span>
                       {p.forum.by} <strong>{mine ? p.forum.you : t.author_name ?? "—"}</strong>
+                      {mine && <span className="forum-inline-badge">{p.forum.authorBadge}</span>}
                     </span>
                     <span aria-hidden>·</span>
                     <span>{relativeTime(t.created_at, lang)}</span>
@@ -288,7 +320,7 @@ export default function ForumTopicDetailPage() {
                   )}
 
                   <div className="forum-post-foot">
-                    {mine && !t.is_locked && !editingTopic && (
+                    {mine && !readOnly && !editingTopic && (
                       <>
                         <button
                           type="button"
@@ -307,23 +339,29 @@ export default function ForumTopicDetailPage() {
                         </button>
                       </>
                     )}
-                    {!mine && (
+                    {!mine && !t.deleted && (
                       <ReportButton targetType="topic" targetId={t.id} onReported={setToast} />
                     )}
                   </div>
 
                   {canModerate && (
-                    <ModActionBar topic={t} onModerate={onModerateTopic} busy={modBusy} />
+                    <ModActionBar
+                      topic={t}
+                      onModerate={onModerateTopic}
+                      onCreateNotification={createTopicNotification}
+                      busy={modBusy}
+                    />
                   )}
                 </div>
               </article>
 
               {t.is_locked && <p className="forum-locked-banner">{p.forum.lockedNotice}</p>}
+              {t.deleted && <p className="forum-locked-banner">{p.forum.archivedNotice}</p>}
 
               <section className="forum-comments-section">
                 <h2 className="forum-comments-head">{p.forum.commentCount(t.comment_count)}</h2>
 
-                {!t.is_locked && (
+                {!readOnly && (
                   <CommentComposer
                     onSubmit={postComment}
                     placeholder={p.forum.commentPlaceholder}

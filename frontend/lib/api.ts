@@ -171,6 +171,8 @@ export interface BackendAdminNotification {
   end_date?: string | null;
   source_title?: string | null;
   source_url?: string | null;
+  forum_topic_id?: string | null;
+  forum_comment_id?: string | null;
   created_by?: string | null;
   created_by_email?: string | null;
   created_by_name?: string | null;
@@ -200,6 +202,8 @@ export interface AdminNotificationPayload {
   end_date?: string | null;
   source_title?: string | null;
   source_url?: string | null;
+  forum_topic_id?: string | null;
+  forum_comment_id?: string | null;
 }
 
 export type AdminNotificationCreatePayload = AdminNotificationPayload & {
@@ -825,6 +829,9 @@ function mapNotification(notification: BackendNotification): Notification {
 }
 
 function mapAdminNotification(notification: BackendAdminNotification): Notification {
+  const forumHref = notification.forum_topic_id
+    ? `/student/forum/topics/${notification.forum_topic_id}`
+    : undefined;
   const targetAudience =
     notification.target_scope === "institute" && notification.institute_code
       ? [notification.institute_code]
@@ -843,6 +850,7 @@ function mapAdminNotification(notification: BackendAdminNotification): Notificat
     archived: notification.status === "archived",
     source_title: notification.source_title ?? undefined,
     source_url: notification.source_url ?? undefined,
+    action_href: forumHref,
     priority: notification.priority as Notification["priority"],
     target_audience: targetAudience,
     deadline: notification.deadline ?? undefined,
@@ -856,6 +864,8 @@ function mapAdminNotification(notification: BackendAdminNotification): Notificat
       notification.created_by ??
       undefined,
     updated_at: notification.updated_at,
+    forum_topic_id: notification.forum_topic_id ?? undefined,
+    forum_comment_id: notification.forum_comment_id ?? undefined,
   };
 }
 
@@ -865,6 +875,8 @@ function mapSuggestedQuestion(question: BackendSuggestedQuestion): SuggestedQues
   return {
     id: question.id,
     notification_id: question.notification_id ?? question.source_id ?? "",
+    source_type: question.source_type,
+    source_id: question.source_id ?? undefined,
     question_text: question.question_text,
     category,
     trigger_phase: suggestionPhase(question.trigger_phase),
@@ -1284,6 +1296,8 @@ export async function createNotification(input: {
   suggested_questions?: SuggestedQuestion[];
   source_title?: string | null;
   source_url?: string | null;
+  forum_topic_id?: string | null;
+  forum_comment_id?: string | null;
 }): Promise<Notification> {
   const row = await apiRequest<BackendAdminNotification>("/api/admin/notifications", {
     method: "POST",
@@ -1303,6 +1317,8 @@ export async function createNotification(input: {
       end_date: input.end_date || null,
       source_title: input.source_title ?? null,
       source_url: input.source_url ?? null,
+      forum_topic_id: input.forum_topic_id ?? null,
+      forum_comment_id: input.forum_comment_id ?? null,
     }),
   });
   return mapAdminNotification(row);
@@ -1330,6 +1346,8 @@ export async function updateNotification(
       end_date: patch.end_date,
       source_title: patch.source_title,
       source_url: patch.source_url,
+      forum_topic_id: patch.forum_topic_id,
+      forum_comment_id: patch.forum_comment_id,
     }),
   });
   return mapAdminNotification(row);
@@ -1604,6 +1622,7 @@ export interface BackendForumComment {
   parent_comment_id?: string | null;
   author_user_id?: string | null;
   author_name?: string | null;
+  author_roles?: string[] | null;
   content: string;
   is_official: boolean;
   deleted: boolean;
@@ -1622,11 +1641,13 @@ export interface BackendForumTopic {
   category_name_vi?: string | null;
   author_user_id?: string | null;
   author_name?: string | null;
+  author_roles?: string[] | null;
   title: string;
   excerpt?: string | null;
   tags: string[];
   is_pinned: boolean;
   is_locked: boolean;
+  deleted?: boolean;
   has_official_answer: boolean;
   view_count: number;
   comment_count: number;
@@ -1684,10 +1705,22 @@ export interface UpdateForumCommentPayload {
   content?: string;
 }
 
+export interface ForumTopicNotificationPayload {
+  title?: string;
+  message?: string;
+  priority?: Notification["priority"];
+  target_scope?: "all" | "institute";
+  institute_id?: string | null;
+  publish?: boolean;
+}
+
 export interface ForumTopicFilters {
   category?: string;
+  category_id?: string;
   sort?: ForumSort;
   q?: string;
+  search?: string;
+  status?: "active" | "archived" | "all";
 }
 
 function clampVote(value: number): ForumVoteValue {
@@ -1718,6 +1751,7 @@ function mapForumComment(c: BackendForumComment): ForumComment {
     parent_comment_id: c.parent_comment_id ?? undefined,
     author_user_id: c.author_user_id ?? undefined,
     author_name: c.author_name ?? undefined,
+    author_roles: c.author_roles ?? [],
     content: c.content,
     is_official: c.is_official,
     deleted: c.deleted,
@@ -1738,11 +1772,13 @@ function mapForumTopic(t: BackendForumTopic): ForumTopic {
     category_name_vi: t.category_name_vi ?? undefined,
     author_user_id: t.author_user_id ?? undefined,
     author_name: t.author_name ?? undefined,
+    author_roles: t.author_roles ?? [],
     title: t.title,
     excerpt: t.excerpt ?? undefined,
     tags: t.tags ?? [],
     is_pinned: t.is_pinned,
     is_locked: t.is_locked,
+    deleted: t.deleted ?? false,
     has_official_answer: t.has_official_answer,
     view_count: t.view_count,
     comment_count: t.comment_count,
@@ -1775,8 +1811,11 @@ export async function getForumCategories(): Promise<ForumCategory[]> {
 export async function getForumTopics(filters: ForumTopicFilters = {}): Promise<ForumTopic[]> {
   const params = new URLSearchParams();
   if (filters.category && filters.category !== "all") params.set("category", filters.category);
+  if (filters.category_id) params.set("category_id", filters.category_id);
   if (filters.sort) params.set("sort", filters.sort);
   if (filters.q && filters.q.trim()) params.set("q", filters.q.trim());
+  if (filters.search && filters.search.trim()) params.set("search", filters.search.trim());
+  if (filters.status && filters.status !== "active") params.set("status", filters.status);
   const query = params.toString();
   const rows = await getJSON<BackendForumTopic[]>(`/api/forum/topics${query ? `?${query}` : ""}`);
   return rows.map(mapForumTopic);
@@ -1935,6 +1974,21 @@ export async function archiveForumTopic(topicId: string): Promise<ForumTopic> {
     headers: { Accept: "application/json" },
   });
   return mapForumTopic(row);
+}
+
+export async function createForumTopicNotification(
+  topicId: string,
+  payload: ForumTopicNotificationPayload = {}
+): Promise<Notification> {
+  const row = await apiRequest<BackendAdminNotification>(
+    `/api/forum/topics/${topicId}/notification`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+  return mapAdminNotification(row);
 }
 
 export async function moderateForumComment(

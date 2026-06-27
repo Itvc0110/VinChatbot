@@ -42,6 +42,7 @@ class ForumCommentResponse(BaseModel):
     parent_comment_id: uuid.UUID | None = None
     author_user_id: uuid.UUID | None = None
     author_name: str | None = None
+    author_roles: list[str] = Field(default_factory=list)
     content: str
     is_official: bool
     deleted: bool
@@ -60,11 +61,13 @@ class ForumTopicSummary(BaseModel):
     category_name_vi: str | None = None
     author_user_id: uuid.UUID | None = None
     author_name: str | None = None
+    author_roles: list[str] = Field(default_factory=list)
     title: str
     excerpt: str | None = None
     tags: list[str] = Field(default_factory=list)
     is_pinned: bool
     is_locked: bool
+    deleted: bool = False
     has_official_answer: bool = False
     view_count: int
     comment_count: int = 0
@@ -217,6 +220,34 @@ class ModerateTopicRequest(BaseModel):
 class ModerateCommentRequest(BaseModel):
     is_official: bool | None = None
     deleted: bool | None = None
+
+
+class ForumTopicNotificationRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=300)
+    message: str | None = Field(default=None, min_length=1, max_length=5000)
+    priority: str = Field(default="medium")
+    target_scope: str | None = None
+    institute_id: uuid.UUID | None = None
+    publish: bool = True
+
+    @field_validator("title", "message")
+    @classmethod
+    def normalize_optional_nonblank_text(cls, value: str | None) -> str | None:
+        return _strip_required(value) if value is not None else None
+
+    @field_validator("priority")
+    @classmethod
+    def validate_priority(cls, value: str) -> str:
+        if value not in {"low", "medium", "high", "urgent"}:
+            raise ValueError("Invalid notification priority.")
+        return value
+
+    @field_validator("target_scope")
+    @classmethod
+    def validate_target_scope(cls, value: str | None) -> str | None:
+        if value is not None and value not in {"all", "institute"}:
+            raise ValueError("Invalid notification target scope.")
+        return value
 
 
 # Self-referencing model (ForumCommentResponse.replies) — resolve the forward reference.
