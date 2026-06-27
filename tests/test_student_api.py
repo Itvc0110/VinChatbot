@@ -224,7 +224,8 @@ class FakeStudentRepository:
         self.read_notification_ids.update(visible)
         return updated_count
 
-    async def get_suggestions(self, profile):
+    async def get_suggestions(self, *, user_id, profile):
+        assert user_id == STUDENT_USER_ID
         assert profile["id"] == PROFILE_ID
         base = {
             "source_id": None,
@@ -490,6 +491,12 @@ def test_student_cannot_mutate_invisible_notification():
 
     assert read_response.status_code == 404
     assert unread_response.status_code == 404
+
+
+def test_suggestions_require_auth():
+    response = _run(_get("/suggestions/me", _student_app(repository=FakeStudentRepository())))
+
+    assert response.status_code == 401
 
 
 def test_suggestions_are_grouped():

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 from psycopg_pool import AsyncConnectionPool
+
+MAX_STUDENT_SUGGESTIONS = 8
+NEAR_DEADLINE_DAYS = 14
 
 
 class StudentRepository:
@@ -333,8 +338,52 @@ class StudentRepository:
         )
         return dict(row) if row is not None else None
 
-    async def get_suggestions(self, profile: dict[str, Any]) -> list[dict[str, Any]]:
+    async def get_suggestions(
+        self,
+        *,
+        user_id: uuid.UUID,
+        profile: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        now = datetime.now(UTC)
         course_ids = await self._fetch_enrolled_course_ids(profile["id"])
+        seeded_suggestions = await self._fetch_seeded_suggestions(profile, course_ids)
+        notifications = await self.get_notifications(user_id=user_id, profile=profile)
+        deadlines = await self.get_deadlines(profile["id"], upcoming_only=True)
+        schedule = await self.get_schedule(profile["id"], upcoming_only=True)
+
+        suggestions: list[dict[str, Any]] = []
+        suggestions.extend(
+            self._notification_suggestion(profile=profile, notification=notification, now=now)
+            for notification in notifications
+            if self._notification_can_influence_suggestions(
+                notification=notification,
+                profile=profile,
+                course_ids=course_ids,
+                now=now,
+            )
+        )
+        suggestions.extend(
+            self._deadline_suggestion(profile=profile, deadline=deadline, now=now)
+            for deadline in deadlines
+        )
+        suggestions.extend(
+            self._schedule_suggestion(profile=profile, schedule_item=item, now=now)
+            for item in schedule
+        )
+        suggestions.extend(seeded_suggestions)
+
+        ranked = self._rank_and_dedupe_suggestions(suggestions)
+        if len(ranked) < 3:
+            ranked = self._rank_and_dedupe_suggestions(
+                [*ranked, *self._fallback_suggestions(profile=profile, now=now)]
+            )
+        return ranked[:MAX_STUDENT_SUGGESTIONS]
+
+    async def _fetch_seeded_suggestions(
+        self,
+        profile: dict[str, Any],
+        course_ids: list[uuid.UUID],
+    ) -> list[dict[str, Any]]:
         rows = await self._fetchall(
             """
             select
@@ -373,6 +422,291 @@ class StudentRepository:
             (profile["institute"]["id"], course_ids, profile["cohort"]),
         )
         return [dict(row) for row in rows]
+
+    def _notification_suggestion(
+        self,
+        *,
+        profile: dict[str, Any],
+        notification: dict[str, Any],
+        now: datetime,
+    ) -> dict[str, Any]:
+        notification_type = str(notification.get("type") or "notification")
+        title = str(notification.get("title") or "this announcement").strip()
+        text_blob = f"{title} {notification.get('message') or ''}".lower()
+        if "exam" in text_blob or "thi" in text_blob:
+            question_text = "What should I pay attention to for my exam schedule?"
+            category = "academic"
+        elif "scholarship" in text_blob or "học bổng" in text_blob or "hoc bong" in text_blob:
+            question_text = "What are the requirements and deadline for this scholarship?"
+            category = "student_services"
+        elif notification.get("deadline") is not None or notification_type == "deadline":
+            question_text = f"What do I need to do before {title}?"
+            category = "deadline"
+        elif notification.get("event_date") is not None or notification_type == "event":
+            question_text = f"What should I know about {title}?"
+            category = "event"
+        else:
+            question_text = f"What should I do about {title}?"
+            category = notification_type
+
+        trigger_phase = self._deadline_phase(notification.get("deadline"), now)
+        if trigger_phase == "active":
+            trigger_phase = "announcement"
+        priority = self._notification_priority(notification)
+        return self._suggestion_record(
+            profile=profile,
+            question_text=question_text,
+            source_type="notification",
+            source_id=notification["id"],
+            notification_id=notification["id"],
+            category=category,
+            trigger_phase=trigger_phase,
+            priority=priority,
+            score=Decimal(priority) / Decimal("10"),
+            valid_from=notification.get("start_date") or notification.get("created_at") or now,
+            valid_until=(
+                notification.get("end_date")
+                or notification.get("deadline")
+                or notification.get("event_date")
+                or now + timedelta(days=30)
+            ),
+            topic=notification_type,
+            intent="clarify_next_step",
+            course_id=notification.get("course_id"),
+            course_code=notification.get("course_code"),
+            cohort=notification.get("cohort") or profile.get("cohort"),
+        )
+
+    def _deadline_suggestion(
+        self,
+        *,
+        profile: dict[str, Any],
+        deadline: dict[str, Any],
+        now: datetime,
+    ) -> dict[str, Any]:
+        title = str(deadline.get("title") or "my next deadline").strip()
+        due_at = deadline.get("due_at")
+        trigger_phase = self._deadline_phase(due_at, now)
+        priority = 86 if trigger_phase == "near_deadline" else 72
+        return self._suggestion_record(
+            profile=profile,
+            question_text=f"What do I need to finish before {title}?",
+            source_type="deadline",
+            source_id=deadline["id"],
+            notification_id=None,
+            category="deadline_context",
+            trigger_phase=trigger_phase,
+            priority=priority,
+            score=Decimal(priority) / Decimal("10"),
+            valid_from=now - timedelta(days=1),
+            valid_until=due_at or now + timedelta(days=30),
+            topic="deadline",
+            intent="plan_next_step",
+            course_id=deadline.get("course_id"),
+            course_code=deadline.get("course_code"),
+            cohort=profile.get("cohort"),
+        )
+
+    def _schedule_suggestion(
+        self,
+        *,
+        profile: dict[str, Any],
+        schedule_item: dict[str, Any],
+        now: datetime,
+    ) -> dict[str, Any]:
+        title = str(schedule_item.get("title") or schedule_item.get("course_title") or "my schedule")
+        schedule_type = str(schedule_item.get("schedule_type") or "schedule")
+        is_event = schedule_type in {"event", "workshop", "orientation"}
+        return self._suggestion_record(
+            profile=profile,
+            question_text=(
+                f"What should I know before {title}?"
+                if is_event
+                else "What does my schedule look like this week?"
+            ),
+            source_type="event" if is_event else "schedule",
+            source_id=schedule_item["id"],
+            notification_id=None,
+            category="event" if is_event else "schedule_context",
+            trigger_phase="upcoming_event" if is_event else "before_class",
+            priority=68 if is_event else 64,
+            score=Decimal("6.800") if is_event else Decimal("6.400"),
+            valid_from=now - timedelta(days=1),
+            valid_until=schedule_item.get("end_time") or now + timedelta(days=14),
+            topic=schedule_type,
+            intent="prepare",
+            course_id=schedule_item.get("course_id"),
+            course_code=schedule_item.get("course_code"),
+            cohort=profile.get("cohort"),
+        )
+
+    def _fallback_suggestions(self, *, profile: dict[str, Any], now: datetime) -> list[dict[str, Any]]:
+        institute_code = profile["institute"]["code"]
+        fallback_items = [
+            ("What deadlines should I focus on next?", "deadline_context", "deadline", 42),
+            ("What is on my academic schedule this week?", "schedule_context", "schedule", 40),
+            (
+                f"What should {institute_code} students pay attention to this week?",
+                "academic",
+                "static",
+                38,
+            ),
+        ]
+        return [
+            self._suggestion_record(
+                profile=profile,
+                question_text=question_text,
+                source_type=source_type,
+                source_id=None,
+                notification_id=None,
+                category=category,
+                trigger_phase="active",
+                priority=priority,
+                score=Decimal(priority) / Decimal("10"),
+                valid_from=now - timedelta(days=1),
+                valid_until=now + timedelta(days=14),
+                topic=category,
+                intent="general_support",
+                course_id=None,
+                course_code=None,
+                cohort=profile.get("cohort"),
+            )
+            for question_text, category, source_type, priority in fallback_items
+        ]
+
+    def _suggestion_record(
+        self,
+        *,
+        profile: dict[str, Any],
+        question_text: str,
+        source_type: str,
+        source_id: uuid.UUID | None,
+        notification_id: uuid.UUID | None,
+        category: str,
+        trigger_phase: str,
+        priority: int,
+        score: Decimal,
+        valid_from: datetime | None,
+        valid_until: datetime | None,
+        topic: str,
+        intent: str,
+        course_id: uuid.UUID | None,
+        course_code: str | None,
+        cohort: int | None,
+    ) -> dict[str, Any]:
+        institute = profile["institute"]
+        return {
+            "id": self._suggestion_id(profile["id"], source_type, source_id, question_text),
+            "question_text": question_text,
+            "source_type": source_type,
+            "source_id": source_id,
+            "notification_id": notification_id,
+            "topic": topic,
+            "intent": intent,
+            "category": category,
+            "trigger_phase": trigger_phase,
+            "institute_id": institute["id"],
+            "institute_code": institute["code"],
+            "course_id": course_id,
+            "course_code": course_code,
+            "cohort": cohort,
+            "score": score,
+            "priority": priority,
+            "created_by_ai": True,
+            "approved_by_admin": True,
+            "is_active": True,
+            "valid_from": valid_from,
+            "valid_until": valid_until,
+        }
+
+    def _rank_and_dedupe_suggestions(self, suggestions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        deduped: dict[str, dict[str, Any]] = {}
+        for suggestion in suggestions:
+            question_key = " ".join(str(suggestion["question_text"]).lower().split())
+            existing = deduped.get(question_key)
+            if existing is None or self._suggestion_sort_key(suggestion) < self._suggestion_sort_key(existing):
+                deduped[question_key] = suggestion
+        return sorted(deduped.values(), key=self._suggestion_sort_key)
+
+    def _suggestion_sort_key(self, suggestion: dict[str, Any]) -> tuple[int, Decimal, str]:
+        return (
+            -int(suggestion.get("priority") or 0),
+            -Decimal(str(suggestion.get("score") or "0")),
+            str(suggestion.get("question_text") or ""),
+        )
+
+    def _deadline_phase(self, deadline_at: Any, now: datetime) -> str:
+        deadline = self._aware_datetime(deadline_at)
+        if deadline is None:
+            return "active"
+        if deadline < now:
+            return "overdue"
+        if deadline <= now + timedelta(days=NEAR_DEADLINE_DAYS):
+            return "near_deadline"
+        return "early"
+
+    def _notification_priority(self, notification: dict[str, Any]) -> int:
+        priority = str(notification.get("priority") or "medium")
+        base = {
+            "urgent": 100,
+            "high": 92,
+            "medium": 76,
+            "low": 58,
+        }.get(priority, 70)
+        if notification.get("deadline") is not None:
+            base += 4
+        return base
+
+    def _notification_can_influence_suggestions(
+        self,
+        *,
+        notification: dict[str, Any],
+        profile: dict[str, Any],
+        course_ids: list[uuid.UUID],
+        now: datetime,
+    ) -> bool:
+        if notification.get("archived"):
+            return False
+        if notification.get("status") not in {"published", "scheduled"}:
+            return False
+        start_date = self._aware_datetime(notification.get("start_date"))
+        end_date = self._aware_datetime(notification.get("end_date"))
+        if start_date is not None and start_date > now:
+            return False
+        if end_date is not None and end_date < now:
+            return False
+
+        target_scope = notification.get("target_scope")
+        if target_scope == "all":
+            return True
+        if target_scope == "institute":
+            return notification.get("institute_id") == profile["institute"]["id"]
+        if target_scope == "course":
+            return notification.get("course_id") in set(course_ids)
+        if target_scope == "cohort":
+            return notification.get("cohort") == profile.get("cohort")
+        if target_scope == "student":
+            return True
+        return False
+
+    def _aware_datetime(self, value: Any) -> datetime | None:
+        if not isinstance(value, datetime):
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
+
+    def _suggestion_id(
+        self,
+        student_profile_id: uuid.UUID,
+        source_type: str,
+        source_id: uuid.UUID | None,
+        question_text: str,
+    ) -> uuid.UUID:
+        return uuid.uuid5(
+            uuid.NAMESPACE_URL,
+            f"vinchatbot:suggestion:{student_profile_id}:{source_type}:{source_id}:{question_text}",
+        )
 
     async def _fetch_enrolled_course_ids(self, student_profile_id: uuid.UUID) -> list[uuid.UUID]:
         rows = await self._fetchall(

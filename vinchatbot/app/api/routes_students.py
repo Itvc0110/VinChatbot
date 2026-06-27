@@ -169,7 +169,7 @@ async def student_suggestions(
     repository: Annotated[StudentRepository, Depends(get_student_repository)],
 ) -> SuggestedQuestionGroupsResponse:
     profile = await current_student_profile(current_user, repository)
-    suggestions = await repository.get_suggestions(profile)
+    suggestions = await repository.get_suggestions(user_id=current_user.id, profile=profile)
     return group_suggestions(suggestions)
 
 

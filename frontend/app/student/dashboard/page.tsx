@@ -13,6 +13,7 @@ import {
   getStudentDeadlines,
   getSupportTickets,
   getStudentCalendar,
+  getActiveSuggestedQuestions,
 } from "@/lib/api";
 import { daysUntil } from "@/lib/format";
 import { timeLabel } from "@/lib/calendar";
@@ -228,6 +229,7 @@ export default function StudentDashboardPage() {
   const deadlines = useAsync(() => getStudentDeadlines(), [token]);
   const tickets = useAsync(() => getSupportTickets(), [token]);
   const calendar = useAsync(() => getStudentCalendar(), [token]);
+  const suggestedQuestions = useAsync(() => getActiveSuggestedQuestions(lang), [lang, token]);
 
   const go = (q: string) => router.push(`/student/chat?q=${encodeURIComponent(q)}`);
 
@@ -263,10 +265,32 @@ export default function StudentDashboardPage() {
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
     .slice(0, 3);
 
-  // Recommended-for-you: derived, urgency-first.
+  // Recommended-for-you: prefer backend contextual suggestions, then fall back to
+  // local dashboard cues if the endpoint is empty/loading/error.
   const recs: { icon: React.ReactNode; text: string; onClick: () => void }[] = [];
+  const addRec = (item: { icon: React.ReactNode; text: string; onClick: () => void }) => {
+    if (recs.some((rec) => rec.text === item.text)) return;
+    recs.push(item);
+  };
+  const liveSuggestions =
+    suggestedQuestions.status === "success" ? suggestedQuestions.data.slice(0, 3) : [];
+  liveSuggestions.forEach((question, index) => {
+    const icon =
+      index === 0 ? (
+        <IconChat size={18} />
+      ) : index === 1 ? (
+        <IconClock size={18} />
+      ) : (
+        <IconCap size={18} />
+      );
+    addRec({
+      icon,
+      text: question.question_text,
+      onClick: () => go(question.question_text),
+    });
+  });
   if (todays[0]) {
-    recs.push({
+    addRec({
       icon: <IconCap size={18} />,
       text: s.startsAt(todays[0].course_code, todays[0].start),
       onClick: () => router.push("/student/schedule"),
@@ -275,7 +299,7 @@ export default function StudentDashboardPage() {
   if (deadlines.status === "success" && deadlines.data[0]) {
     const d = deadlines.data[0];
     const n = daysUntil(d.due_at);
-    recs.push({
+    addRec({
       icon: <IconClock size={18} />,
       text: n <= 0 ? s.dueToday(d.title) : s.dueInDays(d.title, n),
       onClick: () => go(`Tell me about the deadline: ${d.title}`),
@@ -288,14 +312,14 @@ export default function StudentDashboardPage() {
       !t.deleted
   );
   if (needsInput) {
-    recs.push({
+    addRec({
       icon: <IconTicket size={18} />,
       text: s.needsInput(needsInput.id),
       onClick: () => router.push("/student/support"),
     });
   }
-  while (recs.length < 3) {
-    recs.push({
+  if (recs.length < 3) {
+    addRec({
       icon: <IconChat size={18} />,
       text: s.askAnything,
       onClick: () => router.push("/student/chat"),
