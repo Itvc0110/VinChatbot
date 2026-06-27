@@ -19,6 +19,7 @@ export interface ToolTraceEntry {
 export interface ChatRequest {
   message: string;
   conversation_id: string;
+  db_conversation_id?: string | null;
   filters?: null;
 }
 
@@ -28,6 +29,7 @@ export interface ChatResponse {
   confidence: number;
   tool_trace: ToolTraceEntry[];
   needs_human_review: boolean;
+  db_conversation_id?: string | null;
 }
 
 // Mirrors vinchatbot/app/schemas/document.py SourceSummary — returned by GET /sources.
