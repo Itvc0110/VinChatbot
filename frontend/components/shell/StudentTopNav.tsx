@@ -11,6 +11,7 @@ import {
   IconChat,
   IconCalendar,
   IconTicket,
+  IconForum,
   IconCap,
 } from "./icons";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
@@ -37,6 +38,7 @@ const STR = {
     vinnieAi: "Vinnie AI",
     calendar: "Calendar",
     events: "Events",
+    forum: "Forum",
     tickets: "Tickets",
   },
   vi: {
@@ -48,6 +50,7 @@ const STR = {
     vinnieAi: "Vinnie AI",
     calendar: "Lịch",
     events: "Sự kiện",
+    forum: "Diễn đàn",
     tickets: "Yêu cầu hỗ trợ",
   },
 } as const;
@@ -123,6 +126,7 @@ export function StudentTopNav() {
     { href: "/student/chat", label: s.vinnieAi, icon: <IconChat /> },
     { href: "/student/schedule", label: s.calendar, icon: <IconCalendar /> },
     { href: "/student/events", label: s.events, icon: <IconCalendar /> },
+    { href: "/student/forum", label: s.forum, icon: <IconForum /> },
     { href: "/student/support", label: s.tickets, icon: <IconTicket /> },
   ];
 

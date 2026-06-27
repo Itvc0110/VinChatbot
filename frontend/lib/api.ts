@@ -6,6 +6,15 @@ import type {
   ClassSession,
   Deadline,
   DeadlineKind,
+  ForumAttachment,
+  ForumCategory,
+  ForumComment,
+  ForumMember,
+  ForumSort,
+  ForumTopic,
+  ForumVoteResult,
+  ForumVoteTarget,
+  ForumVoteValue,
   KnowledgeSource,
   Notification,
   NotificationType,
@@ -135,6 +144,9 @@ export interface BackendNotification {
   end_date?: string | null;
   source_title?: string | null;
   source_url?: string | null;
+  recipient_user_id?: string | null;
+  forum_topic_id?: string | null;
+  forum_comment_id?: string | null;
   created_at: string;
   updated_at: string;
   is_read: boolean;
@@ -635,6 +647,7 @@ const NOTIFICATION_TYPES: NotificationType[] = [
   "event",
   "student_services",
   "system",
+  "forum",
 ];
 const DEADLINE_KINDS: DeadlineKind[] = [
   "assignment",
@@ -719,6 +732,10 @@ function mapDeadline(deadline: BackendDeadline): Deadline {
 }
 
 function mapNotification(notification: BackendNotification): Notification {
+  // Forum mention/reply notifications deep-link to the discussion they point at.
+  const forumHref = notification.forum_topic_id
+    ? `/student/forum/topics/${notification.forum_topic_id}`
+    : undefined;
   return {
     id: notification.id,
     type: safeNotificationType(notification.type),
@@ -730,6 +747,7 @@ function mapNotification(notification: BackendNotification): Notification {
     archived: notification.archived,
     source_title: notification.source_title ?? undefined,
     source_url: notification.source_url ?? undefined,
+    action_href: forumHref,
     priority: notification.priority as Notification["priority"],
     target_audience: [notification.target_scope],
     deadline: notification.deadline ?? undefined,
@@ -738,6 +756,8 @@ function mapNotification(notification: BackendNotification): Notification {
     end_date: notification.end_date ?? undefined,
     status: notification.status as Notification["status"],
     updated_at: notification.updated_at,
+    forum_topic_id: notification.forum_topic_id ?? undefined,
+    forum_comment_id: notification.forum_comment_id ?? undefined,
   };
 }
 
@@ -1430,4 +1450,291 @@ export async function getAdminStats(): Promise<AdminStats> {
 // [MOCK] TODO backend contract: GET /admin/analytics -> AnalyticsOverview
 export async function getAnalytics(): Promise<AnalyticsOverview> {
   return delay(MOCK_ANALYTICS);
+}
+
+// ---- Forum / Discussion Hub -------------------------------------------------
+// [LIVE] FastAPI /forum/* (proxied through /api/forum/*). Public peer discussion,
+// separate from private tickets. @mentions + replies create 'forum' notifications that
+// surface through the existing notification bell (see mapNotification above).
+
+export interface BackendForumCategory {
+  id: string;
+  slug: string;
+  name_en: string;
+  name_vi: string;
+  description_en?: string | null;
+  description_vi?: string | null;
+  color: string;
+  sort_order: number;
+  is_active: boolean;
+  topic_count: number;
+}
+
+export interface BackendForumComment {
+  id: string;
+  topic_id: string;
+  parent_comment_id?: string | null;
+  author_user_id?: string | null;
+  author_name?: string | null;
+  content: string;
+  is_official: boolean;
+  deleted: boolean;
+  score: number;
+  my_vote: number;
+  created_at: string;
+  updated_at: string;
+  replies: BackendForumComment[];
+}
+
+export interface BackendForumTopic {
+  id: string;
+  category_id: string;
+  category_slug?: string | null;
+  category_name_en?: string | null;
+  category_name_vi?: string | null;
+  author_user_id?: string | null;
+  author_name?: string | null;
+  title: string;
+  excerpt?: string | null;
+  tags: string[];
+  is_pinned: boolean;
+  is_locked: boolean;
+  has_official_answer: boolean;
+  view_count: number;
+  comment_count: number;
+  score: number;
+  my_vote: number;
+  created_at: string;
+  updated_at: string;
+  last_activity_at: string;
+  content?: string | null;
+  attachments?: ForumAttachment[] | null;
+  official_comment_id?: string | null;
+  comments?: BackendForumComment[] | null;
+}
+
+export interface BackendForumMember {
+  id: string;
+  full_name: string;
+  preferred_name?: string | null;
+  email?: string | null;
+}
+
+export interface BackendForumVote {
+  target_type: ForumVoteTarget;
+  target_id: string;
+  score: number;
+  my_vote: number;
+}
+
+export interface CreateForumTopicPayload {
+  title: string;
+  content: string;
+  category_id?: string;
+  category_slug?: string;
+  tags?: string[];
+  attachments?: ForumAttachment[];
+  mentioned_user_ids?: string[];
+}
+
+export interface AddForumCommentPayload {
+  content: string;
+  parent_comment_id?: string;
+  mentioned_user_ids?: string[];
+}
+
+export interface ForumTopicFilters {
+  category?: string;
+  sort?: ForumSort;
+  q?: string;
+}
+
+function clampVote(value: number): ForumVoteValue {
+  return value > 0 ? 1 : value < 0 ? -1 : 0;
+}
+
+function mapForumCategory(c: BackendForumCategory): ForumCategory {
+  return {
+    ...c,
+    description_en: c.description_en ?? undefined,
+    description_vi: c.description_vi ?? undefined,
+  };
+}
+
+function mapForumMember(m: BackendForumMember): ForumMember {
+  return {
+    id: m.id,
+    full_name: m.full_name,
+    preferred_name: m.preferred_name ?? undefined,
+    email: m.email ?? undefined,
+  };
+}
+
+function mapForumComment(c: BackendForumComment): ForumComment {
+  return {
+    id: c.id,
+    topic_id: c.topic_id,
+    parent_comment_id: c.parent_comment_id ?? undefined,
+    author_user_id: c.author_user_id ?? undefined,
+    author_name: c.author_name ?? undefined,
+    content: c.content,
+    is_official: c.is_official,
+    deleted: c.deleted,
+    score: c.score,
+    my_vote: clampVote(c.my_vote),
+    created_at: c.created_at,
+    updated_at: c.updated_at,
+    replies: (c.replies ?? []).map(mapForumComment),
+  };
+}
+
+function mapForumTopic(t: BackendForumTopic): ForumTopic {
+  return {
+    id: t.id,
+    category_id: t.category_id,
+    category_slug: t.category_slug ?? undefined,
+    category_name_en: t.category_name_en ?? undefined,
+    category_name_vi: t.category_name_vi ?? undefined,
+    author_user_id: t.author_user_id ?? undefined,
+    author_name: t.author_name ?? undefined,
+    title: t.title,
+    excerpt: t.excerpt ?? undefined,
+    tags: t.tags ?? [],
+    is_pinned: t.is_pinned,
+    is_locked: t.is_locked,
+    has_official_answer: t.has_official_answer,
+    view_count: t.view_count,
+    comment_count: t.comment_count,
+    score: t.score,
+    my_vote: clampVote(t.my_vote),
+    created_at: t.created_at,
+    updated_at: t.updated_at,
+    last_activity_at: t.last_activity_at,
+    content: t.content ?? undefined,
+    attachments: t.attachments ?? undefined,
+    official_comment_id: t.official_comment_id ?? undefined,
+    comments: t.comments ? t.comments.map(mapForumComment) : undefined,
+  };
+}
+
+function mapForumVote(v: BackendForumVote): ForumVoteResult {
+  return {
+    target_type: v.target_type,
+    target_id: v.target_id,
+    score: v.score,
+    my_vote: clampVote(v.my_vote),
+  };
+}
+
+export async function getForumCategories(): Promise<ForumCategory[]> {
+  const rows = await getJSON<BackendForumCategory[]>("/api/forum/categories");
+  return rows.map(mapForumCategory);
+}
+
+export async function getForumTopics(filters: ForumTopicFilters = {}): Promise<ForumTopic[]> {
+  const params = new URLSearchParams();
+  if (filters.category && filters.category !== "all") params.set("category", filters.category);
+  if (filters.sort) params.set("sort", filters.sort);
+  if (filters.q && filters.q.trim()) params.set("q", filters.q.trim());
+  const query = params.toString();
+  const rows = await getJSON<BackendForumTopic[]>(`/api/forum/topics${query ? `?${query}` : ""}`);
+  return rows.map(mapForumTopic);
+}
+
+export async function getForumTopic(topicId: string): Promise<ForumTopic> {
+  return mapForumTopic(await getJSON<BackendForumTopic>(`/api/forum/topics/${topicId}`));
+}
+
+export async function createForumTopic(payload: CreateForumTopicPayload): Promise<ForumTopic> {
+  const row = await apiRequest<BackendForumTopic>("/api/forum/topics", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return mapForumTopic(row);
+}
+
+export async function addForumComment(
+  topicId: string,
+  payload: AddForumCommentPayload
+): Promise<ForumComment> {
+  const row = await apiRequest<BackendForumComment>(`/api/forum/topics/${topicId}/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return mapForumComment(row);
+}
+
+export async function voteForumTopic(
+  topicId: string,
+  value: ForumVoteValue
+): Promise<ForumVoteResult> {
+  const row = await apiRequest<BackendForumVote>(`/api/forum/topics/${topicId}/vote`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ value }),
+  });
+  return mapForumVote(row);
+}
+
+export async function voteForumComment(
+  commentId: string,
+  value: ForumVoteValue
+): Promise<ForumVoteResult> {
+  const row = await apiRequest<BackendForumVote>(`/api/forum/comments/${commentId}/vote`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ value }),
+  });
+  return mapForumVote(row);
+}
+
+export async function reportForumContent(payload: {
+  target_type: ForumVoteTarget;
+  target_id: string;
+  reason: string;
+}): Promise<void> {
+  await apiRequest(`/api/forum/reports`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function searchForumMembers(q: string): Promise<ForumMember[]> {
+  if (!q.trim()) return [];
+  const rows = await getJSON<BackendForumMember[]>(
+    `/api/forum/members?q=${encodeURIComponent(q.trim())}`
+  );
+  return rows.map(mapForumMember);
+}
+
+export async function moderateForumTopic(
+  topicId: string,
+  patch: {
+    is_pinned?: boolean;
+    is_locked?: boolean;
+    deleted?: boolean;
+    official_comment_id?: string | null;
+  }
+): Promise<ForumTopic> {
+  const row = await apiRequest<BackendForumTopic>(`/api/forum/topics/${topicId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(patch),
+  });
+  return mapForumTopic(row);
+}
+
+export async function moderateForumComment(
+  commentId: string,
+  patch: { is_official?: boolean; deleted?: boolean }
+): Promise<ForumComment> {
+  const row = await apiRequest<BackendForumComment>(`/api/forum/comments/${commentId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(patch),
+  });
+  return mapForumComment(row);
 }

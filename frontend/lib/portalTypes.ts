@@ -207,7 +207,8 @@ export type NotificationType =
   | "deadline"
   | "event"
   | "student_services"
-  | "system";
+  | "system"
+  | "forum";
 
 export type NotificationPriority = "low" | "medium" | "high" | "urgent";
 export type NotificationStatus = "draft" | "published" | "archived";
@@ -239,6 +240,10 @@ export interface Notification {
   updated_at?: string;
   // Admin-approved suggested questions generated for this notification.
   suggested_questions?: SuggestedQuestion[];
+  // Forum mention/reply notifications carry the discussion they point at, so the UI can
+  // build an in-app deep link to the topic.
+  forum_topic_id?: string;
+  forum_comment_id?: string;
 }
 
 // Which "deadline phase" a notification is in relative to today — drives whether Vinnie
@@ -360,6 +365,90 @@ export interface AnalyticsOverview {
   avg_confidence: number;
   verified_rate: number;
   total_questions: number;
+}
+
+// ---- Forum / Discussion Hub -------------------------------------------------
+// Public peer discussion, deliberately separate from private support tickets.
+
+export type ForumSort = "active" | "new" | "top";
+export type ForumVoteValue = -1 | 0 | 1;
+export type ForumVoteTarget = "topic" | "comment";
+
+export interface ForumCategory {
+  id: string;
+  slug: string;
+  name_en: string;
+  name_vi: string;
+  description_en?: string;
+  description_vi?: string;
+  color: string;
+  sort_order: number;
+  is_active: boolean;
+  topic_count: number;
+}
+
+export interface ForumAttachment {
+  url: string;
+  label?: string;
+}
+
+// A person who can be @mentioned (used by the mention autocomplete).
+export interface ForumMember {
+  id: string;
+  full_name: string;
+  preferred_name?: string;
+  email?: string;
+}
+
+export interface ForumComment {
+  id: string;
+  topic_id: string;
+  parent_comment_id?: string;
+  author_user_id?: string;
+  author_name?: string;
+  content: string;
+  is_official: boolean;
+  deleted: boolean;
+  score: number;
+  my_vote: ForumVoteValue;
+  created_at: string;
+  updated_at: string;
+  replies: ForumComment[];
+}
+
+export interface ForumTopic {
+  id: string;
+  category_id: string;
+  category_slug?: string;
+  category_name_en?: string;
+  category_name_vi?: string;
+  author_user_id?: string;
+  author_name?: string;
+  title: string;
+  excerpt?: string;
+  tags: string[];
+  is_pinned: boolean;
+  is_locked: boolean;
+  has_official_answer: boolean;
+  view_count: number;
+  comment_count: number;
+  score: number;
+  my_vote: ForumVoteValue;
+  created_at: string;
+  updated_at: string;
+  last_activity_at: string;
+  // Detail-only fields (absent on list summaries).
+  content?: string;
+  attachments?: ForumAttachment[];
+  official_comment_id?: string;
+  comments?: ForumComment[];
+}
+
+export interface ForumVoteResult {
+  target_type: ForumVoteTarget;
+  target_id: string;
+  score: number;
+  my_vote: ForumVoteValue;
 }
 
 // A generic async-state envelope the views use for loading/error/empty/success.

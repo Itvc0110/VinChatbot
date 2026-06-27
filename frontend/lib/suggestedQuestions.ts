@@ -27,7 +27,9 @@ const PHASE_WEIGHT: Record<SuggestedQuestionPhase, number> = {
 };
 
 type PhaseTemplates = Partial<Record<SuggestedQuestionPhase, string[]>>;
-type CategoryTemplates = Record<NotificationType, PhaseTemplates>;
+// Not every notification category drives suggested questions (e.g. "forum" mentions never
+// do), so categories are optional — generate() falls back to {} for any missing key.
+type CategoryTemplates = Partial<Record<NotificationType, PhaseTemplates>>;
 
 // Template questions keyed by language → category → phase. Discovery questions for "early",
 // action questions for "near_deadline", recovery questions for "overdue", and general

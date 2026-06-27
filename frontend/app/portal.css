@@ -3025,3 +3025,303 @@ table.data-table {
 .table-wrap::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* ============================================================================
+   Frontend refinements: modal popup, report-a-problem FAB, ticket attachments,
+   calendar day popup, notification detail popup
+   ============================================================================ */
+
+/* ---------- Modal (centered popup) ---------- */
+.modal-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 90;
+  animation: modal-fade var(--dur) var(--ease);
+}
+@keyframes modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.modal-card {
+  width: 100%;
+  max-height: calc(100vh - 40px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modal-pop var(--dur) var(--ease);
+}
+@keyframes modal-pop {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.modal-sm { max-width: 440px; }
+.modal-md { max-width: 560px; }
+.modal-lg { max-width: 760px; }
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.modal-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+.modal-close {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-close:hover {
+  background: var(--surface-2);
+  color: var(--foreground);
+}
+.modal-body {
+  padding: 18px;
+  overflow-y: auto;
+}
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+/* ---------- Report-a-problem floating button ---------- */
+.report-fab {
+  position: fixed;
+  right: 88px;
+  bottom: 22px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--danger);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  z-index: 60;
+  transition: transform var(--dur) var(--ease), background var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+.report-fab:hover {
+  transform: translateY(-2px);
+  background: var(--surface-2);
+  border-color: var(--danger);
+}
+.report-intro {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--muted-foreground);
+}
+.report-done {
+  margin: 0;
+  color: var(--foreground);
+  line-height: 1.55;
+}
+.report-error {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--danger);
+}
+
+/* ---------- Ticket / report file attachments ---------- */
+.ticket-attach-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 7px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--foreground);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.ticket-attach-btn:hover {
+  border-color: var(--primary);
+  background: var(--surface-2);
+}
+.ticket-attach-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.ticket-attach-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ticket-attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 6px 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: var(--fs-xs);
+  color: var(--foreground);
+}
+.ticket-attach-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+.ticket-attach-remove {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ticket-attach-remove:hover {
+  background: var(--border);
+  color: var(--foreground);
+}
+
+/* ---------- Draggable bubble: no text selection / native touch scroll ---------- */
+.vinnie-fab {
+  touch-action: none;
+  user-select: none;
+}
+
+/* ---------- Calendar: clickable day cell / column header ---------- */
+.cal-day-trigger {
+  cursor: pointer;
+}
+.cal-day-trigger:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+/* ---------- Day-schedule popup ---------- */
+.day-pop-empty {
+  margin: 0;
+  padding: 16px 0;
+  text-align: center;
+  color: var(--muted-foreground);
+  font-size: var(--fs-sm);
+}
+.day-pop-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.day-pop-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.day-pop-row:hover {
+  border-color: var(--primary);
+  background: var(--surface-2);
+}
+.day-pop-time {
+  flex: 0 0 64px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+  font-size: var(--fs-sm);
+}
+.day-pop-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.day-pop-title {
+  font-weight: 600;
+  color: var(--foreground);
+}
+.day-pop-sub {
+  font-size: var(--fs-xs);
+  color: var(--muted-foreground);
+}
+
+/* ---------- Notification detail popup ---------- */
+.notif-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.notif-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.notif-detail-time {
+  font-size: var(--fs-xs);
+  color: var(--muted-foreground);
+}
+.notif-detail-msg {
+  margin: 0;
+  color: var(--foreground);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 560px) {
+  .report-fab {
+    right: 82px;
+    bottom: 16px;
+  }
+}

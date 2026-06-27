@@ -19,7 +19,11 @@ export function CalendarEventCard({
   return (
     <button
       className={`cal-event ev-${event.type} ${compact ? "compact" : ""}`}
-      onClick={() => onClick(event)}
+      onClick={(e) => {
+        // Don't let the click bubble to the day cell (which opens the day-schedule popup).
+        e.stopPropagation();
+        onClick(event);
+      }}
       title={event.title}
     >
       {!event.all_day && (

@@ -47,6 +47,16 @@ export function CalendarView({
   const byDay = useMemo(() => groupByDay(events), [events]);
   const dow = useMemo(() => weekdayLabels(locale), [locale]);
 
+  // Open the day-schedule popup for a date, via mouse or keyboard.
+  const dayKeyDown = (d: Date) => (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onSelectDay(d);
+    }
+  };
+  const dayLabel = (d: Date) =>
+    d.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
+
   if (view === "week") {
     const days = weekDays(cursor);
     return (
@@ -55,7 +65,14 @@ export function CalendarView({
           const evs = byDay.get(ymd(d)) ?? [];
           return (
             <div key={ymd(d)} className={`cal-week-col ${isToday(d) ? "is-today" : ""}`}>
-              <div className="cal-week-colhead">
+              <div
+                className="cal-week-colhead cal-day-trigger"
+                role="button"
+                tabIndex={0}
+                aria-label={dayLabel(d)}
+                onClick={() => onSelectDay(d)}
+                onKeyDown={dayKeyDown(d)}
+              >
                 <span className="cal-dow">{d.toLocaleDateString(locale, { weekday: "short" })}</span>
                 <span className={`cal-dnum ${isToday(d) ? "today" : ""}`}>{d.getDate()}</span>
               </div>
@@ -96,9 +113,14 @@ export function CalendarView({
           return (
             <div
               key={ymd(d)}
-              className={`cal-cell ${isSameMonth(d, cursor) ? "" : "muted"} ${
+              className={`cal-cell cal-day-trigger ${isSameMonth(d, cursor) ? "" : "muted"} ${
                 isToday(d) ? "is-today" : ""
               }`}
+              role="button"
+              tabIndex={0}
+              aria-label={dayLabel(d)}
+              onClick={() => onSelectDay(d)}
+              onKeyDown={dayKeyDown(d)}
             >
               <div className="cal-cell-num">{d.getDate()}</div>
               <div className="cal-cell-events">
@@ -106,7 +128,13 @@ export function CalendarView({
                   <CalendarEventCard key={e.id} event={e} onClick={onSelectEvent} compact />
                 ))}
                 {extra > 0 && (
-                  <button className="cal-more" onClick={() => onSelectDay(d)}>
+                  <button
+                    className="cal-more"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectDay(d);
+                    }}
+                  >
                     {p.cal.moreEvents(extra)}
                   </button>
                 )}

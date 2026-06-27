@@ -9,6 +9,7 @@ import { getStudentNotifications } from "@/lib/api";
 import { relativeTime } from "@/lib/format";
 import { Badge, type BadgeTone } from "@/components/ui/primitives";
 import { IconBell } from "@/components/shell/icons";
+import { NotificationDetailModal } from "./NotificationDetailModal";
 import type { Notification, NotificationType } from "@/lib/portalTypes";
 
 // Facebook-style notification dropdown for the student top nav. Reads the current
@@ -21,6 +22,7 @@ const TYPE_TONE: Record<NotificationType, BadgeTone> = {
   event: "success",
   student_services: "neutral",
   system: "neutral",
+  forum: "info",
 };
 
 const RECENT_LIMIT = 6;
@@ -31,6 +33,8 @@ export function NotificationBell({ ariaLabel }: { ariaLabel: string }) {
   const loaded = useAsync(getStudentNotifications, []);
 
   const [open, setOpen] = useState(false);
+  // The notification whose full-detail popup is open (null = none).
+  const [detail, setDetail] = useState<Notification | null>(null);
   // Local-only "read" overlay — clicking an item marks it read in the UI without
   // mutating the source data or calling the backend.
   const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
@@ -74,6 +78,7 @@ export function NotificationBell({ ariaLabel }: { ariaLabel: string }) {
     });
 
   return (
+    <>
     <div className="ah-notif" ref={wrapRef}>
       <button
         type="button"
@@ -112,7 +117,11 @@ export function NotificationBell({ ariaLabel }: { ariaLabel: string }) {
                   key={n.id}
                   type="button"
                   className={`ah-notif-item ${isRead(n) ? "read" : "unread"}`}
-                  onClick={() => markRead(n.id)}
+                  onClick={() => {
+                    markRead(n.id);
+                    setDetail(n);
+                    setOpen(false);
+                  }}
                 >
                   <span className="ah-notif-dot" aria-hidden />
                   <span className="ah-notif-ico" aria-hidden>
@@ -145,5 +154,8 @@ export function NotificationBell({ ariaLabel }: { ariaLabel: string }) {
         </div>
       )}
     </div>
+
+      <NotificationDetailModal notification={detail} onClose={() => setDetail(null)} />
+    </>
   );
 }

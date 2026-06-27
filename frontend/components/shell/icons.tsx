@@ -52,6 +52,14 @@ export const IconTicket = ({ size = 18 }: P) => (
   </svg>
 );
 
+export const IconForum = ({ size = 18 }: P) => (
+  <svg {...base(size)}>
+    <path d="M8 10h7M8 13h4" />
+    <path d="M4 5h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H9l-4 3v-3H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
+    <path d="M18 9h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-1v2l-2-2" />
+  </svg>
+);
+
 export const IconShield = ({ size = 18 }: P) => (
   <svg {...base(size)}>
     <path d="M12 3l7 3v5c0 4.4-3 8.3-7 9.5C8 19.3 5 15.4 5 11V6z" />

@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { StudentTopNav } from "@/components/shell/StudentTopNav";
 import { ChatProvider } from "@/lib/chat";
 import { FloatingVinnieButton } from "@/components/chat/FloatingVinnieButton";
+import { ReportProblemButton } from "@/components/chat/ReportProblemButton";
 import { StudentChatOverlays } from "@/components/chat/StudentChatOverlays";
 
 // Academic Horizon student shell: horizontal top nav + content area, scoped to `.ah-ui` so the
@@ -28,6 +29,7 @@ export function StudentShell({ children }: { children: React.ReactNode }) {
             {children}
           </main>
         </div>
+        {showFloatingVinnie && <ReportProblemButton />}
         {showFloatingVinnie && <FloatingVinnieButton />}
         <StudentChatOverlays />
       </div>

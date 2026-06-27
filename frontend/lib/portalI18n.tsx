@@ -543,6 +543,73 @@ export interface PortalStrings {
   // day-of-week full names
   dayFull: Record<ScheduleDay, string>;
 
+  // Forum / Discussion Hub
+  forum: {
+    title: string;
+    subtitle: string;
+    newTopic: string;
+    allCategories: string;
+    sortActive: string;
+    sortNew: string;
+    sortTop: string;
+    searchPlaceholder: string;
+    topicCount: (n: number) => string;
+    commentCount: (n: number) => string;
+    viewCount: (n: number) => string;
+    by: string;
+    reply: string;
+    comment: string;
+    commentPlaceholder: string;
+    replyPlaceholder: string;
+    postComment: string;
+    postReply: string;
+    cancel: string;
+    posting: string;
+    pinned: string;
+    locked: string;
+    lockedNotice: string;
+    officialAnswer: string;
+    markOfficial: string;
+    unmarkOfficial: string;
+    pin: string;
+    unpin: string;
+    lock: string;
+    unlock: string;
+    delete: string;
+    moderator: string;
+    you: string;
+    report: string;
+    reportTitle: string;
+    reportReasonPlaceholder: string;
+    submitReport: string;
+    reportedToast: string;
+    upvote: string;
+    downvote: string;
+    viewDiscussion: string;
+    backToForum: string;
+    titleLabel: string;
+    titlePlaceholder: string;
+    categoryLabel: string;
+    contentLabel: string;
+    contentPlaceholder: string;
+    tagsLabel: string;
+    tagsPlaceholder: string;
+    attachmentsLabel: string;
+    attachmentUrlPlaceholder: string;
+    attachmentLabelPlaceholder: string;
+    addLink: string;
+    create: string;
+    creating: string;
+    mentionHint: string;
+    mentionNoResults: string;
+    emptyTitle: string;
+    emptyDesc: string;
+    noComments: string;
+    createError: string;
+    actionFailed: string;
+    removed: string;
+  };
+
   // data-driven enum badge labels
   enums: {
     deadlineKind: Record<DeadlineKind, string>;
@@ -1089,6 +1156,72 @@ const en: PortalStrings = {
     Sun: "Sunday",
   },
 
+  forum: {
+    title: "Discussion Hub",
+    subtitle: "Ask, share and discuss with the VinUni student community.",
+    newTopic: "New topic",
+    allCategories: "All topics",
+    sortActive: "Active",
+    sortNew: "New",
+    sortTop: "Top",
+    searchPlaceholder: "Search discussions…",
+    topicCount: (n) => `${n} ${n === 1 ? "topic" : "topics"}`,
+    commentCount: (n) => `${n} ${n === 1 ? "comment" : "comments"}`,
+    viewCount: (n) => `${n} ${n === 1 ? "view" : "views"}`,
+    by: "by",
+    reply: "Reply",
+    comment: "Comment",
+    commentPlaceholder: "Add a comment… use @ to mention someone",
+    replyPlaceholder: "Write a reply… use @ to mention someone",
+    postComment: "Post comment",
+    postReply: "Post reply",
+    cancel: "Cancel",
+    posting: "Posting…",
+    pinned: "Pinned",
+    locked: "Locked",
+    lockedNotice: "This topic is locked. New comments are disabled.",
+    officialAnswer: "Official answer",
+    markOfficial: "Mark as official",
+    unmarkOfficial: "Unmark official",
+    pin: "Pin",
+    unpin: "Unpin",
+    lock: "Lock",
+    unlock: "Unlock",
+    delete: "Delete",
+    moderator: "Moderator",
+    you: "You",
+    report: "Report",
+    reportTitle: "Report content",
+    reportReasonPlaceholder: "Tell moderators what's wrong…",
+    submitReport: "Submit report",
+    reportedToast: "Thanks — moderators will review this.",
+    upvote: "Upvote",
+    downvote: "Downvote",
+    viewDiscussion: "View discussion",
+    backToForum: "Back to forum",
+    titleLabel: "Title",
+    titlePlaceholder: "What do you want to discuss?",
+    categoryLabel: "Category",
+    contentLabel: "Details",
+    contentPlaceholder: "Share the details… use @ to mention someone",
+    tagsLabel: "Tags",
+    tagsPlaceholder: "Add a tag and press Enter",
+    attachmentsLabel: "Links",
+    attachmentUrlPlaceholder: "https://…",
+    attachmentLabelPlaceholder: "Label (optional)",
+    addLink: "Add link",
+    create: "Post topic",
+    creating: "Posting…",
+    mentionHint: "Type @ to mention a member",
+    mentionNoResults: "No members found",
+    emptyTitle: "No discussions yet",
+    emptyDesc: "Be the first to start a conversation.",
+    noComments: "No comments yet — start the discussion.",
+    createError: "Couldn't post. Please try again.",
+    actionFailed: "Something went wrong. Please try again.",
+    removed: "[removed]",
+  },
+
   enums: {
     deadlineKind: {
       assignment: "assignment",
@@ -1124,6 +1257,7 @@ const en: PortalStrings = {
       event: "Event",
       student_services: "Student Services",
       system: "System",
+      forum: "Forum",
     },
     eventType: {
       class: "Class",
@@ -1682,6 +1816,72 @@ const vi: PortalStrings = {
     Sun: "Chủ Nhật",
   },
 
+  forum: {
+    title: "Diễn đàn thảo luận",
+    subtitle: "Hỏi, chia sẻ và thảo luận cùng cộng đồng sinh viên VinUni.",
+    newTopic: "Tạo chủ đề",
+    allCategories: "Tất cả chủ đề",
+    sortActive: "Hoạt động",
+    sortNew: "Mới nhất",
+    sortTop: "Nổi bật",
+    searchPlaceholder: "Tìm kiếm thảo luận…",
+    topicCount: (n) => `${n} chủ đề`,
+    commentCount: (n) => `${n} bình luận`,
+    viewCount: (n) => `${n} lượt xem`,
+    by: "bởi",
+    reply: "Trả lời",
+    comment: "Bình luận",
+    commentPlaceholder: "Thêm bình luận… dùng @ để nhắc tên ai đó",
+    replyPlaceholder: "Viết trả lời… dùng @ để nhắc tên ai đó",
+    postComment: "Đăng bình luận",
+    postReply: "Đăng trả lời",
+    cancel: "Hủy",
+    posting: "Đang đăng…",
+    pinned: "Đã ghim",
+    locked: "Đã khóa",
+    lockedNotice: "Chủ đề này đã bị khóa. Không thể thêm bình luận mới.",
+    officialAnswer: "Câu trả lời chính thức",
+    markOfficial: "Đánh dấu chính thức",
+    unmarkOfficial: "Bỏ đánh dấu",
+    pin: "Ghim",
+    unpin: "Bỏ ghim",
+    lock: "Khóa",
+    unlock: "Mở khóa",
+    delete: "Xóa",
+    moderator: "Quản trị",
+    you: "Bạn",
+    report: "Báo cáo",
+    reportTitle: "Báo cáo nội dung",
+    reportReasonPlaceholder: "Cho quản trị viên biết vấn đề là gì…",
+    submitReport: "Gửi báo cáo",
+    reportedToast: "Cảm ơn — quản trị viên sẽ xem xét.",
+    upvote: "Tán thành",
+    downvote: "Phản đối",
+    viewDiscussion: "Xem thảo luận",
+    backToForum: "Quay lại diễn đàn",
+    titleLabel: "Tiêu đề",
+    titlePlaceholder: "Bạn muốn thảo luận điều gì?",
+    categoryLabel: "Danh mục",
+    contentLabel: "Nội dung",
+    contentPlaceholder: "Chia sẻ chi tiết… dùng @ để nhắc tên ai đó",
+    tagsLabel: "Thẻ",
+    tagsPlaceholder: "Nhập thẻ và nhấn Enter",
+    attachmentsLabel: "Liên kết",
+    attachmentUrlPlaceholder: "https://…",
+    attachmentLabelPlaceholder: "Nhãn (tùy chọn)",
+    addLink: "Thêm liên kết",
+    create: "Đăng chủ đề",
+    creating: "Đang đăng…",
+    mentionHint: "Gõ @ để nhắc tên thành viên",
+    mentionNoResults: "Không tìm thấy thành viên",
+    emptyTitle: "Chưa có thảo luận nào",
+    emptyDesc: "Hãy là người đầu tiên bắt đầu cuộc trò chuyện.",
+    noComments: "Chưa có bình luận — hãy bắt đầu thảo luận.",
+    createError: "Không thể đăng. Vui lòng thử lại.",
+    actionFailed: "Đã xảy ra lỗi. Vui lòng thử lại.",
+    removed: "[đã xóa]",
+  },
+
   enums: {
     deadlineKind: {
       assignment: "bài tập",
@@ -1717,6 +1917,7 @@ const vi: PortalStrings = {
       event: "Sự kiện",
       student_services: "Dịch vụ sinh viên",
       system: "Hệ thống",
+      forum: "Diễn đàn",
     },
     eventType: {
       class: "Lớp học",

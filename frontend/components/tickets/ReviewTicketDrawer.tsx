@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import type { TicketCategory, TicketPriority } from "@/lib/portalTypes";
+import type { TicketCategory } from "@/lib/portalTypes";
 import { useChat } from "@/lib/chat";
-import { usePortal, DEPARTMENTS } from "@/lib/portalI18n";
+import { usePortal } from "@/lib/portalI18n";
 
 const CATEGORIES: TicketCategory[] = [
   "academic",
@@ -12,7 +12,6 @@ const CATEGORIES: TicketCategory[] = [
   "technical",
   "other",
 ];
-const PRIORITIES: TicketPriority[] = ["low", "medium", "high", "urgent"];
 
 // PLAN22.6 Review Ticket drawer. Vinnie prepares a DRAFT (held in ChatProvider state); this
 // drawer lets the student edit it and is the ONLY surface that submits a ticket to admin.
@@ -84,60 +83,21 @@ export function ReviewTicketDrawer() {
                   />
                 </div>
 
-                <div className="grid cols-2" style={{ gap: 12 }}>
-                  <div className="field">
-                    <label className="field-label" htmlFor="rt-category">
-                      {p.review.category}
-                    </label>
-                    <select
-                      id="rt-category"
-                      className="select"
-                      value={draft.category}
-                      onChange={(e) =>
-                        chat.updateDraft({ category: e.target.value as TicketCategory })
-                      }
-                    >
-                      {CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {p.enums.ticketCategory[c]}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label className="field-label" htmlFor="rt-priority">
-                      {p.review.priority}
-                    </label>
-                    <select
-                      id="rt-priority"
-                      className="select"
-                      value={draft.priority}
-                      onChange={(e) =>
-                        chat.updateDraft({ priority: e.target.value as TicketPriority })
-                      }
-                    >
-                      {PRIORITIES.map((pr) => (
-                        <option key={pr} value={pr}>
-                          {p.enums.ticketPriority[pr]}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
                 <div className="field">
-                  <label className="field-label" htmlFor="rt-office">
-                    {p.review.office}
+                  <label className="field-label" htmlFor="rt-category">
+                    {p.review.category}
                   </label>
                   <select
-                    id="rt-office"
+                    id="rt-category"
                     className="select"
-                    value={draft.department}
-                    onChange={(e) => chat.updateDraft({ department: e.target.value })}
+                    value={draft.category}
+                    onChange={(e) =>
+                      chat.updateDraft({ category: e.target.value as TicketCategory })
+                    }
                   >
-                    {DEPARTMENTS.map((d) => (
-                      <option key={d} value={d}>
-                        {p.enums.department[d] ?? d}
+                    {CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {p.enums.ticketCategory[c]}
                       </option>
                     ))}
                   </select>

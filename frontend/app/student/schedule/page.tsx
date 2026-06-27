@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { AsyncBoundary, Toast } from "@/components/ui/primitives";
 import { CalendarView } from "@/components/calendar/CalendarView";
 import { EventDetailDrawer } from "@/components/calendar/EventDetailDrawer";
+import { DayEventsPopup } from "@/components/calendar/DayEventsPopup";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
 import { getStudentCalendar } from "@/lib/api";
@@ -23,7 +23,6 @@ const STR: Record<Lang, {
   title: string;
   subtitle: string;
   syncCalendar: string;
-  askVinnieWeek: string;
   syncToast: string;
   viewLabel: string;
   upcoming: string;
@@ -35,7 +34,6 @@ const STR: Record<Lang, {
     title: "Academic Calendar",
     subtitle: "Manage your schedule, exams, and personal events.",
     syncCalendar: "Sync Calendar",
-    askVinnieWeek: "Ask Vinnie about my week",
     syncToast: "Calendar sync link copied (demo).",
     viewLabel: "View",
     upcoming: "Upcoming",
@@ -54,7 +52,6 @@ const STR: Record<Lang, {
     title: "Lịch học vụ",
     subtitle: "Quản lý lịch học, lịch thi và sự kiện cá nhân.",
     syncCalendar: "Đồng bộ lịch",
-    askVinnieWeek: "Hỏi Vinnie về tuần của tôi",
     syncToast: "Đã sao chép liên kết đồng bộ lịch (demo).",
     viewLabel: "Xem",
     upcoming: "Sắp tới",
@@ -120,13 +117,13 @@ export default function StudentCalendarPage() {
   const { p, lang } = usePortal();
   const s = STR[lang];
   const locale = lang === "vi" ? "vi-VN" : "en-US";
-  const router = useRouter();
   const cal = useAsync(() => getStudentCalendar(), []);
 
   const [view, setView] = useState<ViewMode>("month");
   const [cursor, setCursor] = useState<Date>(() => new Date());
   const [filter, setFilter] = useState<CalFilter>("all");
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
+  const [popupDay, setPopupDay] = useState<Date | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const autoCursorApplied = useRef(false);
   const manualCursorNavigation = useRef(false);
@@ -209,16 +206,6 @@ export default function StudentCalendarPage() {
           >
             {s.syncCalendar}
           </button>
-          <button
-            className="btn btn-outline"
-            onClick={() =>
-              router.push(
-                `/student/chat?q=${encodeURIComponent("What's on my schedule this week?")}`
-              )
-            }
-          >
-            {s.askVinnieWeek}
-          </button>
         </div>
       </div>
 
@@ -279,11 +266,7 @@ export default function StudentCalendarPage() {
                   view={view}
                   cursor={cursor}
                   onSelectEvent={setSelected}
-                  onSelectDay={(d) => {
-                    manualCursorNavigation.current = true;
-                    setCursor(d);
-                    setView("day");
-                  }}
+                  onSelectDay={(d) => setPopupDay(d)}
                 />
               ) : (
                 <div className="cal-list">
@@ -333,6 +316,16 @@ export default function StudentCalendarPage() {
           </div>
         )}
       </AsyncBoundary>
+
+      <DayEventsPopup
+        day={popupDay}
+        events={filtered}
+        onClose={() => setPopupDay(null)}
+        onSelectEvent={(e) => {
+          setSelected(e);
+          setPopupDay(null);
+        }}
+      />
 
       <EventDetailDrawer
         event={selected}

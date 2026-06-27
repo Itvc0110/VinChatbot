@@ -128,7 +128,6 @@ const STR: Record<Lang, {
   dueInDays: (title: string, n: number) => string;
   needsInput: (id: string) => string;
   askAnything: string;
-  askVinnieAboutToday: string;
   details: string;
   allDay: string;
   justNow: string;
@@ -158,7 +157,6 @@ const STR: Record<Lang, {
     dueInDays: (title, n) => `${title} is due in ${n} day${n === 1 ? "" : "s"}`,
     needsInput: (id) => `Ticket ${id} needs your input`,
     askAnything: "Ask Vinnie anything about your studies",
-    askVinnieAboutToday: "Ask Vinnie about today",
     details: "Details",
     allDay: "All day",
     justNow: "just now",
@@ -188,7 +186,6 @@ const STR: Record<Lang, {
     dueInDays: (title, n) => `${title} đến hạn trong ${n} ngày`,
     needsInput: (id) => `Phiếu ${id} cần bạn phản hồi`,
     askAnything: "Hỏi Vinnie bất cứ điều gì về việc học của bạn",
-    askVinnieAboutToday: "Hỏi Vinnie về hôm nay",
     details: "Chi tiết",
     allDay: "Cả ngày",
     justNow: "vừa xong",
@@ -448,17 +445,6 @@ export default function StudentDashboardPage() {
                 );
               })
             )}
-          </div>
-
-          <div className="ask-vinnie-card">
-            <h3>{p.askCta}</h3>
-            <p>{p.askAnything}</p>
-            <button
-              className="ask-vinnie-btn"
-              onClick={() => go("What's on my schedule today?")}
-            >
-              <IconChat size={15} /> {s.askVinnieAboutToday}
-            </button>
           </div>
         </div>
       </div>

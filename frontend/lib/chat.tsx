@@ -323,8 +323,12 @@ interface ChatContextValue {
   prepareBlankDraft: (seed?: Partial<TicketDraft>) => void;
   updateDraft: (patch: Partial<TicketDraft>) => void;
   cancelDraft: () => void;
-  saveDraft: () => Promise<void>;
-  submitDraft: () => Promise<void>;
+  // `override` lets a self-contained form (e.g. CreateTicketModal) submit/save a fully-built
+  // draft in one step, bypassing the in-state draft used by the Review drawer. Returns whether
+  // it succeeded so the caller can decide to close. The single submit path (api.submitTicket)
+  // is unchanged either way.
+  saveDraft: (override?: TicketDraft) => Promise<boolean>;
+  submitDraft: (override?: TicketDraft) => Promise<boolean>;
   draftBusy: boolean;
   // Bumps each time a ticket is successfully sent to admin (the single submit path), so any
   // open ticket list (e.g. the support page) can refresh without a hard reload.
@@ -902,28 +906,44 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setDraftBusy(false);
   }, []);
 
-  const saveDraft = useCallback(async () => {
-    if (!ticketDraft) return;
-    // No network in MVP — the draft already lives in state; this just confirms to the user.
-    await saveTicketDraft(ticketDraft);
-    setTicketDraft(null);
-    setToast(p.review.draftSaved);
-  }, [ticketDraft, p]);
+  const saveDraft = useCallback(
+    async (override?: TicketDraft): Promise<boolean> => {
+      const draft = override ?? ticketDraft;
+      if (!draft) return false;
+      // No network in MVP — the draft already lives in state; this just confirms to the user.
+      try {
+        await saveTicketDraft(draft);
+        setTicketDraft(null);
+        setToast(p.review.draftSaved);
+        return true;
+      } catch {
+        setToast(p.review.submitFailed);
+        return false;
+      }
+    },
+    [ticketDraft, p]
+  );
 
-  const submitDraft = useCallback(async () => {
-    if (!ticketDraft || draftBusy) return;
-    setDraftBusy(true);
-    try {
-      const ticket = await submitTicket(ticketDraft);
-      setTicketDraft(null);
-      setTicketsRevision((r) => r + 1);
-      setToast(p.review.submitted(ticket.id));
-    } catch {
-      setToast(p.review.submitFailed);
-    } finally {
-      setDraftBusy(false);
-    }
-  }, [ticketDraft, draftBusy, p]);
+  const submitDraft = useCallback(
+    async (override?: TicketDraft): Promise<boolean> => {
+      const draft = override ?? ticketDraft;
+      if (!draft || draftBusy) return false;
+      setDraftBusy(true);
+      try {
+        const ticket = await submitTicket(draft);
+        setTicketDraft(null);
+        setTicketsRevision((r) => r + 1);
+        setToast(p.review.submitted(ticket.id));
+        return true;
+      } catch {
+        setToast(p.review.submitFailed);
+        return false;
+      } finally {
+        setDraftBusy(false);
+      }
+    },
+    [ticketDraft, draftBusy, p]
+  );
 
   const seedComposer = useCallback((text: string) => {
     seedNonce.current += 1;

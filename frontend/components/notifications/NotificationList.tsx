@@ -15,6 +15,7 @@ const TYPE_TONE: Record<NotificationType, BadgeTone> = {
   event: "success",
   student_services: "neutral",
   system: "neutral",
+  forum: "info",
 };
 
 export interface NotificationHandlers {
