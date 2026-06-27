@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 NOTIFICATION_TYPES = {
     "announcement",
@@ -70,6 +70,11 @@ class AdminNotificationCreateRequest(BaseModel):
     source_title: str | None = Field(default=None, max_length=500)
     source_url: str | None = Field(default=None, max_length=2000)
 
+    @field_validator("title", "message")
+    @classmethod
+    def validate_nonblank_text(cls, value: str) -> str:
+        return validate_nonblank(value)
+
     @model_validator(mode="after")
     def validate_values(self) -> AdminNotificationCreateRequest:
         validate_notification_values(
@@ -98,6 +103,13 @@ class AdminNotificationUpdateRequest(BaseModel):
     end_date: datetime | None = None
     source_title: str | None = Field(default=None, max_length=500)
     source_url: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("title", "message")
+    @classmethod
+    def validate_optional_nonblank_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return validate_nonblank(value)
 
     @model_validator(mode="after")
     def validate_values(self) -> AdminNotificationUpdateRequest:
@@ -150,3 +162,10 @@ def validate_notification_values(
         raise ValueError("Institute-targeted notifications require institute_id.")
     if start_date is not None and end_date is not None and end_date < start_date:
         raise ValueError("end_date must be greater than or equal to start_date.")
+
+
+def validate_nonblank(value: str) -> str:
+    stripped = value.strip()
+    if not stripped:
+        raise ValueError("Text fields must not be blank.")
+    return stripped

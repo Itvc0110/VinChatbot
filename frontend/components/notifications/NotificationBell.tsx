@@ -26,6 +26,7 @@ const TYPE_TONE: Record<NotificationType, BadgeTone> = {
 };
 
 const RECENT_LIMIT = 6;
+const NOTIFICATIONS_CHANGED_EVENT = "vinchatbot:notifications-changed";
 
 export function NotificationBell({ ariaLabel }: { ariaLabel: string }) {
   const { p, lang } = usePortal();
@@ -43,7 +44,16 @@ export function NotificationBell({ ariaLabel }: { ariaLabel: string }) {
   // Close when the route changes (navigating via "View all" or any nav link).
   useEffect(() => {
     setOpen(false);
+    loaded.reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+
+  useEffect(() => {
+    const onChanged = () => loaded.reload();
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, onChanged);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   useEffect(() => {
     setOpen(false);
@@ -93,6 +103,7 @@ export function NotificationBell({ ariaLabel }: { ariaLabel: string }) {
       return next;
     });
     markNotificationRead(id, true)
+      .then(() => loaded.reload())
       .catch(() => {
         setReadIds((cur) => {
           const next = new Set(cur);

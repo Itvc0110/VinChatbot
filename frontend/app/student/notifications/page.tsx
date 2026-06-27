@@ -15,6 +15,7 @@ import {
   NotificationList,
   type NotificationHandlers,
 } from "@/components/notifications/NotificationList";
+import { NotificationDetailModal } from "@/components/notifications/NotificationDetailModal";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
 import { useAuth } from "@/lib/auth";
@@ -22,12 +23,11 @@ import {
   getStudentNotifications,
   markAllNotificationsRead,
   markNotificationRead,
-  markNotificationImportant,
-  archiveNotification,
-  deleteNotification,
 } from "@/lib/api";
 import type { Notification } from "@/lib/portalTypes";
 import { IconBell, IconCheck } from "@/components/shell/icons";
+
+const NOTIFICATIONS_CHANGED_EVENT = "vinchatbot:notifications-changed";
 
 function matchesFilter(n: Notification, f: NotifFilter): boolean {
   switch (f) {
@@ -49,6 +49,7 @@ export default function StudentNotificationsPage() {
   const [items, setItems] = useState<Notification[] | null>(null);
   const [filter, setFilter] = useState<NotifFilter>("all");
   const [toast, setToast] = useState<string | null>(null);
+  const [detail, setDetail] = useState<Notification | null>(null);
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
   const [markingAll, setMarkingAll] = useState(false);
 
@@ -56,6 +57,7 @@ export default function StudentNotificationsPage() {
     setItems(null);
     setFilter("all");
     setToast(null);
+    setDetail(null);
     setPendingIds(new Set());
     setMarkingAll(false);
   }, [token]);
@@ -81,40 +83,57 @@ export default function StudentNotificationsPage() {
     });
   }
 
+  function announceNotificationChange() {
+    window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED_EVENT));
+  }
+
   const handlers: NotificationHandlers = {
     onToggleRead: (n) => {
+      if (pendingIds.has(n.id)) return;
       const nextRead = !n.read;
       setPending(n.id, true);
       patch(n.id, { read: nextRead });
       markNotificationRead(n.id, nextRead)
-        .then((updated) => patch(n.id, { read: updated.read }))
+        .then((updated) => {
+          patch(n.id, { read: updated.read });
+          announceNotificationChange();
+        })
+        .catch(() => {
+          patch(n.id, { read: n.read });
+          setDetail((current) =>
+            current?.id === n.id ? { ...current, read: n.read } : current
+          );
+          setToast(p.notif.actionFailed);
+        })
+        .finally(() => setPending(n.id, false));
+    },
+    onOpen: (n) => {
+      setDetail(n.read ? n : { ...n, read: true });
+      if (n.read || pendingIds.has(n.id)) return;
+      setPending(n.id, true);
+      patch(n.id, { read: true });
+      markNotificationRead(n.id, true)
+        .then((updated) => {
+          patch(n.id, { read: updated.read });
+          announceNotificationChange();
+        })
         .catch(() => {
           patch(n.id, { read: n.read });
           setToast(p.notif.actionFailed);
         })
         .finally(() => setPending(n.id, false));
     },
-    onToggleImportant: (n) => {
-      patch(n.id, { important: !n.important });
-      markNotificationImportant(n.id, !n.important).catch(() =>
-        setToast(p.notif.actionFailed)
-      );
-    },
-    onArchive: (n) => {
-      patch(n.id, { archived: true });
-      archiveNotification(n.id).catch(() => setToast(p.notif.actionFailed));
-    },
-    onDelete: (n) => {
-      setItems((cur) => (cur ?? []).filter((x) => x.id !== n.id));
-      deleteNotification(n.id).catch(() => setToast(p.notif.actionFailed));
-    },
   };
 
   function markAllRead() {
+    if (markingAll || unreadCount === 0) return;
     const previous = items ?? [];
     setMarkingAll(true);
-    setItems((cur) => (cur ?? []).map((n) => ({ ...n, read: true })));
+    setItems((cur) =>
+      (cur ?? []).map((n) => (n.archived ? n : { ...n, read: true }))
+    );
     markAllNotificationsRead()
+      .then(announceNotificationChange)
       .catch(() => {
         setItems(previous);
         setToast(p.notif.actionFailed);
@@ -160,6 +179,7 @@ export default function StudentNotificationsPage() {
         }
       </AsyncBoundary>
 
+      <NotificationDetailModal notification={detail} onClose={() => setDetail(null)} />
       {toast && <Toast message={toast} tone="danger" onClose={() => setToast(null)} />}
     </div>
   );

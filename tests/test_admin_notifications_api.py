@@ -361,6 +361,21 @@ def test_admin_can_create_draft_and_draft_is_not_visible_to_student():
     assert student_notifications.json() == []
 
 
+def test_admin_notification_blank_title_is_rejected_with_controlled_validation():
+    response = _run(
+        _request(
+            _app(_global_admin(), NotificationStore()),
+            "POST",
+            "/admin/notifications",
+            {"title": "   ", "message": "Visible", "type": "academic"},
+        )
+    )
+
+    assert response.status_code == 422
+    assert "password" not in response.text.lower()
+    assert "postgres" not in response.text.lower()
+
+
 def test_admin_can_publish_all_student_notification_visible_to_student():
     store = NotificationStore()
     admin_app = _app(_global_admin(), store)
@@ -476,6 +491,33 @@ def test_admin_can_schedule_future_notification_hidden_before_active_time():
     assert student_notifications.json() == []
 
 
+def test_admin_schedule_rejects_invalid_end_date_window():
+    store = NotificationStore()
+    admin_app = _app(_global_admin(), store)
+    created = _run(
+        _request(
+            admin_app,
+            "POST",
+            "/admin/notifications",
+            {"title": "Bad window", "message": "Dates", "type": "academic"},
+        )
+    )
+
+    response = _run(
+        _request(
+            admin_app,
+            "POST",
+            f"/admin/notifications/{created.json()['id']}/schedule",
+            {
+                "publish_at": (NOW + timedelta(days=3)).isoformat(),
+                "end_date": (NOW + timedelta(days=1)).isoformat(),
+            },
+        )
+    )
+
+    assert response.status_code == 422
+
+
 def test_admin_can_archive_notification_and_hide_from_student():
     store = NotificationStore()
     admin_app = _app(_global_admin(), store)
@@ -501,6 +543,39 @@ def test_admin_can_archive_notification_and_hide_from_student():
     assert archived.json()["status"] == "archived"
     assert student_notifications.status_code == 200
     assert student_notifications.json() == []
+
+
+def test_admin_publish_and_archive_actions_are_idempotent():
+    store = NotificationStore()
+    admin_app = _app(_global_admin(), store)
+    created = _run(
+        _request(
+            admin_app,
+            "POST",
+            "/admin/notifications",
+            {"title": "Repeatable", "message": "Lifecycle", "type": "academic"},
+        )
+    )
+    notification_id = created.json()["id"]
+
+    first_publish = _run(
+        _request(admin_app, "POST", f"/admin/notifications/{notification_id}/publish")
+    )
+    second_publish = _run(
+        _request(admin_app, "POST", f"/admin/notifications/{notification_id}/publish")
+    )
+    first_archive = _run(
+        _request(admin_app, "POST", f"/admin/notifications/{notification_id}/archive")
+    )
+    second_archive = _run(
+        _request(admin_app, "POST", f"/admin/notifications/{notification_id}/archive")
+    )
+
+    assert first_publish.status_code == 200
+    assert second_publish.status_code == 200
+    assert first_archive.status_code == 200
+    assert second_archive.status_code == 200
+    assert second_archive.json()["status"] == "archived"
 
 
 def test_student_read_unread_works_with_admin_created_notification():

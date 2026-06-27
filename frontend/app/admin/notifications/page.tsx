@@ -57,10 +57,22 @@ const STR = {
     archivedToast: "Notification archived.",
     updatedToast: "Notification updated.",
     targetRequired: "Select an institute target.",
+    titleRequired: "Enter a notification title.",
+    messageRequired: "Enter the notification message.",
+    scheduleRequired: "Choose a publish time.",
+    invalidDateRange: "Active-until date must be after the publish time.",
+    confirmPublish: "Publish this notification now?",
+    confirmArchive: "Archive this notification? Students will no longer see it.",
     empty: "No notifications yet",
     preview: "Preview",
     previewTitle: "Notification title",
     previewMsg: "Your message preview appears here as students will see it.",
+    statusLabels: {
+      draft: "Draft",
+      scheduled: "Scheduled",
+      published: "Published",
+      archived: "Archived",
+    },
   },
   vi: {
     allStudents: "Tất cả sinh viên",
@@ -78,10 +90,22 @@ const STR = {
     archivedToast: "Đã lưu trữ thông báo.",
     updatedToast: "Đã cập nhật thông báo.",
     targetRequired: "Chọn viện nhận thông báo.",
+    titleRequired: "Nhập tiêu đề thông báo.",
+    messageRequired: "Nhập nội dung thông báo.",
+    scheduleRequired: "Chọn thời điểm đăng.",
+    invalidDateRange: "Ngày kết thúc phải sau thời điểm đăng.",
+    confirmPublish: "Đăng thông báo này ngay?",
+    confirmArchive: "Lưu trữ thông báo này? Sinh viên sẽ không còn thấy thông báo.",
     empty: "Chưa có thông báo",
     preview: "Xem trước",
     previewTitle: "Tiêu đề thông báo",
     previewMsg: "Bản xem trước nội dung của bạn hiển thị tại đây như sinh viên sẽ thấy.",
+    statusLabels: {
+      draft: "Bản nháp",
+      scheduled: "Đã lên lịch",
+      published: "Đã đăng",
+      archived: "Đã lưu trữ",
+    },
   },
 } as const;
 
@@ -103,6 +127,10 @@ function localToIso(value: string): string | null {
 
 function dateInputToIso(value: string): string | null {
   return value ? new Date(`${value}T00:00:00`).toISOString() : null;
+}
+
+function dateInputToEndOfDayIso(value: string): string | null {
+  return value ? new Date(`${value}T23:59:59`).toISOString() : null;
 }
 
 export default function AdminNotificationsPage() {
@@ -128,6 +156,7 @@ export default function AdminNotificationsPage() {
   const [scheduleAt, setScheduleAt] = useState("");
   const [endDate, setEndDate] = useState("");
   const [busy, setBusy] = useState(false);
+  const [formErrors, setFormErrors] = useState<string[]>([]);
 
   useEffect(() => {
     setItems(null);
@@ -135,6 +164,7 @@ export default function AdminNotificationsPage() {
     setToast(null);
     resetForm();
     setBusy(false);
+    setFormErrors([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -157,6 +187,11 @@ export default function AdminNotificationsPage() {
     [instituteId, targets]
   );
   const targetInvalid = targetScope === "institute" && !instituteId;
+  const dateRangeInvalid = (() => {
+    const publishAt = localToIso(scheduleAt);
+    const activeUntil = dateInputToEndOfDayIso(endDate);
+    return !!publishAt && !!activeUntil && new Date(activeUntil) < new Date(publishAt);
+  })();
 
   function resetForm() {
     setEditingId(null);
@@ -170,6 +205,7 @@ export default function AdminNotificationsPage() {
     setDeadline("");
     setScheduleAt("");
     setEndDate("");
+    setFormErrors([]);
   }
 
   function editNotification(notification: Notification) {
@@ -200,8 +236,8 @@ export default function AdminNotificationsPage() {
 
   function payload(status?: NotificationStatus) {
     return {
-      title,
-      message,
+      title: title.trim(),
+      message: message.trim(),
       type: category,
       priority,
       status,
@@ -210,12 +246,23 @@ export default function AdminNotificationsPage() {
       deadline: dateInputToIso(deadline),
       event_date: dateInputToIso(eventDate),
       start_date: localToIso(scheduleAt),
-      end_date: dateInputToIso(endDate),
+      end_date: dateInputToEndOfDayIso(endDate),
     };
   }
 
+  function validateForm(options: { requireSchedule?: boolean } = {}): boolean {
+    const errors: string[] = [];
+    if (!title.trim()) errors.push(s.titleRequired);
+    if (!message.trim()) errors.push(s.messageRequired);
+    if (targetInvalid) errors.push(s.targetRequired);
+    if (options.requireSchedule && !localToIso(scheduleAt)) errors.push(s.scheduleRequired);
+    if (dateRangeInvalid) errors.push(s.invalidDateRange);
+    setFormErrors(errors);
+    return errors.length === 0;
+  }
+
   async function saveDraft() {
-    if (!title.trim() || !message.trim() || targetInvalid) return;
+    if (!validateForm()) return;
     setBusy(true);
     try {
       const saved = editingId
@@ -232,7 +279,7 @@ export default function AdminNotificationsPage() {
   }
 
   async function publish() {
-    if (!title.trim() || !message.trim() || targetInvalid) return;
+    if (!validateForm() || !window.confirm(s.confirmPublish)) return;
     setBusy(true);
     try {
       const notification = editingId
@@ -251,13 +298,17 @@ export default function AdminNotificationsPage() {
 
   async function schedule() {
     const publishAt = localToIso(scheduleAt);
-    if (!title.trim() || !message.trim() || targetInvalid || !publishAt) return;
+    if (!validateForm({ requireSchedule: true }) || !publishAt) return;
     setBusy(true);
     try {
       const notification = editingId
         ? await updateNotification(editingId, payload())
         : await createNotification(payload("draft"));
-      const scheduled = await scheduleNotification(notification.id, publishAt, dateInputToIso(endDate));
+      const scheduled = await scheduleNotification(
+        notification.id,
+        publishAt,
+        dateInputToEndOfDayIso(endDate)
+      );
       upsertItem(scheduled);
       setToast(s.scheduledToast);
       resetForm();
@@ -269,6 +320,7 @@ export default function AdminNotificationsPage() {
   }
 
   async function archive(id: string) {
+    if (!window.confirm(s.confirmArchive)) return;
     setBusy(true);
     try {
       const archived = await archiveAdminNotification(id);
@@ -279,6 +331,26 @@ export default function AdminNotificationsPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function publishExisting(id: string) {
+    if (!window.confirm(s.confirmPublish)) return;
+    setBusy(true);
+    try {
+      const published = await publishNotification(id);
+      upsertItem(published);
+      setToast(p.adminNotif.publishedToast);
+    } catch {
+      setToast(p.adminNotif.actionFailed);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function targetLabel(notification: Notification): string {
+    const audience = notification.target_audience ?? [];
+    if (audience.length === 0 || audience[0] === "all") return s.allStudents;
+    return audience.join(", ");
   }
 
   return (
@@ -299,11 +371,11 @@ export default function AdminNotificationsPage() {
                     return (
                       <div key={n.id} className="anotif-card">
                         <div className="anotif-card-top">
-                          <span className={`ah-chip ${STATUS_CHIP[st] ?? "neutral"}`}>{st}</span>
+                          <span className={`ah-chip ${STATUS_CHIP[st] ?? "neutral"}`}>
+                            {s.statusLabels[st] ?? st}
+                          </span>
                           <span className="ah-chip neutral">{p.enums.notificationType[n.type]}</span>
-                          {n.target_audience && n.target_audience.length > 0 && (
-                            <span className="ah-chip info">{n.target_audience.join(", ")}</span>
-                          )}
+                          <span className="ah-chip info">{targetLabel(n)}</span>
                           <span className="anotif-card-time">
                             {relativeTime(n.updated_at ?? n.created_at, lang)}
                           </span>
@@ -315,7 +387,12 @@ export default function AdminNotificationsPage() {
                             {s.edit}
                           </button>
                           {st !== "published" && st !== "archived" && (
-                            <button className="btn btn-primary btn-sm" type="button" disabled={busy} onClick={() => void publishNotification(n.id).then(upsertItem).then(() => setToast(p.adminNotif.publishedToast)).catch(() => setToast(p.adminNotif.actionFailed))}>
+                            <button
+                              className="btn btn-primary btn-sm"
+                              type="button"
+                              disabled={busy}
+                              onClick={() => void publishExisting(n.id)}
+                            >
                               {s.publishNow}
                             </button>
                           )}
@@ -381,6 +458,7 @@ export default function AdminNotificationsPage() {
                     {targets.map((target) => <option key={target.id} value={target.id}>{target.code}</option>)}
                   </select>
                   {targetInvalid && <p className="td-sub">{s.targetRequired}</p>}
+                  {targetsLoaded.status === "error" && <p className="td-sub">{p.adminNotif.actionFailed}</p>}
                 </div>
               </div>
 
@@ -403,8 +481,15 @@ export default function AdminNotificationsPage() {
                 <div className="field">
                   <label className="field-label" htmlFor="n-end">{s.activeUntil}</label>
                   <input id="n-end" type="date" className="input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                  {dateRangeInvalid && <p className="td-sub">{s.invalidDateRange}</p>}
                 </div>
               </div>
+
+              {formErrors.length > 0 && (
+                <div className="confirm-row" role="alert">
+                  <span>{formErrors[0]}</span>
+                </div>
+              )}
 
               <div className="review-actions">
                 {editingId && (
@@ -412,13 +497,28 @@ export default function AdminNotificationsPage() {
                     {s.cancelEdit}
                   </button>
                 )}
-                <button className="btn btn-outline" type="button" onClick={() => void saveDraft()} disabled={busy || !title.trim() || !message.trim() || targetInvalid}>
+                <button
+                  className="btn btn-outline"
+                  type="button"
+                  onClick={() => void saveDraft()}
+                  disabled={busy}
+                >
                   {editingId ? s.saveChanges : p.adminNotif.saveDraftBtn}
                 </button>
-                <button className="btn btn-outline" type="button" onClick={() => void schedule()} disabled={busy || !title.trim() || !message.trim() || targetInvalid || !scheduleAt}>
+                <button
+                  className="btn btn-outline"
+                  type="button"
+                  onClick={() => void schedule()}
+                  disabled={busy}
+                >
                   {s.schedule}
                 </button>
-                <button className="btn btn-primary" type="button" onClick={() => void publish()} disabled={busy || !title.trim() || !message.trim() || targetInvalid}>
+                <button
+                  className="btn btn-primary"
+                  type="button"
+                  onClick={() => void publish()}
+                  disabled={busy}
+                >
                   <IconCheck size={15} /> {busy ? p.adminNotif.publishing : s.publishNow}
                 </button>
               </div>

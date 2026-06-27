@@ -39,7 +39,6 @@ import type { Lang } from "./i18n";
 import {
   MOCK_ADMIN_STATS,
   MOCK_ANALYTICS,
-  MOCK_NOTIFICATIONS,
   MOCK_TICKETS,
   MOCK_TUITION,
   MOCK_UNANSWERED,
@@ -1231,13 +1230,6 @@ export async function getStudentNotifications(): Promise<Notification[]> {
   return rows.map(mapNotification);
 }
 
-function patchNotification(id: string, patch: Partial<Notification>): Notification {
-  const n = MOCK_NOTIFICATIONS.find((x) => x.id === id);
-  if (!n) throw new Error(`Notification ${id} not found`);
-  Object.assign(n, patch);
-  return { ...n };
-}
-
 // [LIVE] POST /students/me/notifications/{id}/read|unread -> read state
 export async function markNotificationRead(id: string, read = true): Promise<Notification> {
   const action = read ? "read" : "unread";
@@ -1260,24 +1252,6 @@ export async function markAllNotificationsRead(): Promise<BackendMarkAllNotifica
       headers: { Accept: "application/json" },
     }
   );
-}
-
-// Local-only until future notification preference endpoints exist.
-export async function markNotificationImportant(
-  id: string,
-  important: boolean
-): Promise<Notification> {
-  return delay({ id, important } as Notification, 150);
-}
-
-// Local-only until future notification archive endpoints exist.
-export async function archiveNotification(id: string): Promise<Notification> {
-  return delay({ id, archived: true } as Notification, 150);
-}
-
-// Local-only until future notification delete/hide endpoints exist.
-export async function deleteNotification(_id: string): Promise<{ ok: true }> {
-  return delay({ ok: true } as const, 150);
 }
 
 // ---- Admin notifications + suggested questions (PLAN22.6) -------------------
