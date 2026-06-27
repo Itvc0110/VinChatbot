@@ -14,8 +14,10 @@ import {
   getSupportTickets,
   getStudentCalendar,
   getActiveSuggestedQuestions,
+  getAcademicOverview,
 } from "@/lib/api";
-import { daysUntil } from "@/lib/format";
+import type { AcademicCourse, AcademicScheduleEvent } from "@/lib/api";
+import { daysUntil, formatDate } from "@/lib/format";
 import { timeLabel } from "@/lib/calendar";
 import {
   IconArrow,
@@ -138,6 +140,18 @@ const STR: Record<Lang, {
   schedNow: string;
   schedCompleted: string;
   schedUpcoming: string;
+  academicProgress: string;
+  fieldCpa: string;
+  progressOf: (earned: number, required: number) => string;
+  completedRequired: string;
+  remainingRequired: string;
+  failedCourses: string;
+  enrolledCourses: string;
+  upcomingClasses: string;
+  none: string;
+  noUpcomingClasses: string;
+  viewRecord: string;
+  academicUnavailable: string;
 }> = {
   en: {
     welcome: "Welcome to Student Copilot",
@@ -167,6 +181,18 @@ const STR: Record<Lang, {
     schedNow: "Now",
     schedCompleted: "Completed",
     schedUpcoming: "Upcoming",
+    academicProgress: "Academic Progress",
+    fieldCpa: "CPA",
+    progressOf: (earned, required) => `${earned} / ${required} credits`,
+    completedRequired: "Required completed",
+    remainingRequired: "Required remaining",
+    failedCourses: "Failed courses",
+    enrolledCourses: "Currently enrolled",
+    upcomingClasses: "Upcoming classes",
+    none: "None",
+    noUpcomingClasses: "No upcoming classes.",
+    viewRecord: "View full academic record",
+    academicUnavailable: "Academic data is unavailable right now.",
   },
   vi: {
     welcome: "Chào mừng đến với Student Copilot",
@@ -196,6 +222,18 @@ const STR: Record<Lang, {
     schedNow: "Đang diễn ra",
     schedCompleted: "Đã qua",
     schedUpcoming: "Sắp tới",
+    academicProgress: "Tiến độ học tập",
+    fieldCpa: "CPA",
+    progressOf: (earned, required) => `${earned} / ${required} tín chỉ`,
+    completedRequired: "Bắt buộc đã hoàn thành",
+    remainingRequired: "Bắt buộc còn lại",
+    failedCourses: "Môn chưa đạt",
+    enrolledCourses: "Đang học",
+    upcomingClasses: "Lớp học sắp tới",
+    none: "Không có",
+    noUpcomingClasses: "Không có lớp học sắp tới.",
+    viewRecord: "Xem toàn bộ kết quả học tập",
+    academicUnavailable: "Hiện chưa tải được dữ liệu học tập.",
   },
 };
 
@@ -225,6 +263,7 @@ export default function StudentDashboardPage() {
   }, []);
 
   const profile = useAsync(() => getStudentProfile(), [token]);
+  const academic = useAsync(() => getAcademicOverview(), [token]);
   const schedule = useAsync(() => getStudentSchedule(), [token]);
   const deadlines = useAsync(() => getStudentDeadlines(), [token]);
   const tickets = useAsync(() => getSupportTickets(), [token]);
@@ -234,7 +273,20 @@ export default function StudentDashboardPage() {
   const go = (q: string) => router.push(`/student/chat?q=${encodeURIComponent(q)}`);
 
   const pr = profile.status === "success" ? profile.data : null;
+  const ac = academic.status === "success" ? academic.data : null;
   const name = user?.name ?? pr?.preferred_name ?? "";
+
+  // Prefer the academic-record GPA/credits (from the Phase 13B academic DB) over the legacy
+  // profile fields when available; fall back to the legacy profile otherwise.
+  const gpaText = ac?.current_gpa ?? (pr ? pr.gpa.toFixed(2) : null);
+  const creditsText = ac
+    ? `${ac.earned_credits}/${ac.required_credits}`
+    : pr
+    ? `${pr.credits_earned}/${pr.credits_required}`
+    : null;
+  const progressPct = ac
+    ? Math.max(0, Math.min(100, Number(ac.summary.progress_percent) || 0))
+    : 0;
 
   // Today's classes (fall back to next day with classes, like the original).
   const allClasses = schedule.status === "success" ? schedule.data : [];
@@ -351,12 +403,99 @@ export default function StudentDashboardPage() {
               <Field k={s.fieldYear} v={pr ? s.yearOf(pr.year) : "—"} />
               <Field k={s.fieldTerm} v={pr?.intake ?? "—"} />
               <Field k={s.fieldAdvisor} v={pr?.advisor ?? "—"} />
-              <Field k={s.fieldGpa} v={pr ? pr.gpa.toFixed(2) : "—"} />
-              <Field
-                k={s.fieldCredits}
-                v={pr ? `${pr.credits_earned}/${pr.credits_required}` : "—"}
-              />
+              <Field k={s.fieldGpa} v={gpaText ?? "—"} />
+              <Field k={s.fieldCredits} v={creditsText ?? "—"} />
             </div>
+          </Card>
+
+          {/* Academic Progress (Phase 13C — GET /academic/me) */}
+          <Card>
+            <div className="dash-section-head">
+              <h2 className="dash-section-title">{s.academicProgress}</h2>
+              <Link className="dash-viewall" href="/student/academic">
+                {s.viewRecord} <IconArrow size={14} />
+              </Link>
+            </div>
+            {academic.status === "loading" ? (
+              <p className="rail-empty" style={{ margin: 0 }}>
+                …
+              </p>
+            ) : academic.status === "error" || !ac ? (
+              <p className="rail-empty" style={{ margin: 0 }}>
+                {s.academicUnavailable}
+              </p>
+            ) : (
+              <div className="academic-progress">
+                <div className="profile-card-grid">
+                  <Field k={s.fieldGpa} v={ac.current_gpa ?? "—"} />
+                  <Field k={s.fieldCpa} v={ac.cumulative_cpa ?? "—"} />
+                  <Field k={s.completedRequired} v={String(ac.summary.completed_required_courses)} />
+                  <Field k={s.remainingRequired} v={String(ac.summary.remaining_required_courses)} />
+                </div>
+
+                <div style={{ marginTop: 16 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: 13,
+                      marginBottom: 6,
+                    }}
+                  >
+                    <span className="profile-field-k">{s.fieldCredits}</span>
+                    <span className="profile-field-v">
+                      {s.progressOf(ac.earned_credits, ac.required_credits)} · {progressPct}%
+                    </span>
+                  </div>
+                  <div
+                    className="academic-progress-bar"
+                    role="progressbar"
+                    aria-valuenow={progressPct}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    style={{
+                      height: 8,
+                      borderRadius: 999,
+                      background: "var(--surface-2, rgba(0,0,0,0.08))",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${progressPct}%`,
+                        height: "100%",
+                        background: "var(--brand, #c8102e)",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <CourseChips title={s.enrolledCourses} courses={ac.enrolled_courses} none={s.none} />
+                <CourseChips
+                  title={s.failedCourses}
+                  courses={ac.failed_courses}
+                  none={s.none}
+                  tone="warning"
+                />
+
+                <div style={{ marginTop: 16 }}>
+                  <div className="profile-field-k" style={{ marginBottom: 8 }}>
+                    {s.upcomingClasses}
+                  </div>
+                  {ac.upcoming_meetings.length === 0 ? (
+                    <p className="rail-empty" style={{ margin: 0 }}>
+                      {s.noUpcomingClasses}
+                    </p>
+                  ) : (
+                    <div className="dash-list">
+                      {ac.upcoming_meetings.slice(0, 4).map((m) => (
+                        <MeetingRow key={m.id} m={m} locale={locale} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </Card>
 
           {/* Recommended for You */}
@@ -492,6 +631,60 @@ function Field({ k, v }: { k: string; v: string }) {
     <div>
       <div className="profile-field-k">{k}</div>
       <div className="profile-field-v">{v}</div>
+    </div>
+  );
+}
+
+function CourseChips({
+  title,
+  courses,
+  none,
+  tone = "neutral",
+}: {
+  title: string;
+  courses: AcademicCourse[];
+  none: string;
+  tone?: "neutral" | "warning";
+}) {
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div className="profile-field-k" style={{ marginBottom: 8 }}>
+        {title}
+      </div>
+      {courses.length === 0 ? (
+        <p className="rail-empty" style={{ margin: 0 }}>
+          {none}
+        </p>
+      ) : (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {courses.map((c) => (
+            <span key={c.id} className={`ah-chip ${tone === "warning" ? "warning" : "neutral"}`}>
+              {c.code}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MeetingRow({ m, locale }: { m: AcademicScheduleEvent; locale: string }) {
+  const sub = [
+    m.section_code ? `${m.course_code} · ${m.section_code}` : m.course_code,
+    [m.room_name, m.building].filter(Boolean).join(", "),
+    m.instructor_name ?? "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <div className="rail-sched-row">
+      <span className="rail-time">
+        {formatDate(m.start_at, locale)} · {timeLabel(m.start_at, locale)}
+      </span>
+      <div className="rail-sched-main">
+        <div className="rail-sched-title">{m.title}</div>
+        <div className="rail-sched-sub">{sub}</div>
+      </div>
     </div>
   );
 }

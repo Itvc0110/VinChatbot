@@ -8,10 +8,42 @@ import { DayEventsPopup } from "@/components/calendar/DayEventsPopup";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
 import { useAuth } from "@/lib/auth";
-import { getStudentCalendar } from "@/lib/api";
+import { getStudentCalendar, getMonthlySchedule } from "@/lib/api";
+import type { AcademicScheduleEvent } from "@/lib/api";
 import type { CalendarEvent } from "@/lib/portalTypes";
 import { addDays, addMonths, monthTitle, weekTitle, timeLabel, ymd } from "@/lib/calendar";
 import { formatDate } from "@/lib/format";
+
+// Map a backend class meeting (GET /schedule/me) onto the calendar's CalendarEvent shape.
+// lecture/lab/tutorial/seminar/office_hour render as "class"; exam and deadline keep their type.
+function meetingToCalendarEvent(m: AcademicScheduleEvent): CalendarEvent {
+  const type: CalendarEvent["type"] =
+    m.meeting_type === "exam" ? "exam" : m.meeting_type === "deadline" ? "deadline" : "class";
+  const location = [m.room_name, m.building].filter(Boolean).join(", ") || undefined;
+  const course = m.section_code ? `${m.course_code} · ${m.section_code}` : m.course_code;
+  const description = [
+    m.instructor_name ? `Instructor: ${m.instructor_name}` : null,
+    m.note || null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return {
+    id: m.id,
+    type,
+    title: m.title || m.course_name,
+    start: m.start_at,
+    end: m.end_at,
+    location,
+    course,
+    category: m.meeting_type,
+    description: description || undefined,
+  };
+}
+
+// "YYYY-MM" for the month the calendar cursor is currently showing (local wall-clock).
+function monthKeyOf(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
 
 type ViewMode = "day" | "week" | "month" | "list";
 type CalFilter = "all" | "class" | "exam" | "assignment" | "tuition" | "event";
@@ -28,6 +60,8 @@ const STR: Record<Lang, {
   viewLabel: string;
   upcoming: string;
   allDay: string;
+  noClassesThisMonth: string;
+  scheduleError: string;
   filters: Record<CalFilter, string>;
   views: Record<ViewMode, string>;
 }> = {
@@ -39,6 +73,8 @@ const STR: Record<Lang, {
     viewLabel: "View",
     upcoming: "Upcoming",
     allDay: "All day",
+    noClassesThisMonth: "No classes scheduled this month.",
+    scheduleError: "Couldn't load your class schedule for this month.",
     filters: {
       all: "All",
       class: "Classes",
@@ -57,6 +93,8 @@ const STR: Record<Lang, {
     viewLabel: "Xem",
     upcoming: "Sắp tới",
     allDay: "Cả ngày",
+    noClassesThisMonth: "Không có lớp học nào trong tháng này.",
+    scheduleError: "Không tải được lịch học của tháng này.",
     filters: {
       all: "Tất cả",
       class: "Lớp học",
@@ -123,6 +161,11 @@ export default function StudentCalendarPage() {
 
   const [view, setView] = useState<ViewMode>("month");
   const [cursor, setCursor] = useState<Date>(() => new Date());
+
+  // Phase 13C: real class meetings for the visible month come from GET /schedule/me?month=YYYY-MM.
+  // They replace the legacy recurring-schedule class events; deadlines/events still come from cal.
+  const monthKey = monthKeyOf(cursor);
+  const sched = useAsync(() => getMonthlySchedule(monthKey), [token, monthKey]);
   const [filter, setFilter] = useState<CalFilter>("all");
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
   const [popupDay, setPopupDay] = useState<Date | null>(null);
@@ -138,7 +181,21 @@ export default function StudentCalendarPage() {
     setPopupDay(null);
   }, [token]);
 
-  const events = cal.status === "success" ? cal.data : [];
+  // Non-class events (deadlines, exams-as-deadlines, events) from the legacy calendar source.
+  // Class events are dropped here because GET /schedule/me now owns dated class meetings.
+  const calEvents = useMemo(
+    () => (cal.status === "success" ? cal.data.filter((e) => e.type !== "class") : []),
+    [cal]
+  );
+  const academicEvents = useMemo(
+    () => (sched.status === "success" ? sched.data.map(meetingToCalendarEvent) : []),
+    [sched]
+  );
+  const events = useMemo(
+    () => [...calEvents, ...academicEvents],
+    [calEvents, academicEvents]
+  );
+
   useEffect(() => {
     if (cal.status !== "success" || autoCursorApplied.current || manualCursorNavigation.current) {
       return;
@@ -270,6 +327,11 @@ export default function StudentCalendarPage() {
         {() => (
           <div className="cal-layout-ah">
             <div className="cal-main-card">
+              {sched.status === "error" ? (
+                <div className="cal-empty" role="status">{s.scheduleError}</div>
+              ) : sched.status === "success" && academicEvents.length === 0 ? (
+                <div className="cal-empty" role="status">{s.noClassesThisMonth}</div>
+              ) : null}
               {view === "month" || view === "week" ? (
                 <CalendarView
                   events={filtered}

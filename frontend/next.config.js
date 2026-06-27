@@ -17,6 +17,14 @@ const nextConfig = {
         destination: `${BACKEND_URL}/students/:path*`,
       },
       {
+        source: "/api/academic/:path*",
+        destination: `${BACKEND_URL}/academic/:path*`,
+      },
+      {
+        source: "/api/schedule/:path*",
+        destination: `${BACKEND_URL}/schedule/:path*`,
+      },
+      {
         source: "/api/suggestions/:path*",
         destination: `${BACKEND_URL}/suggestions/:path*`,
       },
