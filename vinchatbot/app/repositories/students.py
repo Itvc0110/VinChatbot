@@ -161,6 +161,8 @@ class StudentRepository:
                 n.end_date,
                 n.source_title,
                 n.source_url,
+                n.forum_topic_id,
+                n.forum_comment_id,
                 n.created_at,
                 n.updated_at,
                 (nr.id is not null) as is_read,
@@ -180,6 +182,7 @@ class StudentRepository:
                  or (n.target_scope = 'institute' and n.institute_id = %s)
                  or (n.target_scope = 'course' and n.course_id = any(%s))
                  or (n.target_scope = 'cohort' and n.cohort = %s)
+                 or (n.target_scope = 'student' and n.recipient_user_id = %s)
               )
             order by n.priority desc, n.created_at desc, n.title
             """,
@@ -188,6 +191,7 @@ class StudentRepository:
                 profile["institute"]["id"],
                 course_ids,
                 profile["cohort"],
+                user_id,
             ),
         )
         return [dict(row) for row in rows]

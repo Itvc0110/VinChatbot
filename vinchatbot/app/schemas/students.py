@@ -97,6 +97,8 @@ class NotificationResponse(BaseModel):
     end_date: datetime | None = None
     source_title: str | None = None
     source_url: str | None = None
+    forum_topic_id: uuid.UUID | None = None
+    forum_comment_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
     is_read: bool = False
