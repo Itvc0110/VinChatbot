@@ -1,0 +1,702 @@
+/* ============================================================================
+   ACADEMIC HORIZON — page-level layouts (Phase 2 revision)
+   Real, screen-specific layouts that match the Stitch Academic Horizon screens
+   (login + the student pages). Uses the --ah-* tokens. New `.ah-*` classes only,
+   so nothing here affects admin or other surfaces. Scoped visually by the student
+   shell (`.ah-ui`) / auth frame.
+   ============================================================================ */
+
+/* ==========================================================================
+   /login — centered auth card
+   ========================================================================== */
+.ah-login {
+  width: 100%;
+  max-width: 440px;
+}
+.ah-login-card {
+  background: var(--ah-surface);
+  border: 1px solid var(--ah-border);
+  border-radius: var(--ah-radius-lg);
+  box-shadow: var(--ah-shadow-2);
+  padding: 36px 36px 28px;
+}
+.ah-login-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.ah-login-badge {
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  background: var(--ah-brand);
+  color: var(--ah-on-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.ah-login-brand-name {
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0;
+  color: var(--ah-text);
+}
+.ah-login-brand-sub {
+  font-size: 12px;
+  color: var(--ah-muted);
+  font-weight: 600;
+}
+.ah-login-title {
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.25;
+  margin: 0 0 6px;
+  color: var(--ah-text);
+}
+.ah-login-sub {
+  font-size: 14px;
+  color: var(--ah-muted);
+  margin: 0 0 22px;
+  line-height: 1.5;
+}
+.ah-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.ah-field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ah-text);
+}
+.ah-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.ah-input-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--ah-muted);
+  display: inline-flex;
+  pointer-events: none;
+}
+.ah-input {
+  width: 100%;
+  height: 44px;
+  border: 1px solid var(--ah-border);
+  border-radius: var(--ah-radius-sm);
+  background: var(--ah-surface);
+  color: var(--ah-text);
+  padding: 0 12px 0 38px;
+  font: inherit;
+  font-size: 14px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.ah-input::placeholder {
+  color: var(--ah-muted);
+  opacity: 0.8;
+}
+.ah-input:focus-visible {
+  border-color: var(--ah-brand);
+  box-shadow: 0 0 0 2px var(--ah-ring);
+  outline: none;
+}
+.ah-btn-primary-full {
+  width: 100%;
+  height: 44px;
+  border: none;
+  border-radius: var(--ah-radius-sm);
+  background: var(--ah-brand);
+  color: var(--ah-on-primary);
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+  transition: background 150ms ease;
+}
+.ah-btn-primary-full:hover {
+  background: var(--ah-brand-hover);
+}
+.ah-btn-primary-full:disabled,
+.ah-btn-outline-full:disabled,
+.ah-login-demo-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+.ah-login-error {
+  border: 1px solid var(--ah-error);
+  border-radius: var(--ah-radius-sm);
+  background: var(--ah-error-bg);
+  color: var(--ah-error);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0 0 12px;
+  padding: 9px 11px;
+}
+.ah-btn-outline-full {
+  width: 100%;
+  height: 44px;
+  border: 1px solid var(--ah-border-strong);
+  border-radius: var(--ah-radius-sm);
+  background: var(--ah-surface);
+  color: var(--ah-text);
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+.ah-btn-outline-full:hover {
+  background: var(--ah-surface-2);
+  border-color: var(--ah-brand);
+  color: var(--ah-brand);
+}
+.ah-login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ah-muted);
+  font-size: 12px;
+  margin: 18px 0;
+}
+.ah-login-divider::before,
+.ah-login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--ah-border);
+}
+.ah-login-demo {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.ah-login-demo-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  border: 1px solid var(--ah-border);
+  border-radius: var(--ah-radius-sm);
+  background: var(--ah-surface);
+  color: var(--ah-text-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+}
+.ah-login-demo-btn:hover {
+  border-color: var(--ah-brand);
+  color: var(--ah-brand);
+  background: var(--ah-primary-tint);
+}
+.ah-login-demo-hint {
+  display: grid;
+  gap: 4px;
+  margin-top: 14px;
+  color: var(--ah-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.ah-login-demo-hint span {
+  overflow-wrap: anywhere;
+}
+.ah-login-foot {
+  margin: 18px 0 0;
+  font-size: 12px;
+  color: var(--ah-muted);
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   /student/dashboard — command center (two-column: main + right rail)
+   ========================================================================== */
+.dash-welcome { margin-bottom: 20px; }
+.dash-welcome-title {
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+  font-size: 28px; font-weight: 700; letter-spacing: 0; margin: 0 0 4px; color: var(--ah-text);
+}
+.dash-welcome-sub { color: var(--ah-muted); font-size: 14px; margin: 0; }
+
+.dash-grid { display: grid; grid-template-columns: minmax(0, 1fr) 336px; gap: 24px; align-items: start; }
+.dash-main { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.dash-rail { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (max-width: 1024px) { .dash-grid { grid-template-columns: 1fr; } }
+
+.dash-section-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px;
+}
+.dash-section-title {
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+  font-size: 18px; font-weight: 600; letter-spacing: 0; margin: 0; color: var(--ah-text);
+}
+.dash-viewall {
+  font-size: 13px; font-weight: 600; color: var(--ah-brand); text-decoration: none;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.dash-viewall:hover { text-decoration: underline; }
+
+/* academic profile */
+.profile-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 18px; }
+@media (max-width: 560px) { .profile-card-grid { grid-template-columns: repeat(2, 1fr); } }
+.profile-field-k {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ah-muted); font-weight: 600;
+}
+.profile-field-v { font-size: 15px; font-weight: 600; color: var(--ah-text); margin-top: 3px; }
+
+/* recommended-for-you strip */
+.rec-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 900px) { .rec-strip { grid-template-columns: 1fr; } }
+.rec-card-wrap { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.rec-card {
+  display: flex; gap: 12px; align-items: flex-start; padding: 16px;
+  background: var(--ah-surface); border: 1px solid var(--ah-border); border-radius: var(--ah-radius);
+  text-align: left; cursor: pointer; font: inherit; color: inherit;
+  transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+.rec-card:hover { box-shadow: var(--ah-shadow-2); border-color: var(--ah-border-strong); }
+.rec-related {
+  align-self: flex-start; font-size: 12px; font-weight: 700; color: var(--ah-brand); text-decoration: none;
+}
+.rec-related:hover { text-decoration: underline; }
+.rec-icon {
+  width: 36px; height: 36px; border-radius: var(--ah-radius-sm); flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ah-primary-tint); color: var(--ah-on-primary-tint);
+}
+.rec-text { font-size: 14px; font-weight: 500; color: var(--ah-text); line-height: 1.45; }
+
+/* shared card list */
+.dash-list { display: flex; flex-direction: column; gap: 12px; }
+
+/* active-ticket cards */
+.dash-ticket-card {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px; width: 100%;
+  background: var(--ah-surface); border: 1px solid var(--ah-border); border-radius: var(--ah-radius);
+  text-align: left; cursor: pointer; font: inherit; color: inherit;
+  transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+.dash-ticket-card:hover { box-shadow: var(--ah-shadow-2); border-color: var(--ah-border-strong); }
+.dash-ticket-main { flex: 1 1 auto; min-width: 0; }
+.dash-ticket-meta {
+  font-size: 12px; color: var(--ah-muted); margin-bottom: 4px; display: flex; gap: 8px; align-items: center;
+}
+.dash-ticket-title { font-size: 15px; font-weight: 600; color: var(--ah-text); margin: 0 0 4px; }
+.dash-ticket-desc {
+  font-size: 13px; color: var(--ah-text-2); margin: 0;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+}
+.dash-ticket-time { font-size: 12px; color: var(--ah-muted); margin-top: 6px; }
+
+/* event rows */
+.event-row {
+  display: flex; gap: 14px; align-items: center; padding: 14px 16px;
+  background: var(--ah-surface); border: 1px solid var(--ah-border); border-radius: var(--ah-radius);
+}
+.event-date {
+  flex: 0 0 auto; width: 56px; text-align: center; border-radius: var(--ah-radius-sm);
+  background: var(--ah-primary-tint); color: var(--ah-on-primary-tint); padding: 8px 0;
+}
+.event-date-mon { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.event-date-day { font-size: 20px; font-weight: 700; line-height: 1.1; }
+.event-main { flex: 1 1 auto; min-width: 0; }
+.event-title { font-size: 15px; font-weight: 600; color: var(--ah-text); }
+.event-meta { font-size: 12.5px; color: var(--ah-muted); margin-top: 3px; display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* right rail: today's schedule + ask vinnie */
+.rail-card { background: var(--ah-surface); border: 1px solid var(--ah-border); border-radius: var(--ah-radius); padding: 18px; }
+.rail-title {
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+  font-size: 16px; font-weight: 600; margin: 0 0 12px; color: var(--ah-text);
+}
+.rail-sched-row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--ah-border); }
+.rail-sched-row:last-child { border-bottom: none; }
+.rail-time { flex: 0 0 auto; font-size: 13px; font-weight: 700; color: var(--ah-brand); width: 46px; }
+.rail-sched-main { min-width: 0; }
+.rail-sched-title { font-size: 14px; font-weight: 600; color: var(--ah-text); }
+.rail-sched-sub { font-size: 12px; color: var(--ah-muted); margin-top: 2px; }
+.rail-empty { font-size: 13px; color: var(--ah-muted); padding: 8px 0; }
+.ask-vinnie-card {
+  background: linear-gradient(135deg, #002855 0%, #0057a8 100%);
+  border-radius: var(--ah-radius); padding: 18px; color: #fff;
+}
+.ask-vinnie-card h3 { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
+.ask-vinnie-card p { margin: 0 0 14px; font-size: 13px; opacity: 0.92; }
+.ask-vinnie-btn {
+  display: inline-flex; align-items: center; gap: 8px; background: #fff; color: var(--ah-brand);
+  border: none; border-radius: var(--ah-radius-sm); padding: 9px 16px; font-weight: 600; font-size: 13px;
+  cursor: pointer; text-decoration: none;
+}
+.ask-vinnie-btn:hover { background: rgba(255, 255, 255, 0.92); }
+
+/* ==========================================================================
+   Shared AH page header + Vinnie banner + pagination (used by student pages)
+   ========================================================================== */
+.ah-pagehead {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  margin-bottom: 18px; flex-wrap: wrap;
+}
+.ah-pagehead-title {
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+  font-size: 26px; font-weight: 700; letter-spacing: 0; margin: 0 0 4px; color: var(--ah-text);
+}
+.ah-pagehead-sub { color: var(--ah-muted); font-size: 14px; margin: 0; max-width: 70ch; }
+.ah-btn-red {
+  display: inline-flex; align-items: center; gap: 7px; background: var(--ah-brand); color: #fff;
+  border: none; border-radius: var(--ah-radius-sm); padding: 10px 16px; font: inherit; font-weight: 600;
+  font-size: 14px; cursor: pointer; transition: background 150ms ease; white-space: nowrap;
+}
+.ah-btn-red:hover { background: var(--ah-brand-hover); }
+
+.vinnie-banner {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+  background: var(--ah-primary-tint); border: 1px solid color-mix(in srgb, var(--ah-brand) 20%, transparent);
+  border-radius: var(--ah-radius); margin-bottom: 16px;
+}
+.vinnie-banner-icon {
+  width: 34px; height: 34px; border-radius: var(--ah-radius-sm); background: var(--ah-brand); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+}
+.vinnie-banner-text { flex: 1 1 auto; min-width: 0; font-size: 13.5px; color: var(--ah-on-primary-tint); font-weight: 500; }
+.vinnie-banner-btn {
+  flex: 0 0 auto; background: transparent; border: 1px solid var(--ah-brand); color: var(--ah-brand);
+  border-radius: var(--ah-radius-sm); padding: 7px 13px; font: inherit; font-weight: 600; font-size: 13px; cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+.vinnie-banner-btn:hover { background: var(--ah-brand); color: #fff; }
+
+.ticket-cardlist { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+
+.ah-pagination { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 22px; }
+.ah-page-btn {
+  min-width: 34px; height: 34px; padding: 0 8px; border: 1px solid var(--ah-border); background: var(--ah-surface);
+  color: var(--ah-text-2); border-radius: var(--ah-radius-sm); font: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+.ah-page-btn:hover:not(:disabled) { border-color: var(--ah-brand); color: var(--ah-brand); }
+.ah-page-btn.active { background: var(--ah-brand); border-color: var(--ah-brand); color: #fff; }
+.ah-page-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ==========================================================================
+   /student/schedule — Academic Calendar (two-column: calendar + today rail)
+   ========================================================================== */
+.cal-toolbar-ah { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.cal-nav-ah { display: inline-flex; align-items: center; gap: 4px; }
+.cal-period {
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+  font-size: 17px; font-weight: 600; color: var(--ah-text); min-width: 150px;
+}
+.cal-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.cal-filter-chip {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600;
+  border: 1px solid var(--ah-border); background: var(--ah-surface); color: var(--ah-text-2);
+  border-radius: var(--ah-radius-pill); padding: 6px 13px; cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
+}
+.cal-filter-chip:hover { border-color: var(--ah-brand); color: var(--ah-brand); }
+.cal-filter-chip.active { background: var(--ah-brand); border-color: var(--ah-brand); color: #fff; }
+.cal-filter-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+.cal-layout-ah { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+@media (max-width: 1024px) { .cal-layout-ah { grid-template-columns: 1fr; } }
+.cal-main-card {
+  background: var(--ah-surface); border: 1px solid var(--ah-border); border-radius: var(--ah-radius); padding: 16px;
+}
+.cal-list { display: flex; flex-direction: column; }
+.cal-list-row {
+  display: flex; gap: 14px; padding: 12px 4px; border-bottom: 1px solid var(--ah-border);
+  cursor: pointer; width: 100%; text-align: left; background: none; border-left: 0; border-right: 0; border-top: 0; font: inherit;
+}
+.cal-list-row:last-child { border-bottom: none; }
+.cal-list-row:hover { background: var(--ah-surface-2); }
+.cal-list-time { flex: 0 0 auto; width: 130px; font-size: 13px; font-weight: 600; color: var(--ah-brand); }
+.cal-list-main { min-width: 0; }
+.cal-list-title { font-size: 14px; font-weight: 600; color: var(--ah-text); }
+.cal-list-sub { font-size: 12.5px; color: var(--ah-muted); margin-top: 2px; }
+.cal-empty { padding: 28px; text-align: center; color: var(--ah-muted); font-size: 14px; }
+
+/* ==========================================================================
+   /student/chat — Vinnie AI welcome state (sidebar + ChatColumn unchanged)
+   ========================================================================== */
+.vinnie-welcome-wrap { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.vinnie-welcome {
+  flex: 1 1 auto; overflow-y: auto; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center; padding: 40px 24px;
+}
+.vinnie-avatar-lg {
+  width: 64px; height: 64px; border-radius: 18px;
+  background: linear-gradient(135deg, #002855, #0057a8); color: #fff;
+  display: flex; align-items: center; justify-content: center; margin-bottom: 18px; box-shadow: var(--ah-shadow-2);
+}
+.vinnie-welcome-title {
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+  font-size: 28px; font-weight: 700; letter-spacing: 0; margin: 0 0 8px; color: var(--ah-text);
+}
+.vinnie-welcome-sub { font-size: 15px; color: var(--ah-muted); max-width: 56ch; margin: 0 0 28px; line-height: 1.5; }
+.vinnie-sugg-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: 100%; max-width: 620px;
+}
+@media (max-width: 680px) { .vinnie-sugg-grid { grid-template-columns: 1fr; } }
+.vinnie-sugg-wrap { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.vinnie-sugg-card {
+  display: flex; align-items: center; gap: 12px; text-align: left; padding: 14px 16px;
+  background: var(--ah-surface); border: 1px solid var(--ah-border); border-radius: var(--ah-radius);
+  cursor: pointer; font: inherit; color: var(--ah-text); transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+.vinnie-sugg-card:hover { box-shadow: var(--ah-shadow-2); border-color: var(--ah-brand); }
+.vinnie-sugg-card:disabled { opacity: 0.6; cursor: not-allowed; }
+.vinnie-sugg-icon {
+  width: 34px; height: 34px; border-radius: var(--ah-radius-sm); background: var(--ah-primary-tint);
+  color: var(--ah-on-primary-tint); display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+}
+.vinnie-sugg-text { font-size: 14px; font-weight: 500; line-height: 1.4; }
+.vinnie-sugg-related {
+  align-self: flex-start; font-size: 12px; font-weight: 700; color: var(--ah-brand); text-decoration: none;
+}
+.vinnie-sugg-related:hover { text-decoration: underline; }
+
+/* ==========================================================================
+   /student/events — Campus Events discovery
+   ========================================================================== */
+.events-toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.events-search { max-width: 340px; }
+
+.events-hero {
+  position: relative; display: grid; grid-template-columns: 1fr 190px; gap: 24px;
+  background: linear-gradient(135deg, #002855 0%, #0057a8 100%); color: #fff;
+  border-radius: var(--ah-radius-lg); padding: 28px; margin-bottom: 28px;
+}
+@media (max-width: 720px) { .events-hero { grid-template-columns: 1fr; } }
+.events-hero-badge {
+  display: inline-block; background: rgba(255, 255, 255, 0.18); color: #fff; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em; padding: 4px 10px; border-radius: var(--ah-radius-pill); margin-bottom: 12px;
+}
+.events-hero-title {
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+  font-size: 26px; font-weight: 700; letter-spacing: 0; margin: 0 0 8px;
+}
+.events-hero-desc { font-size: 14px; opacity: 0.92; margin: 0 0 16px; max-width: 60ch; line-height: 1.5; }
+.events-hero-meta { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; opacity: 0.95; }
+.events-hero-aside {
+  display: flex; flex-direction: column; gap: 10px; align-items: flex-start; justify-content: center;
+  border-left: 1px solid rgba(255, 255, 255, 0.2); padding-left: 20px;
+}
+@media (max-width: 720px) { .events-hero-aside { border-left: none; padding-left: 0; } }
+.events-hero-stat { font-size: 13px; opacity: 0.95; }
+.events-hero-btn {
+  background: #fff; color: var(--ah-brand); border: none; border-radius: var(--ah-radius-sm); padding: 10px 18px;
+  font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+}
+.events-hero-btn:hover { background: rgba(255, 255, 255, 0.92); }
+
+.events-section-title {
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+  font-size: 18px; font-weight: 600; margin: 0 0 14px; color: var(--ah-text);
+}
+.events-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+@media (max-width: 1024px) { .events-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .events-grid { grid-template-columns: 1fr; } }
+.event-card2 {
+  display: flex; flex-direction: column; background: var(--ah-surface); border: 1px solid var(--ah-border);
+  border-radius: var(--ah-radius); overflow: hidden; transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+.event-card2:hover { box-shadow: var(--ah-shadow-2); border-color: var(--ah-border-strong); }
+.event-card2-thumb {
+  height: 116px; background: linear-gradient(135deg, var(--ah-surface-3), var(--ah-surface-4));
+  display: flex; align-items: center; justify-content: center; color: var(--ah-muted); position: relative;
+}
+.event-card2-date {
+  position: absolute; top: 10px; left: 10px; background: var(--ah-surface); border-radius: var(--ah-radius-sm);
+  padding: 5px 9px; text-align: center; box-shadow: var(--ah-shadow-2); line-height: 1.1;
+}
+.event-card2-date-mon { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ah-brand); }
+.event-card2-date-day { font-size: 18px; font-weight: 700; color: var(--ah-text); }
+.event-card2-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; }
+.event-card2-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.event-card2-title { font-size: 15px; font-weight: 600; color: var(--ah-text); }
+.event-card2-meta { font-size: 12.5px; color: var(--ah-muted); display: flex; flex-direction: column; gap: 3px; }
+.event-card2-row { display: inline-flex; align-items: center; gap: 6px; }
+.event-card2-actions { display: flex; gap: 8px; margin-top: auto; padding-top: 6px; }
+
+/* ==========================================================================
+   /student/forum — Discussion Hub (category rail + topic list + topic detail)
+   ========================================================================== */
+.forum-layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 22px; align-items: start; }
+@media (max-width: 880px) { .forum-layout { grid-template-columns: 1fr; } }
+
+/* Category rail */
+.forum-sidebar { position: sticky; top: 16px; }
+@media (max-width: 880px) { .forum-sidebar { position: static; } }
+.forum-rail { display: flex; flex-direction: column; gap: 2px; }
+.forum-cat {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none;
+  border: none; border-radius: var(--ah-radius-sm); padding: 9px 11px; cursor: pointer; font: inherit;
+  font-size: 13.5px; font-weight: 600; color: var(--ah-text-2); transition: background 140ms ease, color 140ms ease;
+}
+.forum-cat:hover { background: var(--ah-surface-2); color: var(--ah-text); }
+.forum-cat.active { background: var(--ah-primary-tint); color: var(--ah-on-primary-tint); }
+.forum-cat-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; background: var(--ah-muted); }
+.forum-cat-dot.all { background: linear-gradient(135deg, var(--ah-brand), #7c3aed); }
+.forum-cat-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.forum-cat-count { flex: 0 0 auto; font-size: 12px; font-weight: 600; color: var(--ah-muted); }
+
+/* Toolbar (sort + search) */
+.forum-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.forum-search { flex: 1 1 220px; max-width: 360px; }
+.forum-status-seg { flex: 0 1 auto; }
+
+/* Topic list */
+.forum-topiclist { display: flex; flex-direction: column; gap: 12px; }
+.forum-topic-card {
+  display: flex; gap: 14px; padding: 16px; background: var(--ah-surface);
+  border: 1px solid var(--ah-border); border-radius: var(--ah-radius); transition: border-color 140ms ease;
+}
+.forum-topic-card:hover { border-color: var(--ah-border-strong); }
+.forum-topic-card.pinned { border-left: 3px solid var(--ah-brand); }
+.forum-topic-card.archived { opacity: 0.82; }
+.forum-topic-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.forum-topic-badges { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.forum-topic-title { margin: 0; font-size: 16px; font-weight: 700; line-height: 1.35; letter-spacing: 0; }
+.forum-topic-title a { color: var(--ah-text); text-decoration: none; }
+.forum-topic-title a:hover { color: var(--ah-brand); }
+.forum-topic-excerpt { margin: 0; font-size: 13.5px; color: var(--ah-text-2); line-height: 1.55;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.forum-topic-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--ah-muted); }
+.forum-topic-meta strong { color: var(--ah-text-2); font-weight: 600; }
+.forum-topic-comments { color: var(--ah-muted); text-decoration: none; }
+.forum-topic-comments:hover { color: var(--ah-brand); }
+
+/* Pin / lock flags */
+.forum-flag { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600;
+  padding: 2px 8px; border-radius: var(--ah-radius-pill); border: 1px solid var(--ah-border); color: var(--ah-text-2); }
+.forum-flag.pinned { color: var(--ah-brand); border-color: color-mix(in srgb, var(--ah-brand) 35%, transparent); }
+.forum-flag.locked { color: var(--ah-warning); border-color: color-mix(in srgb, var(--ah-warning) 35%, transparent); }
+.forum-flag.archived { color: var(--ah-muted); border-color: var(--ah-border-strong); }
+.forum-flag.staff { color: var(--ah-success); border-color: color-mix(in srgb, var(--ah-success) 35%, transparent); }
+
+/* Tags */
+.forum-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.forum-tag { font-size: 11.5px; font-weight: 600; color: var(--ah-text-2); background: var(--ah-surface-2);
+  border-radius: var(--ah-radius-pill); padding: 3px 9px; }
+.forum-tag.removable { border: none; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 600; }
+.forum-tag.removable:hover { background: var(--ah-error-bg); color: var(--ah-error); }
+
+/* Vote control (shared topic + comment) */
+.forum-vote { display: inline-flex; align-items: center; gap: 2px; }
+.forum-vote-vertical { flex-direction: column; flex: 0 0 auto; }
+.forum-vote-horizontal { flex-direction: row; }
+.forum-vote-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
+  border: none; background: none; border-radius: var(--ah-radius-sm); color: var(--ah-muted); cursor: pointer;
+  transition: background 120ms ease, color 120ms ease; }
+.forum-vote-btn:hover:not(:disabled) { background: var(--ah-surface-2); }
+.forum-vote-btn.up.active { color: var(--ah-brand); }
+.forum-vote-btn.down.active { color: var(--ah-error); }
+.forum-vote-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.forum-score { font-size: 13px; font-weight: 700; color: var(--ah-text-2); min-width: 18px; text-align: center; }
+.forum-score.up { color: var(--ah-brand); }
+.forum-score.down { color: var(--ah-error); }
+
+/* Topic detail */
+.forum-detail-page { max-width: 880px; }
+.forum-back { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600;
+  color: var(--ah-text-2); text-decoration: none; margin-bottom: 16px; }
+.forum-back:hover { color: var(--ah-brand); }
+.forum-post { display: flex; gap: 16px; padding: 20px; background: var(--ah-surface);
+  border: 1px solid var(--ah-border); border-radius: var(--ah-radius); }
+.forum-post-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.forum-post-title { margin: 0; font-size: 23px; font-weight: 700; line-height: 1.25; letter-spacing: 0; color: var(--ah-text); }
+.forum-post-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--ah-muted); }
+.forum-post-meta strong { color: var(--ah-text-2); font-weight: 600; }
+.forum-inline-badge {
+  display: inline-flex; margin-left: 6px; padding: 1px 6px; border-radius: var(--ah-radius-pill);
+  border: 1px solid var(--ah-border); font-size: 11px; font-weight: 700; color: var(--ah-text-2);
+}
+.forum-post-content { font-size: 15px; line-height: 1.7; color: var(--ah-text); white-space: pre-wrap; word-break: break-word; }
+.forum-post-attachments { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.forum-attach-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600;
+  color: var(--ah-brand); text-decoration: none; }
+.forum-attach-link:hover { text-decoration: underline; }
+.forum-post-foot { display: flex; align-items: center; gap: 14px; }
+.forum-locked-banner { margin: 14px 0 0; padding: 10px 14px; background: var(--ah-warning-bg); color: var(--ah-warning);
+  border-radius: var(--ah-radius-sm); font-size: 13px; font-weight: 600; }
+
+/* Moderator bar */
+.forum-modbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; padding-top: 12px;
+  border-top: 1px dashed var(--ah-border); }
+.forum-modbar-label { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em; color: var(--ah-muted); margin-right: 4px; }
+.forum-confirm { display: inline-flex; align-items: center; gap: 6px; }
+.forum-danger { color: var(--ah-error); }
+
+/* Comments */
+.forum-comments-section { margin-top: 24px; }
+.forum-comments-head { font-size: 16px; font-weight: 700; color: var(--ah-text); margin: 0 0 14px; }
+.forum-nocomments { font-size: 14px; color: var(--ah-muted); padding: 18px 0; text-align: center; }
+.forum-thread { display: flex; flex-direction: column; gap: 4px; margin-top: 18px; }
+.forum-comment { padding: 12px 0; border-top: 1px solid var(--ah-border); }
+.forum-comment:first-child { border-top: none; }
+.forum-comment.official > .forum-comment-body { border-left: 3px solid var(--ah-success); padding-left: 12px;
+  background: color-mix(in srgb, var(--ah-success) 6%, transparent); border-radius: var(--ah-radius-sm); }
+.forum-comment.removed .forum-comment-text { color: var(--ah-muted); font-style: italic; }
+.forum-comment-body { display: flex; gap: 10px; }
+.forum-comment-content { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.forum-comment-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.forum-comment-author { font-size: 13.5px; font-weight: 700; color: var(--ah-text); }
+.forum-comment-time { font-size: 12px; color: var(--ah-muted); }
+.forum-comment-text { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ah-text); white-space: pre-wrap; word-break: break-word; }
+.forum-comment-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.forum-comment-replies { margin-top: 4px; }
+.forum-reply-box { margin-top: 10px; }
+.forum-link-btn { background: none; border: none; padding: 0; font: inherit; font-size: 12.5px; font-weight: 600;
+  color: var(--ah-text-2); cursor: pointer; }
+.forum-link-btn:hover { color: var(--ah-brand); }
+.forum-link-btn.danger { color: var(--ah-muted); }
+.forum-link-btn.danger:hover { color: var(--ah-error); }
+
+/* Composer + mention autocomplete */
+.forum-composer { display: flex; flex-direction: column; gap: 10px; }
+.forum-composer-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.forum-mention-wrap { position: relative; }
+.forum-mention-menu { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 4px;
+  list-style: none; background: var(--ah-surface); border: 1px solid var(--ah-border-strong);
+  border-radius: var(--ah-radius); box-shadow: var(--ah-shadow-pop); max-height: 240px; overflow-y: auto; }
+.forum-mention-opt { display: flex; flex-direction: column; gap: 1px; width: 100%; text-align: left; background: none;
+  border: none; border-radius: var(--ah-radius-sm); padding: 7px 10px; cursor: pointer; font: inherit; }
+.forum-mention-opt:hover, .forum-mention-opt.active { background: var(--ah-primary-tint); }
+.forum-mention-name { font-size: 13.5px; font-weight: 600; color: var(--ah-text); }
+.forum-mention-email { font-size: 11.5px; color: var(--ah-muted); }
+.forum-mention-hint { margin: 4px 0 0; font-size: 12px; color: var(--ah-muted); }
+
+/* Create-topic modal extras */
+.forum-form-error { margin: 0; padding: 9px 12px; background: var(--ah-error-bg); color: var(--ah-error);
+  border-radius: var(--ah-radius-sm); font-size: 13px; font-weight: 600; }
+.forum-attach-add { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 8px; }
+@media (max-width: 560px) { .forum-attach-add { grid-template-columns: 1fr; } }
+.forum-attach-list { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.forum-attach-chip { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px;
+  background: var(--ah-surface-2); border-radius: var(--ah-radius-sm); padding: 7px 11px; color: var(--ah-text-2); }
+.forum-attach-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.forum-attach-chip button { background: none; border: none; color: var(--ah-muted); cursor: pointer; font-size: 13px; padding: 0 2px; }
+.forum-attach-chip button:hover { color: var(--ah-error); }

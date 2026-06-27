@@ -1,0 +1,12 @@
+# Local development overrides — auto-merged by `docker compose up`.
+# Production uses Caddy (80/443) as the only public entry; these mappings just expose
+# the services directly on the host for local testing without a domain/TLS.
+# Safe to delete; not used on the server (the server should run without this file).
+services:
+  backend:
+    ports:
+      - "8000:8000"
+
+  frontend:
+    ports:
+      - "3000:3000"

@@ -1,0 +1,677 @@
+/* ============================================================================
+   ACADEMIC HORIZON — component & shell layer (additive)
+   Pairs with the --ah-* tokens in globals.css and DESIGN.md.
+
+   Everything here is either:
+     (a) scoped under `.ah-ui` — so it ONLY restyles shared primitives that live
+         inside an Academic-Horizon subtree (the new shells), or
+     (b) a new `.ah-*` class for the new shells / shared table.
+
+   Nothing here matches existing page markup, so the current 16 screens render
+   unchanged until they are migrated (Phases 2–4) by being rendered within an
+   `.ah-ui` shell. Old tokens/classes are left intact for compatibility.
+   ============================================================================ */
+
+/* ---- AH scope base -------------------------------------------------------- */
+.ah-ui {
+  color: var(--ah-text);
+  font-family: var(--ah-font-body);
+}
+.ah-ui h1,
+.ah-ui h2,
+.ah-ui h3,
+.ah-ui h4,
+.ah-heading {
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+}
+
+/* ---- Card (DESIGN.md §6) -------------------------------------------------- */
+.ah-ui .card {
+  background: var(--ah-surface);
+  border: 1px solid var(--ah-border);
+  border-radius: var(--ah-radius-lg);
+  box-shadow: var(--ah-shadow);
+  transition: box-shadow var(--dur, 170ms) var(--ease, ease);
+}
+.ah-ui .card:hover {
+  box-shadow: var(--ah-shadow-2);
+}
+
+/* ---- Buttons (DESIGN.md §7) ---------------------------------------------- */
+.ah-ui .btn {
+  border-radius: var(--ah-radius-sm);
+  font-family: var(--ah-font-body);
+}
+.ah-ui .btn-primary {
+  background: var(--ah-brand);
+  color: var(--ah-on-primary);
+}
+.ah-ui .btn-primary:hover:not(:disabled) {
+  background: var(--ah-brand-hover);
+}
+.ah-ui .btn-outline {
+  background: var(--ah-surface);
+  border-color: var(--ah-border-strong);
+  color: var(--ah-text);
+}
+.ah-ui .btn-outline:hover:not(:disabled) {
+  background: var(--ah-surface-2);
+  border-color: var(--ah-brand);
+  color: var(--ah-brand);
+}
+.ah-ui .btn-ghost {
+  color: var(--ah-text-2);
+}
+.ah-ui .btn-ghost:hover:not(:disabled) {
+  background: var(--ah-surface-2);
+  color: var(--ah-text);
+}
+
+/* ---- Badge + Chip (DESIGN.md §8) ----------------------------------------- */
+.ah-ui .badge {
+  border-radius: var(--ah-radius-sm);
+}
+.ah-ui .badge-success {
+  color: var(--ah-success);
+  background: var(--ah-success-bg);
+}
+.ah-ui .badge-warning {
+  color: var(--ah-warning);
+  background: var(--ah-warning-bg);
+}
+.ah-ui .badge-danger {
+  color: var(--ah-error);
+  background: var(--ah-error-bg);
+}
+.ah-ui .badge-info {
+  color: var(--ah-info);
+  background: var(--ah-info-bg);
+}
+.ah-ui .badge-neutral {
+  color: var(--ah-secondary);
+  background: var(--ah-secondary-bg);
+}
+
+/* Stitch chip: 4px radius, desaturated tint bg + darker same-hue text. */
+.ah-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  padding: 3px 8px;
+  border-radius: var(--ah-radius-sm);
+  background: var(--ah-primary-tint);
+  color: var(--ah-on-primary-tint);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.ah-chip.info {
+  background: var(--ah-info-bg);
+  color: var(--ah-info);
+}
+.ah-chip.success {
+  background: var(--ah-success-bg);
+  color: var(--ah-success);
+}
+.ah-chip.warning {
+  background: var(--ah-warning-bg);
+  color: var(--ah-warning);
+}
+.ah-chip.neutral {
+  background: var(--ah-secondary-bg);
+  color: var(--ah-secondary);
+}
+
+/* ---- Stat card ----------------------------------------------------------- */
+.ah-ui .stat-card {
+  background: var(--ah-surface);
+  border: 1px solid var(--ah-border);
+  border-radius: var(--ah-radius-lg);
+  box-shadow: var(--ah-shadow);
+}
+.ah-ui .stat-card .stat-label {
+  color: var(--ah-muted);
+}
+.ah-ui .stat-card.tone-default {
+  border-top: 3px solid var(--ah-brand);
+}
+.ah-ui .stat-card.tone-success {
+  border-top: 3px solid var(--ah-success);
+}
+.ah-ui .stat-card.tone-warning {
+  border-top: 3px solid var(--ah-warning);
+}
+.ah-ui .stat-card.tone-danger {
+  border-top: 3px solid var(--ah-error);
+}
+
+/* ---- Page + section headers ---------------------------------------------- */
+.ah-ui .page-title,
+.ah-ui .section-title {
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+}
+.ah-ui .page-desc {
+  color: var(--ah-muted);
+}
+
+/* ---- Inputs (DESIGN.md §9) ----------------------------------------------- */
+.ah-ui .input,
+.ah-ui .textarea,
+.ah-ui .select {
+  border: 1px solid var(--ah-border);
+  border-radius: var(--ah-radius-sm);
+  background: var(--ah-surface);
+  color: var(--ah-text);
+}
+.ah-ui .input:focus-visible,
+.ah-ui .textarea:focus-visible,
+.ah-ui .select:focus-visible {
+  border-color: var(--ah-brand);
+  box-shadow: 0 0 0 2px var(--ah-ring);
+  outline: none;
+}
+
+/* ---- Empty state --------------------------------------------------------- */
+.ah-ui .empty-state {
+  border: 1px dashed var(--ah-border-strong);
+  border-radius: var(--ah-radius-lg);
+  background: var(--ah-surface);
+  color: var(--ah-muted);
+}
+
+/* ---- Toast --------------------------------------------------------------- */
+.ah-ui .toast {
+  border-radius: var(--ah-radius);
+  box-shadow: var(--ah-shadow-pop);
+}
+
+/* ---- Tables (shared; DESIGN.md §10) -------------------------------------- *
+   NOTE: derived from the AH card/border/type language. Per-screen table specifics
+   are verified against "Admin Tickets" with a single get_screen at Phase 3.       */
+.ah-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--ah-border);
+  border-radius: var(--ah-radius-lg);
+  background: var(--ah-surface);
+}
+table.ah-table,
+.ah-ui table.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.ah-table thead th,
+.ah-ui .data-table thead th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ah-muted);
+  background: var(--ah-surface);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--ah-border);
+  white-space: nowrap;
+}
+.ah-table tbody td,
+.ah-ui .data-table tbody td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--ah-border);
+  vertical-align: middle;
+}
+.ah-table tbody tr:last-child td,
+.ah-ui .data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.ah-table tbody tr:hover,
+.ah-ui .data-table tbody tr:hover {
+  background: var(--ah-surface-2);
+}
+
+/* ==========================================================================
+   SHELLS
+   ========================================================================== */
+
+/* ---- Auth frame: centered login layout (DESIGN.md §11.1) ----------------- */
+.ah-authframe {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(0, 87, 168, 0.06) 0%, transparent 55%),
+    var(--ah-bg);
+}
+
+/* ---- Student: horizontal top navigation (DESIGN.md §11.2) ---------------- */
+.ah-topnav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 64px;
+  padding: 0 clamp(16px, 4vw, 40px);
+  background: var(--ah-surface);
+  border-bottom: 1px solid var(--ah-border);
+}
+.ah-topnav > nav {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ah-topnav-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--ah-text);
+  text-decoration: none;
+  flex: 0 0 auto;
+}
+.ah-topnav-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--ah-radius);
+  background: var(--ah-brand);
+  color: var(--ah-on-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ah-topnav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ah-topnav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 64px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ah-text-2);
+  text-decoration: none;
+  border-bottom: 2px solid transparent; /* 2px navy/blue active underline lives here */
+  white-space: nowrap;
+  transition: color var(--dur, 170ms) var(--ease, ease),
+    border-color var(--dur, 170ms) var(--ease, ease);
+}
+.ah-topnav-link:hover {
+  color: var(--ah-text);
+}
+.ah-topnav-link.active {
+  color: var(--ah-brand);
+  border-bottom-color: var(--ah-brand);
+}
+.ah-topnav-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+/* shared icon button + notification dot (top nav + admin header) */
+.ah-iconbtn {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--ah-radius);
+  border: 1px solid var(--ah-border);
+  background: var(--ah-surface);
+  color: var(--ah-text-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color var(--dur, 170ms) var(--ease, ease),
+    border-color var(--dur, 170ms) var(--ease, ease);
+}
+.ah-iconbtn:hover {
+  color: var(--ah-brand);
+  border-color: var(--ah-brand);
+}
+.ah-iconbtn-dot {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ah-brand);
+  border: 1.5px solid var(--ah-surface);
+}
+.ah-profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  border-radius: var(--ah-radius-pill);
+  border: 1px solid var(--ah-border);
+  background: var(--ah-surface);
+  cursor: pointer;
+}
+.ah-profile:hover {
+  border-color: var(--ah-border-strong);
+}
+.ah-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--ah-brand);
+  color: var(--ah-on-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+.ah-profile-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ah-text);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Admin: left sidebar + top admin header (DESIGN.md §12) -------------- */
+.ah-adminshell {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--ah-bg);
+}
+.ah-sidebar {
+  flex: 0 0 auto;
+  width: 256px;
+  display: flex;
+  flex-direction: column;
+  background: var(--ah-surface);
+  border-right: 1px solid var(--ah-border);
+}
+.ah-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 18px 14px;
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--ah-text);
+}
+.ah-sidebar-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--ah-radius);
+  background: var(--ah-brand);
+  color: var(--ah-on-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.ah-sidebar-nav {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 8px 12px 12px;
+}
+.ah-sidebar-nav ul {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+}
+.ah-sidebar-group {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ah-muted);
+  padding: 16px 12px 7px;
+}
+.ah-sidebar-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+  border-radius: var(--ah-radius-sm);
+  color: var(--ah-text-2);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background var(--dur, 170ms) var(--ease, ease),
+    color var(--dur, 170ms) var(--ease, ease);
+}
+.ah-sidebar-link:hover {
+  background: var(--ah-surface-2);
+  color: var(--ah-text);
+}
+.ah-sidebar-link.active {
+  background: var(--ah-primary-tint);
+  color: var(--ah-on-primary-tint);
+}
+.ah-sidebar-link.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--ah-brand); /* brand navy/blue active indicator */
+}
+.ah-adminmain {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ah-admin-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 64px;
+  padding: 0 clamp(16px, 3vw, 32px);
+  background: var(--ah-surface);
+  border-bottom: 1px solid var(--ah-border);
+}
+.ah-admin-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.ah-admin-header-titles {
+  min-width: 0;
+}
+.ah-admin-header-title {
+  margin: 0;
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ah-text);
+}
+.ah-admin-header-sub {
+  margin: 1px 0 0;
+  font-size: 12px;
+  color: var(--ah-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ah-admin-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.ah-admin-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 28px clamp(20px, 4vw, 40px) 56px;
+}
+.ah-admin-content > .ah-inner {
+  max-width: var(--ah-container);
+  margin: 0 auto;
+}
+.ah-menu-btn {
+  display: none;
+}
+
+/* ---- Responsive (768 / 1024 / 1280; DESIGN.md §13) ----------------------- */
+@media (max-width: 1024px) {
+  .ah-topnav {
+    gap: 16px;
+  }
+}
+@media (max-width: 767px) {
+  /* reflow the top nav: brand + actions on row 1, scrollable links on row 2 */
+  .ah-topnav {
+    flex-wrap: wrap;
+    height: auto;
+    gap: 8px 12px;
+    padding: 8px 12px;
+  }
+  .ah-topnav > nav {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .ah-topnav-actions {
+    margin-left: auto;
+  }
+  .ah-topnav-links {
+    gap: 2px;
+  }
+  .ah-topnav-link {
+    height: 44px;
+    padding: 0 10px;
+  }
+  .ah-profile-name {
+    display: none;
+  }
+  .ah-sidebar {
+    position: fixed;
+    z-index: 40;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    transform: translateX(-100%);
+    transition: transform var(--dur, 170ms) var(--ease, ease);
+    box-shadow: var(--ah-shadow-pop);
+  }
+  .ah-sidebar.open {
+    transform: translateX(0);
+  }
+  .ah-menu-btn {
+    display: inline-flex;
+  }
+}
+
+/* ==========================================================================
+   PHASE 2 — student portal migration to Academic Horizon
+   The student shell (StudentShell) wraps pages in `.ah-ui`. Here we remap the
+   EXISTING semantic tokens (globals.css) to their --ah-* equivalents WITHIN that
+   scope, so every token-driven student component adopts Academic Horizon with no
+   JSX/logic changes. The old tokens stay intact globally — admin and other
+   surfaces are unaffected.
+   ========================================================================== */
+.ah-ui {
+  /* surfaces */
+  --bg: var(--ah-bg);
+  --surface: var(--ah-surface);
+  --surface-2: var(--ah-surface-2);
+  --surface-3: var(--ah-surface-3);
+  /* lines */
+  --border: var(--ah-border);
+  --border-strong: var(--ah-border-strong);
+  /* text */
+  --foreground: var(--ah-text);
+  /* brand navy/blue — the signature Academic Horizon change */
+  --primary: var(--ah-brand);
+  --primary-hover: var(--ah-brand-hover);
+  --primary-foreground: var(--ah-on-primary);
+  --accent: var(--ah-brand);
+  --accent-tint: rgba(0, 87, 168, 0.07);
+  --accent-tint-strong: rgba(0, 87, 168, 0.12);
+  --accent-border: rgba(0, 87, 168, 0.22);
+  --ring: var(--ah-ring);
+  /* shape — AH: 8px containers, 4px controls */
+  --radius-lg: var(--ah-radius);
+  --radius: var(--ah-radius);
+  --radius-sm: var(--ah-radius-sm);
+  /* elevation — flat by default, soft ambient where depth is needed */
+  --shadow-sm: none;
+  --shadow-card: var(--ah-shadow-2);
+  --shadow-pop: var(--ah-shadow-pop);
+}
+[data-theme="dark"] .ah-ui {
+  /* accent tints re-based on the dark brand blue so they don't vibrate */
+  --accent-tint: rgba(79, 155, 224, 0.14);
+  --accent-tint-strong: rgba(79, 155, 224, 0.2);
+  --accent-border: rgba(79, 155, 224, 0.28);
+}
+
+/* Headline face (Hanken Grotesk) on titles within the AH scope. */
+.ah-ui .page-title,
+.ah-ui .section-title,
+.ah-ui .greeting-title,
+.ah-ui .stat-value,
+.ah-ui .login-title,
+.ah-ui .cal-title {
+  font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
+}
+
+/* Student shell: horizontal top nav + scrolling content (mirrors RoleShell's
+   height model so /student/chat keeps its full-height "flush" layout). */
+.ah-studentshell {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--ah-bg);
+}
+.ah-student-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* extra bottom padding so page-end content clears the floating Vinnie button */
+  padding: 28px clamp(20px, 4vw, 40px) 96px;
+}
+.ah-student-content.flush {
+  padding: 0;
+  overflow: hidden;
+}
+.ah-student-content > .page-inner {
+  max-width: var(--content-max);
+  margin: 0 auto;
+}
+
+/* Dashboard "ask Vinnie" hero → Academic Horizon navy/blue banner. */
+.ah-ui .hero-ask {
+  /* fixed navy→blue gradient (not theme-swapped) so white text stays readable in dark mode */
+  background: linear-gradient(135deg, #002855 0%, #0057a8 100%);
+  border-radius: var(--ah-radius-lg);
+}

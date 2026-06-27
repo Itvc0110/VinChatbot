@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import InMemorySaver
@@ -25,15 +26,20 @@ def _build_test_graph(route_to: str):
     specialists = {intent: _fake_specialist(intent) for intent in INTENTS}
     return build_agent_graph(
         retriever=None,
+        settings=SimpleNamespace(agent_recursion_limit=3, llm_temperature=0.0),
         specialists=specialists,
         supervisor_router=router,
         checkpointer=InMemorySaver(),
     )
 
 
+def _run_graph(awaitable):
+    return asyncio.run(asyncio.wait_for(awaitable, timeout=2.0))
+
+
 def test_graph_routes_to_selected_specialist():
     graph = _build_test_graph("calendar")
-    out = asyncio.run(
+    out = _run_graph(
         graph.ainvoke(
             {"messages": [{"role": "user", "content": "Hạn hủy môn Fall 2026?"}]},
             config={"configurable": {"thread_id": "t1"}},
@@ -46,8 +52,8 @@ def test_graph_routes_to_selected_specialist():
 def test_graph_persists_memory_across_turns():
     graph = _build_test_graph("services")
     config = {"configurable": {"thread_id": "mem"}}
-    asyncio.run(graph.ainvoke({"messages": [{"role": "user", "content": "first"}]}, config=config))
-    out = asyncio.run(
+    _run_graph(graph.ainvoke({"messages": [{"role": "user", "content": "first"}]}, config=config))
+    out = _run_graph(
         graph.ainvoke({"messages": [{"role": "user", "content": "second"}]}, config=config)
     )
     # both turns' human messages plus both specialist replies accumulate in the thread

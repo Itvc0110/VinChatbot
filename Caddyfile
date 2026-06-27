@@ -1,0 +1,7 @@
+# Auto-HTTPS reverse proxy. Caddy fetches & renews Let's Encrypt certs automatically
+# once DOMAIN's DNS A record points at this VPS. DOMAIN and TLS_EMAIL come from .env.
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy frontend:3000
+	tls {$TLS_EMAIL}
+}

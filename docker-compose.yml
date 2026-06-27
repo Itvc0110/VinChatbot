@@ -1,0 +1,50 @@
+# Production deployment: Caddy (auto-HTTPS) -> frontend (Next.js) -> backend (FastAPI).
+# Qdrant is external (Qdrant Cloud) and configured via .env (QDRANT_URL/QDRANT_API_KEY).
+#
+# Required .env keys on the server (in addition to the app's existing keys):
+#   DOMAIN     - public domain pointed at this VPS (e.g. vinchatbot.example.com)
+#   TLS_EMAIL  - email for Let's Encrypt registration
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Baked into the Next.js routes manifest at build time (see frontend/Dockerfile).
+        BACKEND_URL: http://backend:8000
+    environment:
+      - BACKEND_URL=http://backend:8000
+    expose:
+      - "3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN}
+      - TLS_EMAIL=${TLS_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

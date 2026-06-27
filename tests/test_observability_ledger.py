@@ -5,11 +5,17 @@ import contextvars
 from types import SimpleNamespace
 
 from vinchatbot.app.core.observability import (
+    get_point_lookup,
+    get_rerank_count,
     get_stage_ledger,
+    incr_rerank_count,
     ledger_totals,
+    mark_point_lookup,
     record_llm_usage,
     record_stage,
     rerank_cost_usd,
+    reset_point_lookup,
+    reset_rerank_count,
     reset_stage_ledger,
     usage_tokens,
 )
@@ -124,6 +130,55 @@ def test_ledger_survives_create_task_boundary():
 
     ledger = asyncio.run(parent())
     assert ledger["answer"]["tokens_in"] == 10
+
+
+def test_rerank_count_survives_create_task_boundary():
+    """Regression: a rerank billed INSIDE a spawned task (how the reranker runs deep in agent.ainvoke)
+    must be visible to the parent turn that logs `rerank_calls`. The counter mutates a list in place;
+    reset binds it in the parent before the task spawns. A `.set()`-rebind counter logged 0 here."""
+
+    async def child() -> None:
+        incr_rerank_count()  # billed rerank in the node's copied context
+
+    async def parent() -> int:
+        reset_rerank_count()  # bind the counter list in the parent first
+        await asyncio.create_task(child())
+        return get_rerank_count()
+
+    assert asyncio.run(parent()) == 1
+
+
+def test_point_lookup_flag_survives_create_task_boundary():
+    """Regression: mark_point_lookup() runs inside the LangGraph tool node (a copied context); the
+    turn-log `point_lookup` field must still reflect it. In-place flag mutation propagates; a rebind
+    would always read False in the parent."""
+
+    async def child() -> None:
+        mark_point_lookup()
+
+    async def parent() -> bool:
+        reset_point_lookup()
+        await asyncio.create_task(child())
+        return get_point_lookup()
+
+    assert asyncio.run(parent()) is True
+
+
+def test_rerank_count_lazy_inits_when_used_outside_a_turn():
+    """Reading/incrementing before any reset (e.g. the reranker used standalone in a test) must be safe:
+    the getter defaults to 0/False and incr lazily creates the counter rather than raising."""
+    ctx = contextvars.copy_context()  # isolate from any binding leaked by another test
+
+    def _probe() -> tuple[int, bool, int]:
+        before = (get_rerank_count(), get_point_lookup())
+        incr_rerank_count()  # exercises the lazy-init branch
+        mark_point_lookup()
+        return before[0], before[1], get_rerank_count()
+
+    rerank_before, flag_before, rerank_after = ctx.run(_probe)
+    assert rerank_before == 0
+    assert flag_before is False
+    assert rerank_after == 1
 
 
 def test_contextvar_rebind_in_child_task_does_not_propagate():

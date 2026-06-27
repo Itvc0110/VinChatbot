@@ -1,7 +1,8 @@
+import asyncio
 from types import SimpleNamespace
 
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 from vinchatbot.app.api.ratelimit import SlidingWindowRateLimiter, add_rate_limit_middleware
 
@@ -41,25 +42,44 @@ def _build_app(**settings_overrides) -> FastAPI:
     return app
 
 
+def _run_client_check(awaitable):
+    return asyncio.run(asyncio.wait_for(awaitable, timeout=2.0))
+
+
+async def _assert_middleware_returns_429_after_limit() -> None:
+    transport = ASGITransport(app=_build_app())
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        assert (await client.get("/ping")).status_code == 200
+        assert (await client.get("/ping")).status_code == 200
+        resp = await client.get("/ping")
+        assert resp.status_code == 429
+        assert resp.headers.get("Retry-After")
+        body = resp.json()
+        assert body["error"] == "rate_limited"
+        assert body["retry_after"] >= 1
+
+
 def test_middleware_returns_429_after_limit():
-    client = TestClient(_build_app())
-    assert client.get("/ping").status_code == 200
-    assert client.get("/ping").status_code == 200
-    resp = client.get("/ping")
-    assert resp.status_code == 429
-    assert resp.headers.get("Retry-After")
-    body = resp.json()
-    assert body["error"] == "rate_limited"
-    assert body["retry_after"] >= 1
+    _run_client_check(_assert_middleware_returns_429_after_limit())
+
+
+async def _assert_health_is_exempt() -> None:
+    transport = ASGITransport(app=_build_app(rate_limit_max_requests=1))
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        for _ in range(5):
+            assert (await client.get("/health")).status_code == 200
 
 
 def test_health_is_exempt():
-    client = TestClient(_build_app(rate_limit_max_requests=1))
-    for _ in range(5):
-        assert client.get("/health").status_code == 200
+    _run_client_check(_assert_health_is_exempt())
+
+
+async def _assert_disabled_is_passthrough() -> None:
+    transport = ASGITransport(app=_build_app(rate_limit_enabled=False, rate_limit_max_requests=1))
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        for _ in range(5):
+            assert (await client.get("/ping")).status_code == 200
 
 
 def test_disabled_is_passthrough():
-    client = TestClient(_build_app(rate_limit_enabled=False, rate_limit_max_requests=1))
-    for _ in range(5):
-        assert client.get("/ping").status_code == 200
+    _run_client_check(_assert_disabled_is_passthrough())

@@ -1,0 +1,13 @@
+{
+  "description": "Multi-intent cases that span multiple domains (e.g. calendar + financial) to test soft-routing and cross-domain retrieval.",
+  "cases": [
+    {
+      "id": "multi-intent-drop-refund-vi",
+      "language": "vi",
+      "question": "Hạn chót rút môn là khi nào và tôi có được hoàn học phí không?",
+      "required_facts": ["13/03/2026", "không được bảo lưu hoặc hoàn lại", "80%", "2 tuần"],
+      "expected_source": "financial-regulations-and-tariff-for-student",
+      "expects_refusal": false
+    }
+  ]
+}
