@@ -49,7 +49,7 @@ class ForumCommentResponse(BaseModel):
     my_vote: int = 0
     created_at: datetime
     updated_at: datetime
-    replies: list["ForumCommentResponse"] = Field(default_factory=list)
+    replies: list[ForumCommentResponse] = Field(default_factory=list)
 
 
 class ForumTopicSummary(BaseModel):

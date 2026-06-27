@@ -2,6 +2,7 @@ import type { ChatRequest, ChatResponse, SourceSummary } from "./types";
 import type {
   AdminStats,
   AnalyticsOverview,
+  AdminDashboard,
   CalendarEvent,
   ClassSession,
   Deadline,
@@ -1442,6 +1443,11 @@ export async function resolveUnansweredQuestion(
 }
 
 // ---- Admin dashboard + analytics -------------------------------------------
+// [LIVE] GET /admin/dashboard -> AdminDashboard
+export async function getAdminDashboard(): Promise<AdminDashboard> {
+  return getJSON<AdminDashboard>("/api/admin/dashboard");
+}
+
 // [MOCK] TODO backend contract: GET /admin/stats -> AdminStats
 export async function getAdminStats(): Promise<AdminStats> {
   return delay(MOCK_ADMIN_STATS);

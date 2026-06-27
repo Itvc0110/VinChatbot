@@ -33,6 +33,10 @@ const nextConfig = {
         destination: `${BACKEND_URL}/admin/tickets/:path*`,
       },
       {
+        source: "/api/admin/dashboard",
+        destination: `${BACKEND_URL}/admin/dashboard`,
+      },
+      {
         source: "/api/forum/:path*",
         destination: `${BACKEND_URL}/forum/:path*`,
       },

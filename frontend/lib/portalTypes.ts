@@ -367,6 +367,76 @@ export interface AnalyticsOverview {
   total_questions: number;
 }
 
+export interface AdminDashboardScope {
+  kind: "global" | "institute" | "none" | string;
+  institute_id?: string | null;
+  institute_code?: string | null;
+}
+
+export interface AdminDashboardOverview {
+  total_users: number;
+  total_students: number;
+  total_institutes: number;
+  total_tickets: number;
+  open_tickets: number;
+  need_admin_response: number;
+  urgent_tickets: number;
+  upcoming_deadlines: number;
+  upcoming_schedules: number;
+  upcoming_events: number;
+  published_notifications: number;
+}
+
+export interface AdminDashboardCount {
+  key: string;
+  count: number;
+}
+
+export interface AdminDashboardInstituteCount {
+  institute_id: string;
+  institute_code: string;
+  institute_name_en: string;
+  institute_name_vi: string;
+  student_count: number;
+}
+
+export interface AdminDashboardRecentTicket {
+  id: string;
+  subject: string;
+  status: TicketStatus | string;
+  priority: TicketPriority | string;
+  student_id?: string | null;
+  student_name?: string | null;
+  institute_id?: string | null;
+  institute_code?: string | null;
+  due_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminDashboardUpcomingItem {
+  id: string;
+  item_type: "deadline" | "schedule" | "event" | "notification" | string;
+  title: string;
+  starts_at: string;
+  ends_at?: string | null;
+  course_code?: string | null;
+  institute_id?: string | null;
+  institute_code?: string | null;
+  source_title?: string | null;
+  source_url?: string | null;
+}
+
+export interface AdminDashboard {
+  scope: AdminDashboardScope;
+  overview: AdminDashboardOverview;
+  ticket_counts_by_status: AdminDashboardCount[];
+  ticket_counts_by_priority: AdminDashboardCount[];
+  student_counts_by_institute: AdminDashboardInstituteCount[];
+  recent_tickets: AdminDashboardRecentTicket[];
+  upcoming_items: AdminDashboardUpcomingItem[];
+}
+
 // ---- Forum / Discussion Hub -------------------------------------------------
 // Public peer discussion, deliberately separate from private support tickets.
 
