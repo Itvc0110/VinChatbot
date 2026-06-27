@@ -313,6 +313,40 @@ def test_resolve_output_decision_blocks_secret_value():
     assert decision.action == "sensitive_output_blocked"
 
 
+def test_resolve_output_decision_trusted_app_data_allows_uncited_answer():
+    # Phase 14A hotfix: a personal app-data answer grounded in the trusted backend personalization
+    # context is allowed WITHOUT any RAG citation.
+    decision = resolve_output_decision(
+        "Bạn có 1 thông báo quan trọng: Required CECS lab safety training (urgent, hạn 2026-10-04).",
+        [],
+        [],
+        trusted_app_data=True,
+    )
+    assert decision.action == "allow"
+
+
+def test_resolve_output_decision_trusted_app_data_still_blocks_secret():
+    decision = resolve_output_decision(f"Sure: {_SECRET}", [], [], trusted_app_data=True)
+    assert decision.action == "sensitive_output_blocked"
+
+
+def test_resolve_output_decision_trusted_app_data_degrades_on_decline_marker():
+    # Even on the trusted path, an explicit "nothing found / declined" answer still degrades.
+    decision = resolve_output_decision(
+        "Xin lỗi, mình chưa tìm thấy thông tin.", [], [], trusted_app_data=True
+    )
+    assert decision.action == "graceful_degradation"
+
+
+def test_resolve_output_decision_policy_without_citation_still_degrades():
+    # The trusted path is opt-in: with trusted_app_data left False (policy/general scope), an uncited
+    # answer still degrades — the RAG requirement is NOT weakened globally.
+    decision = resolve_output_decision(
+        "Quy định rút môn cho phép sinh viên rút môn trong 2 tuần đầu.", [], []
+    )
+    assert decision.action == "graceful_degradation"
+
+
 def test_resolve_output_decision_bypass_path_skips_grounding():
     # require_grounding=False (time fast path / conversational): an uncited reply is allowed, but a
     # leaked secret is still blocked.

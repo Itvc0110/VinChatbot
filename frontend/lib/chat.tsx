@@ -10,10 +10,11 @@
 // request is keyed by the conversation's UI id). Conversations are ordered by last activity;
 // selecting one never reorders, only SENDING a message bumps a conversation to the top.
 //
-// The general/personal toggle is gone: the student is signed in, so every question is sent
-// with their profile/schedule/deadlines/tuition context attached and the backend agent
-// decides what it actually needs. Sources are no longer shown by default — each answer
-// carries its own citations and a "Sources" button that opens the shared source drawer.
+// The general/personal toggle is gone: the student is signed in, so every question is
+// personalized. Phase 14A moved personalization to a backend-owned context layer — the chat
+// route builds the student's context server-side from authenticated data and attaches it to
+// the agent; the frontend sends only the raw question. Sources are no longer shown by default —
+// each answer carries its own citations and a "Sources" button that opens the shared drawer.
 
 import {
   createContext,
@@ -25,23 +26,13 @@ import {
   useState,
 } from "react";
 import type { ChatMessage, ChatResponse } from "@/lib/types";
-import type {
-  ClassSession,
-  Deadline,
-  StudentProfile,
-  TicketDraft,
-  TuitionStatus,
-} from "@/lib/portalTypes";
+import type { TicketDraft } from "@/lib/portalTypes";
 import {
   deleteConversation as deleteBackendConversation,
   getConversationMessages,
   getConversations,
   postChat,
   postChatStream,
-  getStudentProfile,
-  getStudentSchedule,
-  getStudentDeadlines,
-  getTuitionStatus,
   submitTicket,
   saveTicketDraft,
   updateConversation,
@@ -52,7 +43,6 @@ import { useAuth } from "@/lib/auth";
 import { DEPARTMENTS } from "@/lib/portalI18n";
 import { usePortal } from "@/lib/portalI18n";
 import { friendlyError } from "@/lib/chatErrors";
-import { formatVnd, formatDate } from "@/lib/format";
 
 let counter = 0;
 const nextId = () => `m${Date.now()}-${counter++}`;
@@ -64,56 +54,10 @@ let stableOrderSeq = 0;
 const nextLocalOrder = () => ++localOrderSeq;
 const nextStableOrder = () => ++stableOrderSeq;
 
-// Compact, plain-text snapshot of the student's context, prepended to the question so the
-// agent can personalize ("when is my next class?") without the user choosing a mode.
-function buildPersonalContext(
-  profile: StudentProfile | null,
-  schedule: ClassSession[],
-  deadlines: Deadline[],
-  tuition: TuitionStatus | null
-): string {
-  const lines: string[] = ["[Student context — personalize the answer using this when relevant]"];
-  if (profile) {
-    lines.push(
-      `Name: ${profile.full_name}; Program: ${profile.program}; Year ${profile.year}; Student ID ${profile.student_id}; GPA ${profile.gpa}; Credits ${profile.credits_earned}/${profile.credits_required}.`
-    );
-  }
-  if (tuition) {
-    lines.push(
-      `Tuition: paid ${formatVnd(tuition.total_paid_vnd)} of ${formatVnd(
-        tuition.total_charged_vnd
-      )}, balance ${formatVnd(tuition.balance_vnd)}${
-        tuition.next_due_at
-          ? `, next installment ${formatVnd(
-              tuition.next_due_amount_vnd ?? 0
-            )} due ${formatDate(tuition.next_due_at)}`
-          : ""
-      }.`
-    );
-  }
-  if (deadlines.length) {
-    lines.push(
-      "Upcoming deadlines: " +
-        deadlines.slice(0, 5).map((d) => `${d.title} (${formatDate(d.due_at)})`).join("; ") +
-        "."
-    );
-  }
-  if (schedule.length) {
-    lines.push(
-      "Weekly classes: " +
-        schedule
-          .map((s) => `${s.day} ${s.start}-${s.end} ${s.course_title} (${s.room})`)
-          .join("; ") +
-        "."
-    );
-  }
-  return lines.join("\n");
-}
-
 // Privacy-safe context for a support ticket: ONLY the triggering question + Vinnie's
-// answer, trimmed. Deliberately excludes buildPersonalContext() (name/GPA/tuition/schedule)
-// so no profile PII can leak into a ticket. Shown in the Review drawer and attached only if
-// the student keeps "include chat context" ticked.
+// answer, trimmed. Deliberately excludes any profile PII (name/GPA/tuition/schedule) so none
+// can leak into a ticket. Shown in the Review drawer and attached only if the student keeps
+// "include chat context" ticked.
 function shortSummary(question: string, answer: string): string {
   const q = question.replace(/\s+/g, " ").trim().slice(0, 300);
   const a = answer.replace(/\s+/g, " ").trim().slice(0, 600);
@@ -374,13 +318,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // never confuse two conversations' streams.
   const abortMap = useRef<Map<string, AbortController>>(new Map());
 
-  const personalData = useRef<{
-    profile: StudentProfile | null;
-    schedule: ClassSession[];
-    deadlines: Deadline[];
-    tuition: TuitionStatus | null;
-  }>({ profile: null, schedule: [], deadlines: [], tuition: null });
-
   useEffect(() => {
     conversationsRef.current = conversations;
   }, [conversations]);
@@ -388,28 +325,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     activeIdRef.current = activeId;
   }, [activeId]);
-
-  useEffect(() => {
-    if (authLoading) return;
-
-    personalData.current = { profile: null, schedule: [], deadlines: [], tuition: null };
-    if (!isAuthenticated || !token) return;
-
-    let alive = true;
-    Promise.all([
-      getStudentProfile(),
-      getStudentSchedule(),
-      getStudentDeadlines(),
-      getTuitionStatus(),
-    ])
-      .then(([profile, schedule, deadlines, tuition]) => {
-        if (alive) personalData.current = { profile, schedule, deadlines, tuition };
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [authLoading, isAuthenticated, token]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -619,14 +534,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       // is shown as an error, not retried.
       let received = false;
 
-      const sent = `${buildPersonalContext(
-        personalData.current.profile,
-        personalData.current.schedule,
-        personalData.current.deadlines,
-        personalData.current.tuition
-      )}\n\nQuestion: ${text}`;
+      // Phase 14A: send ONLY the student's actual question. Personalization is now owned by the
+      // backend — the chat route builds the student's context server-side from authenticated data
+      // and attaches it to the agent input. The frontend no longer prepends any hidden profile/
+      // schedule/deadline/tuition block, so the persisted user message is the real question.
       const request = {
-        message: sent,
+        message: text,
         conversation_id: threadId,
         db_conversation_id: dbConversationId,
       };

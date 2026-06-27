@@ -646,6 +646,7 @@ def resolve_output_decision(
     retrieved_texts: list[str],
     *,
     require_grounding: bool = True,
+    trusted_app_data: bool = False,
 ) -> OutputAuditDecision:
     """Deterministic post-answer guard cascade (Phase 1.25/A4) — the output mirror of
     `resolve_guardrail_decision`. Unifies the previously-inline checks into one decision carrying a
@@ -654,6 +655,14 @@ def resolve_output_decision(
 
     `require_grounding=False` for the bypass paths (pure-time fast path, conversational/capability
     replies) — they legitimately have no citations, so only the secret scan applies.
+
+    `trusted_app_data=True` (Phase 14A hotfix) for personal app-data answers grounded in the
+    backend-owned personalization context — the current authenticated student's OWN data, built
+    server-side, not RAG. Such answers legitimately have no official citations, so the citation /
+    numeric-grounding requirements are skipped; only the secret scan and an explicit
+    unknown-answer/decline marker still degrade. This NEVER relaxes the RAG requirement for
+    policy/general questions — the caller only sets it for `personal_app_data` scope when a
+    server-built context is present. It must never be derived from client-supplied input.
 
     Fail-closed by contract: the caller MUST treat any exception from this function as a degrade
     (never serve an un-audited answer)."""
@@ -664,6 +673,18 @@ def resolve_output_decision(
         )
     if not require_grounding:
         return OutputAuditDecision("allow", "No grounding required for this turn (bypass path).")
+    if trusted_app_data:
+        # Grounded in trusted backend personalization context (current student's own app data), not
+        # RAG. Only degrade if the model itself declined / over-hedged; no citation is expected.
+        if any(marker in normalize_for_matching(answer) for marker in UNKNOWN_ANSWER_MARKERS):
+            return OutputAuditDecision(
+                "graceful_degradation",
+                "Personal app-data answer declined or found nothing in trusted context.",
+            )
+        return OutputAuditDecision(
+            "allow",
+            "Answer grounded in trusted backend personalization context (personal app data).",
+        )
     if should_gracefully_degrade(answer, citations):
         return OutputAuditDecision(
             "graceful_degradation",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -42,6 +43,63 @@ class AcademicRepository:
 
     def __init__(self, pool: AsyncConnectionPool):
         self.pool = pool
+
+    async def get_student_profile_by_user(self, user_id: uuid.UUID) -> dict[str, Any] | None:
+        """Resolve the academic student profile for an authenticated user.
+
+        Identity binding: current_user.id -> student_profiles.user_id -> academic data. Returns
+        None when the user has no student profile so the route can raise a clear 404.
+        """
+        row = await self._fetchone(
+            """
+            select
+                sp.id,
+                sp.user_id,
+                coalesce(sp.student_code, sp.student_id) as student_code,
+                coalesce(sp.full_name, u.full_name) as full_name,
+                coalesce(sp.current_year, sp.academic_year) as current_year,
+                coalesce(sp.cohort_year, sp.cohort) as cohort_year,
+                coalesce(sp.status, sp.student_status) as status,
+                f.id as faculty_id,
+                f.code as faculty_code,
+                f.name as faculty_name,
+                p.id as program_id,
+                p.code as program_code,
+                p.name as program_name,
+                p.degree_level as program_degree_level,
+                p.curriculum_year as program_curriculum_year,
+                p.total_required_credits as program_total_required_credits
+            from student_profiles sp
+            join users u on u.id = sp.user_id
+            left join faculties f on f.id = sp.faculty_id
+            left join programs p on p.id = sp.program_id
+            where sp.user_id = %s
+            """,
+            (user_id,),
+        )
+        return dict(row) if row is not None else None
+
+    async def get_current_term(self, *, on_date: date | None = None) -> dict[str, Any] | None:
+        """The academic term whose date range contains ``on_date`` (today by default).
+
+        Falls back to the most recent term that has already started so the overview/eligibility
+        endpoints still resolve a sensible "current" term outside any teaching window.
+        """
+        date_expr = "current_date" if on_date is None else "%s"
+        params: tuple[Any, ...] = () if on_date is None else (on_date, on_date)
+        row = await self._fetchone(
+            f"""
+            select id, code, name, start_date, end_date, academic_year, term_order
+            from academic_terms
+            order by
+                ({date_expr} between start_date and end_date) desc,
+                (start_date <= {date_expr}) desc,
+                start_date desc
+            limit 1
+            """,
+            params,
+        )
+        return dict(row) if row is not None else None
 
     async def get_faculties(self) -> list[dict[str, Any]]:
         rows = await self._fetchall(
@@ -226,6 +284,120 @@ class AcademicRepository:
         )
         return [dict(row) for row in rows]
 
+    async def get_student_meetings_in_range(
+        self,
+        *,
+        student_id: uuid.UUID,
+        start_at: datetime,
+        end_at: datetime,
+    ) -> list[dict[str, Any]]:
+        """Timetable events for the student's enrolled sections within a datetime window.
+
+        Used by the month-scoped schedule endpoint. Spans terms (the window, not a term code,
+        bounds the result) so a month that straddles two terms still returns every meeting.
+        """
+        rows = await self._fetchall(
+            """
+            select
+                cm.id,
+                cm.section_id,
+                cm.title,
+                cm.meeting_type,
+                cm.start_at,
+                cm.end_at,
+                cm.note,
+                cs.section_code,
+                cs.instructor_name,
+                coalesce(c.code, c.course_code) as course_code,
+                coalesce(c.name, c.course_title) as course_name,
+                r.id as room_id,
+                r.building,
+                r.room_name,
+                r.capacity as room_capacity
+            from student_course_enrollments sce
+            join course_sections cs on cs.id = sce.section_id
+            join courses c on c.id = cs.course_id
+            join class_meetings cm on cm.section_id = cs.id
+            left join rooms r on r.id = cm.room_id
+            where sce.student_id = %s
+              and sce.status in ('planned', 'enrolled', 'completed', 'retaking', 'improvement')
+              and cm.start_at >= %s
+              and cm.start_at < %s
+            order by cm.start_at, course_code, cm.title
+            """,
+            (student_id, start_at, end_at),
+        )
+        return [dict(row) for row in rows]
+
+    async def get_requisite_status_bulk(
+        self,
+        *,
+        student_id: uuid.UUID,
+        course_ids: list[uuid.UUID],
+        term_id: uuid.UUID,
+    ) -> dict[uuid.UUID, list[dict[str, Any]]]:
+        """Requisite satisfaction for many courses at once, grouped by ``course_id``.
+
+        Same per-requisite logic as ``get_requisite_status`` but evaluated for a set of courses in
+        one query so eligibility can be computed across a whole curriculum without N round-trips.
+        """
+        if not course_ids:
+            return {}
+        rows = await self._fetchall(
+            """
+            select
+                cr.id,
+                cr.course_id,
+                cr.required_course_id,
+                cr.requisite_type,
+                cr.min_grade_4,
+                cr.note,
+                coalesce(required.code, required.course_code) as required_course_code,
+                coalesce(required.name, required.course_title) as required_course_name,
+                exists (
+                    select 1
+                    from student_course_enrollments passed_sce
+                    join academic_terms passed_term on passed_term.id = passed_sce.term_id
+                    join academic_terms target_term on target_term.id = %s
+                    where passed_sce.student_id = %s
+                      and passed_sce.course_id = cr.required_course_id
+                      and passed_sce.passed = true
+                      and passed_sce.grade_4 >= coalesce(cr.min_grade_4, 1.00)
+                      and passed_term.end_date < target_term.start_date
+                ) as required_passed_before_term,
+                exists (
+                    select 1
+                    from student_course_enrollments same_term_sce
+                    where same_term_sce.student_id = %s
+                      and same_term_sce.course_id = cr.required_course_id
+                      and same_term_sce.term_id = %s
+                      and same_term_sce.status = any(%s)
+                ) as required_enrolled_same_term
+            from course_requisites cr
+            join courses required on required.id = cr.required_course_id
+            where cr.course_id = any(%s)
+            order by cr.course_id, cr.requisite_type, required_course_code
+            """,
+            (
+                term_id,
+                student_id,
+                student_id,
+                term_id,
+                list(SAME_TERM_REQUISITE_STATUSES),
+                course_ids,
+            ),
+        )
+        grouped: dict[uuid.UUID, list[dict[str, Any]]] = {}
+        for row in rows:
+            record = dict(row)
+            record["satisfied"] = requisite_is_satisfied(
+                requisite_type=record["requisite_type"],
+                required_passed=record["required_passed_before_term"],
+                required_same_term=record["required_enrolled_same_term"],
+            )
+            grouped.setdefault(record["course_id"], []).append(record)
+        return grouped
+
     async def get_requisite_status(
         self,
         *,
@@ -287,6 +459,12 @@ class AcademicRepository:
             )
             statuses.append(record)
         return statuses
+
+    async def _fetchone(self, query: str, params: tuple[Any, ...]) -> dict[str, Any] | None:
+        async with self.pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, params)
+                return await cur.fetchone()
 
     async def _fetchall(self, query: str, params: tuple[Any, ...]) -> list[dict[str, Any]]:
         async with self.pool.connection() as conn:

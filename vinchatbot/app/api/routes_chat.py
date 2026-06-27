@@ -23,6 +23,10 @@ from vinchatbot.app.db.connection import get_app_db_pool
 from vinchatbot.app.dependencies.auth import get_optional_current_user
 from vinchatbot.app.repositories.auth import AuthenticatedUser
 from vinchatbot.app.repositories.conversations import ConversationRepository
+from vinchatbot.app.repositories.personalization import (
+    PersonalizationRepository,
+    build_personalization_prompt,
+)
 from vinchatbot.app.schemas.chat import ChatRequest, ChatResponse
 from vinchatbot.app.schemas.conversations import AppendMessageRequest, CreateConversationRequest
 
@@ -45,6 +49,43 @@ class ChatPersistenceContext:
 async def get_optional_conversation_repository() -> ConversationRepository | None:
     pool = get_app_db_pool()
     return ConversationRepository(pool) if pool is not None else None
+
+
+async def get_optional_personalization_repository() -> PersonalizationRepository | None:
+    pool = get_app_db_pool()
+    return PersonalizationRepository(pool) if pool is not None else None
+
+
+async def _attach_personalization(
+    request: ChatRequest,
+    current_user: AuthenticatedUser | None,
+    repository: PersonalizationRepository | None,
+) -> None:
+    """Build the current student's context server-side and attach it to the request.
+
+    Always clears any client-supplied value first so a caller can never inject a fabricated
+    personalization block. Only authenticated students with AI personalization enabled receive a
+    context; anonymous and admin/staff turns leave the field None. Failures are swallowed so
+    personalization never breaks chat.
+    """
+    request.backend_personalization_context = None
+    if current_user is None or repository is None:
+        return
+    if "student" not in current_user.roles:
+        return
+
+    try:
+        context = await repository.get_context(current_user.id)
+    except Exception:  # noqa: BLE001 - personalization must not break chat.
+        logger.exception("Skipping chat personalization because context lookup failed.")
+        return
+
+    if context is None or not context.profile.ai_personalization_enabled:
+        return
+
+    prompt = build_personalization_prompt(context)
+    if prompt:
+        request.backend_personalization_context = prompt
 
 
 async def _resolve_chat(request: ChatRequest) -> ChatResponse:
@@ -176,12 +217,17 @@ async def chat(
         ConversationRepository | None,
         Depends(get_optional_conversation_repository),
     ] = None,
+    personalization_repository: Annotated[
+        PersonalizationRepository | None,
+        Depends(get_optional_personalization_repository),
+    ] = None,
 ) -> ChatResponse:
     persistence = await _prepare_chat_persistence(
         request,
         current_user,
         conversation_repository,
     )
+    await _attach_personalization(request, current_user, personalization_repository)
     response = await _resolve_chat(request)
     await _persist_assistant_response(persistence, response)
     return response
@@ -217,6 +263,10 @@ async def chat_stream(
         ConversationRepository | None,
         Depends(get_optional_conversation_repository),
     ] = None,
+    personalization_repository: Annotated[
+        PersonalizationRepository | None,
+        Depends(get_optional_personalization_repository),
+    ] = None,
 ) -> StreamingResponse:
     """Verify-then-reveal streaming.
 
@@ -237,6 +287,7 @@ async def chat_stream(
         current_user,
         conversation_repository,
     )
+    await _attach_personalization(request, current_user, personalization_repository)
 
     async def event_stream():
         # First yield flushes the 200 + SSE headers right away and tells the client the stream

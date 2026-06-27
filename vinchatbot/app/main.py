@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from vinchatbot.app.api.ratelimit import add_rate_limit_middleware
+from vinchatbot.app.api.routes_academic import router as academic_router
 from vinchatbot.app.api.routes_admin_dashboard import router as admin_dashboard_router
 from vinchatbot.app.api.routes_admin_notifications import router as admin_notifications_router
 from vinchatbot.app.api.routes_auth import router as auth_router
@@ -14,6 +15,7 @@ from vinchatbot.app.api.routes_conversations import router as conversations_rout
 from vinchatbot.app.api.routes_forum import router as forum_router
 from vinchatbot.app.api.routes_health import router as health_router
 from vinchatbot.app.api.routes_ingest import router as ingest_router
+from vinchatbot.app.api.routes_personalization import router as personalization_router
 from vinchatbot.app.api.routes_students import router as students_router
 from vinchatbot.app.api.routes_tickets import router as tickets_router
 from vinchatbot.app.core.config import get_settings
@@ -56,6 +58,8 @@ def create_app() -> FastAPI:
     app.include_router(admin_dashboard_router)
     app.include_router(admin_notifications_router)
     app.include_router(students_router)
+    app.include_router(academic_router)
+    app.include_router(personalization_router)
     app.include_router(tickets_router)
     app.include_router(forum_router)
     app.include_router(conversations_router)

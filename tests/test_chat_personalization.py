@@ -1,0 +1,365 @@
+from __future__ import annotations
+
+import asyncio
+import uuid
+from datetime import UTC, datetime
+from decimal import Decimal
+from types import SimpleNamespace
+from typing import Any
+
+import vinchatbot.app.agents.vinuni_agent as agent_mod
+from vinchatbot.app.api import routes_chat
+from vinchatbot.app.core.config import get_settings
+from vinchatbot.app.repositories.auth import AuthenticatedUser
+from vinchatbot.app.schemas.chat import ChatRequest, ChatResponse
+from vinchatbot.app.schemas.personalization import (
+    PersonalizationAcademicSummary,
+    PersonalizationContext,
+    PersonalizationCourse,
+    PersonalizationInstitute,
+    PersonalizationStudentProfile,
+)
+
+STUDENT_USER_ID = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+ADMIN_USER_ID = uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+PROFILE_ID = uuid.UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")
+INSTITUTE_ID = uuid.UUID("dddddddd-dddd-dddd-dddd-dddddddddddd")
+NEW_CONVERSATION_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
+NOW = datetime(2026, 10, 1, tzinfo=UTC)
+
+
+def _run(awaitable):
+    return asyncio.run(asyncio.wait_for(awaitable, timeout=2.0))
+
+
+def _student_user() -> AuthenticatedUser:
+    return AuthenticatedUser(
+        id=STUDENT_USER_ID,
+        email="student.cs.demo@vinuni.edu.vn",
+        full_name="Demo CECS Student",
+        preferred_name="CECS Student",
+        status="active",
+        roles=("student",),
+    )
+
+
+def _admin_user() -> AuthenticatedUser:
+    return AuthenticatedUser(
+        id=ADMIN_USER_ID,
+        email="admin.global.demo@vinuni.edu.vn",
+        full_name="Demo Global Admin",
+        preferred_name="Global Admin",
+        status="active",
+        roles=("global_admin",),
+    )
+
+
+def _context(*, ai_enabled: bool = True) -> PersonalizationContext:
+    return PersonalizationContext(
+        profile=PersonalizationStudentProfile(
+            id=PROFILE_ID,
+            student_id="D2026CECS001",
+            program="Bachelor of Computer Science",
+            major="Computer Science",
+            cohort=2026,
+            academic_year=1,
+            preferred_language="en",
+            ai_personalization_enabled=ai_enabled,
+            institute=PersonalizationInstitute(
+                id=INSTITUTE_ID,
+                code="CECS",
+                name_vi="Viện Kỹ thuật và Khoa học Máy tính",
+                name_en="College of Engineering and Computer Science",
+            ),
+            academic_summary=PersonalizationAcademicSummary(
+                gpa=Decimal("3.40"),
+                credits_earned=36,
+                credits_required=120,
+                current_semester="Fall 2026",
+                academic_status="normal",
+            ),
+        ),
+        courses=[
+            PersonalizationCourse(
+                id=uuid.UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
+                course_code="CSC202",
+                course_title="Data Structures and Algorithms",
+                semester="Fall 2026",
+                academic_year="2026-2027",
+                instructor="Tuan Nguyen",
+            )
+        ],
+    )
+
+
+class FakePersonalizationRepository:
+    def __init__(self, context: PersonalizationContext | None) -> None:
+        self.context = context
+        self.calls: list[uuid.UUID] = []
+
+    async def get_context(self, user_id: uuid.UUID) -> PersonalizationContext | None:
+        self.calls.append(user_id)
+        return self.context
+
+
+class FakeConversationRepository:
+    def __init__(self) -> None:
+        self.appended: list[dict[str, Any]] = []
+
+    async def create_conversation(self, *, user_id, request):
+        return {
+            "id": NEW_CONVERSATION_ID,
+            "title": "New conversation",
+            "title_manual": False,
+            "topic": request.topic,
+            "created_at": NOW,
+            "updated_at": NOW,
+            "last_message_at": None,
+            "messages": [],
+        }
+
+    async def append_message(self, *, user_id, conversation_id, request):
+        row = {
+            "id": uuid.uuid5(uuid.NAMESPACE_URL, f"{len(self.appended)}:{request.role}"),
+            "user_id": user_id,
+            "conversation_id": conversation_id,
+            "role": request.role,
+            "content": request.content,
+            "answer_json": request.answer_json,
+            "confidence": request.confidence,
+            "needs_human_review": request.needs_human_review,
+            "created_at": NOW,
+        }
+        self.appended.append(row)
+        return row
+
+
+def _capturing_resolver(captured: dict[str, Any]):
+    async def _resolve(request: ChatRequest) -> ChatResponse:
+        captured["message"] = request.message
+        captured["personalization"] = request.backend_personalization_context
+        return ChatResponse(answer="Personalized answer.", confidence=0.9)
+
+    return _resolve
+
+
+def test_authenticated_student_chat_builds_personalization_context(monkeypatch):
+    captured: dict[str, Any] = {}
+    monkeypatch.setattr(routes_chat, "_resolve_chat", _capturing_resolver(captured))
+    conversation_repo = FakeConversationRepository()
+    personalization_repo = FakePersonalizationRepository(_context())
+
+    response = _run(
+        routes_chat.chat(
+            ChatRequest(message="When is my next class?"),
+            current_user=_student_user(),
+            conversation_repository=conversation_repo,
+            personalization_repository=personalization_repo,
+        )
+    )
+
+    assert response.answer == "Personalized answer."
+    # Context was built server-side for this student and attached to the agent input.
+    assert personalization_repo.calls == [STUDENT_USER_ID]
+    assert captured["personalization"] is not None
+    assert "CSC202" in captured["personalization"]
+    # The raw question reaches the agent unchanged (no hidden prepended block).
+    assert captured["message"] == "When is my next class?"
+    # Persistence stores the ORIGINAL question, not an expanded personalization prompt.
+    user_messages = [row for row in conversation_repo.appended if row["role"] == "user"]
+    assert user_messages[0]["content"] == "When is my next class?"
+    assert "Student profile" not in user_messages[0]["content"]
+
+
+def test_authenticated_student_stream_builds_personalization_context(monkeypatch):
+    captured: dict[str, Any] = {}
+    monkeypatch.setattr(routes_chat, "_resolve_chat", _capturing_resolver(captured))
+    monkeypatch.setattr(routes_chat, "_answer_chunks", lambda answer: [answer])
+    conversation_repo = FakeConversationRepository()
+    personalization_repo = FakePersonalizationRepository(_context())
+
+    async def request():
+        response = await routes_chat.chat_stream(
+            ChatRequest(message="What deadlines are coming up?"),
+            current_user=_student_user(),
+            conversation_repository=conversation_repo,
+            personalization_repository=personalization_repo,
+        )
+        chunks = []
+        async for chunk in response.body_iterator:
+            chunks.append(chunk.decode() if isinstance(chunk, bytes) else chunk)
+        return "".join(chunks)
+
+    body = _run(request())
+
+    assert "event: done" in body
+    assert personalization_repo.calls == [STUDENT_USER_ID]
+    assert captured["personalization"] is not None
+    assert "CSC202" in captured["personalization"]
+    assert captured["message"] == "What deadlines are coming up?"
+    user_messages = [row for row in conversation_repo.appended if row["role"] == "user"]
+    assert user_messages[0]["content"] == "What deadlines are coming up?"
+
+
+def test_anonymous_chat_attaches_no_personalization(monkeypatch):
+    captured: dict[str, Any] = {}
+    monkeypatch.setattr(routes_chat, "_resolve_chat", _capturing_resolver(captured))
+    personalization_repo = FakePersonalizationRepository(_context())
+
+    response = _run(
+        routes_chat.chat(
+            ChatRequest(message="When is add/drop?"),
+            personalization_repository=personalization_repo,
+        )
+    )
+
+    assert response.answer == "Personalized answer."
+    # No authenticated user → context lookup is never attempted.
+    assert personalization_repo.calls == []
+    assert captured["personalization"] is None
+
+
+def test_admin_chat_does_not_use_student_personalization(monkeypatch):
+    captured: dict[str, Any] = {}
+    monkeypatch.setattr(routes_chat, "_resolve_chat", _capturing_resolver(captured))
+    conversation_repo = FakeConversationRepository()
+    personalization_repo = FakePersonalizationRepository(_context())
+
+    _run(
+        routes_chat.chat(
+            ChatRequest(message="Show me the dashboard."),
+            current_user=_admin_user(),
+            conversation_repository=conversation_repo,
+            personalization_repository=personalization_repo,
+        )
+    )
+
+    # A non-student role never triggers a student-context lookup.
+    assert personalization_repo.calls == []
+    assert captured["personalization"] is None
+
+
+def test_client_supplied_personalization_is_ignored_for_non_students(monkeypatch):
+    captured: dict[str, Any] = {}
+    monkeypatch.setattr(routes_chat, "_resolve_chat", _capturing_resolver(captured))
+    personalization_repo = FakePersonalizationRepository(_context())
+
+    request = ChatRequest(message="Hello")
+    # Simulate a client trying to smuggle a fabricated context in.
+    request.backend_personalization_context = "FAKE INJECTED CONTEXT"
+
+    _run(
+        routes_chat.chat(
+            request,
+            personalization_repository=personalization_repo,
+        )
+    )
+
+    # The route clears any client-supplied value before resolving.
+    assert captured["personalization"] is None
+
+
+def test_student_with_personalization_disabled_gets_no_context(monkeypatch):
+    captured: dict[str, Any] = {}
+    monkeypatch.setattr(routes_chat, "_resolve_chat", _capturing_resolver(captured))
+    conversation_repo = FakeConversationRepository()
+    personalization_repo = FakePersonalizationRepository(_context(ai_enabled=False))
+
+    _run(
+        routes_chat.chat(
+            ChatRequest(message="When is my next class?"),
+            current_user=_student_user(),
+            conversation_repository=conversation_repo,
+            personalization_repository=personalization_repo,
+        )
+    )
+
+    assert personalization_repo.calls == [STUDENT_USER_ID]
+    assert captured["personalization"] is None
+
+
+# --- Agent output-guard acceptance (Phase 14A hotfix) ----------------------------------------
+# These exercise the REAL deterministic output guard via VinUniAgentService with a fake agent, so
+# no live LLM is involved.
+
+
+class _FakeAgent:
+    def __init__(self, answer: str) -> None:
+        self.answer = answer
+
+    async def ainvoke(self, payload, config):
+        # No ToolMessage in the trace → the answer has no RAG citations, mirroring a personal
+        # app-data answer that is grounded only in the backend personalization context.
+        return {"messages": [SimpleNamespace(content=self.answer)]}
+
+
+def _stub_input_guard(monkeypatch):
+    """Force the INPUT guardrail to a confident allow so the agent never consults the remote
+    scope-router / safety APIs. Keeps the test offline while leaving the OUTPUT guard real."""
+    from vinchatbot.app.agents.guardrails import GuardrailDecision
+
+    async def _allow(*_args, **_kwargs):
+        return GuardrailDecision(action="allow", reason="test stub")
+
+    monkeypatch.setattr(agent_mod, "resolve_guardrail_decision", _allow)
+
+
+def _agent_service(answer: str):
+    # Disable output moderation so the test stays fully offline (no safety-model call).
+    settings = get_settings().model_copy(update={"enable_output_moderation": False})
+    return agent_mod.VinUniAgentService(
+        settings=settings, retriever=SimpleNamespace(), agent=_FakeAgent(answer)
+    )
+
+
+def test_agent_serves_personal_app_data_answer_from_trusted_context(monkeypatch):
+    _stub_input_guard(monkeypatch)
+    answer = (
+        "Bạn có 1 thông báo quan trọng: Required CECS lab safety training "
+        "(mức độ urgent, đến 2026-10-04)."
+    )
+    service = _agent_service(answer)
+    request = ChatRequest(
+        message="Có thông báo nào quan trọng không?", conversation_id="p14a-trusted"
+    )
+    # Server-built context (a client could not set this — the route clears it first).
+    request.backend_personalization_context = (
+        "Active notifications:\n- [urgent] Required CECS lab safety training (due 2026-10-04)"
+    )
+
+    response = _run(service.chat(request))
+
+    # The uncited personal app-data answer is served, NOT degraded to the official-source fallback.
+    assert response.answer == answer
+    assert any(
+        trace.get("type") == "output_guard" and trace.get("action") == "allow"
+        for trace in response.tool_trace
+    )
+
+
+def test_agent_degrades_official_policy_answer_without_citations(monkeypatch):
+    _stub_input_guard(monkeypatch)
+    answer = "Quy định rút môn cho phép sinh viên rút môn trong 2 tuần đầu của học kỳ."
+    service = _agent_service(answer)
+    # No backend context → trusted_app_data is False → the RAG citation requirement still applies.
+    request = ChatRequest(message="Quy định rút môn là gì?", conversation_id="p14a-policy")
+
+    response = _run(service.chat(request))
+
+    assert response.answer != answer  # degraded to the unknown-answer fallback
+    assert response.needs_human_review is True
+
+
+def test_agent_hybrid_question_still_requires_citations_for_policy(monkeypatch):
+    _stub_input_guard(monkeypatch)
+    answer = "Bạn đang học CSC202. Quy định rút môn cho phép rút trong 2 tuần đầu."
+    service = _agent_service(answer)
+    request = ChatRequest(
+        message="Tôi có thể rút môn CSC250 không?", conversation_id="p14a-hybrid"
+    )
+    request.backend_personalization_context = "Current courses:\n- CSC202 Data Structures"
+
+    response = _run(service.chat(request))
+
+    # Hybrid scope does NOT grant the trusted bypass, so an uncited policy claim still degrades.
+    assert response.answer != answer
