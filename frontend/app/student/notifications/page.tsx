@@ -47,9 +47,10 @@ export default function StudentNotificationsPage() {
   const [filter, setFilter] = useState<NotifFilter>("all");
   const [toast, setToast] = useState<string | null>(null);
 
-  // Seed the working copy once the initial fetch resolves; mutations update it locally.
+  // Seed the working copy from the backend; mutations below are UI-local until
+  // notification mutation endpoints exist.
   useEffect(() => {
-    if (loaded.status === "success") setItems((cur) => cur ?? loaded.data);
+    if (loaded.status === "success") setItems(loaded.data);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded.status]);
 

@@ -5,6 +5,7 @@ import type {
   CalendarEvent,
   ClassSession,
   Deadline,
+  DeadlineKind,
   KnowledgeSource,
   Notification,
   NotificationType,
@@ -19,17 +20,13 @@ import type {
   TuitionStatus,
   UnansweredQuestion,
 } from "./portalTypes";
-import { generate as generateQuestions, rankForStudent } from "./suggestedQuestions";
+import { generate as generateQuestions } from "./suggestedQuestions";
 import type { Lang } from "./i18n";
 import {
   MOCK_ADMIN_STATS,
   MOCK_ANALYTICS,
-  MOCK_DEADLINES,
-  MOCK_EVENTS,
   MOCK_NOTIFICATIONS,
   MOCK_PROFILE,
-  MOCK_REMINDERS,
-  MOCK_SCHEDULE,
   MOCK_SOURCES,
   MOCK_TICKETS,
   MOCK_TUITION,
@@ -60,6 +57,116 @@ export interface BackendStudentProfile {
   advisor_name?: string | null;
   advisor_email?: string | null;
   ai_personalization_enabled: boolean;
+}
+
+export interface BackendAcademicSummary {
+  gpa?: string | number | null;
+  credits_earned: number;
+  credits_required: number;
+  current_semester?: string | null;
+  academic_status: string;
+  updated_at?: string | null;
+}
+
+export interface BackendStudentMe extends BackendStudentProfile {
+  institute: BackendInstitute;
+  academic_summary?: BackendAcademicSummary | null;
+}
+
+export interface BackendCourse {
+  id: string;
+  course_code: string;
+  course_title: string;
+  credits: number;
+  semester?: string | null;
+  academic_year?: string | null;
+  instructor?: string | null;
+  institute?: BackendInstitute | null;
+}
+
+export interface BackendScheduleItem {
+  id: string;
+  course_id?: string | null;
+  course_code?: string | null;
+  course_title?: string | null;
+  title: string;
+  schedule_type: string;
+  start_time: string;
+  end_time: string;
+  location?: string | null;
+  building?: string | null;
+  room?: string | null;
+  instructor?: string | null;
+  recurrence_rule?: string | null;
+}
+
+export interface BackendDeadline {
+  id: string;
+  course_id?: string | null;
+  course_code?: string | null;
+  course_title?: string | null;
+  title: string;
+  kind?: string | null;
+  due_at: string;
+  source_title?: string | null;
+  source_url?: string | null;
+}
+
+export interface BackendNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  priority: string;
+  status: string;
+  target_scope: string;
+  institute_id?: string | null;
+  institute_code?: string | null;
+  course_id?: string | null;
+  course_code?: string | null;
+  cohort?: number | null;
+  deadline?: string | null;
+  event_date?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  source_title?: string | null;
+  source_url?: string | null;
+  created_at: string;
+  updated_at: string;
+  is_read: boolean;
+  important: boolean;
+  archived: boolean;
+}
+
+export interface BackendSuggestedQuestion {
+  id: string;
+  question_text: string;
+  source_type: string;
+  source_id?: string | null;
+  notification_id?: string | null;
+  topic?: string | null;
+  intent?: string | null;
+  category?: string | null;
+  trigger_phase?: string | null;
+  institute_id?: string | null;
+  institute_code?: string | null;
+  course_id?: string | null;
+  course_code?: string | null;
+  cohort?: number | null;
+  score: string | number;
+  priority: number;
+  created_by_ai: boolean;
+  approved_by_admin: boolean;
+  is_active: boolean;
+  valid_from?: string | null;
+  valid_until?: string | null;
+}
+
+export interface BackendSuggestedQuestionGroups {
+  for_you: BackendSuggestedQuestion[];
+  trending_now: BackendSuggestedQuestion[];
+  from_announcements: BackendSuggestedQuestion[];
+  from_events: BackendSuggestedQuestion[];
 }
 
 export interface BackendCurrentUser {
@@ -302,21 +409,192 @@ async function getJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
   return apiRequest<T>(url, { signal, headers: { Accept: "application/json" } });
 }
 
+const SCHEDULE_DAYS: ScheduleDay[] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const NOTIFICATION_TYPES: NotificationType[] = [
+  "academic",
+  "schedule",
+  "deadline",
+  "event",
+  "student_services",
+  "system",
+];
+const DEADLINE_KINDS: DeadlineKind[] = [
+  "assignment",
+  "exam",
+  "registration",
+  "tuition",
+  "administrative",
+];
+
+export type StudentCourse = BackendCourse;
+
+function isoTime(iso: string): string {
+  const date = new Date(iso);
+  return date.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+function safeNotificationType(type: string): NotificationType {
+  return NOTIFICATION_TYPES.includes(type as NotificationType)
+    ? (type as NotificationType)
+    : "system";
+}
+
+function safeDeadlineKind(kind?: string | null): DeadlineKind {
+  return DEADLINE_KINDS.includes(kind as DeadlineKind)
+    ? (kind as DeadlineKind)
+    : "administrative";
+}
+
+function suggestionPhase(phase?: string | null): SuggestedQuestion["trigger_phase"] {
+  if (phase === "early" || phase === "near_deadline" || phase === "overdue") return phase;
+  return "active";
+}
+
+function mapStudentProfile(profile: BackendStudentMe): StudentProfile {
+  const summary = profile.academic_summary;
+  const program = profile.program ?? profile.major ?? "Program not set";
+  return {
+    student_id: profile.student_id,
+    full_name: profile.student_id,
+    preferred_name: profile.student_id,
+    program,
+    college: profile.institute.name_en,
+    year: profile.academic_year ?? 1,
+    intake: summary?.current_semester ?? (profile.cohort ? `Cohort ${profile.cohort}` : "—"),
+    email: "",
+    advisor: profile.advisor_name ?? profile.advisor_email ?? "—",
+    gpa: summary?.gpa == null ? 0 : Number(summary.gpa),
+    credits_earned: summary?.credits_earned ?? 0,
+    credits_required: summary?.credits_required ?? 0,
+  };
+}
+
+function mapScheduleItem(item: BackendScheduleItem): ClassSession {
+  const start = new Date(item.start_time);
+  return {
+    id: item.id,
+    course_code: item.course_code ?? item.title,
+    course_title: item.course_title ?? item.title,
+    day: SCHEDULE_DAYS[start.getDay()],
+    start: isoTime(item.start_time),
+    end: isoTime(item.end_time),
+    room: item.room ?? item.location ?? "—",
+    building: item.building ?? item.location ?? "—",
+    instructor: item.instructor ?? "—",
+  };
+}
+
+function mapDeadline(deadline: BackendDeadline): Deadline {
+  return {
+    id: deadline.id,
+    title: deadline.title,
+    course_code: deadline.course_code ?? undefined,
+    kind: safeDeadlineKind(deadline.kind),
+    due_at: deadline.due_at,
+    source_title: deadline.source_title ?? undefined,
+    source_url: deadline.source_url ?? undefined,
+  };
+}
+
+function mapNotification(notification: BackendNotification): Notification {
+  return {
+    id: notification.id,
+    type: safeNotificationType(notification.type),
+    title: notification.title,
+    message: notification.message,
+    created_at: notification.created_at,
+    read: notification.is_read,
+    important: notification.important,
+    archived: notification.archived,
+    source_title: notification.source_title ?? undefined,
+    source_url: notification.source_url ?? undefined,
+    priority: notification.priority as Notification["priority"],
+    target_audience: [notification.target_scope],
+    deadline: notification.deadline ?? undefined,
+    event_date: notification.event_date ?? undefined,
+    start_date: notification.start_date ?? undefined,
+    end_date: notification.end_date ?? undefined,
+    status: notification.status as Notification["status"],
+    updated_at: notification.updated_at,
+  };
+}
+
+function mapSuggestedQuestion(question: BackendSuggestedQuestion): SuggestedQuestion {
+  const category = safeNotificationType(question.category ?? question.source_type);
+  const timestamp = question.valid_from ?? question.valid_until ?? new Date(0).toISOString();
+  return {
+    id: question.id,
+    notification_id: question.notification_id ?? question.source_id ?? "",
+    question_text: question.question_text,
+    category,
+    trigger_phase: suggestionPhase(question.trigger_phase),
+    score: Number(question.score),
+    created_by_ai: question.created_by_ai,
+    approved_by_admin: question.approved_by_admin,
+    is_active: question.is_active,
+    created_at: timestamp,
+    updated_at: timestamp,
+  };
+}
+
+function classEvent(item: BackendScheduleItem): CalendarEvent {
+  const code = item.course_code ?? item.title;
+  return {
+    id: item.id,
+    type: "class",
+    title: item.course_title ?? item.title,
+    start: item.start_time,
+    end: item.end_time,
+    location: [item.room, item.building].filter(Boolean).join(", ") || item.location || undefined,
+    course: code,
+    category: item.schedule_type || "Class",
+    description: item.instructor ? `Instructor: ${item.instructor}` : undefined,
+  };
+}
+
+function deadlineEvent(deadline: BackendDeadline): CalendarEvent {
+  const kind = safeDeadlineKind(deadline.kind);
+  return {
+    id: deadline.id,
+    type: kind === "exam" ? "exam" : "deadline",
+    title: deadline.title,
+    start: deadline.due_at,
+    course: deadline.course_code ?? deadline.course_title ?? undefined,
+    category: kind === "exam" ? "Exam" : "Deadline",
+    source_title: deadline.source_title ?? undefined,
+    source_url: deadline.source_url ?? undefined,
+  };
+}
+
 // ---- Student profile --------------------------------------------------------
-// [MOCK] TODO backend contract: GET /students/me -> StudentProfile
-// (auth via session cookie / bearer; the signed-in student is resolved server-side).
+// [LIVE] GET /students/me -> backend StudentProfileResponse
+export async function getStudentMe(): Promise<BackendStudentMe> {
+  return getJSON<BackendStudentMe>("/api/students/me");
+}
+
 export async function getStudentProfile(): Promise<StudentProfile> {
-  return delay(MOCK_PROFILE);
+  return mapStudentProfile(await getStudentMe());
 }
 
-// [MOCK] TODO backend contract: GET /students/me/schedule -> ClassSession[]
+// [LIVE] GET /students/me/courses -> backend CourseResponse[]
+export async function getStudentCourses(): Promise<StudentCourse[]> {
+  return getJSON<StudentCourse[]>("/api/students/me/courses");
+}
+
+// [LIVE] GET /students/me/schedule -> ClassSession[]
 export async function getStudentSchedule(): Promise<ClassSession[]> {
-  return delay(MOCK_SCHEDULE);
+  const rows = await getJSON<BackendScheduleItem[]>("/api/students/me/schedule");
+  return rows.map(mapScheduleItem);
 }
 
-// [MOCK] TODO backend contract: GET /students/me/deadlines -> Deadline[]
+// [LIVE] GET /students/me/deadlines -> Deadline[]
 export async function getStudentDeadlines(): Promise<Deadline[]> {
-  return delay([...MOCK_DEADLINES].sort((a, b) => a.due_at.localeCompare(b.due_at)));
+  const rows = await getJSON<BackendDeadline[]>("/api/students/me/deadlines");
+  return rows.map(mapDeadline).sort((a, b) => a.due_at.localeCompare(b.due_at));
 }
 
 // [MOCK] TODO backend contract: GET /students/me/tuition -> TuitionStatus
@@ -454,15 +732,10 @@ export async function deleteSupportTicket(ticketId: string): Promise<SupportTick
 }
 
 // ---- Notifications ----------------------------------------------------------
-// [MOCK] TODO backend contract: GET /students/me/notifications -> Notification[]
-// Students only see PUBLISHED notifications — admin drafts/archived are filtered out.
-// (Legacy rows without a status are treated as published.)
+// [LIVE] GET /students/me/notifications -> Notification[]
 export async function getStudentNotifications(): Promise<Notification[]> {
-  return delay(
-    MOCK_NOTIFICATIONS.filter((n) => (n.status ?? "published") === "published").map((n) => ({
-      ...n,
-    }))
-  );
+  const rows = await getJSON<BackendNotification[]>("/api/students/me/notifications");
+  return rows.map(mapNotification);
 }
 
 function patchNotification(id: string, patch: Partial<Notification>): Notification {
@@ -472,28 +745,26 @@ function patchNotification(id: string, patch: Partial<Notification>): Notificati
   return { ...n };
 }
 
-// [MOCK] TODO backend contract: PATCH /notifications/{id} { read } -> Notification
+// Local-only until notification mutation endpoints exist.
 export async function markNotificationRead(id: string, read = true): Promise<Notification> {
-  return delay(patchNotification(id, { read }), 150);
+  return delay({ id, read } as Notification, 150);
 }
 
-// [MOCK] TODO backend contract: PATCH /notifications/{id} { important } -> Notification
+// Local-only until notification mutation endpoints exist.
 export async function markNotificationImportant(
   id: string,
   important: boolean
 ): Promise<Notification> {
-  return delay(patchNotification(id, { important }), 150);
+  return delay({ id, important } as Notification, 150);
 }
 
-// [MOCK] TODO backend contract: PATCH /notifications/{id} { archived: true } -> Notification
+// Local-only until notification mutation endpoints exist.
 export async function archiveNotification(id: string): Promise<Notification> {
-  return delay(patchNotification(id, { archived: true }), 150);
+  return delay({ id, archived: true } as Notification, 150);
 }
 
-// [MOCK] TODO backend contract: DELETE /notifications/{id} -> { ok: true }
-export async function deleteNotification(id: string): Promise<{ ok: true }> {
-  const idx = MOCK_NOTIFICATIONS.findIndex((x) => x.id === id);
-  if (idx >= 0) MOCK_NOTIFICATIONS.splice(idx, 1);
+// Local-only until notification mutation endpoints exist.
+export async function deleteNotification(_id: string): Promise<{ ok: true }> {
   return delay({ ok: true } as const, 150);
 }
 
@@ -597,95 +868,46 @@ export async function generateSuggestedQuestions(input: {
   return delay(generateQuestions(draft, new Date(), input.lang ?? "en"), 150);
 }
 
-// [MOCK] TODO backend contract: GET /students/me/suggested-questions?lang= -> SuggestedQuestion[]
-// Single source of truth: a PUBLISHED notification contributes timely questions when the admin
-// approved at least one for it. We (re)generate the questions for the notification's CURRENT
-// deadline phase IN THE SELECTED LANGUAGE (PLAN22.6.2 §5) — so suggestions always match the UI
-// language and stay time-aware — capped to how many the admin approved, then rank across all.
+// [LIVE] GET /suggestions/me -> grouped suggested questions
+export async function getSuggestedQuestions(): Promise<BackendSuggestedQuestionGroups> {
+  return getJSON<BackendSuggestedQuestionGroups>("/api/suggestions/me");
+}
+
 export async function getActiveSuggestedQuestions(
-  lang: Lang = "en"
+  _lang: Lang = "en"
 ): Promise<SuggestedQuestion[]> {
-  const now = new Date();
-  const published = MOCK_NOTIFICATIONS.filter((n) => (n.status ?? "published") === "published");
-  const notifById = new Map(published.map((n) => [n.id, n] as const));
-  const out: SuggestedQuestion[] = [];
-  for (const n of published) {
-    const approvedCount = (n.suggested_questions ?? []).filter(
-      (q) => q.approved_by_admin && q.is_active
-    ).length;
-    if (approvedCount === 0) continue;
-    const localized = generateQuestions(n, now, lang).slice(0, approvedCount);
-    out.push(...localized.map((q) => ({ ...q, approved_by_admin: true, is_active: true })));
-  }
-  return delay(rankForStudent(out, notifById, now));
+  const groups = await getSuggestedQuestions();
+  return [
+    ...groups.for_you,
+    ...groups.trending_now,
+    ...groups.from_announcements,
+    ...groups.from_events,
+  ]
+    .map(mapSuggestedQuestion)
+    .sort((a, b) => b.score - a.score);
 }
 
 // ---- Calendar ---------------------------------------------------------------
-// [MOCK] TODO backend contract: GET /students/me/calendar?from=&to= -> CalendarEvent[]
-// Merges recurring classes (MOCK_SCHEDULE, expanded to dates in [from, to]) with one-off
-// deadlines/exams (MOCK_DEADLINES), campus events (MOCK_EVENTS) and personal reminders
-// (MOCK_REMINDERS) into a single dated feed the calendar grid renders.
-const DAY_INDEX: Record<ScheduleDay, number> = {
-  Mon: 1,
-  Tue: 2,
-  Wed: 3,
-  Thu: 4,
-  Fri: 5,
-  Sat: 6,
-  Sun: 0,
-};
-
-function expandClass(s: ClassSession, from: Date, to: Date): CalendarEvent[] {
-  const out: CalendarEvent[] = [];
-  const target = DAY_INDEX[s.day];
-  const d = new Date(from);
-  d.setHours(0, 0, 0, 0);
-  for (; d <= to; d.setDate(d.getDate() + 1)) {
-    if (d.getDay() !== target) continue;
-    const [sh, sm] = s.start.split(":").map(Number);
-    const [eh, em] = s.end.split(":").map(Number);
-    const start = new Date(d);
-    start.setHours(sh, sm, 0, 0);
-    const end = new Date(d);
-    end.setHours(eh, em, 0, 0);
-    out.push({
-      id: `${s.id}-${start.toISOString().slice(0, 10)}`,
-      type: "class",
-      title: s.course_title,
-      start: start.toISOString(),
-      end: end.toISOString(),
-      location: `${s.room}, ${s.building}`,
-      course: s.course_code,
-      category: "Class",
-      description: `Instructor: ${s.instructor}`,
-    });
-  }
-  return out;
-}
-
+// [LIVE-composed] The backend exposes schedule and deadlines separately in Phase 7.
+// Calendar UI gets a combined feed from those real endpoints; campus event data remains
+// empty until a dedicated student events endpoint exists.
 export async function getStudentCalendar(
   from?: string,
   to?: string
 ): Promise<CalendarEvent[]> {
-  // Default window: 6 weeks back to 10 weeks ahead, enough for any month/week view.
-  const start = from ? new Date(from) : new Date(Date.now() - 42 * 86_400_000);
-  const end = to ? new Date(to) : new Date(Date.now() + 70 * 86_400_000);
+  const [schedule, deadlines] = await Promise.all([
+    getJSON<BackendScheduleItem[]>("/api/students/me/schedule?upcoming_only=false"),
+    getJSON<BackendDeadline[]>("/api/students/me/deadlines?upcoming_only=false"),
+  ]);
+  const events = [...schedule.map(classEvent), ...deadlines.map(deadlineEvent)];
+  if (!from && !to) return events;
 
-  const classes = MOCK_SCHEDULE.flatMap((s) => expandClass(s, start, end));
-  const deadlines: CalendarEvent[] = MOCK_DEADLINES.map((d) => ({
-    id: d.id,
-    type: d.kind === "exam" ? "exam" : "deadline",
-    title: d.title,
-    start: d.due_at,
-    course: d.course_code,
-    category: d.kind === "exam" ? "Exam" : "Deadline",
-    source_title: d.source_title,
-    source_url: d.source_url,
-  }));
-  const events = MOCK_EVENTS.map((e) => ({ ...e }));
-  const reminders = MOCK_REMINDERS.map((e) => ({ ...e }));
-
-  return delay([...classes, ...deadlines, ...events, ...reminders]);
+  const start = from ? new Date(from).getTime() : Number.NEGATIVE_INFINITY;
+  const end = to ? new Date(to).getTime() : Number.POSITIVE_INFINITY;
+  return events.filter((event) => {
+    const at = new Date(event.start).getTime();
+    return at >= start && at <= end;
+  });
 }
 
 // ---- Knowledge sources (admin) ---------------------------------------------

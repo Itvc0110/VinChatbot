@@ -12,6 +12,14 @@ const nextConfig = {
         source: "/api/auth/:path*",
         destination: `${BACKEND_URL}/auth/:path*`,
       },
+      {
+        source: "/api/students/:path*",
+        destination: `${BACKEND_URL}/students/:path*`,
+      },
+      {
+        source: "/api/suggestions/:path*",
+        destination: `${BACKEND_URL}/suggestions/:path*`,
+      },
       // Order matters: the more specific /stream rule must precede the catch-all /chat.
       {
         source: "/api/chat/stream",

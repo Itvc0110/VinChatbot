@@ -11,11 +11,9 @@ import { Badge, type BadgeTone } from "@/components/ui/primitives";
 import { IconBell } from "@/components/shell/icons";
 import type { Notification, NotificationType } from "@/lib/portalTypes";
 
-// Facebook-style notification dropdown for the student top nav. FRONTEND-ONLY:
-// it reads the existing demo notifications (getStudentNotifications, mock-backed),
-// renders a compact recent list in a popover, and supports a local-only
-// mark-as-read overlay. No backend calls, no API payload changes, no streaming/
-// auth/RAG logic touched. "View all" still routes to /student/notifications.
+// Facebook-style notification dropdown for the student top nav. Reads the current
+// student's backend notifications, renders a compact recent list in a popover, and
+// supports a local-only mark-as-read overlay until mutation endpoints exist.
 const TYPE_TONE: Record<NotificationType, BadgeTone> = {
   academic: "info",
   schedule: "info",
