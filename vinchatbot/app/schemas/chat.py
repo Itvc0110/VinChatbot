@@ -23,6 +23,12 @@ class ChatRequest(BaseModel):
     conversation_id: str = Field(default="default", min_length=1, max_length=128)
     db_conversation_id: uuid.UUID | None = None
     filters: RetrievalFilters | None = None
+    backend_personalization_context: str | None = Field(
+        default=None,
+        max_length=6000,
+        exclude=True,
+        repr=False,
+    )
 
 
 class Citation(BaseModel):

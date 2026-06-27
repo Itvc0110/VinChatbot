@@ -19,6 +19,7 @@ from vinchatbot.app.agents.guardrails import (
     resolve_output_decision,
 )
 from vinchatbot.app.agents.output_audit import audit_output
+from vinchatbot.app.agents.question_scope import classify_question_scope
 from vinchatbot.app.core.config import Settings, get_settings
 from vinchatbot.app.core.observability import (
     estimate_cost_usd,
@@ -108,6 +109,16 @@ class VinUniAgentService:
         if self.settings.enable_time_awareness and is_pure_time_question(request.message):
             return self._time_context_response(request, started)
 
+        # Phase 14A hotfix: classify the question's scope (deterministic, no LLM). A
+        # `personal_app_data` question backed by a server-built personalization context may be
+        # answered from that trusted current-student data WITHOUT RAG citations; policy/general
+        # questions are unaffected and still require official grounding. `trusted_app_data` is
+        # derived ONLY from the backend-built context — never from client input.
+        scope = classify_question_scope(request.message)
+        trusted_app_data = (
+            bool(request.backend_personalization_context) and scope == "personal_app_data"
+        )
+
         config = {"configurable": {"thread_id": request.conversation_id}}
         user_message = request.message
         if request.filters:
@@ -137,6 +148,38 @@ class VinUniAgentService:
             except Exception:
                 logger.debug("Time-context injection skipped.", exc_info=True)
 
+        # Phase 14A: backend-owned personalization. The chat route builds this bounded snapshot of
+        # the signed-in student's own data (profile/courses/schedule/deadlines/notifications/
+        # suggestions/forum/conversations) server-side; it is advisory background the agent may use
+        # to tailor an answer ("when is my next class?") but still grounds facts in retrieval. The
+        # raw question — NOT this block — is what gets persisted as the user message.
+        if request.backend_personalization_context:
+            if scope in ("personal_app_data", "hybrid"):
+                # The question is (at least partly) about the student's own app data. Treat the
+                # context as TRUSTED current-user data: answer the personal part directly from it —
+                # for notifications, summarize the important ones with title, priority, and any
+                # deadline/event date — without needing official web citations. Do not invent
+                # anything beyond the context. For any official policy/regulation claim, still rely
+                # on retrieved official sources; if none are available, say that part needs
+                # confirmation from official VinUni sources.
+                usage_directive = (
+                    "This is the signed-in student's OWN, verified app data. You MAY answer the "
+                    "personal app-data part of the question directly from it (no official web "
+                    "citation needed) — but do not invent anything not present here. For any "
+                    "official policy/rule, still rely on retrieved official sources and say so if "
+                    "they are missing."
+                )
+            else:
+                usage_directive = (
+                    "Use only when relevant to the question; official policy/general claims still "
+                    "require retrieved official sources."
+                )
+            user_message = (
+                f"{user_message}\n\n[Student personalization context — authenticated, current "
+                f"student's own data; do not echo verbatim. {usage_directive}\n"
+                f"{request.backend_personalization_context}]"
+            )
+
         if self.settings.enable_langfuse:
             # Group this turn's traces under the conversation and tag with the request id, so a
             # multi-turn session reads as one thread in Langfuse (the per-call handler is attached
@@ -160,7 +203,9 @@ class VinUniAgentService:
         # Phase 1.25/A4: unified deterministic output guard (sensitive-output + grounding) with a logged
         # reason. Fail-CLOSED — a check error degrades rather than serves an un-audited answer.
         try:
-            output_decision = resolve_output_decision(answer, citations, retrieved_texts)
+            output_decision = resolve_output_decision(
+                answer, citations, retrieved_texts, trusted_app_data=trusted_app_data
+            )
         except Exception:
             logger.warning("Output audit raised; degrading (fail-closed).", exc_info=True)
             output_decision = OutputAuditDecision(
@@ -226,10 +271,18 @@ class VinUniAgentService:
         # role/identity-satisfaction check no longer applies (it would judge a multi-domain answer against
         # one intent and wrongly degrade it). Scope the audit to GROUNDEDNESS-ONLY for fused answers; the
         # groundedness check runs over the union of all subtasks' evidence. Single-path is byte-identical.
+        # The LLM groundedness/intent audit checks the answer against RETRIEVED evidence. A trusted
+        # personal app-data answer is grounded in the backend context, not retrieval, so skip it
+        # (it would otherwise degrade a correct uncited app-data answer for lack of evidence).
         fused = result.get("intent") == FANOUT_ROUTE
-        run_audit = self.settings.enable_output_audit and is_point_lookup(request.message, result.get("intent"))
+        run_audit = (
+            not trusted_app_data
+            and self.settings.enable_output_audit
+            and is_point_lookup(request.message, result.get("intent"))
+        )
         run_intent = (
-            self.settings.enable_intent_audit
+            not trusted_app_data
+            and self.settings.enable_intent_audit
             and not fused
             and is_identity_query(request.message, result.get("intent"))
         )
