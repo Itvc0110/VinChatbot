@@ -575,6 +575,11 @@ export interface PortalStrings {
     unpin: string;
     lock: string;
     unlock: string;
+    archive: string;
+    edit: string;
+    save: string;
+    hide: string;
+    unhide: string;
     delete: string;
     moderator: string;
     you: string;
@@ -1187,6 +1192,11 @@ const en: PortalStrings = {
     unpin: "Unpin",
     lock: "Lock",
     unlock: "Unlock",
+    archive: "Archive",
+    edit: "Edit",
+    save: "Save",
+    hide: "Hide",
+    unhide: "Unhide",
     delete: "Delete",
     moderator: "Moderator",
     you: "You",
@@ -1847,6 +1857,11 @@ const vi: PortalStrings = {
     unpin: "Bỏ ghim",
     lock: "Khóa",
     unlock: "Mở khóa",
+    archive: "Lưu trữ",
+    edit: "Sửa",
+    save: "Lưu",
+    hide: "Ẩn",
+    unhide: "Hiện lại",
     delete: "Xóa",
     moderator: "Quản trị",
     you: "Bạn",

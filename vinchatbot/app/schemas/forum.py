@@ -91,6 +91,13 @@ def _clean_tags(value: list[str]) -> list[str]:
     return cleaned[:MAX_TAGS]
 
 
+def _strip_required(value: str) -> str:
+    stripped = value.strip()
+    if not stripped:
+        raise ValueError("value must not be blank")
+    return stripped
+
+
 class CreateTopicRequest(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     content: str = Field(min_length=1, max_length=10000)
@@ -99,6 +106,11 @@ class CreateTopicRequest(BaseModel):
     tags: list[str] = Field(default_factory=list, max_length=MAX_TAGS)
     attachments: list[ForumAttachment] = Field(default_factory=list, max_length=MAX_ATTACHMENTS)
     mentioned_user_ids: list[uuid.UUID] = Field(default_factory=list, max_length=MAX_MENTIONS)
+
+    @field_validator("title", "content")
+    @classmethod
+    def normalize_required_text(cls, value: str) -> str:
+        return _strip_required(value)
 
     @field_validator("tags")
     @classmethod
@@ -110,6 +122,46 @@ class CreateCommentRequest(BaseModel):
     content: str = Field(min_length=1, max_length=10000)
     parent_comment_id: uuid.UUID | None = None
     mentioned_user_ids: list[uuid.UUID] = Field(default_factory=list, max_length=MAX_MENTIONS)
+
+    @field_validator("content")
+    @classmethod
+    def normalize_content(cls, value: str) -> str:
+        return _strip_required(value)
+
+
+class ForumTopicPatchRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=3, max_length=200)
+    content: str | None = Field(default=None, min_length=1, max_length=10000)
+    category_id: uuid.UUID | None = None
+    category_slug: str | None = Field(default=None, max_length=80)
+    tags: list[str] | None = Field(default=None, max_length=MAX_TAGS)
+    attachments: list[ForumAttachment] | None = Field(default=None, max_length=MAX_ATTACHMENTS)
+    mentioned_user_ids: list[uuid.UUID] | None = Field(default=None, max_length=MAX_MENTIONS)
+    is_pinned: bool | None = None
+    is_locked: bool | None = None
+    deleted: bool | None = None
+    official_comment_id: uuid.UUID | None = None
+
+    @field_validator("title", "content")
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        return _strip_required(value) if value is not None else None
+
+    @field_validator("tags")
+    @classmethod
+    def normalize_optional_tags(cls, value: list[str] | None) -> list[str] | None:
+        return _clean_tags(value) if value is not None else None
+
+
+class ForumCommentPatchRequest(BaseModel):
+    content: str | None = Field(default=None, min_length=1, max_length=10000)
+    is_official: bool | None = None
+    deleted: bool | None = None
+
+    @field_validator("content")
+    @classmethod
+    def normalize_optional_content(cls, value: str | None) -> str | None:
+        return _strip_required(value) if value is not None else None
 
 
 class VoteRequest(BaseModel):

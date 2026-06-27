@@ -15,9 +15,17 @@ import { usePortal } from "@/lib/portalI18n";
 import { relativeTime } from "@/lib/format";
 import {
   addForumComment,
+  archiveForumTopic,
+  deleteForumComment,
+  deleteForumTopic,
   getForumTopic,
+  hideForumComment,
+  lockForumTopic,
   moderateForumComment,
   moderateForumTopic,
+  pinForumTopic,
+  updateForumComment,
+  updateForumTopic,
   voteForumComment,
   voteForumTopic,
 } from "@/lib/api";
@@ -30,15 +38,24 @@ export default function ForumTopicDetailPage() {
   const router = useRouter();
   const { p, lang } = usePortal();
   const { user } = useAuth();
-  const canModerate = user?.role === "admin";
+  const canModerate =
+    user?.roles.some((role) => ["global_admin", "institute_admin", "staff"].includes(role)) ?? false;
 
   const topicState = useAsync(() => getForumTopic(topicId), [topicId]);
   const [topic, setTopic] = useState<ForumTopic | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [modBusy, setModBusy] = useState(false);
+  const [editingTopic, setEditingTopic] = useState(false);
+  const [topicTitle, setTopicTitle] = useState("");
+  const [topicContent, setTopicContent] = useState("");
+  const [topicBusy, setTopicBusy] = useState(false);
 
   useEffect(() => {
-    if (topicState.status === "success") setTopic(topicState.data);
+    if (topicState.status === "success") {
+      setTopic(topicState.data);
+      setTopicTitle(topicState.data.title);
+      setTopicContent(topicState.data.content ?? "");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topicState.status, topicState.status === "success" ? topicState.data : null]);
 
@@ -93,8 +110,27 @@ export default function ForumTopicDetailPage() {
         return false;
       }
     },
+    onEdit: async (commentId, content) => {
+      try {
+        await updateForumComment(commentId, { content });
+        await refreshTopic();
+        return true;
+      } catch {
+        setToast(p.forum.actionFailed);
+        return false;
+      }
+    },
+    onDelete: (commentId) => {
+      deleteForumComment(commentId)
+        .then(refreshTopic)
+        .catch(() => setToast(p.forum.actionFailed));
+    },
     onModerate: (commentId, patch) => {
-      moderateForumComment(commentId, patch)
+      const action =
+        typeof patch.deleted === "boolean"
+          ? hideForumComment(commentId, patch.deleted)
+          : moderateForumComment(commentId, patch);
+      action
         .then(refreshTopic)
         .catch(() => setToast(p.forum.actionFailed));
     },
@@ -102,7 +138,15 @@ export default function ForumTopicDetailPage() {
 
   const onModerateTopic = (patch: TopicModeratePatch) => {
     setModBusy(true);
-    moderateForumTopic(topicId, patch)
+    const action =
+      typeof patch.deleted === "boolean"
+        ? archiveForumTopic(topicId)
+        : typeof patch.is_pinned === "boolean"
+        ? pinForumTopic(topicId, patch.is_pinned)
+        : typeof patch.is_locked === "boolean"
+        ? lockForumTopic(topicId, patch.is_locked)
+        : moderateForumTopic(topicId, patch);
+    action
       .then((updated) => {
         if (patch.deleted) {
           router.push("/student/forum");
@@ -112,6 +156,36 @@ export default function ForumTopicDetailPage() {
       })
       .catch(() => setToast(p.forum.actionFailed))
       .finally(() => setModBusy(false));
+  };
+
+  const saveTopicEdit = async () => {
+    const nextTitle = topicTitle.trim();
+    const nextContent = topicContent.trim();
+    if (!nextTitle || !nextContent || topicBusy) return;
+    setTopicBusy(true);
+    try {
+      const updated = await updateForumTopic(topicId, {
+        title: nextTitle,
+        content: nextContent,
+      });
+      setTopic(updated);
+      setEditingTopic(false);
+    } catch {
+      setToast(p.forum.actionFailed);
+    } finally {
+      setTopicBusy(false);
+    }
+  };
+
+  const deleteOwnTopic = async () => {
+    setTopicBusy(true);
+    try {
+      await deleteForumTopic(topicId);
+      router.push("/student/forum");
+    } catch {
+      setToast(p.forum.actionFailed);
+      setTopicBusy(false);
+    }
   };
 
   return (
@@ -139,7 +213,47 @@ export default function ForumTopicDetailPage() {
                     {t.has_official_answer && <Badge tone="success">{p.forum.officialAnswer}</Badge>}
                   </div>
 
-                  <h1 className="forum-post-title">{t.title}</h1>
+                  {editingTopic ? (
+                    <div className="forum-reply-box">
+                      <input
+                        className="input"
+                        value={topicTitle}
+                        onChange={(event) => setTopicTitle(event.target.value)}
+                        disabled={topicBusy}
+                      />
+                      <textarea
+                        className="textarea forum-mention-input"
+                        value={topicContent}
+                        onChange={(event) => setTopicContent(event.target.value)}
+                        rows={5}
+                        disabled={topicBusy}
+                      />
+                      <div className="forum-composer-actions">
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => {
+                            setEditingTopic(false);
+                            setTopicTitle(t.title);
+                            setTopicContent(t.content ?? "");
+                          }}
+                          disabled={topicBusy}
+                        >
+                          {p.forum.cancel}
+                        </button>
+                        <button
+                          type="button"
+                          className="ah-btn-red"
+                          onClick={saveTopicEdit}
+                          disabled={!topicTitle.trim() || !topicContent.trim() || topicBusy}
+                        >
+                          {p.forum.save}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <h1 className="forum-post-title">{t.title}</h1>
+                  )}
 
                   <div className="forum-post-meta">
                     <span>
@@ -174,6 +288,25 @@ export default function ForumTopicDetailPage() {
                   )}
 
                   <div className="forum-post-foot">
+                    {mine && !t.is_locked && !editingTopic && (
+                      <>
+                        <button
+                          type="button"
+                          className="forum-link-btn"
+                          onClick={() => setEditingTopic(true)}
+                        >
+                          {p.forum.edit}
+                        </button>
+                        <button
+                          type="button"
+                          className="forum-link-btn danger"
+                          onClick={deleteOwnTopic}
+                          disabled={topicBusy}
+                        >
+                          {p.forum.delete}
+                        </button>
+                      </>
+                    )}
                     {!mine && (
                       <ReportButton targetType="topic" targetId={t.id} onReported={setToast} />
                     )}

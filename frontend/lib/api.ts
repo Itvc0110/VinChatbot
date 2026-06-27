@@ -1671,6 +1671,19 @@ export interface AddForumCommentPayload {
   mentioned_user_ids?: string[];
 }
 
+export interface UpdateForumTopicPayload {
+  title?: string;
+  content?: string;
+  category_id?: string;
+  category_slug?: string;
+  tags?: string[];
+  attachments?: ForumAttachment[];
+}
+
+export interface UpdateForumCommentPayload {
+  content?: string;
+}
+
 export interface ForumTopicFilters {
   category?: string;
   sort?: ForumSort;
@@ -1787,6 +1800,25 @@ export async function createForumTopic(payload: CreateForumTopicPayload): Promis
   return mapForumTopic(row);
 }
 
+export async function updateForumTopic(
+  topicId: string,
+  payload: UpdateForumTopicPayload
+): Promise<ForumTopic> {
+  const row = await apiRequest<BackendForumTopic>(`/api/forum/topics/${topicId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return mapForumTopic(row);
+}
+
+export async function deleteForumTopic(topicId: string): Promise<void> {
+  await apiRequest(`/api/forum/topics/${topicId}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json" },
+  });
+}
+
 export async function addForumComment(
   topicId: string,
   payload: AddForumCommentPayload
@@ -1797,6 +1829,25 @@ export async function addForumComment(
     body: JSON.stringify(payload),
   });
   return mapForumComment(row);
+}
+
+export async function updateForumComment(
+  commentId: string,
+  payload: UpdateForumCommentPayload
+): Promise<ForumComment> {
+  const row = await apiRequest<BackendForumComment>(`/api/forum/comments/${commentId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return mapForumComment(row);
+}
+
+export async function deleteForumComment(commentId: string): Promise<void> {
+  await apiRequest(`/api/forum/comments/${commentId}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json" },
+  });
 }
 
 export async function voteForumTopic(
@@ -1860,6 +1911,32 @@ export async function moderateForumTopic(
   return mapForumTopic(row);
 }
 
+export async function pinForumTopic(topicId: string, pinned: boolean): Promise<ForumTopic> {
+  const action = pinned ? "pin" : "unpin";
+  const row = await apiRequest<BackendForumTopic>(`/api/forum/topics/${topicId}/${action}`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+  return mapForumTopic(row);
+}
+
+export async function lockForumTopic(topicId: string, locked: boolean): Promise<ForumTopic> {
+  const action = locked ? "lock" : "unlock";
+  const row = await apiRequest<BackendForumTopic>(`/api/forum/topics/${topicId}/${action}`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+  return mapForumTopic(row);
+}
+
+export async function archiveForumTopic(topicId: string): Promise<ForumTopic> {
+  const row = await apiRequest<BackendForumTopic>(`/api/forum/topics/${topicId}/archive`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+  return mapForumTopic(row);
+}
+
 export async function moderateForumComment(
   commentId: string,
   patch: { is_official?: boolean; deleted?: boolean }
@@ -1868,6 +1945,15 @@ export async function moderateForumComment(
     method: "PATCH",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(patch),
+  });
+  return mapForumComment(row);
+}
+
+export async function hideForumComment(commentId: string, hidden: boolean): Promise<ForumComment> {
+  const action = hidden ? "hide" : "unhide";
+  const row = await apiRequest<BackendForumComment>(`/api/forum/comments/${commentId}/${action}`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
   });
   return mapForumComment(row);
 }

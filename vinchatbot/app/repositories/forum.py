@@ -10,6 +10,8 @@ from vinchatbot.app.schemas.forum import (
     CreateCommentRequest,
     CreateReportRequest,
     CreateTopicRequest,
+    ForumCommentPatchRequest,
+    ForumTopicPatchRequest,
     ModerateCommentRequest,
     ModerateTopicRequest,
 )
@@ -241,6 +243,80 @@ class ForumRepository:
                 )
         return await self.get_topic(topic_id=topic_id, user_id=author_user_id)
 
+    async def get_topic_state(self, topic_id: uuid.UUID) -> dict[str, Any] | None:
+        row = await self._fetchone(
+            """
+            select id, author_user_id, is_locked, deleted
+            from forum_topics
+            where id = %s
+            """,
+            (topic_id,),
+        )
+        return dict(row) if row else None
+
+    async def patch_topic(
+        self,
+        *,
+        topic_id: uuid.UUID,
+        request: ForumTopicPatchRequest,
+        actor_user_id: uuid.UUID,
+        include_deleted: bool = False,
+    ) -> dict[str, Any] | None:
+        fields: list[str] = []
+        params: list[Any] = []
+        changed = request.model_fields_set
+
+        if "title" in changed:
+            fields.append("title = %s")
+            params.append(request.title)
+        if "content" in changed:
+            fields.append("content = %s")
+            params.append(request.content)
+        if "category_id" in changed or "category_slug" in changed:
+            category_id = await self._resolve_category_id_from_values(
+                category_id=request.category_id,
+                category_slug=request.category_slug,
+            )
+            if category_id is None:
+                return None
+            fields.append("category_id = %s")
+            params.append(category_id)
+        if "tags" in changed:
+            fields.append("tags = %s")
+            params.append(request.tags or [])
+        if "attachments" in changed:
+            fields.append("attachments = %s::jsonb")
+            params.append(json.dumps([a.model_dump() for a in request.attachments or []]))
+        if "is_pinned" in changed:
+            fields.append("is_pinned = %s")
+            params.append(request.is_pinned)
+        if "is_locked" in changed:
+            fields.append("is_locked = %s")
+            params.append(request.is_locked)
+        if "deleted" in changed:
+            fields.append("deleted = %s")
+            params.append(request.deleted)
+        if "official_comment_id" in changed:
+            fields.append("official_comment_id = %s")
+            params.append(request.official_comment_id)
+
+        if fields:
+            await self._execute(
+                f"update forum_topics set {', '.join(fields)} where id = %s",
+                (*params, topic_id),
+            )
+            if "official_comment_id" in changed and request.official_comment_id is not None:
+                await self._execute(
+                    "update forum_comments set is_official = (id = %s) where topic_id = %s",
+                    (request.official_comment_id, topic_id),
+                )
+
+        return await self.get_topic(
+            topic_id=topic_id,
+            user_id=actor_user_id,
+            include_deleted=include_deleted,
+        )
+
     async def moderate_topic(
         self,
         *,
@@ -398,6 +474,85 @@ class ForumRepository:
                         )
         return await self._get_comment(comment_id, mod_user_id)
 
+    async def get_comment_state(self, comment_id: uuid.UUID) -> dict[str, Any] | None:
+        row = await self._fetchone(
+            """
+            select
+                c.id,
+                c.topic_id,
+                c.author_user_id,
+                c.deleted,
+                t.is_locked as topic_is_locked,
+                t.deleted as topic_deleted
+            from forum_comments c
+            join forum_topics t on t.id = c.topic_id
+            where c.id = %s
+            """,
+            (comment_id,),
+        )
+        return dict(row) if row else None
+
+    async def patch_comment(
+        self,
+        *,
+        comment_id: uuid.UUID,
+        request: ForumCommentPatchRequest,
+        actor_user_id: uuid.UUID,
+    ) -> dict[str, Any] | None:
+        comment = await self.get_comment_state(comment_id)
+        if comment is None:
+            return None
+
+        async with self.pool.connection() as conn:
+            async with conn.transaction():
+                changed = request.model_fields_set
+                if "content" in changed:
+                    await conn.execute(
+                        "update forum_comments set content = %s where id = %s",
+                        (request.content, comment_id),
+                    )
+                if "deleted" in changed:
+                    await conn.execute(
+                        "update forum_comments set deleted = %s where id = %s",
+                        (request.deleted, comment_id),
+                    )
+                    if request.deleted:
+                        await conn.execute(
+                            """
+                            update forum_topics set official_comment_id = null
+                            where official_comment_id = %s
+                            """,
+                            (comment_id,),
+                        )
+                if "is_official" in changed:
+                    topic_id = comment["topic_id"]
+                    if request.is_official:
+                        await conn.execute(
+                            "update forum_comments set is_official = false where topic_id = %s",
+                            (topic_id,),
+                        )
+                        await conn.execute(
+                            "update forum_comments set is_official = true where id = %s",
+                            (comment_id,),
+                        )
+                        await conn.execute(
+                            "update forum_topics set official_comment_id = %s where id = %s",
+                            (comment_id, topic_id),
+                        )
+                    else:
+                        await conn.execute(
+                            "update forum_comments set is_official = false where id = %s",
+                            (comment_id,),
+                        )
+                        await conn.execute(
+                            """
+                            update forum_topics set official_comment_id = null
+                            where id = %s and official_comment_id = %s
+                            """,
+                            (topic_id, comment_id),
+                        )
+        return await self._get_comment(comment_id, actor_user_id)
+
     # ---- Votes -------------------------------------------------------------
 
     async def set_vote(
@@ -488,16 +643,27 @@ class ForumRepository:
     # ---- Internal helpers --------------------------------------------------
 
     async def _resolve_category_id(self, request: CreateTopicRequest) -> uuid.UUID | None:
-        if request.category_id is not None:
+        return await self._resolve_category_id_from_values(
+            category_id=request.category_id,
+            category_slug=request.category_slug,
+        )
+
+    async def _resolve_category_id_from_values(
+        self,
+        *,
+        category_id: uuid.UUID | None,
+        category_slug: str | None,
+    ) -> uuid.UUID | None:
+        if category_id is not None:
             row = await self._fetchone(
                 "select id from forum_categories where id = %s and is_active = true",
-                (request.category_id,),
+                (category_id,),
             )
             return row["id"] if row else None
-        if request.category_slug:
+        if category_slug:
             row = await self._fetchone(
                 "select id from forum_categories where slug = %s and is_active = true",
-                (request.category_slug,),
+                (category_slug,),
             )
             return row["id"] if row else None
         return None

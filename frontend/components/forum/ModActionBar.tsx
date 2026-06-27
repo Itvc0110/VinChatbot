@@ -12,7 +12,7 @@ export interface TopicModeratePatch {
 }
 
 // Inline moderator controls on the topic detail (rendered only for admin/staff). Pin/lock are
-// instant toggles; delete uses a two-click confirm to avoid accidents.
+// instant toggles; archive uses a two-click confirm to avoid accidents.
 export function ModActionBar({
   topic,
   onModerate,
@@ -54,7 +54,7 @@ export function ModActionBar({
             onClick={() => onModerate({ deleted: true })}
             disabled={busy}
           >
-            {p.forum.delete}?
+            {p.forum.archive}?
           </button>
           <button
             type="button"
@@ -72,7 +72,7 @@ export function ModActionBar({
           onClick={() => setConfirmDelete(true)}
           disabled={busy}
         >
-          {p.forum.delete}
+          {p.forum.archive}
         </button>
       )}
     </div>
