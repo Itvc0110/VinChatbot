@@ -126,6 +126,9 @@ function chatResponseFromStoredMessage(message: BackendConversationMessage): Cha
       typeof raw?.db_conversation_id === "string"
         ? raw.db_conversation_id
         : message.conversation_id,
+    suggested_follow_ups: Array.isArray(raw?.suggested_follow_ups)
+      ? (raw.suggested_follow_ups as string[]).filter((q) => typeof q === "string")
+      : [],
   };
 }
 

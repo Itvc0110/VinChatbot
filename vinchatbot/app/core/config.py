@@ -71,6 +71,16 @@ class Settings(BaseSettings):
     ticket_suggest_model: str = Field(
         default="openai/gpt-4o-mini", validation_alias="TICKET_SUGGEST_MODEL"
     )
+    # Per-answer follow-up question suggestions: a dedicated SMALL/FAST model (separate LLM call) that
+    # derives the next questions a student would naturally ask from THIS turn's answer, replacing the
+    # frontend's canned rule-based chips. Still OpenRouter — change only FOLLOWUP_SUGGEST_MODEL to swap.
+    # Fail-open: on no key / error the backend returns none and the client falls back to its rules.
+    followup_suggest_model: str = Field(
+        default="google/gemini-2.5-flash", validation_alias="FOLLOWUP_SUGGEST_MODEL"
+    )
+    enable_followup_suggestions: bool = Field(
+        default=True, validation_alias="ENABLE_FOLLOWUP_SUGGESTIONS"
+    )
     # Answer/routing temperature (Phase 1.11). 0.0 = deterministic answers (the consistency fix);
     # the proven root of "same question, different answer" was sampling. Raise toward 0.1–0.3 only if
     # answer diversity is wanted at the cost of run-to-run stability. Guard models keep their own temp.

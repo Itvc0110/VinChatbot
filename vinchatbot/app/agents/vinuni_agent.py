@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
 from collections.abc import Iterable
 from typing import Any
 
+from vinchatbot.app.agents.followup_suggest import suggest_follow_ups
 from vinchatbot.app.agents.graph import FANOUT_ROUTE, build_agent_graph
 from vinchatbot.app.agents.guardrails import (
     CONVERSATIONAL_ACTIONS,
@@ -376,6 +378,17 @@ class VinUniAgentService:
         confidence = _estimate_confidence(citations)
         needs_human_review = _needs_human_review(answer, citations)
 
+        # Content-derived follow-up chips (small/fast model). Best-effort + bounded: it never blocks or
+        # breaks the turn — on timeout / error / disabled it yields none and the client uses its rules.
+        follow_ups: list[str] = []
+        if self.settings.enable_followup_suggestions:
+            try:
+                follow_ups = await asyncio.wait_for(
+                    suggest_follow_ups(request.message, answer, self.settings), timeout=8.0
+                )
+            except Exception:
+                logger.debug("Follow-up suggestion skipped.", exc_info=True)
+
         self._log_turn(
             request,
             intent=result.get("intent"),
@@ -395,6 +408,7 @@ class VinUniAgentService:
             confidence=confidence,
             tool_trace=tool_trace,
             needs_human_review=needs_human_review,
+            suggested_follow_ups=follow_ups,
         )
 
     def _sensitive_output_block(

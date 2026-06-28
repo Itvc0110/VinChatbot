@@ -305,9 +305,16 @@ def _stub_input_guard(monkeypatch):
     monkeypatch.setattr(agent_mod, "resolve_guardrail_decision", _allow)
 
 
-def _agent_service(answer: str):
-    # Disable output moderation so the test stays fully offline (no safety-model call).
-    settings = get_settings().model_copy(update={"enable_output_moderation": False})
+def _agent_service(answer: str, **settings_overrides: Any):
+    # Disable output moderation AND follow-up suggestions so the test stays fully offline (no
+    # safety-model / follow-up-model call). Individual tests can re-enable follow-ups via overrides.
+    settings = get_settings().model_copy(
+        update={
+            "enable_output_moderation": False,
+            "enable_followup_suggestions": False,
+            **settings_overrides,
+        }
+    )
     return agent_mod.VinUniAgentService(
         settings=settings, retriever=SimpleNamespace(), agent=_FakeAgent(answer)
     )
@@ -419,3 +426,64 @@ def test_two_students_sharing_conversation_id_get_distinct_threads(monkeypatch):
             reset_student_identity(token)
     threads = [c["configurable"]["thread_id"] for c in agent.configs]
     assert threads[0] != threads[1]  # same conversation_id, different verified users → no shared memory
+
+
+# --- Follow-up suggestions wiring ------------------------------------------------------------
+# A successful answer attaches backend-generated follow-ups (a small/fast model, stubbed here). The
+# flag gates it off entirely; failures are swallowed so the turn is never affected.
+
+
+# A trusted personal-app-data turn (uncited answer is served, not degraded) so the SUCCESS path runs.
+_FU_ANSWER = "GPA của bạn hiện là 3.4."
+_FU_CONTEXT = "Academic standing: good standing; GPA 3.4; credits 60/120."
+
+
+def _follow_up_request(conv: str) -> ChatRequest:
+    request = ChatRequest(message="GPA của tôi là bao nhiêu?", conversation_id=conv)
+    request.backend_personalization_context = _FU_CONTEXT
+    return request
+
+
+def test_successful_answer_attaches_backend_follow_ups(monkeypatch):
+    _stub_input_guard(monkeypatch)
+
+    async def _fake(question, answer, settings):
+        return ["Làm sao để cải thiện GPA?", "Tôi cần GPA bao nhiêu để tốt nghiệp loại Giỏi?"]
+
+    monkeypatch.setattr(agent_mod, "suggest_follow_ups", _fake)
+    service = _agent_service(_FU_ANSWER, enable_followup_suggestions=True)
+
+    response = _run(service.chat(_follow_up_request("fu-1")))
+    assert response.answer == _FU_ANSWER  # not degraded
+    assert response.suggested_follow_ups == [
+        "Làm sao để cải thiện GPA?",
+        "Tôi cần GPA bao nhiêu để tốt nghiệp loại Giỏi?",
+    ]
+
+
+def test_follow_ups_disabled_by_flag(monkeypatch):
+    _stub_input_guard(monkeypatch)
+
+    async def _boom(*_a, **_k):  # must not be called when the flag is off
+        raise AssertionError("suggest_follow_ups called while disabled")
+
+    monkeypatch.setattr(agent_mod, "suggest_follow_ups", _boom)
+    service = _agent_service(_FU_ANSWER, enable_followup_suggestions=False)
+
+    response = _run(service.chat(_follow_up_request("fu-2")))
+    assert response.answer == _FU_ANSWER
+    assert response.suggested_follow_ups == []
+
+
+def test_follow_up_failure_does_not_break_turn(monkeypatch):
+    _stub_input_guard(monkeypatch)
+
+    async def _raise(*_a, **_k):
+        raise RuntimeError("follow-up model down")
+
+    monkeypatch.setattr(agent_mod, "suggest_follow_ups", _raise)
+    service = _agent_service(_FU_ANSWER, enable_followup_suggestions=True)
+
+    response = _run(service.chat(_follow_up_request("fu-3")))  # must not raise
+    assert response.answer == _FU_ANSWER
+    assert response.suggested_follow_ups == []

@@ -10,6 +10,10 @@
 import type { ChatResponse } from "./types";
 import type { Lang } from "./i18n";
 
+// Few by design: the chips sit under each answer and a single question can be long. Keep this in
+// sync with the backend cap in followup_suggest.py (_MAX_ITEMS).
+const MAX_FOLLOW_UPS = 3;
+
 export interface FollowUpInput {
   userQuestion: string;
   assistantAnswer: string;
@@ -125,9 +129,9 @@ export function generateFollowUpSuggestions(input: FollowUpInput): string[] {
   // Top up with generic deepeners so there are always at least three.
   push(T.fallback[language]);
 
-  // De-dupe (preserving order) and keep 3–5.
+  // De-dupe (preserving order) and keep a few — the chips sit under the answer and can be long.
   const unique = Array.from(new Set(out.map((q) => q.trim())));
-  return unique.slice(0, 5);
+  return unique.slice(0, MAX_FOLLOW_UPS);
 }
 
 // Render-time entry point used by the FollowUpSuggestions component. Prefers backend-provided
@@ -138,7 +142,7 @@ export function followUpsFor(
   lang: Lang
 ): string[] {
   const fromBackend = backendSuggestions(response);
-  if (fromBackend.length) return removeSourceOpenSuggestions(fromBackend).slice(0, 5);
+  if (fromBackend.length) return removeSourceOpenSuggestions(fromBackend).slice(0, MAX_FOLLOW_UPS);
 
   return removeSourceOpenSuggestions(
     generateFollowUpSuggestions({
