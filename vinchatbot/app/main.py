@@ -21,7 +21,11 @@ from vinchatbot.app.api.routes_tickets import router as tickets_router
 from vinchatbot.app.core.config import get_settings
 from vinchatbot.app.core.logging import configure_logging
 from vinchatbot.app.core.observability import add_request_id_middleware
-from vinchatbot.app.db.connection import close_app_db_pool, open_app_db_pool
+from vinchatbot.app.db.connection import (
+    close_app_db_pool,
+    open_app_db_pool,
+    open_readonly_app_db_pool,
+)
 
 
 def create_app() -> FastAPI:
@@ -31,6 +35,7 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await open_app_db_pool(settings)
+        await open_readonly_app_db_pool(settings)
         try:
             yield
         finally:

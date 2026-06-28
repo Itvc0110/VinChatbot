@@ -20,10 +20,20 @@ from langchain_core.messages import AIMessage
 from langgraph.graph import END, START, MessagesState, StateGraph
 
 from vinchatbot.app.agents.prompts import SYNTHESIS_SYSTEM
-from vinchatbot.app.agents.specialists import build_specialists
-from vinchatbot.app.agents.supervisor import INTENTS, plan_dispatch, route_intent
+from vinchatbot.app.agents.question_scope import classify_question_scope
+from vinchatbot.app.agents.specialists import PERSONAL_INTENT, build_specialists
+from vinchatbot.app.agents.supervisor import (
+    INTENTS,
+    classify_intent_heuristic,
+    plan_dispatch,
+    route_intent,
+)
 from vinchatbot.app.core.config import Settings, get_settings
-from vinchatbot.app.core.observability import record_llm_usage, set_user_message
+from vinchatbot.app.core.observability import (
+    get_student_identity,
+    record_llm_usage,
+    set_user_message,
+)
 from vinchatbot.app.llm.openrouter_chat import build_chat_model
 from vinchatbot.app.rag.retriever import Retriever
 
@@ -106,6 +116,7 @@ def build_agent_graph(
     supervisor_router: Any | None = None,
     dispatch_planner: Any | None = None,
     model: Any | None = None,
+    personal_pool: Any | None = None,
 ):
     """Compile the supervisor + specialists graph.
 
@@ -121,13 +132,36 @@ def build_agent_graph(
     # when not injected and the live path needs it.
     if model is None and (specialists is None or supervisor_router is None):
         model = build_chat_model(settings, temperature=settings.llm_temperature)
-    specialists = specialists or build_specialists(retriever, settings, model=model)
+    specialists = specialists or build_specialists(
+        retriever, settings, model=model, personal_pool=personal_pool
+    )
+    # Phase 5: the personal specialist is present only when a read-only DB pool was available at build
+    # time. When absent (offline/tests/no DB) personal routing is fully disabled and the general path is
+    # byte-identical.
+    has_personal = PERSONAL_INTENT in specialists
     fan_out = dispatch_planner is not None or (
         getattr(settings, "enable_fan_out", False) and supervisor_router is None
     )
 
     async def supervisor_node(state: VinUniState) -> dict:
         text = _last_user_text(state["messages"])
+        # Phase 5 personal routing — fires ONLY for an authenticated student (the identity contextvar is
+        # set by the chat route from the verified session) asking about their OWN app data. Every other
+        # turn (anonymous, admin, or non-personal scope) falls through to the UNCHANGED general routing.
+        if has_personal and get_student_identity() is not None:
+            scope = classify_question_scope(text)
+            if scope == "personal_app_data":
+                return {"intent": PERSONAL_INTENT}
+            if scope == "hybrid":
+                # Personal facts from the DB tools + the policy/rule part from the RAG specialist, fused.
+                general = classify_intent_heuristic(text)
+                return {
+                    "plan": [
+                        {"query": text, "intent": PERSONAL_INTENT},
+                        {"query": text, "intent": general},
+                    ],
+                    "intent": FANOUT_ROUTE,
+                }
         if fan_out:
             # Dispatch planner (Phase 1.33): >1 assignment ⇒ fan out; 1 assignment ⇒ the single path below.
             if dispatch_planner is not None:
@@ -264,12 +298,17 @@ def build_agent_graph(
     builder.add_node("supervisor", supervisor_node)
     for intent in INTENTS:
         builder.add_node(intent, make_specialist_node(specialists[intent]))
+    # Phase 5: the personal specialist node + route exist only when it was built (DB pool available).
+    if has_personal:
+        builder.add_node(PERSONAL_INTENT, make_specialist_node(specialists[PERSONAL_INTENT]))
     builder.add_node(FANOUT_ROUTE, fanout_node)
     builder.add_edge(START, "supervisor")
-    
+
     routes = {intent: intent for intent in INTENTS}
     routes[FANOUT_ROUTE] = FANOUT_ROUTE
-    
+    if has_personal:
+        routes[PERSONAL_INTENT] = PERSONAL_INTENT
+
     builder.add_conditional_edges(
         "supervisor",
         route_after_supervisor,
@@ -277,5 +316,7 @@ def build_agent_graph(
     )
     for intent in INTENTS:
         builder.add_edge(intent, END)
+    if has_personal:
+        builder.add_edge(PERSONAL_INTENT, END)
     builder.add_edge(FANOUT_ROUTE, END)
     return builder.compile(checkpointer=checkpointer)

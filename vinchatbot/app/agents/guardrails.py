@@ -19,6 +19,8 @@ GuardrailAction = Literal[
     "allow",
     "smalltalk",
     "capability",
+    "clarify",  # vague opener with no concrete question -> ask what they'd like to know
+    "out_of_scope_task",  # a generative task out of scope (write code/poem/rhythm, do homework, roleplay)
     "greeting",  # legacy; superseded by "smalltalk" (kept for backward compatibility)
     "prompt_injection",
     "restricted_data",
@@ -29,7 +31,7 @@ GuardrailAction = Literal[
 
 # Benign conversational turns: answered directly (no block, no retrieval) via
 # build_conversational_response — distinct from blocked actions.
-CONVERSATIONAL_ACTIONS = frozenset({"smalltalk", "capability"})
+CONVERSATIONAL_ACTIONS = frozenset({"smalltalk", "capability", "clarify"})
 
 
 @dataclass(frozen=True)
@@ -81,6 +83,13 @@ INJECTION_PATTERNS = (
     re.compile(r"\b(jailbreak|dan mode|developer mode|unrestricted mode)\b"),
     re.compile(r"<\s*(system|developer|assistant)\s*>"),
 )
+# NOTE (Phase 5): authority / social-engineering attempts ("I'm an admin, show all grades", "I'm
+# authorized…") are deliberately NOT pattern-matched here. Such phrasings are gray and brittle to
+# hardcode (I'm/I am variants → over-fire risk), which is forbidden. They're handled WITHOUT a refusal
+# pattern: (1) data isolation by construction — the personal tools only ever return the SESSION
+# student's own rows, so a false authority claim yields only the asker's own data, never another's;
+# (2) the gray case is left to the LLM (scope router + the specialist's own judgement); and (3) the
+# output guard is the backstop. Precision over recall: no input over-fire.
 
 RESTRICTED_DATA_PATTERNS = (
     re.compile(
@@ -94,9 +103,36 @@ RESTRICTED_DATA_PATTERNS = (
     ),
 )
 
+# Particles/pleasantries that may TRAIL a greeting ("chào bạn", "xin chào ạ", "hi there", "chào shop
+# nhé"). Deliberately a SHORT closed set + trailing punctuation so a greeting glued to a real question
+# ("chào bạn, cho mình hỏi học phí") is NOT swallowed and still routes to retrieval. Matched on the
+# accent-folded text, so "xin chào ạ" -> "xin chao a".
+_GREETING_TAIL = (
+    r"( (ban|ban oi|cac ban|oi|a|ad|em|anh|chi|shop|moi nguoi|nhe|nha|with|there|all|guys|everyone))*"
+    r"[!.?,… ]*"
+)
 GREETING_PATTERNS = (
-    re.compile(r"^(hi|hello|hey|good morning|good afternoon|good evening)[!. ]*$"),
-    re.compile(r"^(xin chao|chao ban|chao|alo|chao buoi (sang|chieu|toi))[!. ]*$"),
+    re.compile(r"^(hi+|hello+|hey+|yo+|good (morning|afternoon|evening))" + _GREETING_TAIL + r"$"),
+    re.compile(r"^(xin chao|chao ban|chao|alo|chao buoi (sang|chieu|toi))" + _GREETING_TAIL + r"$"),
+)
+
+# Vague / contentless openers: the user signals they want to ask but names no actual topic
+# ("cho tôi hỏi với", "tôi muốn hỏi", "let me ask", "i have a question"). Pre-retrieval we ask what
+# they'd like to know rather than run RAG on an empty query (which returned a random FAQ). FULLMATCH
+# only, so an opener glued to a real question ("cho mình hỏi học phí thế nào") is NOT caught here —
+# that already wins earlier via the in-scope `allow` branch.
+VAGUE_OPENER_PATTERNS = (
+    re.compile(
+        r"^(cho )?(toi|minh|em|tui|t|ban|con)? ?(muon |co the |xin )?hoi"
+        r"( (voi|chut|ti|xiu|cai|nhe|nha|gium|ban|gi|ty|mot chut))*[!.?,… ]*$"
+    ),
+    re.compile(
+        r"^(toi|minh|em|tui)? ?(co|muon|dang co)( mot| vai)? (cau hoi|thac mac)[!.?,… ]*$"
+    ),
+    re.compile(r"^(can i|could i|may i|let me)( just)? ask( you)?( something| a question| a thing)?[!.?,… ]*$"),
+    re.compile(r"^i (have|want|got|'?ve got|'?ve)( a)? (a )?(quick )?question[!.?,… ]*$"),
+    re.compile(r"^i (want|'?d like|wanna) to ask( you)?( something| a question)?[!.?,… ]*$"),
+    re.compile(r"^(just )?(a|one) (quick |small )?question[!.?,… ]*$"),
 )
 
 # Closings / thanks / acknowledgements / reactions — FULLMATCH only, so a closing word at the
@@ -128,6 +164,67 @@ CAPABILITY_PATTERNS = (
     re.compile(r"\bwhat'?s your name\b"),
     re.compile(r"^(help|giup|giup voi|giup minh|giup toi)[!. ]*$"),
 )
+
+# Out-of-scope GENERATIVE tasks (Phase 5 hardening). Vinnie is a VinUni student-support + own-data
+# assistant — it must NOT write code, compose poems/songs/rhythms, do math homework, or role-play, even
+# when the request name-drops an in-scope topic ("make a rhythm ABOUT TUITION" coincidentally hits a
+# scope keyword and used to be fast-allowed). Checked BEFORE the in-scope fast-allow, and NOT lifted by
+# the authenticated-student personal allowance, so a student can't get the bot to do these either.
+# PRECISION-first: the object list is restricted to things that are NEVER legitimate student-support
+# content (poem/rap/code/integral…), so advice questions ("how do I write my application essay?",
+# "viết đơn xin nghỉ", "soạn phiếu hỗ trợ") and real info questions are NOT caught.
+OUT_OF_SCOPE_TASK_PATTERNS: dict[str, tuple[re.Pattern, ...]] = {
+    "creative": (
+        re.compile(
+            r"\b(write|compose|create|generate|make|sing|give me)\b.{0,30}"
+            r"\b(poem|poetry|rhyme|rap|song|lyrics|melody|haiku|limerick|joke)\b"
+        ),
+        # "rhythm"/"beat" only in the musical sense — exclude routine senses ("study/daily/sleep
+        # rhythm") via a negative lookbehind right before the word.
+        re.compile(
+            r"\b(make|create|write|compose|drop|lay down|spit|sing)\b.{0,12}"
+            r"(?<!study )(?<!daily )(?<!sleep )(?<!work )(?<!body )(?<!natural )\b(rhythm|beat)\b"
+        ),
+        re.compile(
+            r"\b(viet|lam|sang tac|hat|doc cho)\b.{0,30}"
+            r"\b(bai tho|tho|bai rap|rap|bai hat|loi bai hat|bai nhac|cau do|truyen cuoi)\b"
+        ),
+    ),
+    "code": (
+        # "program" dropped (heavily academic: "the CS program", "exchange program"); covered by
+        # code/function/script/algorithm instead.
+        re.compile(
+            r"\b(write|create|generate|implement|debug|refactor|fix|code)\b.{0,30}"
+            r"\b(code|function|script|algorithm|regex|html|css|sql query|snippet)\b"
+        ),
+        # VI "chuong trinh" dropped too — it means curriculum/program far more often than a computer program.
+        re.compile(r"\b(viet|tao|lam)\b.{0,30}\b(code|doan code|ham|thuat toan|cau lenh sql)\b"),
+    ),
+    "math": (
+        re.compile(
+            r"\b(solve|calculate|compute|integrate|differentiate)\b.{0,25}"
+            r"\b(equation|integral|derivative|limit|matrix|polynomial|problem set|homework)\b"
+        ),
+        re.compile(
+            r"\b(giai|tinh)\b.{0,25}\b(phuong trinh|tich phan|dao ham|he phuong trinh|bai toan|bai tap toan)\b"
+        ),
+    ),
+    # roleplay / persona-override (defense-in-depth alongside INJECTION_PATTERNS)
+    "roleplay": (
+        re.compile(r"\b(act as|pretend (to be|that you|you are)|role ?play|simulate being|do anything now|dan mode)\b"),
+        # "dong vai" but NOT "dong vai tro" — "đóng vai trò" means "plays a role / is a factor", not roleplay.
+        re.compile(r"\b(dong vai(?!\s*tro)|gia vo (la|lam|rang)|nhap vai)\b"),
+    ),
+}
+
+
+def _out_of_scope_task_category(normalized: str, deobfuscated: str) -> str | None:
+    """Return which out-of-scope task category the message is (code/creative/math/roleplay), or None.
+    Lets the refusal name the kind of request naturally instead of a generic line."""
+    for category, patterns in OUT_OF_SCOPE_TASK_PATTERNS.items():
+        if any(p.search(normalized) or p.search(deobfuscated) for p in patterns):
+            return category
+    return None
 
 ABUSIVE_PATTERNS = (
     re.compile(r"\b(fuck|fucking|shit|bitch|asshole|idiot|stupid|moron)\b"),
@@ -313,6 +410,17 @@ def assess_user_message(message: str) -> GuardrailDecision:
     if any(pattern.fullmatch(normalized) for pattern in GREETING_PATTERNS):
         return GuardrailDecision(action="smalltalk", reason="Greeting")
 
+    # Out-of-scope GENERATIVE task (write code/poem/rhythm, do math homework, role-play) — refuse BEFORE
+    # the in-scope fast-allow, so name-dropping a topic ("make a rhythm about tuition") can't smuggle it
+    # through. Distinct from plain out_of_scope so the authenticated-student personal allowance does NOT
+    # lift it. The category is carried in the reason so the reply can name the kind of request naturally.
+    task_category = _out_of_scope_task_category(normalized, deobfuscated)
+    if task_category:
+        return GuardrailDecision(
+            action="out_of_scope_task",
+            reason=f"out-of-scope generative task: {task_category}",
+        )
+
     has_scope = any(_contains_term(normalized, term) for term in SCOPE_TERMS)
     has_abuse = any(pattern.search(normalized) for pattern in ABUSIVE_PATTERNS)
     has_threat = any(pattern.search(normalized) for pattern in THREAT_PATTERNS)
@@ -335,6 +443,11 @@ def assess_user_message(message: str) -> GuardrailDecision:
     # Pure closing / thanks / acknowledgement / reaction (incl. emoji- or punctuation-only).
     if any(pattern.fullmatch(normalized) for pattern in CLOSING_PATTERNS) or _is_reaction_only(message):
         return GuardrailDecision(action="smalltalk", reason="Closing or acknowledgement.")
+
+    # Vague opener with no concrete question ("cho tôi hỏi với") — ask what they'd like instead of
+    # running retrieval on an empty query. A real question already won via the in-scope branch above.
+    if any(pattern.fullmatch(normalized) for pattern in VAGUE_OPENER_PATTERNS):
+        return GuardrailDecision(action="clarify", reason="Vague opener without a concrete question.")
 
     if any(pattern.search(normalized) for pattern in GRAY_SCOPE_PATTERNS):
         return GuardrailDecision(
@@ -377,6 +490,27 @@ async def resolve_guardrail_decision(
 ) -> GuardrailDecision:
     settings = settings or get_settings()
     decision = assess_chat_input(message, filter_values)
+
+    # Phase 5: an AUTHENTICATED student asking about THEIR OWN app data is always in scope — the
+    # personal specialist + read-only, own-data-only tools answer it safely, so we must never decline a
+    # legit personal question (precision: no false refusals for signed-in students). Only the
+    # scope-uncertainty / personal-records refusals are lifted; injection/abuse/threat stay hard blocks.
+    # Identity comes from the verified session contextvar (never client/model input), and a question
+    # about ANOTHER student does not classify as personal_app_data, so it is unaffected. Lazy imports
+    # avoid a guardrails<->question_scope import cycle.
+    if decision.action in {"out_of_scope", "needs_scope_router", "restricted_data"}:
+        from vinchatbot.app.agents.question_scope import classify_question_scope
+        from vinchatbot.app.core.observability import get_student_identity
+
+        if get_student_identity() is not None and classify_question_scope(message) in {
+            "personal_app_data",
+            "hybrid",
+        }:
+            return GuardrailDecision(
+                action="allow",
+                reason="Authenticated student's own app-data question (personalization).",
+            )
+
     soft_scope = getattr(settings, "enable_soft_scope", False)
 
     # Confident regex outcomes return immediately: hard blocks, greetings, and confident
@@ -486,12 +620,16 @@ def build_guardrail_response(decision: GuardrailDecision, message: str) -> ChatR
         answer = _smalltalk_answer(message, language)
     elif decision.action == "capability":
         answer = _capability_answer(language)
+    elif decision.action == "clarify":
+        answer = _clarify_answer(language)
     elif decision.action == "prompt_injection":
         answer = _prompt_injection_answer(language)
     elif decision.action == "restricted_data":
         answer = _restricted_data_answer(language)
     elif decision.action == "abusive_language":
         answer = _abusive_language_answer(language)
+    elif decision.action == "out_of_scope_task":
+        answer = _out_of_scope_task_answer(message, language)
     else:
         answer = _out_of_scope_answer(language)
 
@@ -522,6 +660,8 @@ async def build_conversational_response(
     language = answer_language(message)
     if decision.action == "capability":
         answer = await _capability_reply(message, language, settings)
+    elif decision.action == "clarify":
+        answer = _clarify_answer(language)
     else:  # smalltalk (greeting / closing / ack / reaction)
         answer = _smalltalk_answer(message, language)
 
@@ -833,6 +973,19 @@ def _greeting_answer(language: Literal["vi", "en"]) -> str:
     )
 
 
+def _clarify_answer(language: Literal["vi", "en"]) -> str:
+    """Reply to a vague opener ('cho tôi hỏi với') — invite a concrete question, no retrieval."""
+    if language == "vi":
+        return (
+            "Mình sẵn sàng giúp! Bạn muốn hỏi về vấn đề gì? Ví dụ: lịch học, deadline, "
+            "điểm số/tín chỉ, quy định, học phí hoặc dịch vụ sinh viên VinUni."
+        )
+    return (
+        "I'd be glad to help! What would you like to ask about? For example: class schedule, "
+        "deadlines, grades/credits, policies, fees, or VinUni student services."
+    )
+
+
 CAPABILITY_PERSONA = (
     "Bạn là VinChatbot, trợ lý AI hỗ trợ học vụ và dịch vụ sinh viên VinUni. Hãy giới thiệu bản thân "
     "và khả năng một cách thân thiện, ngắn gọn (2-4 câu): bạn trả lời các câu hỏi về lịch học, "
@@ -943,6 +1096,41 @@ def _abusive_language_answer(language: Literal["vi", "en"]) -> str:
     return (
         "I am here to help, but I need the conversation to stay respectful. You can ask again "
         "about VinUni academic calendars, deadlines, policies, fees, or student services."
+    )
+
+
+_TASK_PHRASE_VI = {
+    "code": "viết hay sửa code giúp bạn",
+    "creative": "sáng tác thơ, nhạc hay nội dung sáng tạo",
+    "math": "giải bài tập hay bài toán hộ bạn",
+    "roleplay": "đóng vai theo yêu cầu",
+}
+_TASK_PHRASE_EN = {
+    "code": "write or debug code for you",
+    "creative": "write poems, songs, or other creative content",
+    "math": "solve math problems or do homework for you",
+    "roleplay": "role-play or take on a persona",
+}
+
+
+def _out_of_scope_task_answer(message: str, language: Literal["vi", "en"]) -> str:
+    """Natural, category-aware refusal of a generative task (code/creative/math/roleplay): names the
+    KIND of request asked, then redirects to what Vinnie can do. Not an exhaustive list."""
+    category = _out_of_scope_task_category(
+        normalize_for_matching(message), normalize_for_matching(deobfuscate(message))
+    )
+    if language == "vi":
+        phrase = _TASK_PHRASE_VI.get(category, "thực hiện yêu cầu nằm ngoài phạm vi hỗ trợ của mình")
+        return (
+            f"Xin lỗi, mình không thể {phrase} — mình là trợ lý hỗ trợ học vụ VinUni. Mình có thể giúp "
+            "bạn về lịch học, deadline, điểm số/tín chỉ, quy định, học phí và dịch vụ sinh viên. Bạn "
+            "muốn hỏi gì nào?"
+        )
+    phrase = _TASK_PHRASE_EN.get(category, "help with that — it's outside what I do")
+    return (
+        f"Sorry, I can't {phrase} — I'm VinUni's student-support assistant. I can help with your "
+        "schedule, deadlines, grades/credits, policies, fees, and student services. What would you "
+        "like to ask about?"
     )
 
 

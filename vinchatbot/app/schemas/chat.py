@@ -20,7 +20,10 @@ class RetrievalFilters(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
-    conversation_id: str = Field(default="default", min_length=1, max_length=128)
+    # A fresh thread per request when the client omits it, so an omitted id can NEVER share one
+    # global in-memory LangGraph thread (cross-session memory bleed). The frontend always sends its
+    # own per-chat id, so this only hardens the omitted-id case.
+    conversation_id: str = Field(default_factory=lambda: uuid.uuid4().hex, min_length=1, max_length=128)
     db_conversation_id: uuid.UUID | None = None
     filters: RetrievalFilters | None = None
     backend_personalization_context: str | None = Field(
