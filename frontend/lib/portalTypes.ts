@@ -219,6 +219,12 @@ export interface Notification {
   type: NotificationType;
   title: string;
   message: string;
+  // Optional per-language variants (admin authoring). Student reads already arrive
+  // resolved to the active language in `title`/`message`.
+  title_vi?: string;
+  title_en?: string;
+  message_vi?: string;
+  message_en?: string;
   created_at: string; // ISO datetime
   read: boolean;
   important: boolean;

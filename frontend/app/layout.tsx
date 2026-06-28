@@ -44,7 +44,7 @@ export default function RootLayout({
 }) {
   return (
     <html
-      lang="en"
+      lang="vi"
       className={`${inter.variable} ${mono.variable} ${hankenGrotesk.variable}`}
     >
       <head>

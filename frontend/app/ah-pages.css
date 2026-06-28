@@ -239,10 +239,101 @@
 }
 .dash-welcome-sub { color: var(--ah-muted); font-size: 14px; margin: 0; }
 
-.dash-grid { display: grid; grid-template-columns: minmax(0, 1fr) 336px; gap: 24px; align-items: start; }
-.dash-main { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.dash-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); gap: 24px; align-items: start; }
+.dash-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .dash-rail { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-@media (max-width: 1024px) { .dash-grid { grid-template-columns: 1fr; } }
+
+/* Tablet/mobile: collapse to one column. Columns become `display: contents` so all cards are
+   direct grid items and the explicit `order` below interleaves left + right into the required
+   single-column sequence (Today → Academic → Month → Suggestions → Tickets → Events). */
+@media (max-width: 1024px) {
+  .dash-grid { grid-template-columns: 1fr; gap: 18px; }
+  .dash-main, .dash-rail { display: contents; }
+  .dash-card--today { order: 1; }
+  .dash-card--academic { order: 2; }
+  .dash-card--month { order: 3; }
+  .dash-card--suggestions { order: 4; }
+  .dash-card--tickets { order: 5; }
+  .dash-card--events { order: 6; }
+}
+
+/* ---- Today Focus strip (full-width priority row) ---- */
+.focus-strip {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 24px;
+}
+@media (max-width: 900px) { .focus-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .focus-strip { grid-template-columns: 1fr; } }
+.focus-card {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px; width: 100%; text-align: left;
+  background: var(--ah-surface); border: 1px solid var(--ah-border); border-radius: var(--ah-radius);
+  font: inherit; color: inherit; cursor: pointer;
+  transition: box-shadow 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+.focus-card:hover { box-shadow: var(--ah-shadow-2); border-color: var(--ah-border-strong); }
+.focus-card--static { cursor: default; }
+.focus-card--static:hover { box-shadow: none; border-color: var(--ah-border); }
+.focus-icon {
+  width: 34px; height: 34px; border-radius: var(--ah-radius-sm); flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--ah-primary-tint); color: var(--ah-on-primary-tint);
+}
+.focus-body { flex: 1 1 auto; min-width: 0; }
+.focus-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ah-muted);
+  font-weight: 700; margin-bottom: 2px;
+}
+.focus-detail {
+  font-size: 13.5px; font-weight: 600; color: var(--ah-text); line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.focus-detail.muted { font-weight: 500; color: var(--ah-muted); }
+.focus-chip { flex: 0 0 auto; }
+
+/* ---- Academic Snapshot ---- */
+.dash-section-head--stacked { align-items: flex-start; margin-bottom: 14px; }
+.dash-section-sub { font-size: 12.5px; color: var(--ah-muted); margin: 3px 0 0; }
+.snapshot-stats {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px;
+}
+@media (max-width: 520px) { .snapshot-stats { grid-template-columns: repeat(2, 1fr); } }
+.snapshot-stat { min-width: 0; }
+.snapshot-stat-v { font-size: 18px; font-weight: 700; color: var(--ah-text); margin-top: 3px; line-height: 1.2; }
+.snapshot-progress { margin-top: 16px; }
+.snapshot-progress-meta {
+  display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;
+}
+.academic-progress-bar {
+  height: 8px; border-radius: 999px; background: var(--ah-surface-2); overflow: hidden;
+}
+.academic-progress-fill { height: 100%; background: var(--ah-brand); border-radius: 999px; }
+.snapshot-chips { margin-top: 16px; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-more { opacity: 0.85; }
+
+/* ---- Right rail card heads ---- */
+.rail-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;
+}
+.rail-head .rail-title { margin: 0; }
+.rail-title-icon { display: inline-flex; vertical-align: -2px; margin-right: 6px; color: var(--ah-brand); }
+.sched-badge.next { background: var(--ah-primary-tint); color: var(--ah-on-primary-tint); }
+
+/* ---- Current month schedule ---- */
+.month-pill {
+  font-size: 12px; font-weight: 700; color: var(--ah-on-primary-tint);
+  background: var(--ah-primary-tint); border-radius: var(--ah-radius-pill, 999px); padding: 3px 10px;
+  white-space: nowrap;
+}
+.month-count { font-size: 12.5px; color: var(--ah-muted); margin: 0 0 8px; }
+.month-list { display: flex; flex-direction: column; }
+.rail-time--date { width: 58px; font-size: 12px; }
+.month-viewall { margin-top: 10px; }
+.event-row--compact { padding: 10px 0; border: none; border-bottom: 1px solid var(--ah-border); border-radius: 0; background: transparent; }
+.event-row--compact:last-child { border-bottom: none; }
+
+/* stacked suggestions inside the (narrower) left column read better as a vertical list */
+.rec-strip--stack { grid-template-columns: 1fr; gap: 10px; }
+.rec-strip--stack .rec-card { padding: 13px 15px; align-items: center; }
 
 .dash-section-head {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px;

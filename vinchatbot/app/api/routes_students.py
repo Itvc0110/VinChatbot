@@ -92,11 +92,13 @@ async def student_deadlines(
 async def student_notifications(
     current_user: StudentUser,
     repository: Annotated[StudentRepository, Depends(get_student_repository)],
+    lang: Annotated[str, Query()] = "vi",
 ) -> list[NotificationResponse]:
     profile = await current_student_profile(current_user, repository)
     notifications = await repository.get_notifications(
         user_id=current_user.id,
         profile=profile,
+        lang=lang,
     )
     return [NotificationResponse(**notification) for notification in notifications]
 
@@ -167,9 +169,12 @@ async def mark_student_notification_unread(
 async def student_suggestions(
     current_user: StudentUser,
     repository: Annotated[StudentRepository, Depends(get_student_repository)],
+    lang: Annotated[str, Query()] = "vi",
 ) -> SuggestedQuestionGroupsResponse:
     profile = await current_student_profile(current_user, repository)
-    suggestions = await repository.get_suggestions(user_id=current_user.id, profile=profile)
+    suggestions = await repository.get_suggestions(
+        user_id=current_user.id, profile=profile, lang=lang
+    )
     return group_suggestions(suggestions)
 
 

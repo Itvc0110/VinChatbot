@@ -246,6 +246,9 @@ interface ChatContextValue {
   messagesLoading: boolean;
   messagesError: string | null;
   newConversation: () => void;
+  // Start a fresh conversation AND immediately send `text` into it (used by the dashboard
+  // quick-ask ?q= flow so each quick-ask opens its own new conversation).
+  newConversationWithMessage: (text: string) => void;
   switchConversation: (id: string) => void;
   renameConversation: (id: string, title: string) => void;
   deleteConversation: (id: string) => void;
@@ -880,6 +883,26 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     closeSources();
   }, [conversations, activeId, closeSources]);
 
+  // Open a brand-new conversation and send the first message into it in one step. Builds the
+  // conversation object up-front (with the user turn already in it) so `ask` targets it directly
+  // and never races the async activeId update.
+  const newConversationWithMessage = useCallback(
+    (text: string) => {
+      const title = titleFromText(text);
+      const conv = makeConversation({
+        title,
+        messages: [{ id: nextId(), role: "user", text }],
+        lastActivity: Date.now(),
+        localOrder: nextLocalOrder(),
+      });
+      setConversations((prev) => [...prev, conv]);
+      setActiveId(conv.id);
+      closeSources();
+      void ask(conv.id, conv.threadId, conv.dbConversationId, text, title, false);
+    },
+    [ask, closeSources]
+  );
+
   // Switch the active conversation. Allowed even while another conversation streams — the
   // in-flight reply keeps running in the background and lands in its own conversation.
   const switchConversation = useCallback(
@@ -1000,6 +1023,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     messagesLoading,
     messagesError,
     newConversation,
+    newConversationWithMessage,
     switchConversation,
     renameConversation,
     deleteConversation,

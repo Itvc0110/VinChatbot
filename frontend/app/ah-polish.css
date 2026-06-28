@@ -440,7 +440,7 @@
 .ah-topnav-link[href="/student/chat"] {
   position: relative;
   isolation: isolate; /* keep the pill (z-index:-1) behind the label, above the nav */
-  color: var(--ah-on-primary-tint);
+  color: var(--ah-brand);
 }
 .ah-topnav-link[href="/student/chat"]::before {
   content: "";
@@ -448,8 +448,11 @@
   inset: 12px 2px; /* inset → a pill inside the 64px tab, height unchanged */
   z-index: -1;
   border-radius: var(--ah-radius-pill);
-  background: var(--ah-primary-tint);
-  border: 1px solid transparent;
+  /* Resting state = an OUTLINED action pill (not a filled "selected tab"), so on other pages
+     Vinnie reads as a call-to-action and only the real current page looks active. The filled
+     tint is reserved for hover + the active (on /student/chat) state below. */
+  background: transparent;
+  border: 1px solid var(--accent-border, rgba(0, 87, 168, 0.28));
   transition: background var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease),
     border-color var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease);
 }

@@ -98,7 +98,6 @@ export function ConversationRail() {
   return (
     <aside className="convo-rail" aria-label={p.chatHistory.title}>
       <div className="convo-rail-head">
-        <span className="convo-rail-title">{p.chatHistory.title}</span>
         <button
           className="btn btn-primary btn-sm convo-new"
           onClick={chat.newConversation}

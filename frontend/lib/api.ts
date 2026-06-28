@@ -157,6 +157,10 @@ export interface BackendAdminNotification {
   type: string;
   title: string;
   message: string;
+  title_vi?: string | null;
+  title_en?: string | null;
+  message_vi?: string | null;
+  message_en?: string | null;
   priority: string;
   status: string;
   target_scope: string;
@@ -191,6 +195,10 @@ export interface AdminNotificationPayload {
   type?: NotificationType | string;
   title?: string;
   message?: string;
+  title_vi?: string | null;
+  title_en?: string | null;
+  message_vi?: string | null;
+  message_en?: string | null;
   priority?: Notification["priority"];
   status?: Notification["status"];
   target_scope?: "all" | "institute" | "cohort";
@@ -843,6 +851,10 @@ function mapAdminNotification(notification: BackendAdminNotification): Notificat
     type: safeNotificationType(notification.type),
     title: notification.title,
     message: notification.message,
+    title_vi: notification.title_vi ?? undefined,
+    title_en: notification.title_en ?? undefined,
+    message_vi: notification.message_vi ?? undefined,
+    message_en: notification.message_en ?? undefined,
     created_at: notification.created_at,
     read: false,
     important:
@@ -1237,8 +1249,11 @@ export async function deleteSupportTicket(ticketId: string): Promise<SupportTick
 
 // ---- Notifications ----------------------------------------------------------
 // [LIVE] GET /students/me/notifications -> Notification[]
-export async function getStudentNotifications(): Promise<Notification[]> {
-  const rows = await getJSON<BackendNotification[]>("/api/students/me/notifications");
+// `lang` selects the VI/EN variant of each notification's title/message (default VI).
+export async function getStudentNotifications(lang: Lang = "vi"): Promise<Notification[]> {
+  const rows = await getJSON<BackendNotification[]>(
+    `/api/students/me/notifications?lang=${encodeURIComponent(lang)}`
+  );
   return rows.map(mapNotification);
 }
 
@@ -1298,6 +1313,10 @@ export async function createNotification(input: {
   source_url?: string | null;
   forum_topic_id?: string | null;
   forum_comment_id?: string | null;
+  title_vi?: string | null;
+  title_en?: string | null;
+  message_vi?: string | null;
+  message_en?: string | null;
 }): Promise<Notification> {
   const row = await apiRequest<BackendAdminNotification>("/api/admin/notifications", {
     method: "POST",
@@ -1306,6 +1325,10 @@ export async function createNotification(input: {
       type: input.type,
       title: input.title.trim(),
       message: input.message.trim(),
+      title_vi: input.title_vi ?? null,
+      title_en: input.title_en ?? null,
+      message_vi: input.message_vi ?? null,
+      message_en: input.message_en ?? null,
       priority: input.priority ?? "medium",
       status: input.status ?? "draft",
       target_scope: input.target_scope ?? "all",
@@ -1336,6 +1359,10 @@ export async function updateNotification(
       type: patch.type,
       title: patch.title,
       message: patch.message,
+      title_vi: patch.title_vi,
+      title_en: patch.title_en,
+      message_vi: patch.message_vi,
+      message_en: patch.message_en,
       priority: patch.priority,
       target_scope: patch.target_scope,
       institute_id: patch.institute_id,
@@ -1422,14 +1449,19 @@ export async function generateSuggestedQuestions(input: {
 }
 
 // [LIVE] GET /suggestions/me -> grouped suggested questions
-export async function getSuggestedQuestions(): Promise<BackendSuggestedQuestionGroups> {
-  return getJSON<BackendSuggestedQuestionGroups>("/api/suggestions/me");
+// `lang` selects the VI/EN variant of each question's text (default VI).
+export async function getSuggestedQuestions(
+  lang: Lang = "vi"
+): Promise<BackendSuggestedQuestionGroups> {
+  return getJSON<BackendSuggestedQuestionGroups>(
+    `/api/suggestions/me?lang=${encodeURIComponent(lang)}`
+  );
 }
 
 export async function getActiveSuggestedQuestions(
-  _lang: Lang = "en"
+  lang: Lang = "vi"
 ): Promise<SuggestedQuestion[]> {
-  const groups = await getSuggestedQuestions();
+  const groups = await getSuggestedQuestions(lang);
   return [
     ...groups.for_you,
     ...groups.trending_now,

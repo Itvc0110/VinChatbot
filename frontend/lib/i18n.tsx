@@ -159,7 +159,7 @@ const en: Strings = {
     "What are the tuition payment deadlines?",
   ],
   webSearch: "Web search",
-  webSearchHint: "Web search is off by default",
+  webSearchHint: "Search the web for up-to-date information beyond VinUni sources",
 
   emptyHint:
     "Ask a question and the official sources behind each answer appear here. VinChatbot only answers from VinUni sources — and tells you when it can't.",
@@ -271,8 +271,8 @@ const vi: Strings = {
     "Làm sao để xin bảo lưu (Leave of Absence)?",
     "Các hạn nộp học phí là khi nào?",
   ],
-  webSearch: "Tìm web",
-  webSearchHint: "Tìm web mặc định đang tắt",
+  webSearch: "Web search",
+  webSearchHint: "Tìm kiếm thông tin mới nhất trên web, ngoài nguồn chính thức của VinUni",
 
   emptyHint:
     "Đặt câu hỏi và các nguồn chính thức cho mỗi câu trả lời sẽ hiện ở đây. VinChatbot chỉ trả lời từ nguồn VinUni — và sẽ báo khi không thể.",
@@ -342,15 +342,15 @@ const I18nContext = createContext<{
   t: Strings;
   setLang: (l: Lang) => void;
 }>({
-  lang: "en",
-  t: en,
+  lang: "vi",
+  t: vi,
   setLang: () => {},
 });
 
 // App-wide language provider. Self-managed (persists to localStorage) so the toggle in
 // the top bar switches UI chrome across every portal screen, not just one page.
 export function LanguageProvider({
-  initialLang = "en",
+  initialLang = "vi",
   children,
 }: {
   initialLang?: Lang;

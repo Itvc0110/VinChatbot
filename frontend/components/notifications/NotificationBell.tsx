@@ -32,7 +32,7 @@ export function NotificationBell({ ariaLabel }: { ariaLabel: string }) {
   const { p, lang } = usePortal();
   const { token } = useAuth();
   const pathname = usePathname();
-  const loaded = useAsync(getStudentNotifications, [token]);
+  const loaded = useAsync(() => getStudentNotifications(lang), [token, lang]);
 
   const [open, setOpen] = useState(false);
   // The notification whose full-detail popup is open (null = none).

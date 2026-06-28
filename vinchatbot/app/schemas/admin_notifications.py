@@ -26,6 +26,10 @@ class AdminNotificationResponse(BaseModel):
     type: str
     title: str
     message: str
+    title_vi: str | None = None
+    title_en: str | None = None
+    message_vi: str | None = None
+    message_en: str | None = None
     priority: str
     status: str
     target_scope: str
@@ -60,6 +64,10 @@ class AdminNotificationCreateRequest(BaseModel):
     type: str = Field(default="announcement")
     title: str = Field(min_length=1, max_length=300)
     message: str = Field(min_length=1, max_length=5000)
+    title_vi: str | None = Field(default=None, max_length=300)
+    title_en: str | None = Field(default=None, max_length=300)
+    message_vi: str | None = Field(default=None, max_length=5000)
+    message_en: str | None = Field(default=None, max_length=5000)
     priority: str = Field(default="medium")
     status: str = Field(default="draft")
     target_scope: str = Field(default="all")
@@ -79,6 +87,11 @@ class AdminNotificationCreateRequest(BaseModel):
     def validate_nonblank_text(cls, value: str) -> str:
         return validate_nonblank(value)
 
+    @field_validator("title_vi", "title_en", "message_vi", "message_en")
+    @classmethod
+    def normalize_optional_translation(cls, value: str | None) -> str | None:
+        return normalize_optional_text(value)
+
     @model_validator(mode="after")
     def validate_values(self) -> AdminNotificationCreateRequest:
         validate_notification_values(
@@ -97,6 +110,10 @@ class AdminNotificationUpdateRequest(BaseModel):
     type: str | None = None
     title: str | None = Field(default=None, min_length=1, max_length=300)
     message: str | None = Field(default=None, min_length=1, max_length=5000)
+    title_vi: str | None = Field(default=None, max_length=300)
+    title_en: str | None = Field(default=None, max_length=300)
+    message_vi: str | None = Field(default=None, max_length=5000)
+    message_en: str | None = Field(default=None, max_length=5000)
     priority: str | None = None
     target_scope: str | None = None
     institute_id: uuid.UUID | None = None
@@ -116,6 +133,11 @@ class AdminNotificationUpdateRequest(BaseModel):
         if value is None:
             return None
         return validate_nonblank(value)
+
+    @field_validator("title_vi", "title_en", "message_vi", "message_en")
+    @classmethod
+    def normalize_optional_translation(cls, value: str | None) -> str | None:
+        return normalize_optional_text(value)
 
     @model_validator(mode="after")
     def validate_values(self) -> AdminNotificationUpdateRequest:
@@ -175,3 +197,11 @@ def validate_nonblank(value: str) -> str:
     if not stripped:
         raise ValueError("Text fields must not be blank.")
     return stripped
+
+
+def normalize_optional_text(value: str | None) -> str | None:
+    """Strip optional translation fields; treat blank input as "not provided"."""
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped or None

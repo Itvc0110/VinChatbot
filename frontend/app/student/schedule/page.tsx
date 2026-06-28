@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AsyncBoundary, Toast } from "@/components/ui/primitives";
 import { CalendarView } from "@/components/calendar/CalendarView";
 import { EventDetailDrawer } from "@/components/calendar/EventDetailDrawer";
@@ -136,22 +136,6 @@ function Chevron({ dir }: { dir: "left" | "right" }) {
   );
 }
 
-function nearestCalendarEventDate(events: CalendarEvent[], today = new Date()): Date {
-  const startOfToday = new Date(today);
-  startOfToday.setHours(0, 0, 0, 0);
-  const todayTime = startOfToday.getTime();
-  const validDates = events
-    .map((event) => new Date(event.start))
-    .filter((date) => !Number.isNaN(date.getTime()))
-    .sort((a, b) => a.getTime() - b.getTime());
-
-  return (
-    validDates.find((date) => date.getTime() >= todayTime) ??
-    validDates[validDates.length - 1] ??
-    today
-  );
-}
-
 export default function StudentCalendarPage() {
   const { p, lang } = usePortal();
   const { token } = useAuth();
@@ -170,12 +154,11 @@ export default function StudentCalendarPage() {
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
   const [popupDay, setPopupDay] = useState<Date | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const autoCursorApplied = useRef(false);
-  const manualCursorNavigation = useRef(false);
 
+  // Always open on the CURRENT month (today). We deliberately do NOT jump the cursor to the
+  // nearest month that happens to contain demo events — the student expects "this month" first
+  // and can navigate with the arrows / Today button.
   useEffect(() => {
-    autoCursorApplied.current = false;
-    manualCursorNavigation.current = false;
     setCursor(new Date());
     setSelected(null);
     setPopupDay(null);
@@ -195,14 +178,6 @@ export default function StudentCalendarPage() {
     () => [...calEvents, ...academicEvents],
     [calEvents, academicEvents]
   );
-
-  useEffect(() => {
-    if (cal.status !== "success" || autoCursorApplied.current || manualCursorNavigation.current) {
-      return;
-    }
-    setCursor(nearestCalendarEventDate(cal.data));
-    autoCursorApplied.current = true;
-  }, [cal]);
 
   const filtered = useMemo(
     () => events.filter((e) => matchFilter(e, filter)),
@@ -233,7 +208,6 @@ export default function StudentCalendarPage() {
   );
 
   const shift = (dir: number) => {
-    manualCursorNavigation.current = true;
     if (view === "month") setCursor((c) => addMonths(c, dir));
     else if (view === "week") setCursor((c) => addDays(c, dir * 7));
     else if (view === "day") setCursor((c) => addDays(c, dir));
@@ -291,10 +265,7 @@ export default function StudentCalendarPage() {
         </div>
         <button
           className="btn btn-outline btn-sm"
-          onClick={() => {
-            manualCursorNavigation.current = true;
-            setCursor(new Date());
-          }}
+          onClick={() => setCursor(new Date())}
         >
           {p.cal.today}
         </button>

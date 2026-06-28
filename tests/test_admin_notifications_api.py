@@ -256,7 +256,7 @@ class FakeStudentNotificationRepository:
             "academic_summary": None,
         }
 
-    async def get_notifications(self, *, user_id, profile):
+    async def get_notifications(self, *, user_id, profile, lang="en"):
         visible = []
         for row in self.store.rows.values():
             if row["status"] == "archived" or row["status"] == "draft":
