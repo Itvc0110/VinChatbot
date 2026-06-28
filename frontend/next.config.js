@@ -70,6 +70,14 @@ const nextConfig = {
         source: "/api/ingest/run",
         destination: `${BACKEND_URL}/ingest/run`,
       },
+      {
+        source: "/api/ingest/upload",
+        destination: `${BACKEND_URL}/ingest/upload`,
+      },
+      {
+        source: "/api/ingest/preview",
+        destination: `${BACKEND_URL}/ingest/preview`,
+      },
     ];
   },
 };

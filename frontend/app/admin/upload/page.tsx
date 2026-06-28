@@ -3,7 +3,12 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Toast } from "@/components/ui/primitives";
-import { uploadKnowledgeSource, type IngestRunResponse } from "@/lib/api";
+import {
+  previewKnowledgeSource,
+  uploadKnowledgeSource,
+  type IngestPreview,
+  type IngestRunResponse,
+} from "@/lib/api";
 import { usePortal } from "@/lib/portalI18n";
 import type { SourceCategory } from "@/lib/portalTypes";
 import { IconUpload, IconCheck, IconExternal, IconArrow } from "@/components/shell/icons";
@@ -11,19 +16,6 @@ import { IconUpload, IconCheck, IconExternal, IconArrow } from "@/components/she
 const CATEGORIES: SourceCategory[] = ["Academic", "Tuition", "Events", "Student Services", "Schedule"];
 type SourceType = "url" | "pdf" | "docx";
 type Phase = "form" | "review" | "done";
-
-const SAMPLE_EXTRACT = `VINUNIVERSITY — ACADEMIC CALENDAR 2025–2026
-
-Fall Semester 2025
-  • Classes begin: 25 August 2025
-  • Add/Drop deadline: 5 September 2025
-  • Course Withdrawal deadline: 7 November 2025
-  • Final examinations: 8–19 December 2025
-
-Spring Semester 2026
-  • Classes begin: 12 January 2026
-  • Tuition installment 2 due: 30 June 2026
-  ...`;
 
 const STR = {
   en: {
@@ -41,16 +33,22 @@ const STR = {
     readinessLow: "Fill out the title and source to improve readiness.",
     readinessReady: "Ready — Vinnie can use this source's metadata to route answers.",
     readinessHint: "Vinnie uses metadata to filter and prioritize context so students get the right answer for their program.",
+    extracting: "Extracting…",
+    extractMeta: (chars: number, chunks: number) =>
+      `${chars.toLocaleString()} characters extracted · ~${chunks} chunks`,
+    extractTruncated: "Showing the first part — the full document is indexed on approval.",
+    extractFailed: "Couldn't extract content from this source.",
     typeOpts: {
       url: "Official web page",
       pdf: "Document up to 50MB",
       docx: "Word document",
     },
+    // True end-to-end order: upload+parse → admin review → chunk+embed → index → ready.
     pipeline: [
-      { name: "Upload & Parse", sub: "Read the document text" },
+      { name: "Upload & Parse", sub: "Extract the document text" },
+      { name: "Admin Review", sub: "Check content before publish" },
       { name: "Chunk & Embed", sub: "Split + vectorize" },
-      { name: "Admin Review", sub: "Approve before publish" },
-      { name: "Index to Vinnie", sub: "Make searchable" },
+      { name: "Index to Vinnie", sub: "Searchable for students" },
     ],
   },
   vi: {
@@ -68,16 +66,22 @@ const STR = {
     readinessLow: "Điền tiêu đề và nguồn để tăng mức sẵn sàng.",
     readinessReady: "Sẵn sàng — Vinnie có thể dùng siêu dữ liệu của nguồn này để định tuyến câu trả lời.",
     readinessHint: "Vinnie dùng siêu dữ liệu để lọc và ưu tiên ngữ cảnh, giúp sinh viên nhận đúng câu trả lời cho chương trình của mình.",
+    extracting: "Đang trích xuất…",
+    extractMeta: (chars: number, chunks: number) =>
+      `Đã trích xuất ${chars.toLocaleString()} ký tự · ~${chunks} đoạn`,
+    extractTruncated: "Đang hiển thị phần đầu — toàn bộ tài liệu sẽ được lập chỉ mục khi duyệt.",
+    extractFailed: "Không trích xuất được nội dung từ nguồn này.",
     typeOpts: {
       url: "Trang web chính thức",
       pdf: "Tài liệu tối đa 50MB",
       docx: "Tài liệu Word",
     },
+    // Đúng trình tự thực tế: tải lên+phân tích → duyệt → chia khối+nhúng → lập chỉ mục → sẵn sàng.
     pipeline: [
-      { name: "Tải lên & Phân tích", sub: "Đọc nội dung tài liệu" },
+      { name: "Tải lên & Phân tích", sub: "Trích xuất nội dung tài liệu" },
+      { name: "Duyệt quản trị", sub: "Kiểm tra nội dung trước khi xuất bản" },
       { name: "Chia khối & Nhúng", sub: "Tách + vector hóa" },
-      { name: "Duyệt quản trị", sub: "Phê duyệt trước khi xuất bản" },
-      { name: "Lập chỉ mục cho Vinnie", sub: "Cho phép tìm kiếm" },
+      { name: "Lập chỉ mục cho Vinnie", sub: "Sinh viên có thể tìm kiếm" },
     ],
   },
 } as const;
@@ -111,6 +115,8 @@ export default function UploadPage() {
   const [category, setCategory] = useState<SourceCategory>("Academic");
   const [result, setResult] = useState<IngestRunResponse | null>(null);
   const [working, setWorking] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [preview, setPreview] = useState<IngestPreview | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const isUrl = sourceType === "url";
@@ -124,9 +130,29 @@ export default function UploadPage() {
     return score;
   }, [title, url, file, isUrl]);
 
-  // Pipeline stage: 0 idle · 1 parsed · 2 chunked · 3 review · 4 indexing · 5 done
-  const stage = working ? 4 : phase === "done" ? 5 : phase === "review" ? 3 : hasInput ? 1 : 0;
+  // Pipeline stage maps to the 4 real steps (1 Upload&Parse · 2 Admin Review · 3 Chunk&Embed ·
+  // 4 Index). 0 = nothing yet, 5 = fully done.
+  const stage = phase === "done" ? 5 : working ? 3 : phase === "review" ? 2 : hasInput ? 1 : 0;
 
+  // Step 1 (real): parse the file/URL on the backend and show the actual extracted text.
+  async function runPreview() {
+    setPreviewing(true);
+    try {
+      const pv = await previewKnowledgeSource({
+        url: isUrl ? url.trim() : undefined,
+        file: isUrl ? null : file,
+        title: title.trim() || undefined,
+      });
+      setPreview(pv);
+      setPhase("review");
+    } catch {
+      setToast(tr.extractFailed);
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
+  // Step 3+4 (real): chunk → embed → upsert to the vector DB; now retrievable by students.
   async function index() {
     setWorking(true);
     try {
@@ -152,6 +178,7 @@ export default function UploadPage() {
     setUrl("");
     setFile(null);
     setResult(null);
+    setPreview(null);
   }
 
   const PIPELINE = tr.pipeline.map((step, i) => ({ n: i + 1, name: step.name, sub: step.sub }));
@@ -171,7 +198,7 @@ export default function UploadPage() {
                     <button
                       key={t.key}
                       className={`aup-type ${sourceType === t.key ? "active" : ""}`}
-                      onClick={() => { setSourceType(t.key); setUrl(""); setFile(null); }}
+                      onClick={() => { setSourceType(t.key); setUrl(""); setFile(null); setPreview(null); setPhase("form"); }}
                     >
                       <span className="aup-type-icon">{t.key === "url" ? <IconExternal size={18} /> : <FileGlyph />}</span>
                       <span className="aup-type-name">{t.name}</span>
@@ -190,7 +217,7 @@ export default function UploadPage() {
                       className="input"
                       placeholder={p.admin.urlPlaceholder}
                       value={url}
-                      onChange={(e) => setUrl(e.target.value)}
+                      onChange={(e) => { setUrl(e.target.value); setPreview(null); if (phase === "review") setPhase("form"); }}
                       aria-label={p.admin.officialUrl}
                     />
                     <span className="field-hint">{p.admin.urlHint}</span>
@@ -213,7 +240,7 @@ export default function UploadPage() {
                       type="file"
                       accept={sourceType === "pdf" ? ".pdf" : ".docx"}
                       hidden
-                      onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                      onChange={(e) => { setFile(e.target.files?.[0] ?? null); setPreview(null); if (phase === "review") setPhase("form"); }}
                     />
                   </div>
                 )}
@@ -249,11 +276,17 @@ export default function UploadPage() {
                 </div>
               </div>
 
-              {/* Review-before-publish */}
-              {phase === "review" && (
+              {/* Review-before-publish: REAL extracted text returned by the backend parser. */}
+              {phase === "review" && preview && (
                 <div className="acard">
                   <div className="acard-head"><h2 className="acard-title">{tr.reviewExtracted}</h2></div>
-                  <div className="aup-extract">{SAMPLE_EXTRACT}</div>
+                  <p className="field-hint" style={{ marginBottom: 8 }}>
+                    {tr.extractMeta(preview.char_count, preview.estimated_chunks)}
+                  </p>
+                  <div className="aup-extract">{preview.preview_text}</div>
+                  {preview.truncated && (
+                    <p className="field-hint" style={{ marginTop: 8 }}>{tr.extractTruncated}</p>
+                  )}
                 </div>
               )}
 
@@ -263,8 +296,8 @@ export default function UploadPage() {
                   {tr.saveDraft}
                 </button>
                 {phase === "form" ? (
-                  <button className="btn btn-primary" disabled={!hasInput} onClick={() => setPhase("review")}>
-                    {p.admin.extractPreview} <IconArrow size={14} />
+                  <button className="btn btn-primary" disabled={!hasInput || previewing} onClick={runPreview}>
+                    {previewing ? tr.extracting : <>{p.admin.extractPreview} <IconArrow size={14} /></>}
                   </button>
                 ) : (
                   <>
