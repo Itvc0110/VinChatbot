@@ -65,6 +65,12 @@ class Settings(BaseSettings):
     openrouter_chat_model: str = Field(
         default="openai/gpt-4o-mini", validation_alias="OPENROUTER_CHAT_MODEL"
     )
+    # Part B: a dedicated SMALL/FAST model (separate LLM call) for drafting a support ticket from the
+    # conversation. Still OpenRouter — change only TICKET_SUGGEST_MODEL in .env to swap it. Kept off the
+    # main chat model so the draft tier stays cheap/fast independently.
+    ticket_suggest_model: str = Field(
+        default="openai/gpt-4o-mini", validation_alias="TICKET_SUGGEST_MODEL"
+    )
     # Answer/routing temperature (Phase 1.11). 0.0 = deterministic answers (the consistency fix);
     # the proven root of "same question, different answer" was sampling. Raise toward 0.1–0.3 only if
     # answer diversity is wanted at the cost of run-to-run stability. Guard models keep their own temp.

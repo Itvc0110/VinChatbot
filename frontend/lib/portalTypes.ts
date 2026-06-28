@@ -197,6 +197,9 @@ export interface TicketDraft {
   // A short, reviewable summary (question + answer) shown in the drawer and attached only
   // if the student keeps "include chat context" ticked. Built by shortSummary() in chat.tsx.
   context_preview: string;
+  // True once Vinnie's suggestion populated this draft (Part B). Drives the "AI-drafted" disclaimer
+  // and is persisted on the created ticket (created_by_ai) when the student confirms + sends.
+  created_by_ai?: boolean;
 }
 
 // ---- Notifications ----------------------------------------------------------
