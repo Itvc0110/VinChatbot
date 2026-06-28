@@ -252,6 +252,8 @@ export interface PortalStrings {
   // Review Ticket drawer (draft → review → send)
   review: {
     banner: string;
+    aiDrafting: string;
+    aiDraftedChip: string;
     category: string;
     office: string;
     priority: string;
@@ -881,7 +883,10 @@ const en: PortalStrings = {
   actOpenPolicy: "Open source",
   askVinnieAbout: "Ask Vinnie about this",
   review: {
-    banner: "Vinnie prepared a support ticket draft. Please review it before sending.",
+    banner:
+      "Vinnie drafted this support ticket. Please review and edit it carefully — you're sending it, not Vinnie.",
+    aiDrafting: "Vinnie is drafting your ticket…",
+    aiDraftedChip: "Drafted by Vinnie",
     category: "Category",
     office: "Assigned office",
     priority: "Priority",
@@ -1562,7 +1567,10 @@ const vi: PortalStrings = {
   actOpenPolicy: "Mở nguồn",
   askVinnieAbout: "Hỏi Vinnie về việc này",
   review: {
-    banner: "Vinnie đã soạn sẵn một phiếu hỗ trợ. Vui lòng xem lại trước khi gửi.",
+    banner:
+      "Vinnie đã soạn phiếu hỗ trợ này. Hãy kiểm tra và chỉnh sửa cẩn thận — người gửi là bạn, không phải Vinnie.",
+    aiDrafting: "Vinnie đang soạn phiếu cho bạn…",
+    aiDraftedChip: "Do Vinnie soạn",
     category: "Danh mục",
     office: "Phòng ban phụ trách",
     priority: "Ưu tiên",
