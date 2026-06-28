@@ -303,7 +303,7 @@ export default function AdminDashboardPage() {
               <h2 className="acard-title">{tr.quickActions}</h2>
             </div>
             <div className="qa-list">
-              <Link className="qa-btn" href="/admin/upload">
+              <Link className="qa-btn" href="/admin/sources/upload">
                 <span className="qa-icon"><IconUpload size={16} /></span> {tr.uploadSource}
               </Link>
               <Link className="qa-btn" href="/admin/tickets">

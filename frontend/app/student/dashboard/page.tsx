@@ -496,11 +496,11 @@ export default function StudentDashboardPage() {
               </Link>
             </div>
             {academic.status === "loading" ? (
-              <p className="rail-empty" style={{ margin: 0 }}>
+              <p className="rail-empty">
                 …
               </p>
             ) : academic.status === "error" || !ac ? (
-              <p className="rail-empty" style={{ margin: 0 }}>
+              <p className="rail-empty">
                 {s.academicUnavailable}
               </p>
             ) : (
@@ -574,7 +574,7 @@ export default function StudentDashboardPage() {
             </div>
             {activeTickets.length === 0 ? (
               <Card>
-                <p className="rail-empty" style={{ margin: 0 }}>
+                <p className="rail-empty">
                   {p.sup.noTicketsTitle}
                 </p>
               </Card>
@@ -654,7 +654,6 @@ export default function StudentDashboardPage() {
               <p className="rail-empty">{s.noClassesThisMonth}</p>
             ) : (
               <>
-                <p className="month-count">{s.classesThisMonth(monthMeetings.length)}</p>
                 <div className="month-list">
                   {(upcomingMonth.length > 0 ? upcomingMonth : monthMeetings).slice(0, 4).map((m) => (
                     <div key={m.id} className="rail-sched-row">
@@ -769,7 +768,7 @@ function CourseChips({
         {title}
       </div>
       {courses.length === 0 ? (
-        <p className="rail-empty" style={{ margin: 0 }}>
+        <p className="rail-empty">
           {none}
         </p>
       ) : (

@@ -15,9 +15,11 @@ import type {
   AcademicEligibility,
   AcademicEnrollment,
   AcademicTranscript,
+  AcademicTranscriptTerm,
   CurriculumProgressCourse,
   EligibleCourse,
 } from "@/lib/api";
+import { IconChart, IconCheck, IconCap, IconAlert } from "@/components/shell/icons";
 
 type Lang = "en" | "vi";
 
@@ -52,6 +54,8 @@ function useResource<T>(fetcher: () => Promise<T>, deps: unknown[]): Resource<T>
   return { ...state, reload: () => run() } as Resource<T> & { reload: () => void };
 }
 
+const MAX_CHIPS = 12; // chips shown per curriculum group before collapsing into "+N more"
+
 const STR: Record<Lang, {
   title: string;
   subtitle: string;
@@ -69,16 +73,19 @@ const STR: Record<Lang, {
   result: string;
   passed: string;
   notPassed: string;
+  inProgressStatus: string;
+  noGrade: string;
+  withdrawn: string;
   completed: string;
   inProgress: string;
   failed: string;
   remainingRequired: string;
   remainingZeroCredit: string;
   eligible: string;
+  eligibleStatus: string;
   blocked: string;
   none: string;
-  prerequisite: string;
-  corequisite: string;
+  required: string;
   retakeImprove: string;
   signIn: string;
   studentOnly: string;
@@ -86,14 +93,32 @@ const STR: Record<Lang, {
   genericError: string;
   retry: string;
   loading: string;
-  attemptedCredits: string;
-  earnedCredits: string;
+  // summary
+  sumCpa: string;
+  sumCredits: string;
+  sumStudying: string;
+  sumAttention: string;
+  coursesUnit: (n: number) => string;
+  attentionDetail: (failed: number, blocked: number) => string;
+  allClear: string;
+  // progress
+  creditsLabel: string;
+  requiredLabel: string;
+  requiredBreakdown: (done: number, prog: number, remaining: number) => string;
+  creditsPassedInTerm: (n: number) => string;
+  failedCount: (n: number) => string;
+  moreCount: (n: number) => string;
+  // eligibility
+  missingPrereq: string;
+  needCoreq: string;
+  blockedReason: string;
+  needGradeLine: (code: string, name: string, grade: string | null) => string;
 }> = {
   en: {
     title: "Academic Record",
     subtitle: "Your transcript, curriculum progress, and next-course eligibility.",
     transcript: "Transcript",
-    curriculum: "Curriculum Progress",
+    curriculum: "Program Progress",
     eligibility: "Course Eligibility",
     termGpa: "Term GPA",
     cumulativeCpa: "Cumulative CPA",
@@ -106,16 +131,19 @@ const STR: Record<Lang, {
     result: "Result",
     passed: "Passed",
     notPassed: "Not passed",
+    inProgressStatus: "In progress",
+    noGrade: "No grade yet",
+    withdrawn: "Withdrawn",
     completed: "Completed",
     inProgress: "In progress",
-    failed: "Failed",
-    remainingRequired: "Remaining required",
+    failed: "Not passed",
+    remainingRequired: "Required remaining",
     remainingZeroCredit: "Remaining 0-credit requirements",
-    eligible: "Eligible to take",
+    eligible: "Eligible",
+    eligibleStatus: "Eligible",
     blocked: "Blocked",
     none: "None",
-    prerequisite: "Prerequisite",
-    corequisite: "Corequisite",
+    required: "Required",
     retakeImprove: "Retake / improvement",
     signIn: "Please sign in to view your academic record.",
     studentOnly: "This page is available to students only.",
@@ -123,8 +151,25 @@ const STR: Record<Lang, {
     genericError: "Couldn't load your academic record.",
     retry: "Retry",
     loading: "Loading…",
-    attemptedCredits: "Attempted credits",
-    earnedCredits: "Earned credits",
+    sumCpa: "Cumulative CPA",
+    sumCredits: "Credits passed",
+    sumStudying: "Currently studying",
+    sumAttention: "Needs attention",
+    coursesUnit: (n) => `${n} course${n === 1 ? "" : "s"}`,
+    attentionDetail: (f, b) => `${f} not passed · ${b} blocked`,
+    allClear: "All clear",
+    creditsLabel: "Credits",
+    requiredLabel: "Required courses",
+    requiredBreakdown: (done, prog, remaining) =>
+      `${done} completed · ${prog} in progress · ${remaining} remaining`,
+    creditsPassedInTerm: (n) => `${n} credits passed`,
+    failedCount: (n) => `${n} not passed`,
+    moreCount: (n) => `+${n} more`,
+    missingPrereq: "Missing prerequisite:",
+    needCoreq: "Must be taken alongside:",
+    blockedReason: "Why this is blocked:",
+    needGradeLine: (code, name, grade) =>
+      `Pass ${code} ${name}${grade ? ` with at least ${grade} on the 4.0 scale` : ""}.`,
   },
   vi: {
     title: "Kết quả học tập",
@@ -143,16 +188,19 @@ const STR: Record<Lang, {
     result: "Kết quả",
     passed: "Đạt",
     notPassed: "Chưa đạt",
+    inProgressStatus: "Đang học",
+    noGrade: "Chưa có điểm",
+    withdrawn: "Đã rút",
     completed: "Đã hoàn thành",
     inProgress: "Đang học",
     failed: "Chưa đạt",
     remainingRequired: "Bắt buộc còn lại",
     remainingZeroCredit: "Yêu cầu 0 tín chỉ còn lại",
-    eligible: "Có thể đăng ký",
+    eligible: "Đủ điều kiện",
+    eligibleStatus: "Đủ điều kiện",
     blocked: "Bị chặn",
     none: "Không có",
-    prerequisite: "Tiên quyết",
-    corequisite: "Song hành",
+    required: "Bắt buộc",
     retakeImprove: "Học lại / cải thiện",
     signIn: "Vui lòng đăng nhập để xem kết quả học tập.",
     studentOnly: "Trang này chỉ dành cho sinh viên.",
@@ -160,10 +208,104 @@ const STR: Record<Lang, {
     genericError: "Không tải được kết quả học tập.",
     retry: "Thử lại",
     loading: "Đang tải…",
-    attemptedCredits: "Tín chỉ đã học",
-    earnedCredits: "Tín chỉ đạt",
+    sumCpa: "CPA tích lũy",
+    sumCredits: "Tín chỉ đã đạt",
+    sumStudying: "Đang học",
+    sumAttention: "Cần chú ý",
+    coursesUnit: (n) => `${n} môn`,
+    attentionDetail: (f, b) => `${f} môn chưa đạt · ${b} môn bị chặn`,
+    allClear: "Không có",
+    creditsLabel: "Tín chỉ",
+    requiredLabel: "Môn bắt buộc",
+    requiredBreakdown: (done, prog, remaining) =>
+      `${done} hoàn thành · ${prog} đang học · ${remaining} còn lại`,
+    creditsPassedInTerm: (n) => `${n} tín chỉ đạt`,
+    failedCount: (n) => `${n} chưa đạt`,
+    moreCount: (n) => `+${n} môn`,
+    missingPrereq: "Thiếu điều kiện tiên quyết:",
+    needCoreq: "Cần học song hành:",
+    blockedReason: "Lý do bị chặn:",
+    needGradeLine: (code, name, grade) =>
+      `Cần đạt ${code} ${name}${grade ? ` với điểm tối thiểu ${grade} hệ 4` : ""}.`,
   },
 };
+
+// ---- Helpers ---------------------------------------------------------------
+
+// A row's display status from the backend enrollment status (conservative: a missing grade is
+// NEVER shown as failed — only an explicit `failed` status, or `completed` that didn't pass).
+type RowStatus = "passed" | "failed" | "in_progress" | "no_grade" | "withdrawn";
+function rowStatus(e: AcademicEnrollment): RowStatus {
+  switch (e.status) {
+    case "withdrawn":
+      return "withdrawn";
+    case "failed":
+      return "failed";
+    case "completed":
+      return e.passed ? "passed" : "failed";
+    case "enrolled":
+    case "retaking":
+    case "improvement":
+      return "in_progress";
+    case "planned":
+      return "no_grade";
+    default:
+      // Defensive fallback for unexpected statuses — still never guess "failed".
+      if (e.passed) return "passed";
+      if (e.grade_4 == null && e.letter_grade == null) return "no_grade";
+      return "in_progress";
+  }
+}
+
+const STATUS_TONE: Record<RowStatus, string> = {
+  passed: "success",
+  failed: "error",
+  in_progress: "info",
+  no_grade: "neutral",
+  withdrawn: "neutral",
+};
+function statusLabel(st: RowStatus, s: (typeof STR)[Lang]): string {
+  switch (st) {
+    case "passed":
+      return s.passed;
+    case "failed":
+      return s.notPassed;
+    case "in_progress":
+      return s.inProgressStatus;
+    case "no_grade":
+      return s.noGrade;
+    case "withdrawn":
+      return s.withdrawn;
+  }
+}
+
+// Localize a backend term name ("Fall Term 2025") to Vietnamese ("Học kỳ Thu 2025"). Leaves the
+// English string untouched for `en` and when the season pattern isn't recognized.
+const SEASON_VI: Record<string, string> = {
+  fall: "Thu",
+  autumn: "Thu",
+  spring: "Xuân",
+  summer: "Hè",
+  winter: "Đông",
+};
+function localizeTerm(name: string, lang: Lang): string {
+  if (lang !== "vi" || !name) return name;
+  const m = name.match(/(fall|autumn|spring|summer|winter)\s*(?:term)?\s*(\d{4})/i);
+  if (m) return `Học kỳ ${SEASON_VI[m[1].toLowerCase()]} ${m[2]}`;
+  return name;
+}
+
+// Index of the most recent term (highest academic_year, then term_order) — opened by default.
+function latestTermId(terms: AcademicTranscriptTerm[]): string | null {
+  if (terms.length === 0) return null;
+  let best = terms[0];
+  for (const t of terms) {
+    const key = t.term.academic_year * 100 + t.term.term_order;
+    const bestKey = best.term.academic_year * 100 + best.term.term_order;
+    if (key >= bestKey) best = t;
+  }
+  return best.term.id;
+}
 
 function errorMessage(code: number | null, detail: string, s: (typeof STR)[Lang]): string {
   if (code === 401) return s.signIn;
@@ -211,29 +353,38 @@ export default function StudentAcademicPage() {
         </div>
       </div>
 
+      <AcademicSummary transcript={transcript} curriculum={curriculum} eligibility={eligibility} s={s} />
+
+      {/* Section navigation (anchor pills) */}
+      <nav className="acad-nav" aria-label={s.title}>
+        <a className="acad-nav-link" href="#acad-transcript">{s.transcript}</a>
+        <a className="acad-nav-link" href="#acad-curriculum">{s.curriculum}</a>
+        <a className="acad-nav-link" href="#acad-eligibility">{s.eligibility}</a>
+      </nav>
+
       {/* Transcript */}
-      <Card>
+      <Card className="acad-section" id="acad-transcript">
         <div className="dash-section-head">
           <h2 className="dash-section-title">{s.transcript}</h2>
         </div>
         {transcript.status === "loading" ? (
-          <p className="rail-empty" style={{ margin: 0 }}>{s.loading}</p>
+          <p className="rail-empty">{s.loading}</p>
         ) : transcript.status === "error" ? (
           <SectionError code={transcript.code} detail={transcript.message} s={s} onRetry={transcript.reload} />
         ) : transcript.data.terms.length === 0 ? (
-          <p className="rail-empty" style={{ margin: 0 }}>{s.none}</p>
+          <p className="rail-empty">{s.none}</p>
         ) : (
-          <TranscriptView data={transcript.data} s={s} />
+          <TranscriptView data={transcript.data} s={s} lang={lang} />
         )}
       </Card>
 
       {/* Curriculum progress */}
-      <Card>
+      <Card className="acad-section" id="acad-curriculum">
         <div className="dash-section-head">
           <h2 className="dash-section-title">{s.curriculum}</h2>
         </div>
         {curriculum.status === "loading" ? (
-          <p className="rail-empty" style={{ margin: 0 }}>{s.loading}</p>
+          <p className="rail-empty">{s.loading}</p>
         ) : curriculum.status === "error" ? (
           <SectionError code={curriculum.code} detail={curriculum.message} s={s} onRetry={curriculum.reload} />
         ) : (
@@ -242,12 +393,12 @@ export default function StudentAcademicPage() {
       </Card>
 
       {/* Eligibility */}
-      <Card>
+      <Card className="acad-section" id="acad-eligibility">
         <div className="dash-section-head">
           <h2 className="dash-section-title">{s.eligibility}</h2>
         </div>
         {eligibility.status === "loading" ? (
-          <p className="rail-empty" style={{ margin: 0 }}>{s.loading}</p>
+          <p className="rail-empty">{s.loading}</p>
         ) : eligibility.status === "error" ? (
           <SectionError code={eligibility.code} detail={eligibility.message} s={s} onRetry={eligibility.reload} />
         ) : (
@@ -258,130 +409,282 @@ export default function StudentAcademicPage() {
   );
 }
 
-function TranscriptView({ data, s }: { data: AcademicTranscript; s: (typeof STR)[Lang] }) {
+// ---- Academic Summary (KPI tiles) ------------------------------------------
+
+function AcademicSummary({
+  transcript,
+  curriculum,
+  eligibility,
+  s,
+}: {
+  transcript: Resource<AcademicTranscript>;
+  curriculum: Resource<AcademicCurriculumProgress>;
+  eligibility: Resource<AcademicEligibility>;
+  s: (typeof STR)[Lang];
+}) {
+  const t = transcript.status === "success" ? transcript.data : null;
+  const c = curriculum.status === "success" ? curriculum.data : null;
+  const e = eligibility.status === "success" ? eligibility.data : null;
+
+  const ph = (r: Resource<unknown>) => (r.status === "loading" ? "…" : "—");
+
+  const cpa = t ? t.summary.gpa ?? "—" : ph(transcript);
+  const credits = c
+    ? `${c.summary.earned_credits} / ${c.summary.required_credits}`
+    : t
+    ? String(t.summary.earned_credits)
+    : ph(curriculum);
+  const studyingValue = c ? String(c.in_progress.length) : ph(curriculum);
+  const studyingDetail = c ? s.coursesUnit(c.in_progress.length) : "";
+
+  const failed = c?.failed.length ?? 0;
+  const blocked = e?.blocked.length ?? 0;
+  const attentionKnown = c !== null || e !== null;
+  const attentionValue = attentionKnown ? String(failed + blocked) : ph(curriculum);
+  const attentionDetail = attentionKnown
+    ? failed + blocked === 0
+      ? s.allClear
+      : s.attentionDetail(failed, blocked)
+    : "";
+
+  return (
+    <section className="acad-summary" aria-label={s.title}>
+      <KpiTile icon={<IconChart size={18} />} label={s.sumCpa} value={cpa} />
+      <KpiTile icon={<IconCheck size={18} />} label={s.sumCredits} value={credits} />
+      <KpiTile icon={<IconCap size={18} />} label={s.sumStudying} value={studyingValue} detail={studyingDetail} />
+      <KpiTile
+        icon={<IconAlert size={18} />}
+        label={s.sumAttention}
+        value={attentionValue}
+        detail={attentionDetail}
+        tone={failed + blocked > 0 ? "alert" : undefined}
+      />
+    </section>
+  );
+}
+
+function KpiTile({
+  icon,
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  detail?: string;
+  tone?: "alert";
+}) {
+  return (
+    <div className="focus-card focus-card--static">
+      <span className={`focus-icon ${tone === "alert" ? "acad-icon-alert" : ""}`}>{icon}</span>
+      <div className="focus-body">
+        <div className="focus-label">{label}</div>
+        <div className="acad-kpi-value">{value}</div>
+        {detail && <div className="acad-kpi-detail">{detail}</div>}
+      </div>
+    </div>
+  );
+}
+
+// ---- Transcript ------------------------------------------------------------
+
+function TranscriptView({ data, s, lang }: { data: AcademicTranscript; s: (typeof STR)[Lang]; lang: Lang }) {
+  const latestId = latestTermId(data.terms);
   return (
     <div className="academic-terms">
-      <div className="profile-card-grid" style={{ marginBottom: 16 }}>
-        <Field k={s.attemptedCredits} v={String(data.summary.attempted_credits)} />
-        <Field k={s.earnedCredits} v={String(data.summary.earned_credits)} />
-        <Field k={s.cumulativeCpa} v={data.summary.gpa ?? "—"} />
-      </div>
       {data.terms.map((term) => (
-        <div key={term.term.id} style={{ marginBottom: 20 }}>
-          <div className="dash-section-head">
-            <h3 className="dash-section-title" style={{ fontSize: 15 }}>
-              {term.term.name}
-            </h3>
-            <span className="profile-field-v" style={{ fontSize: 13 }}>
-              {s.termGpa}: {term.term_gpa ?? "—"} · {s.cumulativeCpa}: {term.cumulative_cpa ?? "—"}
-            </span>
-          </div>
-          <div style={{ overflowX: "auto" }}>
-            <table className="academic-table" style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  <th style={th}>{s.course}</th>
-                  <th style={th}>{s.credits}</th>
-                  <th style={th}>{s.attempt}</th>
-                  <th style={th}>{s.grade10}</th>
-                  <th style={th}>{s.grade4}</th>
-                  <th style={th}>{s.letter}</th>
-                  <th style={th}>{s.result}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {term.enrollments.map((e) => (
-                  <EnrollmentRow key={e.id} e={e} s={s} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <TermBlock key={term.term.id} term={term} s={s} lang={lang} open={term.term.id === latestId} />
       ))}
     </div>
   );
 }
 
-function EnrollmentRow({ e, s }: { e: AcademicEnrollment; s: (typeof STR)[Lang] }) {
+function TermBlock({
+  term,
+  s,
+  lang,
+  open,
+}: {
+  term: AcademicTranscriptTerm;
+  s: (typeof STR)[Lang];
+  lang: Lang;
+  open: boolean;
+}) {
+  const passedCredits = term.enrollments.reduce((sum, e) => sum + (e.earned_credits || 0), 0);
+  const failedCount = term.enrollments.filter((e) => rowStatus(e) === "failed").length;
+
   return (
-    <tr>
-      <td style={td}>
-        <strong>{e.course.code}</strong> {e.course.name}
-      </td>
-      <td style={td}>{e.course.credits}</td>
-      <td style={td}>{e.attempt_no}</td>
-      <td style={td}>{e.grade_10 ?? "—"}</td>
-      <td style={td}>{e.grade_4 ?? "—"}</td>
-      <td style={td}>{e.letter_grade ?? "—"}</td>
-      <td style={td}>
-        <span className={`ah-chip ${e.passed ? "success" : "warning"}`}>
-          {e.passed ? s.passed : s.notPassed}
+    <details className="acad-term" open={open}>
+      <summary className="acad-term-summary">
+        <span className="acad-term-title">{localizeTerm(term.term.name, lang)}</span>
+        <span className="acad-term-meta">
+          <span>
+            {s.termGpa} <b>{term.term_gpa ?? "—"}</b>
+          </span>
+          <span>
+            {s.cumulativeCpa} <b>{term.cumulative_cpa ?? "—"}</b>
+          </span>
+          <span>{s.creditsPassedInTerm(passedCredits)}</span>
+          {failedCount > 0 && <span className="ah-chip error">{s.failedCount(failedCount)}</span>}
+          <svg className="acad-term-caret" viewBox="0 0 24 24" width="16" height="16" fill="none"
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            aria-hidden="true">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
         </span>
-      </td>
-    </tr>
+      </summary>
+      <div className="acad-table-wrap">
+        <table className="acad-table">
+          <thead>
+            <tr>
+              <th>{s.course}</th>
+              <th className="num">{s.credits}</th>
+              <th className="num">{s.attempt}</th>
+              <th className="num">{s.grade10}</th>
+              <th className="num">{s.grade4}</th>
+              <th>{s.letter}</th>
+              <th>{s.result}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {term.enrollments.map((e) => {
+              const st = rowStatus(e);
+              return (
+                <tr key={e.id}>
+                  <td>
+                    <span className="acad-course-code">{e.course.code}</span>{" "}
+                    <span className="acad-course-name">{e.course.name}</span>
+                  </td>
+                  <td className="num">{e.course.credits}</td>
+                  <td className="num">{e.attempt_no}</td>
+                  <td className="num">{e.grade_10 ?? "—"}</td>
+                  <td className="num">{e.grade_4 ?? "—"}</td>
+                  <td>{e.letter_grade ?? "—"}</td>
+                  <td>
+                    <span className={`ah-chip ${STATUS_TONE[st]}`}>{statusLabel(st, s)}</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </details>
   );
 }
+
+// ---- Curriculum / Program Progress -----------------------------------------
 
 function CurriculumView({ data, s }: { data: AcademicCurriculumProgress; s: (typeof STR)[Lang] }) {
-  const buckets: { label: string; items: CurriculumProgressCourse[]; tone: string }[] = [
+  const pct = Math.max(0, Math.min(100, Number(data.summary.progress_percent) || 0));
+  const completed = data.completed.length;
+  const inProgress = data.in_progress.length;
+  const remaining = data.summary.remaining_required_courses;
+
+  const groups: { label: string; items: CurriculumProgressCourse[]; tone: string }[] = [
     { label: s.completed, items: data.completed, tone: "success" },
     { label: s.inProgress, items: data.in_progress, tone: "info" },
-    { label: s.failed, items: data.failed, tone: "warning" },
+    { label: s.failed, items: data.failed, tone: "error" },
     { label: s.remainingRequired, items: data.remaining_required, tone: "neutral" },
-    { label: s.remainingZeroCredit, items: data.remaining_zero_credit, tone: "neutral" },
   ];
+  if (data.remaining_zero_credit.length > 0) {
+    groups.push({ label: s.remainingZeroCredit, items: data.remaining_zero_credit, tone: "neutral" });
+  }
+
   return (
-    <div>
-      {buckets.map((b) => (
-        <div key={b.label} style={{ marginBottom: 14 }}>
-          <div className="profile-field-k" style={{ marginBottom: 8 }}>
-            {b.label} ({b.items.length})
-          </div>
-          {b.items.length === 0 ? (
-            <p className="rail-empty" style={{ margin: 0 }}>{s.none}</p>
-          ) : (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {b.items.map((c) => (
-                <span key={c.course.id} className={`ah-chip ${b.tone}`} title={c.course.name}>
-                  {c.course.code}
-                  {c.grade_4 ? ` · ${c.grade_4}` : ""}
-                </span>
-              ))}
-            </div>
-          )}
+    <div className="acad-progress">
+      <div className="acad-progress-top">
+        <div className="snapshot-progress-meta">
+          <span className="profile-field-k">{s.creditsLabel}</span>
+          <span className="profile-field-v">
+            {data.summary.earned_credits} / {data.summary.required_credits} · {pct}%
+          </span>
         </div>
-      ))}
+        <div className="academic-progress-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+          <div className="academic-progress-fill" style={{ width: `${pct}%` }} />
+        </div>
+        <div className="acad-required-line">
+          <span className="profile-field-k">{s.requiredLabel}</span>
+          <span className="acad-required-detail">{s.requiredBreakdown(completed, inProgress, remaining)}</span>
+        </div>
+      </div>
+
+      <div className="acad-chip-groups">
+        {groups.map((g) => (
+          <ChipGroup key={g.label} label={g.label} items={g.items} tone={g.tone} s={s} />
+        ))}
+      </div>
     </div>
   );
 }
+
+function ChipGroup({
+  label,
+  items,
+  tone,
+  s,
+}: {
+  label: string;
+  items: CurriculumProgressCourse[];
+  tone: string;
+  s: (typeof STR)[Lang];
+}) {
+  const shown = items.slice(0, MAX_CHIPS);
+  const extra = items.length - shown.length;
+  return (
+    <div className="acad-chip-group">
+      <div className="acad-chip-group-label">
+        {label} <span className="acad-chip-count">{items.length}</span>
+      </div>
+      {items.length === 0 ? (
+        <p className="rail-empty">{s.none}</p>
+      ) : (
+        <div className="chip-row">
+          {shown.map((c) => (
+            <span key={c.course.id} className={`ah-chip ${tone}`} title={c.course.name}>
+              {c.course.code}
+              {c.grade_4 ? ` · ${c.grade_4}` : ""}
+            </span>
+          ))}
+          {extra > 0 && <span className="ah-chip neutral chip-more">{s.moreCount(extra)}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---- Course Eligibility ----------------------------------------------------
 
 function EligibilityView({ data, s }: { data: AcademicEligibility; s: (typeof STR)[Lang] }) {
   return (
-    <div>
-      <div style={{ marginBottom: 16 }}>
-        <div className="profile-field-k" style={{ marginBottom: 8 }}>
-          {s.eligible} ({data.eligible.length})
+    <div className="acad-elig">
+      <div className="acad-elig-block">
+        <div className="acad-chip-group-label">
+          {s.eligible} <span className="acad-chip-count">{data.eligible.length}</span>
         </div>
         {data.eligible.length === 0 ? (
-          <p className="rail-empty" style={{ margin: 0 }}>{s.none}</p>
+          <p className="rail-empty">{s.none}</p>
         ) : (
-          <div className="dash-list">
+          <div className="acad-elig-grid">
             {data.eligible.map((c) => (
-              <EligibleRow key={c.course.id} c={c} s={s} />
+              <EligibleCard key={c.course.id} c={c} s={s} />
             ))}
           </div>
         )}
       </div>
-      <div>
-        <div className="profile-field-k" style={{ marginBottom: 8 }}>
-          {s.blocked} ({data.blocked.length})
+
+      <div className="acad-elig-block">
+        <div className="acad-chip-group-label">
+          {s.blocked} <span className="acad-chip-count">{data.blocked.length}</span>
         </div>
         {data.blocked.length === 0 ? (
-          <p className="rail-empty" style={{ margin: 0 }}>{s.none}</p>
+          <p className="rail-empty">{s.none}</p>
         ) : (
-          <div className="dash-list">
+          <div className="acad-elig-grid">
             {data.blocked.map((c) => (
-              <EligibleRow key={c.course.id} c={c} s={s} />
+              <BlockedCard key={c.course.id} c={c} s={s} />
             ))}
           </div>
         )}
@@ -390,67 +693,59 @@ function EligibilityView({ data, s }: { data: AcademicEligibility; s: (typeof ST
   );
 }
 
-function EligibleRow({ c, s }: { c: EligibleCourse; s: (typeof STR)[Lang] }) {
+function EligibleCard({ c, s }: { c: EligibleCourse; s: (typeof STR)[Lang] }) {
   return (
-    <div className="dash-ticket-card" style={{ cursor: "default", alignItems: "flex-start" }}>
-      <div className="dash-ticket-main">
-        <div className="dash-ticket-title">
-          {c.course.code} {c.course.name}
-          {c.can_retake_or_improve && (
-            <span className="ah-chip info" style={{ marginLeft: 8 }}>{s.retakeImprove}</span>
-          )}
+    <div className="acad-elig-card">
+      <div className="acad-elig-head">
+        <div className="acad-elig-title">
+          <span className="acad-course-code">{c.course.code}</span>{" "}
+          <span className="acad-course-name">{c.course.name}</span>
         </div>
-        {c.blocking_reasons.length > 0 && (
-          <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
-            {c.blocking_reasons.map((reason, i) => (
-              <li key={i} className="dash-ticket-desc" style={{ margin: 0 }}>
-                {reason}
-              </li>
-            ))}
-          </ul>
-        )}
-        {(c.prerequisites.length > 0 || c.corequisites.length > 0) && (
-          <div className="dash-ticket-time" style={{ marginTop: 6 }}>
-            {c.prerequisites.map((r) => (
-              <div key={`pre-${r.required_course.id}`}>
-                {s.prerequisite}: {r.required_course.code} — {r.satisfied ? "✓" : "✗"}
-              </div>
-            ))}
-            {c.corequisites.map((r) => (
-              <div key={`co-${r.required_course.id}`}>
-                {s.corequisite}: {r.required_course.code} — {r.satisfied ? "✓" : "✗"}
-              </div>
-            ))}
-          </div>
-        )}
+        <span className="ah-chip success">{s.eligibleStatus}</span>
       </div>
-      <span className={`ah-chip ${c.eligible ? "success" : "warning"}`}>
-        {c.eligible ? s.eligible : s.blocked}
-      </span>
+      <div className="acad-elig-tags">
+        {c.is_required && <span className="ah-chip neutral">{s.required}</span>}
+        {c.can_retake_or_improve && <span className="ah-chip info">{s.retakeImprove}</span>}
+      </div>
     </div>
   );
 }
 
-function Field({ k, v }: { k: string; v: string }) {
+function BlockedCard({ c, s }: { c: EligibleCourse; s: (typeof STR)[Lang] }) {
+  const unmetPre = c.prerequisites.filter((r) => !r.satisfied);
+  const unmetCo = c.corequisites.filter((r) => !r.satisfied);
+
+  let heading: string | null = null;
+  let lines: string[] = [];
+  if (unmetPre.length > 0) {
+    heading = s.missingPrereq;
+    lines = unmetPre.map((r) => s.needGradeLine(r.required_course.code, r.required_course.name, r.min_grade_4 ?? null));
+  } else if (unmetCo.length > 0) {
+    heading = s.needCoreq;
+    lines = unmetCo.map((r) => `${r.required_course.code} ${r.required_course.name}`);
+  } else if (c.blocking_reasons.length > 0) {
+    // Fall back to the backend-provided reason text (preserved verbatim).
+    heading = s.blockedReason;
+    lines = c.blocking_reasons;
+  }
+
   return (
-    <div>
-      <div className="profile-field-k">{k}</div>
-      <div className="profile-field-v">{v}</div>
+    <div className="acad-elig-card">
+      <div className="acad-elig-head">
+        <div className="acad-elig-title">
+          <span className="acad-course-code">{c.course.code}</span>{" "}
+          <span className="acad-course-name">{c.course.name}</span>
+        </div>
+        <span className="ah-chip error">{s.blocked}</span>
+      </div>
+      {heading && (
+        <div className="acad-reason">
+          <div className="acad-reason-head">{heading}</div>
+          {lines.map((line, i) => (
+            <div key={i} className="acad-reason-line">{line}</div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
-
-const th: React.CSSProperties = {
-  textAlign: "left",
-  padding: "6px 10px",
-  fontSize: 12,
-  textTransform: "uppercase",
-  letterSpacing: "0.04em",
-  opacity: 0.7,
-  borderBottom: "1px solid var(--border, rgba(0,0,0,0.1))",
-};
-const td: React.CSSProperties = {
-  padding: "8px 10px",
-  fontSize: 14,
-  borderBottom: "1px solid var(--border, rgba(0,0,0,0.06))",
-};

@@ -6,6 +6,7 @@ import { ChatProvider } from "@/lib/chat";
 import { FloatingVinnieButton } from "@/components/chat/FloatingVinnieButton";
 import { ReportProblemButton } from "@/components/chat/ReportProblemButton";
 import { StudentChatOverlays } from "@/components/chat/StudentChatOverlays";
+import { useI18n } from "@/lib/i18n";
 
 // Academic Horizon student shell: horizontal top nav + content area, scoped to `.ah-ui` so the
 // student pages adopt the Academic Horizon tokens. This preserves the behavior that previously
@@ -15,6 +16,7 @@ import { StudentChatOverlays } from "@/components/chat/StudentChatOverlays";
 // streaming, API, auth, or mock logic is changed here.
 export function StudentShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { lang } = useI18n();
   // The chat screen manages its own full-height layout.
   const flush = pathname.startsWith("/student/chat");
   // Floating Vinnie bubble: across student pages, but NOT on the full chat page itself.
@@ -23,9 +25,12 @@ export function StudentShell({ children }: { children: React.ReactNode }) {
   return (
     <ChatProvider>
       <div className="ah-ui">
+        <a className="skip-link" href="#main-content">
+          {lang === "vi" ? "Bỏ qua tới nội dung chính" : "Skip to main content"}
+        </a>
         <div className="ah-studentshell">
           <StudentTopNav />
-          <main className={`ah-student-content ${flush ? "flush" : ""}`}>
+          <main id="main-content" className={`ah-student-content ${flush ? "flush" : ""}`}>
             {children}
           </main>
         </div>

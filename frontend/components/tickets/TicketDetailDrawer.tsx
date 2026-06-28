@@ -61,11 +61,17 @@ export function TicketDetailDrawer({
         onClick={onClose}
         aria-hidden="true"
       />
-      <aside className={`detail-drawer wide ${open ? "open" : ""}`} aria-hidden={!open}>
+      <aside
+        className={`detail-drawer wide ticket-detail-modal ${open ? "open" : ""}`}
+        role="dialog"
+        aria-modal={open ? "true" : undefined}
+        aria-label={ticket?.subject ?? p.tickets.title}
+        aria-hidden={!open}
+      >
         {ticket && (
           <>
             <div className="detail-head">
-              <span className="td-sub mono">{ticket.id}</span>
+              <span className="td-sub">{p.tickets.title}</span>
               <button
                 className="source-drawer-close"
                 onClick={onClose}

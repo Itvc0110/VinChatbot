@@ -13,8 +13,6 @@ import {
   IconTicket,
   IconShield,
   IconDatabase,
-  IconUpload,
-  IconInbox,
   IconChart,
   IconClock,
   IconCap,
@@ -54,8 +52,6 @@ export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => v
     { href: "/admin/tickets", label: p.nav.adminTickets, icon: <IconTicket /> },
     { href: "/admin/notifications", label: p.nav.adminNotifications, icon: <IconBell /> },
     { href: "/admin/sources", label: p.nav.sources, icon: <IconDatabase /> },
-    { href: "/admin/upload", label: p.nav.upload, icon: <IconUpload /> },
-    { href: "/admin/unanswered", label: p.nav.questions, icon: <IconInbox /> },
     { href: "/admin/analytics", label: p.nav.analytics, icon: <IconChart /> },
     { href: "/admin/logs", label: p.nav.logs, icon: <IconClock /> },
   ];
@@ -95,7 +91,7 @@ export function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => v
         </ul>
       </nav>
 
-      <UserProfileCard />
+      {role === "student" && <UserProfileCard />}
     </aside>
   );
 }

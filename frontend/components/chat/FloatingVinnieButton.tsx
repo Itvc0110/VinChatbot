@@ -9,18 +9,21 @@ import { VinnieChatWidget } from "./VinnieChatWidget";
 const STR = {
   en: {
     askVinnie: "Ask Vinnie",
-    intro: "Hi! I'm Vinnie. Ask me about your schedule, deadlines, tuition, events and student services.",
+    intro:
+      "Hi, I'm Vinnie, your VinUni AI assistant for schedules, deadlines, tuition, events, and student services.",
   },
   vi: {
     askVinnie: "Hỏi Vinnie",
-    intro: "Chào bạn! Mình là Vinnie. Hỏi mình về lịch học, hạn chót, học phí, sự kiện và dịch vụ sinh viên nhé.",
+    intro:
+      "Mình là Vinnie, trợ lý AI hỗ trợ sinh viên VinUni về lịch học, hạn chót, học phí, sự kiện và dịch vụ sinh viên.",
   },
 } as const;
 
 const FAB_SIZE = 56;
 const MARGIN = 16;
 const STORAGE_KEY = "vinnie-fab-pos";
-const INTRO_KEY = "vinnie-intro-shown"; // session flag so the greeting plays once per session
+const INTRO_KEY = "vinnie-intro-played";
+const INTRO_HOLD_MS = 2800;
 const DRAG_THRESHOLD = 5; // px of movement before a press becomes a drag (so a tap still opens)
 
 // Widget panel size (mirrors portal.css .vinnie-widget) — used to anchor it near the bubble.
@@ -51,8 +54,8 @@ function computeWidgetStyle(pos: Pos | null): React.CSSProperties | undefined {
 // Opening the bubble shows the compact Vinnie widget (anchored to the bubble's position), which
 // shares conversation state with the full Ask Vinnie page. While the widget is open the bubble
 // itself is hidden (the widget has its own close control), so there is no separate bottom
-// collapse button. On the first visit of a session — before the bubble is ever opened — a small
-// speech bubble types out a one-line greeting, then slides away.
+// collapse button. On page entry, a small speech bubble above it introduces Vinnie once with a
+// lightweight typewriter effect.
 export function FloatingVinnieButton() {
   const [open, setOpen] = useState(false);
   const chat = useChat();
@@ -64,10 +67,11 @@ export function FloatingVinnieButton() {
   const [pos, setPos] = useState<Pos | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  // First-visit greeting: a typewriter speech bubble shown until the user interacts with the FAB.
+  // Page-entry greeting: type once, then keep the finished line until the user interacts.
   const [introText, setIntroText] = useState("");
   const [introVisible, setIntroVisible] = useState(false);
-  const [introLeaving, setIntroLeaving] = useState(false);
+  const [introTyping, setIntroTyping] = useState(false);
+  const introPlayed = useRef(false);
 
   const drag = useRef<{
     pointerId: number;
@@ -106,51 +110,65 @@ export function FloatingVinnieButton() {
     return () => window.removeEventListener("resize", onResize);
   }, [pos]);
 
-  // First-visit greeting: type the intro out once per session, hold, then slide it away. Any FAB
-  // interaction (tap/drag) hides it early via dismissIntro(). Cancelled cleanly on unmount.
+  // Type the intro once when the page shell mounts. Reduced-motion users get the static line.
   useEffect(() => {
-    if (open) return;
+    if (open || introPlayed.current) return;
+    introPlayed.current = true;
+
+    const full = s.intro;
     try {
       if (sessionStorage.getItem(INTRO_KEY)) return;
+      sessionStorage.setItem(INTRO_KEY, "1");
     } catch {
-      return;
+      /* If storage is unavailable, the ref still prevents repeats for this mount. */
     }
-    let typer: ReturnType<typeof setInterval> | undefined;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    const start = setTimeout(() => {
-      try {
-        sessionStorage.setItem(INTRO_KEY, "1");
-      } catch {
-        /* ignore */
-      }
+
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let hideTimer: ReturnType<typeof setTimeout> | undefined;
+    if (reduceMotion) {
+      setIntroText(full);
       setIntroVisible(true);
-      const full = s.intro;
-      let i = 0;
-      typer = setInterval(() => {
-        i += 1;
-        setIntroText(full.slice(0, i));
-        if (i >= full.length) {
-          if (typer) clearInterval(typer);
-          timers.push(setTimeout(() => setIntroLeaving(true), 3400));
-          timers.push(setTimeout(() => setIntroVisible(false), 3800));
-        }
-      }, 34);
-    }, 900);
-    timers.push(start);
+      setIntroTyping(false);
+      hideTimer = setTimeout(() => setIntroVisible(false), INTRO_HOLD_MS);
+      return () => {
+        if (hideTimer) clearTimeout(hideTimer);
+      };
+    }
+
+    const hideIntroSoon = () => {
+      hideTimer = setTimeout(() => setIntroVisible(false), INTRO_HOLD_MS);
+    };
+    const stopTyping = () => {
+      setIntroTyping(false);
+      hideIntroSoon();
+    };
+
+    let typer: ReturnType<typeof setInterval> | undefined;
+    let i = 1;
+    setIntroText(full.slice(0, i));
+    setIntroVisible(true);
+    setIntroTyping(true);
+    typer = setInterval(() => {
+      i += 1;
+      setIntroText(full.slice(0, i));
+      if (i >= full.length && typer) {
+        clearInterval(typer);
+        stopTyping();
+      }
+    }, 34);
+
     return () => {
       if (typer) clearInterval(typer);
-      timers.forEach(clearTimeout);
+      if (hideTimer) clearTimeout(hideTimer);
     };
   }, [open, s.intro]);
 
-  function dismissIntro() {
-    setIntroVisible(false);
-    setIntroLeaving(false);
-  }
-
   function onPointerDown(e: React.PointerEvent<HTMLButtonElement>) {
     if (e.button !== 0) return;
-    dismissIntro();
+    setIntroVisible(false);
+    setIntroTyping(false);
     const rect = btnRef.current?.getBoundingClientRect();
     if (!rect) return;
     drag.current = {
@@ -189,17 +207,16 @@ export function FloatingVinnieButton() {
         /* ignore storage failures */
       }
     } else {
-      // A plain tap/click — open the widget on a clean new chat.
+      // A plain tap/click — reopen the widget on the current/latest chat.
       openWidget();
     }
   }
 
-  // Opening the bubble always starts on a fresh new-chat draft rather than auto-loading an old
-  // conversation. newConversation() is a no-op when the active conversation is already an empty
-  // draft, so reopening without having sent anything keeps the same clean draft (no duplicates),
-  // and once a message is sent that conversation continues for the rest of the open session.
+  // Opening the bubble shows the current/latest conversation. It does not create a new
+  // conversation; students can explicitly start one from the widget header.
   function openWidget() {
-    chat.newConversation();
+    setIntroVisible(false);
+    setIntroTyping(false);
     setOpen(true);
   }
 
@@ -210,6 +227,7 @@ export function FloatingVinnieButton() {
   // Anchor the greeting just above the bubble, aligned to its nearer edge so the text grows
   // up/inward as it types. Uses the live drag position, or the default bottom-right spot.
   function introStyle(): React.CSSProperties {
+    if (typeof window === "undefined") return {};
     const fab =
       pos ?? {
         x: window.innerWidth - FAB_SIZE - 22,
@@ -234,17 +252,14 @@ export function FloatingVinnieButton() {
           {introVisible && (
             <button
               type="button"
-              className={`vinnie-intro ${introLeaving ? "leaving" : ""}`}
+              className="vinnie-intro"
               style={introStyle()}
-              onClick={() => {
-                dismissIntro();
-                openWidget();
-              }}
+              onClick={openWidget}
               aria-label={s.askVinnie}
             >
               <span className="vinnie-intro-text">
                 {introText}
-                <span className="vinnie-intro-caret" aria-hidden="true" />
+                {introTyping && <span className="vinnie-intro-caret" aria-hidden="true" />}
               </span>
             </button>
           )}

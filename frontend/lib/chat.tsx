@@ -976,6 +976,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const conversationsView = useMemo<ConversationSummary[]>(
     () =>
       [...conversations]
+        .filter((c) => c.dbConversationId || c.messages.length > 0 || c.busy)
         .sort(sortConversations)
         .map((c) => ({
           id: c.id,

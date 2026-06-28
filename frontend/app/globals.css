@@ -135,6 +135,11 @@
   --ah-primary-tint: #eaf3ff;
   --ah-on-primary-tint: #002855;
 
+  /* Shared brand "hero" fill (ask-Vinnie card, events banner, avatar). A radial highlight from
+     the top-left adds depth vs. a flat 45° linear fade; stays in the navy→blue family. Theme-
+     agnostic on purpose — these surfaces carry white text in both light and dark. */
+  --ah-hero-gradient: radial-gradient(125% 125% at 0% 0%, #0a5aa8 0%, #00468c 48%, #002855 100%);
+
   /* text + lines */
   --ah-text: #0f172a;
   --ah-text-2: #475569;
@@ -269,6 +274,30 @@ textarea::placeholder {
   border-radius: var(--radius-sm);
 }
 
+/* Skip-to-content link: off-screen until focused, then slides into the top-left. First
+   focusable element in each shell so keyboard users jump straight to <main id="main-content">. */
+.skip-link {
+  position: fixed;
+  left: 12px;
+  top: -64px;
+  z-index: 200;
+  display: inline-flex;
+  align-items: center;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 6px 20px rgba(0, 40, 85, 0.28);
+  transition: top var(--dur) var(--ease);
+}
+.skip-link:focus-visible {
+  top: 12px;
+  box-shadow: 0 0 0 3px var(--ring), 0 6px 20px rgba(0, 40, 85, 0.28);
+}
+
 /* ---------- shell ---------- */
 .app {
   display: flex;
@@ -316,7 +345,7 @@ textarea::placeholder {
 }
 .brand-name {
   font-size: var(--fs-body);
-  font-weight: 650;
+  font-weight: 700;
   letter-spacing: -0.01em;
   white-space: nowrap;
 }
@@ -1056,12 +1085,17 @@ textarea::placeholder {
   padding: 12px 16px 14px;
 }
 .chips {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 8px;
-  flex-wrap: wrap;
   margin-bottom: 10px;
 }
 .prompt-chip {
+  width: 100%;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: var(--fs-xs);
   font-weight: 500;
   border: 1px solid var(--border);
@@ -1070,6 +1104,8 @@ textarea::placeholder {
   padding: 5px 13px;
   cursor: pointer;
   color: var(--muted-foreground);
+  text-align: center;
+  white-space: normal;
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease),
     border-color var(--dur) var(--ease);
 }
@@ -1077,6 +1113,15 @@ textarea::placeholder {
   background: var(--accent-tint);
   color: var(--accent);
   border-color: var(--accent-border);
+}
+.vinnie-widget .chips {
+  grid-template-columns: 1fr;
+}
+.vinnie-widget .prompt-chip {
+  min-height: 40px;
+  justify-content: flex-start;
+  text-align: left;
+  line-height: 1.25;
 }
 .prompt-chip:disabled {
   opacity: 0.5;
@@ -1097,17 +1142,17 @@ textarea::placeholder {
   color: var(--faint);
 }
 .followups-chips {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 7px;
   min-width: 0;
 }
 /* Follow-up chips read slightly larger than the composer quick-prompts. */
 .followups-chips .prompt-chip {
   font-size: var(--fs-sm);
-  max-width: 100%;
-  white-space: normal;
+  min-height: 34px;
   text-align: left;
+  justify-content: flex-start;
 }
 .composer-field {
   display: flex;
@@ -1144,7 +1189,7 @@ textarea::placeholder {
   color: var(--primary-foreground);
   border-radius: var(--radius-sm);
   padding: 9px 18px;
-  font-weight: 650;
+  font-weight: 700;
   cursor: pointer;
   transition: background var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
@@ -1165,7 +1210,7 @@ textarea::placeholder {
   color: var(--danger);
   border-radius: var(--radius-sm);
   padding: 9px 16px;
-  font-weight: 650;
+  font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;

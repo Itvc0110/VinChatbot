@@ -15,10 +15,13 @@ import { IconAlert } from "@/components/shell/icons";
 const TITLES: Record<string, { title: string; sub?: string }> = {
   "/admin/dashboard": { title: "Dashboard", sub: "Operational control center" },
   "/admin/tickets": { title: "Support Tickets", sub: "Manage and respond to student requests" },
+  "/admin/sources/upload": { title: "Upload Source", sub: "Add a source to the knowledge base" },
+  "/admin/sources/unanswered": { title: "Review Queue", sub: "Questions Vinnie could not verify" },
+  "/admin/sources/context": { title: "Context" },
   "/admin/sources": { title: "Knowledge Base", sub: "Sources Vinnie can cite" },
   "/admin/upload": { title: "Upload Source", sub: "Add a source to the knowledge base" },
   "/admin/unanswered": { title: "Review Queue", sub: "Questions Vinnie could not verify" },
-  "/admin/notifications": { title: "Notifications", sub: "Announcements & suggested questions" },
+  "/admin/notifications": { title: "Notification Management", sub: "Announcements & suggested questions" },
   "/admin/analytics": { title: "Vinnie AI Monitoring", sub: "Quality, coverage & usage" },
   "/admin/logs": { title: "Logs" },
   "/admin/settings": { title: "Settings" },
@@ -28,14 +31,19 @@ const TITLES: Record<string, { title: string; sub?: string }> = {
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { p } = usePortal();
+  const { p, lang } = usePortal();
   const [open, setOpen] = useState(false);
 
-  const key = Object.keys(TITLES).find((k) => pathname.startsWith(k));
+  const key = Object.keys(TITLES)
+    .sort((a, b) => b.length - a.length)
+    .find((k) => pathname.startsWith(k));
   const meta = key ? TITLES[key] : { title: "Admin Console", sub: undefined };
 
   return (
     <div className="ah-ui">
+      <a className="skip-link" href="#main-content">
+        {lang === "vi" ? "Bỏ qua tới nội dung chính" : "Skip to main content"}
+      </a>
       <div className="ah-adminshell">
         <AdminSidebar open={open} onNavigate={() => setOpen(false)} />
         {open && (
@@ -47,7 +55,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <IconAlert size={14} />
             {p.adminWarning}
           </div>
-          <main className="ah-admin-content">{children}</main>
+          <main id="main-content" className="ah-admin-content">{children}</main>
         </div>
       </div>
     </div>

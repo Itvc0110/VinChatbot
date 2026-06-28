@@ -49,6 +49,17 @@ export function VinnieChatWidget({
           Vinnie
         </span>
         <div className="vinnie-widget-tools">
+          <button
+            className="vinnie-tool"
+            onClick={chat.newConversation}
+            aria-label={p.chatHistory.newChat}
+            title={p.chatHistory.newChat}
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+              strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
           <Link
             className="vinnie-tool"
             href="/student/chat"

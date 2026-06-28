@@ -149,7 +149,7 @@ const en: Strings = {
   srcOfficial: "Official source",
   srcType: { pdf: "PDF", url: "URL", database: "Database", official: "Official page" },
 
-  placeholder: "Ask about academics, deadlines, fees, services… (EN or VI)",
+  placeholder: "Ask about academics, deadlines, fees, services…",
   send: "Send",
   stop: "Stop",
   tooLong: (n) => `Message is ${n} characters — keep it under 4000.`,
@@ -262,7 +262,7 @@ const vi: Strings = {
   srcOfficial: "Nguồn chính thức",
   srcType: { pdf: "PDF", url: "URL", database: "Cơ sở dữ liệu", official: "Trang chính thức" },
 
-  placeholder: "Hỏi về học vụ, hạn chót, học phí, dịch vụ… (Anh hoặc Việt)",
+  placeholder: "Hỏi về học vụ, hạn chót, học phí, dịch vụ…",
   send: "Gửi",
   stop: "Dừng",
   tooLong: (n) => `Tin nhắn dài ${n} ký tự — giữ dưới 4000.`,
