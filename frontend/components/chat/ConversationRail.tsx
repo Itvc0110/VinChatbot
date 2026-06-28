@@ -25,11 +25,8 @@ export function ConversationRail() {
   const [draft, setDraft] = useState("");
   const renameRef = useRef<HTMLInputElement>(null);
 
-  const onlyEmptyActive =
-    chat.conversations.length === 1 &&
-    chat.conversations[0].empty &&
-    !chat.conversations[0].persisted;
-  const showList = !chat.historyLoading && !chat.historyError && !onlyEmptyActive;
+  const showList =
+    !chat.historyLoading && !chat.historyError && chat.conversations.length > 0;
 
   // Close the floating menu on any outside click, Escape, or scroll (list/window). Scrolling
   // closes rather than chasing the button, which is simplest and avoids a detached menu.
@@ -98,7 +95,6 @@ export function ConversationRail() {
   return (
     <aside className="convo-rail" aria-label={p.chatHistory.title}>
       <div className="convo-rail-head">
-        <span className="convo-rail-title">{p.chatHistory.title}</span>
         <button
           className="btn btn-primary btn-sm convo-new"
           onClick={chat.newConversation}
@@ -111,8 +107,6 @@ export function ConversationRail() {
         <p className="convo-empty">Loading conversations...</p>
       ) : chat.historyError ? (
         <p className="convo-empty">{chat.historyError}</p>
-      ) : onlyEmptyActive ? (
-        <p className="convo-empty">{p.chatHistory.empty}</p>
       ) : showList ? (
         <ul className="convo-list">
           {chat.conversations.map((c) => {
@@ -180,7 +174,9 @@ export function ConversationRail() {
             );
           })}
         </ul>
-      ) : null}
+      ) : (
+        <p className="convo-empty">{p.chatHistory.empty}</p>
+      )}
 
       {/* Floating menu — portaled to <body>, position: fixed, so the scrollable list can never
           clip it. */}

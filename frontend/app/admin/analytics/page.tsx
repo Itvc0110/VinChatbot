@@ -135,7 +135,7 @@ export default function AnalyticsPage() {
           <div className="acard">
             <div className="acard-head">
               <h2 className="acard-title">{tr.lowConfidenceHeader}</h2>
-              <Link className="acard-link" href="/admin/unanswered">{tr.reviewQueue} <IconArrow size={13} /></Link>
+              <Link className="acard-link" href="/admin/sources/unanswered">{tr.reviewQueue} <IconArrow size={13} /></Link>
             </div>
             {lowConf.length === 0 ? (
               <p className="attn-sub">{tr.noLowConfidence}</p>
@@ -147,7 +147,7 @@ export default function AnalyticsPage() {
                     <div className="amon-item-q">{q.question}</div>
                     <div className="amon-item-sub">{p.enums.questionReason[q.reason]} · {tr.asked} {q.asked_count}×</div>
                   </div>
-                  <Link className="btn btn-outline btn-sm amon-item-act" href={`/admin/unanswered/${q.id}`}>{tr.review}</Link>
+                  <Link className="btn btn-outline btn-sm amon-item-act" href={`/admin/sources/unanswered/${q.id}`}>{tr.review}</Link>
                 </div>
               ))
             )}
@@ -166,7 +166,7 @@ export default function AnalyticsPage() {
                     <div className="amon-item-q">{q.question}</div>
                     <div className="amon-item-sub">{tr.noVerifiedSource} {p.enums.department[q.suggested_department] ?? q.suggested_department}</div>
                   </div>
-                  <Link className="btn btn-outline btn-sm amon-item-act" href={`/admin/unanswered/${q.id}`}>{tr.linkSource}</Link>
+                  <Link className="btn btn-outline btn-sm amon-item-act" href={`/admin/sources/unanswered/${q.id}`}>{tr.linkSource}</Link>
                 </div>
               ))
             )}

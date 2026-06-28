@@ -124,15 +124,17 @@ export function Card({
   children,
   className = "",
   style,
+  id,
   as: As = "div",
 }: {
   children: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  id?: string;
   as?: "div" | "section";
 }) {
   return (
-    <As className={`card ${className}`} style={style}>
+    <As id={id} className={`card ${className}`} style={style}>
       {children}
     </As>
   );
@@ -193,7 +195,7 @@ export function EmptyState({
 }) {
   return (
     <div className="empty-state">
-      {icon && <span className="empty-icon">{icon}</span>}
+      {icon && <span className="empty-icon" aria-hidden="true">{icon}</span>}
       <p className="empty-title">{title}</p>
       {description && <p className="empty-desc">{description}</p>}
     </div>

@@ -72,28 +72,32 @@
 }
 
 [data-theme="dark"] {
-  /* deep slate, never pure black; surfaces LIGHTEN as they rise */
-  --bg: #131417;
-  --surface: #191b1f;
-  --surface-2: #20232a;
-  --surface-3: #2a2e36;
+  /* NurA-inspired cool blue-black: deep navy page, never pure black; surfaces
+     LIGHTEN as they rise. The whole ramp carries a subtle cool (blue) temperature
+     so it reads as one calm, modern material — and unifies with the navy sidebar
+     (portal.css) and the navy-tinted top nav (ah-polish.css). */
+  --bg: #0a0e15;
+  --surface: #11161f;
+  --surface-2: #181f2b;
+  --surface-3: #222b3a;
 
-  --border: rgba(255, 255, 255, 0.09);
-  --border-strong: rgba(255, 255, 255, 0.16);
+  /* hairlines are a low-opacity cool-white so they read on the blue-black ramp */
+  --border: rgba(141, 166, 216, 0.13);
+  --border-strong: rgba(141, 166, 216, 0.22);
 
-  --foreground: #e7e4df;
-  --muted-foreground: #a7a298;
-  --faint: #837c72;
+  --foreground: #e6ebf4; /* cool off-white, not pure white (avoids halation) */
+  --muted-foreground: #9aa6be; /* ≥7:1 on surfaces */
+  --faint: #79859b; /* ≥3:1 for small UI labels */
 
-  /* desaturated + lightened so the accent doesn't vibrate on dark */
-  --primary: #4f9be0;
-  --primary-hover: #6baeea;
+  /* vivid NurA blue for fills; a lighter, readable tint for text/links on dark */
+  --primary: #2d6cf0; /* fill (buttons) — white text passes AA (4.68:1) */
+  --primary-hover: #4480f5;
   --primary-foreground: #ffffff;
-  --accent: #7fb0e8; /* readable as text/links on dark */
-  --accent-tint: rgba(127, 176, 232, 0.12);
-  --accent-tint-strong: rgba(127, 176, 232, 0.18);
-  --accent-border: rgba(127, 176, 232, 0.26);
-  --ring: rgba(127, 176, 232, 0.45);
+  --accent: #7fb2f7; /* readable as text/links on dark (≥6.9:1 on surfaces) */
+  --accent-tint: rgba(95, 145, 240, 0.13);
+  --accent-tint-strong: rgba(95, 145, 240, 0.2);
+  --accent-border: rgba(110, 160, 245, 0.3);
+  --ring: rgba(95, 145, 240, 0.55);
 
   --success: #4cc38a;
   --success-bg: rgba(76, 195, 138, 0.13);
@@ -104,9 +108,10 @@
   --neutral: #9aa3b2;
   --neutral-bg: rgba(154, 163, 178, 0.14);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.4);
-  --shadow-pop: 0 14px 36px rgba(0, 0, 0, 0.55);
+  /* deeper shadows read against the blue-black; a faint blue cast adds depth */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.45);
+  --shadow-pop: 0 16px 40px rgba(2, 6, 18, 0.6);
 
   color-scheme: dark;
 }
@@ -134,6 +139,11 @@
   --ah-on-primary: #ffffff;
   --ah-primary-tint: #eaf3ff;
   --ah-on-primary-tint: #002855;
+
+  /* Shared brand "hero" fill (ask-Vinnie card, events banner, avatar). A radial highlight from
+     the top-left adds depth vs. a flat 45° linear fade; stays in the navy→blue family. Theme-
+     agnostic on purpose — these surfaces carry white text in both light and dark. */
+  --ah-hero-gradient: radial-gradient(125% 125% at 0% 0%, #0a5aa8 0%, #00468c 48%, #002855 100%);
 
   /* text + lines */
   --ah-text: #0f172a;
@@ -183,29 +193,31 @@
 }
 
 [data-theme="dark"] {
-  /* Academic Horizon is light-only by spec; these are a derived dark extension. */
-  --ah-bg: #16161a;
-  --ah-surface: #1d1e22;
-  --ah-surface-2: #24252b;
-  --ah-surface-3: #2c2e35;
-  --ah-surface-4: #353841;
+  /* Academic Horizon is light-only by spec; this dark extension is tuned to the
+     same NurA cool blue-black ramp as the base tokens above, so the portal pages
+     and the chat share one material. */
+  --ah-bg: #0a0e15;
+  --ah-surface: #11161f;
+  --ah-surface-2: #181f2b;
+  --ah-surface-3: #222b3a;
+  --ah-surface-4: #2c374a;
 
-  --ah-primary: #7fb0e8;
-  --ah-brand: #4f9be0;
-  --ah-brand-hover: #6baeea;
-  --ah-on-primary: #04243b;
-  --ah-primary-tint: rgba(79, 155, 224, 0.18);
-  --ah-on-primary-tint: #a9d0f5;
+  --ah-primary: #8fb8f7; /* strong headings/icons on dark */
+  --ah-brand: #2d6cf0; /* vivid NurA blue — fills, active states, links */
+  --ah-brand-hover: #4480f5;
+  --ah-on-primary: #ffffff;
+  --ah-primary-tint: rgba(95, 145, 240, 0.18);
+  --ah-on-primary-tint: #a9c8f7;
 
-  --ah-text: #e8edf4;
-  --ah-text-2: #b4c2d4;
-  --ah-muted: #93a1b5;
-  --ah-border: rgba(255, 255, 255, 0.12);
-  --ah-border-strong: rgba(255, 255, 255, 0.2);
-  --ah-outline: #8fa6c0;
+  --ah-text: #e6ebf4;
+  --ah-text-2: #b2bfd6;
+  --ah-muted: #8593ad;
+  --ah-border: rgba(141, 166, 216, 0.14);
+  --ah-border-strong: rgba(141, 166, 216, 0.24);
+  --ah-outline: #8090aa;
 
-  --ah-info: #5aa7ec;
-  --ah-info-bg: rgba(11, 107, 203, 0.18);
+  --ah-info: #5aa0f0;
+  --ah-info-bg: rgba(45, 108, 240, 0.18);
   --ah-success-bg: rgba(16, 185, 129, 0.16);
   --ah-warning: #e0a44a;
   --ah-warning-bg: rgba(224, 164, 74, 0.16);
@@ -214,9 +226,9 @@
   --ah-secondary: #aab6c6;
   --ah-secondary-bg: rgba(130, 150, 180, 0.2);
 
-  --ah-shadow-2: 0 4px 20px rgba(0, 0, 0, 0.45);
-  --ah-shadow-pop: 0 14px 36px rgba(0, 0, 0, 0.55);
-  --ah-ring: rgba(127, 176, 232, 0.3);
+  --ah-shadow-2: 0 4px 20px rgba(0, 0, 0, 0.5);
+  --ah-shadow-pop: 0 16px 40px rgba(2, 6, 18, 0.6);
+  --ah-ring: rgba(95, 145, 240, 0.32);
 }
 
 * {
@@ -269,6 +281,30 @@ textarea::placeholder {
   border-radius: var(--radius-sm);
 }
 
+/* Skip-to-content link: off-screen until focused, then slides into the top-left. First
+   focusable element in each shell so keyboard users jump straight to <main id="main-content">. */
+.skip-link {
+  position: fixed;
+  left: 12px;
+  top: -64px;
+  z-index: 200;
+  display: inline-flex;
+  align-items: center;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 6px 20px rgba(0, 40, 85, 0.28);
+  transition: top var(--dur) var(--ease);
+}
+.skip-link:focus-visible {
+  top: 12px;
+  box-shadow: 0 0 0 3px var(--ring), 0 6px 20px rgba(0, 40, 85, 0.28);
+}
+
 /* ---------- shell ---------- */
 .app {
   display: flex;
@@ -316,7 +352,7 @@ textarea::placeholder {
 }
 .brand-name {
   font-size: var(--fs-body);
-  font-weight: 650;
+  font-weight: 700;
   letter-spacing: -0.01em;
   white-space: nowrap;
 }
@@ -1056,12 +1092,17 @@ textarea::placeholder {
   padding: 12px 16px 14px;
 }
 .chips {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 8px;
-  flex-wrap: wrap;
   margin-bottom: 10px;
 }
 .prompt-chip {
+  width: 100%;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: var(--fs-xs);
   font-weight: 500;
   border: 1px solid var(--border);
@@ -1070,6 +1111,8 @@ textarea::placeholder {
   padding: 5px 13px;
   cursor: pointer;
   color: var(--muted-foreground);
+  text-align: center;
+  white-space: normal;
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease),
     border-color var(--dur) var(--ease);
 }
@@ -1077,6 +1120,15 @@ textarea::placeholder {
   background: var(--accent-tint);
   color: var(--accent);
   border-color: var(--accent-border);
+}
+.vinnie-widget .chips {
+  grid-template-columns: 1fr;
+}
+.vinnie-widget .prompt-chip {
+  min-height: 40px;
+  justify-content: flex-start;
+  text-align: left;
+  line-height: 1.25;
 }
 .prompt-chip:disabled {
   opacity: 0.5;
@@ -1097,17 +1149,17 @@ textarea::placeholder {
   color: var(--faint);
 }
 .followups-chips {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 7px;
   min-width: 0;
 }
 /* Follow-up chips read slightly larger than the composer quick-prompts. */
 .followups-chips .prompt-chip {
   font-size: var(--fs-sm);
-  max-width: 100%;
-  white-space: normal;
+  min-height: 34px;
   text-align: left;
+  justify-content: flex-start;
 }
 .composer-field {
   display: flex;
@@ -1144,7 +1196,7 @@ textarea::placeholder {
   color: var(--primary-foreground);
   border-radius: var(--radius-sm);
   padding: 9px 18px;
-  font-weight: 650;
+  font-weight: 700;
   cursor: pointer;
   transition: background var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
@@ -1165,7 +1217,7 @@ textarea::placeholder {
   color: var(--danger);
   border-radius: var(--radius-sm);
   padding: 9px 16px;
-  font-weight: 650;
+  font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;

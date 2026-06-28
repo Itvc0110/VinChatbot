@@ -155,6 +155,10 @@ class DemoNotification:
     source_url: str | None
     created_by_email: str | None
     category: str
+    title_vi: str | None = None
+    title_en: str | None = None
+    message_vi: str | None = None
+    message_en: str | None = None
 
 
 @dataclass(frozen=True)
@@ -303,6 +307,8 @@ class DemoSuggestedQuestion:
     is_active: bool
     valid_from: datetime
     valid_until: datetime
+    question_text_vi: str | None = None
+    question_text_en: str | None = None
 
 
 @dataclass(frozen=True)
@@ -590,6 +596,65 @@ def build_activity_seed_plan(
     )
 
 
+# Vietnamese translations for the demo notifications, keyed by slug. The English text in
+# `rows` below is the canonical fallback; these provide the VI variant so the student portal
+# (which defaults to Vietnamese) shows notifications in the selected UI language.
+NOTIFICATION_TRANSLATIONS_VI: dict[str, tuple[str, str]] = {
+    "final-exam-schedule": (
+        "Đã công bố lịch thi cuối kỳ",
+        "Lịch thi cuối kỳ học kỳ Thu 2026 đã có trên cổng thông tin sinh viên.",
+    ),
+    "course-registration": (
+        "Sắp đến hạn đăng ký học phần",
+        "Hãy kiểm tra kế hoạch học tập và xác nhận đăng ký học kỳ Thu 2026 trước hạn chót.",
+    ),
+    "scholarship-deadline": (
+        "Hạn nộp hồ sơ học bổng khuyến học",
+        "Nộp hồ sơ học bổng và thư giới thiệu của cố vấn trước hạn đã công bố.",
+    ),
+    "career-fair": (
+        "Đăng ký Ngày hội việc làm VinUni",
+        "Sinh viên có thể đăng ký các buổi gặp nhà tuyển dụng và lượt rà soát CV.",
+    ),
+    "advising-week-cohort-2026": (
+        "Tuần cố vấn học tập cho khóa 2026",
+        "Sinh viên khóa 2026 nên đặt lịch gặp cố vấn trước khi mở đăng ký học phần.",
+    ),
+    "cecs-lab-safety": (
+        "Bắt buộc tập huấn an toàn phòng lab CECS",
+        "Sinh viên CECS sử dụng phòng thí nghiệm phải hoàn thành tập huấn an toàn trong tháng này.",
+    ),
+    "case-writing-support": (
+        "Hội thảo hỗ trợ kỹ năng viết",
+        "Các trợ giảng viết của CASE sẽ tổ chức hội thảo về lập luận học thuật và trích dẫn.",
+    ),
+    "library-hours-update": (
+        "Thư viện kéo dài giờ mở cửa trước kỳ thi",
+        "Thư viện sẽ kéo dài giờ học buổi tối trong giai đoạn thi cuối kỳ.",
+    ),
+    "tuition-payment-reminder": (
+        "Nhắc nhở đóng học phí",
+        "Vui lòng kiểm tra tình trạng thanh toán và liên hệ Phòng Dịch vụ Sinh viên nếu cần hỗ trợ.",
+    ),
+    "student-support-announcement": (
+        "Giờ tư vấn hỗ trợ sinh viên",
+        "Các cố vấn Student Success sẵn sàng hỗ trợ về học tập và sức khỏe tinh thần.",
+    ),
+    "chs-clinical-orientation": (
+        "Định hướng lâm sàng cho sinh viên CHS",
+        "Sinh viên CHS được phân công thực hành lâm sàng phải tham dự buổi định hướng.",
+    ),
+    "bus230-registration": (
+        "Đăng ký nhóm dự án BUS230",
+        "Sinh viên BUS230 cần xác nhận nhóm dự án phân tích trước thứ Sáu.",
+    ),
+    "csc330-project-showcase": (
+        "Buổi trình diễn dự án CSC330",
+        "Sinh viên CECS được mời trình bày các dự án kỹ thuật phần mềm.",
+    ),
+}
+
+
 def build_activity_notifications(
     courses_by_institute: dict[str, list[DemoCourse]],
     *,
@@ -855,12 +920,17 @@ def build_activity_notifications(
         end_date,
         source_title,
     ) in rows:
+        title_vi, message_vi = NOTIFICATION_TRANSLATIONS_VI.get(slug, (None, None))
         notifications.append(
             DemoNotification(
                 id=deterministic_uuid(f"notification:{slug}"),
                 notification_type=notification_type,
                 title=title,
                 message=message,
+                title_vi=title_vi,
+                title_en=title,
+                message_vi=message_vi,
+                message_en=message,
                 priority=priority,
                 status="published",
                 target_scope=target_scope,
@@ -1329,6 +1399,8 @@ def build_suggested_questions(
             DemoSuggestedQuestion(
                 id=deterministic_uuid(f"suggested-question:trend:{trend.id}"),
                 question_text=f"What should I know about {trend.topic} this week?",
+                question_text_en=f"What should I know about {trend.topic} this week?",
+                question_text_vi=f"Tuần này tôi cần biết gì về {trend.topic}?",
                 source_type="trend",
                 source_id=trend.id,
                 notification_id=None,
@@ -1356,6 +1428,11 @@ def build_suggested_questions(
             DemoSuggestedQuestion(
                 id=deterministic_uuid(f"suggested-question:notification:{notification.id}"),
                 question_text=f"What does the notice '{notification.title}' mean for me?",
+                question_text_en=f"What does the notice '{notification.title}' mean for me?",
+                question_text_vi=(
+                    f"Thông báo '{notification.title_vi or notification.title}' "
+                    "có ý nghĩa gì với tôi?"
+                ),
                 source_type="notification",
                 source_id=notification.id,
                 notification_id=notification.id,
@@ -1383,6 +1460,8 @@ def build_suggested_questions(
             DemoSuggestedQuestion(
                 id=deterministic_uuid(f"suggested-question:event:{event.id}"),
                 question_text=f"How can I register for {event.title}?",
+                question_text_en=f"How can I register for {event.title}?",
+                question_text_vi=f"Tôi đăng ký {event.title} bằng cách nào?",
                 source_type="manual",
                 source_id=event.id,
                 notification_id=None,
@@ -1411,6 +1490,8 @@ def build_suggested_questions(
             DemoSuggestedQuestion(
                 id=deterministic_uuid(f"suggested-question:deadline:{institute_code}"),
                 question_text=f"Which {course.course_code} deadlines are coming up?",
+                question_text_en=f"Which {course.course_code} deadlines are coming up?",
+                question_text_vi=f"Những hạn chót nào của {course.course_code} sắp đến?",
                 source_type="manual",
                 source_id=deterministic_uuid(f"deadline-context:{institute_code}"),
                 notification_id=None,
@@ -1436,6 +1517,8 @@ def build_suggested_questions(
             DemoSuggestedQuestion(
                 id=deterministic_uuid(f"suggested-question:schedule:{institute_code}"),
                 question_text=f"When is my next {course.course_code} class or lab?",
+                question_text_en=f"When is my next {course.course_code} class or lab?",
+                question_text_vi=f"Buổi học hoặc lab {course.course_code} tiếp theo của tôi là khi nào?",
                 source_type="manual",
                 source_id=deterministic_uuid(f"schedule-context:{institute_code}"),
                 notification_id=None,
@@ -1463,6 +1546,8 @@ def build_suggested_questions(
             DemoSuggestedQuestion(
                 id=deterministic_uuid(f"suggested-question:ticket:{ticket.id}"),
                 question_text=f"How do I follow up on a {ticket.category} support request?",
+                question_text_en=f"How do I follow up on a {ticket.category} support request?",
+                question_text_vi=f"Tôi theo dõi yêu cầu hỗ trợ {ticket.category} bằng cách nào?",
                 source_type="manual",
                 source_id=ticket.id,
                 notification_id=None,
@@ -2207,16 +2292,21 @@ def upsert_notifications(
         conn.execute(
             """
             insert into notifications (
-                id, type, title, message, priority, status, target_scope,
+                id, type, title, message, title_vi, title_en, message_vi, message_en,
+                priority, status, target_scope,
                 institute_id, course_id, cohort, deadline, event_date, start_date,
                 end_date, source_title, source_url, created_by
             )
-            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             on conflict (id) do update
             set
                 type = excluded.type,
                 title = excluded.title,
                 message = excluded.message,
+                title_vi = excluded.title_vi,
+                title_en = excluded.title_en,
+                message_vi = excluded.message_vi,
+                message_en = excluded.message_en,
                 priority = excluded.priority,
                 status = excluded.status,
                 target_scope = excluded.target_scope,
@@ -2237,6 +2327,10 @@ def upsert_notifications(
                 notification.notification_type,
                 notification.title,
                 notification.message,
+                notification.title_vi,
+                notification.title_en,
+                notification.message_vi,
+                notification.message_en,
                 notification.priority,
                 notification.status,
                 notification.target_scope,
@@ -2630,15 +2724,18 @@ def upsert_suggested_questions(
         conn.execute(
             """
             insert into suggested_questions (
-                id, question_text, source_type, source_id, notification_id,
+                id, question_text, question_text_vi, question_text_en,
+                source_type, source_id, notification_id,
                 topic, intent, category, trigger_phase, institute_id, course_id,
                 cohort, score, priority, created_by_ai, approved_by_admin,
                 is_active, valid_from, valid_until
             )
-            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             on conflict (id) do update
             set
                 question_text = excluded.question_text,
+                question_text_vi = excluded.question_text_vi,
+                question_text_en = excluded.question_text_en,
                 source_type = excluded.source_type,
                 source_id = excluded.source_id,
                 notification_id = excluded.notification_id,
@@ -2661,6 +2758,8 @@ def upsert_suggested_questions(
             (
                 question.id,
                 question.question_text,
+                question.question_text_vi,
+                question.question_text_en,
                 question.source_type,
                 question.source_id,
                 question.notification_id,

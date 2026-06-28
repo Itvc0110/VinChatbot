@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import {
   AsyncBoundary,
   Card,
@@ -30,8 +30,12 @@ export default function QuestionDetailPage() {
   const { token } = useAuth();
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const pathname = usePathname();
   const id = params.id;
   const locale = lang === "vi" ? "vi-VN" : "en-US";
+  const backHref = pathname.startsWith("/admin/sources/unanswered")
+    ? "/admin/sources/unanswered"
+    : "/admin/unanswered";
 
   const all = useAsync(getUnansweredQuestions, [token]);
   const [toast, setToast] = useState<string | null>(null);
@@ -66,7 +70,7 @@ export default function QuestionDetailPage() {
       };
       setToast(msg[action]);
       if (action === "official_answer" || action === "mark_resolved" || action === "forward") {
-        setTimeout(() => router.push("/admin/unanswered"), 900);
+        setTimeout(() => router.push(backHref), 900);
       }
     } catch {
       setToast(p.admin.actionFailed);
@@ -77,7 +81,7 @@ export default function QuestionDetailPage() {
 
   return (
     <div className="page-inner" style={{ maxWidth: 920 }}>
-      <a className="btn btn-ghost btn-sm" href="/admin/unanswered" style={{ marginBottom: 14 }}>
+      <a className="btn btn-ghost btn-sm" href={backHref} style={{ marginBottom: 14 }}>
         {p.admin.backToInbox}
       </a>
 

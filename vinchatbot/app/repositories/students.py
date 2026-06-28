@@ -10,6 +10,22 @@ from psycopg_pool import AsyncConnectionPool
 MAX_STUDENT_SUGGESTIONS = 8
 NEAR_DEADLINE_DAYS = 14
 
+# Supported UI languages for content resolution. The base title/message/question_text
+# columns hold the canonical English text, so an unspecified/invalid lang falls back to
+# English here. The user-facing default language (Vietnamese) is chosen at the route layer.
+SUPPORTED_LANGS = ("vi", "en")
+DEFAULT_LANG = "en"
+
+
+def normalize_lang(lang: str | None) -> str:
+    """Clamp an arbitrary lang value to a supported suffix used in column names."""
+    return lang if lang in SUPPORTED_LANGS else DEFAULT_LANG
+
+
+def _pick(lang: str, vi: str, en: str) -> str:
+    """Pick a Vietnamese or English variant for dynamically generated text."""
+    return vi if lang == "vi" else en
+
 
 class StudentRepository:
     """Read-only repository for current-student portal data."""
@@ -143,7 +159,9 @@ class StudentRepository:
         *,
         user_id: uuid.UUID,
         profile: dict[str, Any],
+        lang: str = DEFAULT_LANG,
     ) -> list[dict[str, Any]]:
+        suffix = normalize_lang(lang)
         course_ids = await self._fetch_enrolled_course_ids(profile["id"])
         forum_columns = await self._notification_forum_columns_available()
         forum_select = (
@@ -170,8 +188,8 @@ class StudentRepository:
             select
                 n.id,
                 n.type,
-                n.title,
-                n.message,
+                coalesce(n.title_{suffix}, n.title) as title,
+                coalesce(n.message_{suffix}, n.message) as message,
                 n.priority,
                 n.status,
                 n.target_scope,
@@ -343,18 +361,22 @@ class StudentRepository:
         *,
         user_id: uuid.UUID,
         profile: dict[str, Any],
+        lang: str = DEFAULT_LANG,
     ) -> list[dict[str, Any]]:
+        lang = normalize_lang(lang)
         now = datetime.now(UTC)
         course_ids = await self._fetch_enrolled_course_ids(profile["id"])
-        seeded_suggestions = await self._fetch_seeded_suggestions(profile, course_ids)
-        notifications = await self.get_notifications(user_id=user_id, profile=profile)
+        seeded_suggestions = await self._fetch_seeded_suggestions(profile, course_ids, lang)
+        notifications = await self.get_notifications(user_id=user_id, profile=profile, lang=lang)
         deadlines = await self.get_deadlines(profile["id"], upcoming_only=True)
         schedule = await self.get_schedule(profile["id"], upcoming_only=True)
         forum_topics = await self._fetch_forum_topics_for_suggestions(profile)
 
         suggestions: list[dict[str, Any]] = []
         suggestions.extend(
-            self._notification_suggestion(profile=profile, notification=notification, now=now)
+            self._notification_suggestion(
+                profile=profile, notification=notification, now=now, lang=lang
+            )
             for notification in notifications
             if self._notification_can_influence_suggestions(
                 notification=notification,
@@ -364,15 +386,15 @@ class StudentRepository:
             )
         )
         suggestions.extend(
-            self._deadline_suggestion(profile=profile, deadline=deadline, now=now)
+            self._deadline_suggestion(profile=profile, deadline=deadline, now=now, lang=lang)
             for deadline in deadlines
         )
         suggestions.extend(
-            self._schedule_suggestion(profile=profile, schedule_item=item, now=now)
+            self._schedule_suggestion(profile=profile, schedule_item=item, now=now, lang=lang)
             for item in schedule
         )
         suggestions.extend(
-            self._forum_topic_suggestion(profile=profile, topic=topic, now=now)
+            self._forum_topic_suggestion(profile=profile, topic=topic, now=now, lang=lang)
             for topic in forum_topics
             if self._forum_topic_can_influence_suggestions(topic)
         )
@@ -381,7 +403,7 @@ class StudentRepository:
         ranked = self._rank_and_dedupe_suggestions(suggestions)
         if len(ranked) < 3:
             ranked = self._rank_and_dedupe_suggestions(
-                [*ranked, *self._fallback_suggestions(profile=profile, now=now)]
+                [*ranked, *self._fallback_suggestions(profile=profile, now=now, lang=lang)]
             )
         return ranked[:MAX_STUDENT_SUGGESTIONS]
 
@@ -389,12 +411,14 @@ class StudentRepository:
         self,
         profile: dict[str, Any],
         course_ids: list[uuid.UUID],
+        lang: str = DEFAULT_LANG,
     ) -> list[dict[str, Any]]:
+        suffix = normalize_lang(lang)
         rows = await self._fetchall(
-            """
+            f"""
             select
                 sq.id,
-                sq.question_text,
+                coalesce(sq.question_text_{suffix}, sq.question_text) as question_text,
                 sq.source_type,
                 sq.source_id,
                 sq.notification_id,
@@ -475,24 +499,40 @@ class StudentRepository:
         profile: dict[str, Any],
         notification: dict[str, Any],
         now: datetime,
+        lang: str = DEFAULT_LANG,
     ) -> dict[str, Any]:
         notification_type = str(notification.get("type") or "notification")
-        title = str(notification.get("title") or "this announcement").strip()
+        default_title = _pick(lang, "thông báo này", "this announcement")
+        title = str(notification.get("title") or default_title).strip()
         text_blob = f"{title} {notification.get('message') or ''}".lower()
         if "exam" in text_blob or "thi" in text_blob:
-            question_text = "What should I pay attention to for my exam schedule?"
+            question_text = _pick(
+                lang,
+                "Tôi cần lưu ý gì cho lịch thi của mình?",
+                "What should I pay attention to for my exam schedule?",
+            )
             category = "academic"
         elif "scholarship" in text_blob or "học bổng" in text_blob or "hoc bong" in text_blob:
-            question_text = "What are the requirements and deadline for this scholarship?"
+            question_text = _pick(
+                lang,
+                "Học bổng này có yêu cầu và hạn nộp như thế nào?",
+                "What are the requirements and deadline for this scholarship?",
+            )
             category = "student_services"
         elif notification.get("deadline") is not None or notification_type == "deadline":
-            question_text = f"What do I need to do before {title}?"
+            question_text = _pick(
+                lang, f"Tôi cần làm gì trước {title}?", f"What do I need to do before {title}?"
+            )
             category = "deadline"
         elif notification.get("event_date") is not None or notification_type == "event":
-            question_text = f"What should I know about {title}?"
+            question_text = _pick(
+                lang, f"Tôi cần biết gì về {title}?", f"What should I know about {title}?"
+            )
             category = "event"
         else:
-            question_text = f"What should I do about {title}?"
+            question_text = _pick(
+                lang, f"Tôi nên làm gì với {title}?", f"What should I do about {title}?"
+            )
             category = notification_type
 
         trigger_phase = self._deadline_phase(notification.get("deadline"), now)
@@ -529,14 +569,20 @@ class StudentRepository:
         profile: dict[str, Any],
         deadline: dict[str, Any],
         now: datetime,
+        lang: str = DEFAULT_LANG,
     ) -> dict[str, Any]:
-        title = str(deadline.get("title") or "my next deadline").strip()
+        default_title = _pick(lang, "hạn chót tiếp theo", "my next deadline")
+        title = str(deadline.get("title") or default_title).strip()
         due_at = deadline.get("due_at")
         trigger_phase = self._deadline_phase(due_at, now)
         priority = 86 if trigger_phase == "near_deadline" else 72
         return self._suggestion_record(
             profile=profile,
-            question_text=f"What do I need to finish before {title}?",
+            question_text=_pick(
+                lang,
+                f"Tôi cần hoàn thành những gì trước {title}?",
+                f"What do I need to finish before {title}?",
+            ),
             source_type="deadline",
             source_id=deadline["id"],
             notification_id=None,
@@ -559,16 +605,24 @@ class StudentRepository:
         profile: dict[str, Any],
         schedule_item: dict[str, Any],
         now: datetime,
+        lang: str = DEFAULT_LANG,
     ) -> dict[str, Any]:
-        title = str(schedule_item.get("title") or schedule_item.get("course_title") or "my schedule")
+        default_title = _pick(lang, "lịch học của tôi", "my schedule")
+        title = str(
+            schedule_item.get("title") or schedule_item.get("course_title") or default_title
+        )
         schedule_type = str(schedule_item.get("schedule_type") or "schedule")
         is_event = schedule_type in {"event", "workshop", "orientation"}
         return self._suggestion_record(
             profile=profile,
             question_text=(
-                f"What should I know before {title}?"
+                _pick(lang, f"Tôi cần biết gì trước {title}?", f"What should I know before {title}?")
                 if is_event
-                else "What does my schedule look like this week?"
+                else _pick(
+                    lang,
+                    "Lịch học tuần này của tôi như thế nào?",
+                    "What does my schedule look like this week?",
+                )
             ),
             source_type="event" if is_event else "schedule",
             source_id=schedule_item["id"],
@@ -592,16 +646,26 @@ class StudentRepository:
         profile: dict[str, Any],
         topic: dict[str, Any],
         now: datetime,
+        lang: str = DEFAULT_LANG,
     ) -> dict[str, Any]:
-        title = str(topic.get("title") or "this forum topic").strip()
+        default_title = _pick(lang, "chủ đề diễn đàn này", "this forum topic")
+        title = str(topic.get("title") or default_title).strip()
         text_blob = f"{title} {topic.get('content') or ''} {' '.join(topic.get('tags') or [])}".lower()
 
         if "exam" in text_blob or "thi" in text_blob:
-            question_text = "What should I prepare for upcoming exams?"
+            question_text = _pick(
+                lang,
+                "Tôi nên chuẩn bị gì cho kỳ thi sắp tới?",
+                "What should I prepare for upcoming exams?",
+            )
             category = "academic"
             intent = "prepare_for_exam"
         elif "scholarship" in text_blob or "học bổng" in text_blob or "hoc bong" in text_blob:
-            question_text = "What scholarship deadlines should I know about?"
+            question_text = _pick(
+                lang,
+                "Tôi cần biết những hạn học bổng nào?",
+                "What scholarship deadlines should I know about?",
+            )
             category = "student_services"
             intent = "clarify_scholarship_deadlines"
         elif (
@@ -611,15 +675,25 @@ class StudentRepository:
             or "portal" in text_blob
             or "login" in text_blob
         ):
-            question_text = "How do I fix common student IT issues?"
+            question_text = _pick(
+                lang,
+                "Làm sao để khắc phục các sự cố CNTT thường gặp của sinh viên?",
+                "How do I fix common student IT issues?",
+            )
             category = "student_services"
             intent = "resolve_it_issue"
         elif "registration" in text_blob or "add/drop" in text_blob or "advising" in text_blob:
-            question_text = "What should I check before changing my course registration?"
+            question_text = _pick(
+                lang,
+                "Tôi nên kiểm tra gì trước khi thay đổi đăng ký học phần?",
+                "What should I check before changing my course registration?",
+            )
             category = "academic"
             intent = "plan_registration"
         else:
-            question_text = f"What should I know about {title}?"
+            question_text = _pick(
+                lang, f"Tôi cần biết gì về {title}?", f"What should I know about {title}?"
+            )
             category = "forum"
             intent = "learn_from_forum_topic"
 
@@ -643,13 +717,37 @@ class StudentRepository:
             cohort=profile.get("cohort"),
         )
 
-    def _fallback_suggestions(self, *, profile: dict[str, Any], now: datetime) -> list[dict[str, Any]]:
+    def _fallback_suggestions(
+        self, *, profile: dict[str, Any], now: datetime, lang: str = DEFAULT_LANG
+    ) -> list[dict[str, Any]]:
         institute_code = profile["institute"]["code"]
         fallback_items = [
-            ("What deadlines should I focus on next?", "deadline_context", "deadline", 42),
-            ("What is on my academic schedule this week?", "schedule_context", "schedule", 40),
             (
-                f"What should {institute_code} students pay attention to this week?",
+                _pick(
+                    lang,
+                    "Tôi nên tập trung vào những hạn chót nào tiếp theo?",
+                    "What deadlines should I focus on next?",
+                ),
+                "deadline_context",
+                "deadline",
+                42,
+            ),
+            (
+                _pick(
+                    lang,
+                    "Tuần này lịch học của tôi có những gì?",
+                    "What is on my academic schedule this week?",
+                ),
+                "schedule_context",
+                "schedule",
+                40,
+            ),
+            (
+                _pick(
+                    lang,
+                    f"Tuần này sinh viên {institute_code} cần lưu ý điều gì?",
+                    f"What should {institute_code} students pay attention to this week?",
+                ),
                 "academic",
                 "static",
                 38,

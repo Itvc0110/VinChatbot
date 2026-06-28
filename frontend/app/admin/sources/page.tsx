@@ -185,8 +185,7 @@ export default function SourcesPage() {
           ))}
         </select>
         <div className="akb-actions">
-          <Link className="btn btn-outline btn-sm" href="/admin/upload">{tr.addUrl}</Link>
-          <Link className="btn btn-primary btn-sm" href="/admin/upload">
+          <Link className="btn btn-primary btn-sm" href="/admin/sources/upload">
             <IconUpload size={14} /> {p.admin.addSource}
           </Link>
         </div>
@@ -240,10 +239,14 @@ export default function SourcesPage() {
                         </td>
                         <td>
                           <div className="row-actions">
-                            <a className="btn btn-ghost btn-sm" href={s.url} target="_blank" rel="noreferrer">{p.view}</a>
+                            {/* Uploaded files use a non-navigable upload:// id — only show View
+                                and Re-crawl for real web sources. */}
+                            {/^https?:\/\//i.test(s.url) && (
+                              <a className="btn btn-ghost btn-sm" href={s.url} target="_blank" rel="noreferrer">{p.view}</a>
+                            )}
                             <button
                               className="btn btn-outline btn-sm"
-                              disabled={busyId === s.id || s.status === "disabled"}
+                              disabled={busyId === s.id || s.status === "disabled" || !/^https?:\/\//i.test(s.url)}
                               onClick={() => recrawl(s)}
                             >
                               {busyId === s.id ? "…" : p.admin.recrawl}

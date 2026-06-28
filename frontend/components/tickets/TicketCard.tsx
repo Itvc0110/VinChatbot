@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type KeyboardEvent, type MouseEvent } from "react";
 import type { SupportTicket } from "@/lib/portalTypes";
 import { usePortal } from "@/lib/portalI18n";
 import { formatDateTime } from "@/lib/format";
@@ -45,19 +45,32 @@ export function TicketCard({
   const [confirming, setConfirming] = useState(false);
   const isAdmin = variant === "admin";
 
+  const openTicket = () => h.onView(t);
+  const onCardKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    openTicket();
+  };
+  const stopCardClick = (e: MouseEvent<HTMLElement>) => e.stopPropagation();
+  const stopCardKeyDown = (e: KeyboardEvent<HTMLElement>) => e.stopPropagation();
+
   return (
-    <div className="ticket-card">
+    <div
+      className="ticket-card ticket-card--clickable"
+      role="button"
+      tabIndex={0}
+      onClick={openTicket}
+      onKeyDown={onCardKeyDown}
+      aria-label={`${p.tickets.viewDetail}: ${t.subject}`}
+    >
       <div className="ticket-card-top">
-        <span className="td-sub mono">{t.id}</span>
         <TicketBadge kind="status" value={t.status} />
         <TicketBadge kind="priority" value={t.priority} />
         <span className="ticket-cat">{p.enums.ticketCategory[t.category]}</span>
         <SlaMarker t={t} />
       </div>
 
-      <button className="ticket-title-btn" onClick={() => h.onView(t)}>
-        {t.subject}
-      </button>
+      <h3 className="ticket-title-btn">{t.subject}</h3>
       <p className="ticket-preview">{t.body}</p>
 
       {isAdmin && (
@@ -78,13 +91,13 @@ export function TicketCard({
           {p.tickets.created} {formatDateTime(t.created_at, locale)} · {p.tickets.updated}{" "}
           {formatDateTime(t.updated_at, locale)}
         </span>
-        <div className="ticket-card-actions">
-          <button className="btn btn-ghost btn-sm" onClick={() => h.onView(t)}>
-            {p.tickets.viewDetail}
-          </button>
-          {/* Admin never archives/deletes a student's ticket — View only. */}
-          {!isAdmin &&
-            (t.deleted ? (
+        {!isAdmin && (
+          <div
+            className="ticket-card-actions"
+            onClick={stopCardClick}
+            onKeyDown={stopCardKeyDown}
+          >
+            {t.deleted ? (
               <button className="btn btn-ghost btn-sm" onClick={() => h.onRestore(t)}>
                 {p.tickets.restore}
               </button>
@@ -112,12 +125,18 @@ export function TicketCard({
                   {p.tickets.delete}
                 </button>
               </>
-            ))}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {confirming && (
-        <div className="confirm-row" role="alertdialog">
+        <div
+          className="confirm-row"
+          role="alertdialog"
+          onClick={stopCardClick}
+          onKeyDown={stopCardKeyDown}
+        >
           <span>{p.tickets.deleteConfirm}</span>
           <button
             className="btn btn-sm btn-danger-soft"

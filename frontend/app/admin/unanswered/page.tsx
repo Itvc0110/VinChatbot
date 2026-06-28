@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { AsyncBoundary, EmptyState, Toast } from "@/components/ui/primitives";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
@@ -65,6 +66,7 @@ export default function UnansweredPage() {
   const { p, lang } = usePortal();
   const s = STR[lang];
   const { token } = useAuth();
+  const pathname = usePathname();
   const loaded = useAsync(getUnansweredQuestions, [token]);
   const [items, setItems] = useState<UnansweredQuestion[] | null>(null);
   const [filter, setFilter] = useState<"all" | QuestionStatus>("all");
@@ -93,6 +95,9 @@ export default function UnansweredPage() {
     () => (filter === "all" ? all : all.filter((q) => q.status === filter)),
     [all, filter]
   );
+  const detailBase = pathname.startsWith("/admin/sources/unanswered")
+    ? "/admin/sources/unanswered"
+    : "/admin/unanswered";
 
   function patch(id: string, status: QuestionStatus) {
     setItems((cur) => (cur ?? []).map((q) => (q.id === id ? { ...q, status } : q)));
@@ -168,7 +173,7 @@ export default function UnansweredPage() {
                   </div>
 
                   <div className="arev-actions">
-                    <Link className="btn btn-primary btn-sm" href={`/admin/unanswered/${q.id}`}>
+                    <Link className="btn btn-primary btn-sm" href={`${detailBase}/${q.id}`}>
                       {p.admin.resolve} <IconArrow size={13} />
                     </Link>
                     {q.status !== "forwarded" && q.status !== "resolved" && (

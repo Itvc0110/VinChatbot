@@ -124,6 +124,8 @@ export function CreateTopicModal({
             id="forum-title"
             className="input"
             value={title}
+            required
+            minLength={3}
             maxLength={200}
             placeholder={p.forum.titlePlaceholder}
             onChange={(e) => setTitle(e.target.value)}

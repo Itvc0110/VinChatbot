@@ -127,12 +127,12 @@ def _repository(
         assert student_profile_id == PROFILE_ID
         return [COURSE_ID]
 
-    async def fetch_seeded_suggestions(profile, course_ids):
+    async def fetch_seeded_suggestions(profile, course_ids, lang="en"):
         assert profile["id"] == PROFILE_ID
         assert course_ids == [COURSE_ID]
         return seeded_rows
 
-    async def get_notifications(*, user_id, profile):
+    async def get_notifications(*, user_id, profile, lang="en"):
         assert user_id == STUDENT_USER_ID
         assert profile["id"] == PROFILE_ID
         return notification_rows

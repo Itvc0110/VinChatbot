@@ -11,11 +11,19 @@ import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { useAsync } from "@/lib/useAsync";
 import { getActiveSuggestedQuestions } from "@/lib/api";
-import { IconChat } from "@/components/shell/icons";
+import { LogoVinnie } from "@/components/shell/Logos";
 
-// Compact chat panel anchored bottom-right (full-screen sheet on mobile). Shares the same
-// conversation + source drawer as the full Ask Vinnie page via useChat().
-export function VinnieChatWidget({ onClose }: { onClose: () => void }) {
+// Compact chat panel that opens next to the floating bubble — anchored bottom-right by default,
+// or at the dragged bubble's position via `style` (full-screen sheet on mobile, where `style`
+// is omitted). Shares the same conversation + source drawer as the full Ask Vinnie page via
+// useChat().
+export function VinnieChatWidget({
+  onClose,
+  style,
+}: {
+  onClose: () => void;
+  style?: React.CSSProperties;
+}) {
   const { p, lang } = usePortal();
   const { t } = useI18n();
   const { token } = useAuth();
@@ -32,15 +40,26 @@ export function VinnieChatWidget({ onClose }: { onClose: () => void }) {
       : p.chatSuggested;
 
   return (
-    <div className="vinnie-widget" role="dialog" aria-label="Vinnie">
+    <div className="vinnie-widget" role="dialog" aria-label="Vinnie" style={style}>
       <div className="vinnie-widget-head">
         <span className="vinnie-widget-brand">
-          <span className="vinnie-avatar" aria-hidden="true">
-            <IconChat size={15} />
+          <span className="vinnie-avatar brand-logo-tile" aria-hidden="true">
+            <LogoVinnie size={24} />
           </span>
           Vinnie
         </span>
         <div className="vinnie-widget-tools">
+          <button
+            className="vinnie-tool"
+            onClick={chat.newConversation}
+            aria-label={p.chatHistory.newChat}
+            title={p.chatHistory.newChat}
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+              strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
           <Link
             className="vinnie-tool"
             href="/student/chat"

@@ -31,10 +31,29 @@ const hankenGrotesk = Hanken_Grotesk({
   variable: "--ah-font-head",
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const APP_NAME = "VinUni Student Copilot";
+const APP_DESCRIPTION =
+  "24/7 AI student support for VinUni — verified, source-cited answers about academics, schedules, deadlines, tuition, events and student services.";
+
 export const metadata: Metadata = {
-  title: "VinUni Student Copilot",
-  description:
-    "24/7 AI student support for VinUni — verified, source-cited answers about academics, schedules, deadlines, tuition, events and student services.",
+  metadataBase: new URL(SITE_URL),
+  applicationName: APP_NAME,
+  title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
+  description: APP_DESCRIPTION,
+  openGraph: {
+    type: "website",
+    siteName: APP_NAME,
+    title: APP_NAME,
+    description: APP_DESCRIPTION,
+    locale: "vi_VN",
+    alternateLocale: ["en_US"],
+  },
+  twitter: {
+    card: "summary",
+    title: APP_NAME,
+    description: APP_DESCRIPTION,
+  },
 };
 
 export default function RootLayout({
@@ -44,7 +63,7 @@ export default function RootLayout({
 }) {
   return (
     <html
-      lang="en"
+      lang="vi"
       className={`${inter.variable} ${mono.variable} ${hankenGrotesk.variable}`}
     >
       <head>

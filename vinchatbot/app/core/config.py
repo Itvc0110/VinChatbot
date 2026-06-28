@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     app_database_url_pooled: str | None = Field(
         default=None, validation_alias="APP_DATABASE_URL_POOLED"
     )
+    # Optional dedicated READ-ONLY connection for the personalization DB tools (Phase 5). Point this at
+    # a Neon role with only GRANT SELECT so the student-facing tools can never write, even on a bug. If
+    # unset, the read-only pool falls back to the normal URL but still forces every transaction
+    # read-only (default_transaction_read_only=on) as defense-in-depth.
+    app_database_url_readonly: str | None = Field(
+        default=None, validation_alias="APP_DATABASE_URL_READONLY"
+    )
     app_database_pool_min_size: int = Field(
         default=1, validation_alias="APP_DATABASE_POOL_MIN_SIZE"
     )

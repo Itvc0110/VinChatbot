@@ -142,6 +142,8 @@ export function CreateTicketModal({ open, onClose }: { open: boolean; onClose: (
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     placeholder={p.review.summaryPlaceholder}
+                    required
+                    maxLength={120}
                   />
                 </div>
 
@@ -173,6 +175,7 @@ export function CreateTicketModal({ open, onClose }: { open: boolean; onClose: (
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
                     placeholder={p.review.descriptionPlaceholder}
+                    required
                   />
                 </div>
 

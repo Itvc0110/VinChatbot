@@ -144,7 +144,7 @@ class FakeStudentRepository:
             }
         ]
 
-    async def get_notifications(self, *, user_id, profile):
+    async def get_notifications(self, *, user_id, profile, lang="en"):
         assert user_id == STUDENT_USER_ID
         assert profile["id"] == PROFILE_ID
         return [
@@ -224,7 +224,7 @@ class FakeStudentRepository:
         self.read_notification_ids.update(visible)
         return updated_count
 
-    async def get_suggestions(self, *, user_id, profile):
+    async def get_suggestions(self, *, user_id, profile, lang="en"):
         assert user_id == STUDENT_USER_ID
         assert profile["id"] == PROFILE_ID
         base = {

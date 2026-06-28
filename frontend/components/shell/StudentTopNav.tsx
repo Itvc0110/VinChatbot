@@ -14,6 +14,7 @@ import {
   IconForum,
   IconCap,
 } from "./icons";
+import { LogoCopilot } from "./Logos";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 // Academic Horizon student chrome: a fixed horizontal top navigation bar (DESIGN.md §11.2).
@@ -136,10 +137,10 @@ export function StudentTopNav() {
   return (
     <header className="ah-topnav">
       <Link href="/student/dashboard" className="ah-topnav-brand">
-        <span className="ah-topnav-badge">
-          <IconCap size={18} />
+        <span className="ah-topnav-badge brand-logo-tile">
+          <LogoCopilot size={30} />
         </span>
-        VinUni
+        Student Copilot
       </Link>
 
       <nav aria-label={s.primary}>

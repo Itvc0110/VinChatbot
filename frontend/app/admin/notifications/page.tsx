@@ -147,6 +147,8 @@ export default function AdminNotificationsPage() {
 
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
+  const [titleEn, setTitleEn] = useState("");
+  const [messageEn, setMessageEn] = useState("");
   const [category, setCategory] = useState<NotificationType>("deadline");
   const [priority, setPriority] = useState<NotificationPriority>("medium");
   const [targetScope, setTargetScope] = useState<"all" | "institute">("all");
@@ -197,6 +199,8 @@ export default function AdminNotificationsPage() {
     setEditingId(null);
     setTitle("");
     setMessage("");
+    setTitleEn("");
+    setMessageEn("");
     setCategory("deadline");
     setPriority("medium");
     setTargetScope("all");
@@ -210,8 +214,10 @@ export default function AdminNotificationsPage() {
 
   function editNotification(notification: Notification) {
     setEditingId(notification.id);
-    setTitle(notification.title);
-    setMessage(notification.message);
+    setTitle(notification.title_vi ?? notification.title);
+    setMessage(notification.message_vi ?? notification.message);
+    setTitleEn(notification.title_en ?? "");
+    setMessageEn(notification.message_en ?? "");
     setCategory(notification.type);
     setPriority(notification.priority ?? "medium");
     const audience = notification.target_audience?.[0];
@@ -238,6 +244,10 @@ export default function AdminNotificationsPage() {
     return {
       title: title.trim(),
       message: message.trim(),
+      title_vi: title.trim(),
+      title_en: titleEn.trim() || null,
+      message_vi: message.trim(),
+      message_en: messageEn.trim() || null,
       type: category,
       priority,
       status,
@@ -420,12 +430,20 @@ export default function AdminNotificationsPage() {
             </div>
             <div className="form-grid">
               <div className="field">
-                <label className="field-label" htmlFor="n-title">{p.adminNotif.fTitle}</label>
+                <label className="field-label" htmlFor="n-title">{p.adminNotif.fTitle} (VI)</label>
                 <input id="n-title" className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={p.adminNotif.fTitlePlaceholder} />
               </div>
               <div className="field">
-                <label className="field-label" htmlFor="n-message">{p.adminNotif.fMessage}</label>
+                <label className="field-label" htmlFor="n-title-en">{p.adminNotif.fTitle} (EN)</label>
+                <input id="n-title-en" className="input" value={titleEn} onChange={(e) => setTitleEn(e.target.value)} placeholder={p.adminNotif.fTitlePlaceholder} />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="n-message">{p.adminNotif.fMessage} (VI)</label>
                 <textarea id="n-message" className="textarea" value={message} onChange={(e) => setMessage(e.target.value)} placeholder={p.adminNotif.fMessagePlaceholder} />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="n-message-en">{p.adminNotif.fMessage} (EN)</label>
+                <textarea id="n-message-en" className="textarea" value={messageEn} onChange={(e) => setMessageEn(e.target.value)} placeholder={p.adminNotif.fMessagePlaceholder} />
               </div>
 
               <div className="grid cols-2" style={{ gap: 12 }}>

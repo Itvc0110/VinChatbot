@@ -43,9 +43,9 @@ function matchesFilter(n: Notification, f: NotifFilter): boolean {
 }
 
 export default function StudentNotificationsPage() {
-  const { p } = usePortal();
+  const { p, lang } = usePortal();
   const { token } = useAuth();
-  const loaded = useAsync(getStudentNotifications, [token]);
+  const loaded = useAsync(() => getStudentNotifications(lang), [token, lang]);
   const [items, setItems] = useState<Notification[] | null>(null);
   const [filter, setFilter] = useState<NotifFilter>("all");
   const [toast, setToast] = useState<string | null>(null);

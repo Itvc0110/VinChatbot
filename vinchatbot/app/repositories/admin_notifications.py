@@ -107,6 +107,10 @@ class AdminNotificationRepository:
                 type,
                 title,
                 message,
+                title_vi,
+                title_en,
+                message_vi,
+                message_en,
                 priority,
                 status,
                 target_scope,
@@ -122,13 +126,17 @@ class AdminNotificationRepository:
                 forum_comment_id,
                 created_by
             )
-            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             returning id
             """,
             (
                 request.type,
                 request.title.strip(),
                 request.message.strip(),
+                request.title_vi,
+                request.title_en,
+                request.message_vi,
+                request.message_en,
                 request.priority,
                 request.status,
                 request.target_scope,
@@ -179,6 +187,10 @@ class AdminNotificationRepository:
             "type",
             "title",
             "message",
+            "title_vi",
+            "title_en",
+            "message_vi",
+            "message_en",
             "priority",
             "target_scope",
             "institute_id",
@@ -357,6 +369,10 @@ class AdminNotificationRepository:
                 n.type,
                 n.title,
                 n.message,
+                n.title_vi,
+                n.title_en,
+                n.message_vi,
+                n.message_en,
                 n.priority,
                 n.status,
                 n.target_scope,

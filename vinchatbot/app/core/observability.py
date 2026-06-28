@@ -13,6 +13,7 @@ import logging
 import re
 import uuid
 from collections.abc import Iterable
+from dataclasses import dataclass
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -138,6 +139,51 @@ def get_user_message() -> str | None:
 
 def reset_user_message() -> None:
     _user_message.set(None)
+
+
+# Authenticated student identity for the current turn (Phase 5 personalization). The security core of
+# the personal DB tools: set ONCE by the chat route from the VERIFIED session (never from client or
+# model input) before the agent runs, then read by the read-only personal tools to hard-scope every
+# query to this student's own rows (WHERE student_profile_id = <this id>). Mirrors set_user_message —
+# a parent `.set()` before any task spawns is visible to the child tool tasks (which copy the binding)
+# and the tools only READ it, so no mutable-list write-back is needed. Default None = anon / admin /
+# no session → the personal tools refuse. The LLM is given NO parameter to name a student, so it can
+# never target another student's data by construction.
+@dataclass(frozen=True)
+class StudentIdentity:
+    student_profile_id: uuid.UUID
+    user_id: uuid.UUID
+
+
+_student_identity: contextvars.ContextVar[StudentIdentity | None] = contextvars.ContextVar(
+    "student_identity", default=None
+)
+
+
+def set_student_identity(
+    student_profile_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> contextvars.Token:
+    return _student_identity.set(
+        StudentIdentity(student_profile_id=student_profile_id, user_id=user_id)
+    )
+
+
+def get_student_identity() -> StudentIdentity | None:
+    return _student_identity.get()
+
+
+def reset_student_identity(token: contextvars.Token | None = None) -> None:
+    """Clear the per-turn student identity. Pass the token from set_student_identity for a precise
+    reset (preferred); a bare call resets to None. Always cleared in the route's finally block."""
+    try:
+        if token is not None:
+            _student_identity.reset(token)
+        else:
+            _student_identity.set(None)
+    except (ValueError, LookupError):
+        # Token from a different context (reused across tasks); fall back to a hard clear.
+        _student_identity.set(None)
 
 
 # Per-turn per-stage cost/latency ledger (Phase C). A turn touches several billable stages

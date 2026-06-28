@@ -140,7 +140,7 @@
   color: var(--navy-muted);
   text-decoration: none;
   font-size: var(--fs-sm);
-  font-weight: 550;
+  font-weight: 600;
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
   position: relative;
 }
@@ -200,7 +200,7 @@
   min-width: 0;
 }
 .profile-name {
-  font-weight: 650;
+  font-weight: 700;
   font-size: var(--fs-sm);
 }
 .profile-sub {
@@ -320,7 +320,7 @@
 .section-title {
   margin: 0;
   font-size: var(--fs-md);
-  font-weight: 650;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 
@@ -476,8 +476,12 @@
   transform: scale(0.98);
 }
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.55;
   cursor: not-allowed;
+  /* clearer "inert" affordance: mute the fill and drop any depth/press response */
+  filter: saturate(0.65);
+  box-shadow: none;
+  transform: none;
 }
 .btn-primary {
   background: var(--primary);
@@ -648,7 +652,7 @@ table.data-table {
   margin-bottom: 10px;
 }
 .empty-title {
-  font-weight: 650;
+  font-weight: 700;
   color: var(--foreground);
   margin: 0 0 4px;
 }
@@ -696,7 +700,7 @@ table.data-table {
   border-radius: var(--radius);
   box-shadow: var(--shadow-pop);
   font-size: var(--fs-sm);
-  font-weight: 550;
+  font-weight: 600;
   animation: msg-in var(--dur) var(--ease);
   max-width: 420px;
 }
@@ -999,7 +1003,7 @@ table.data-table {
   display: inline-flex;
 }
 .dropzone .dz-title {
-  font-weight: 650;
+  font-weight: 700;
 }
 .dropzone .dz-sub {
   font-size: var(--fs-xs);
@@ -1694,6 +1698,42 @@ table.data-table {
 .detail-drawer.wide {
   width: min(520px, 96vw);
 }
+.detail-drawer.ticket-detail-modal {
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 70px rgba(0, 40, 85, 0.24);
+  transform: translate(-50%, -46%) scale(0.98);
+  opacity: 0;
+  visibility: hidden;
+  overflow: hidden;
+  transition:
+    opacity var(--dur) var(--ease),
+    visibility var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+}
+.detail-drawer.ticket-detail-modal.open {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+  visibility: visible;
+}
+.detail-drawer.ticket-detail-modal .detail-head {
+  padding: 16px 20px;
+  background: var(--surface-2);
+}
+.detail-drawer.ticket-detail-modal .detail-body {
+  min-height: 0;
+  padding: 18px 20px 20px;
+}
+.detail-drawer.ticket-detail-modal .detail-title {
+  font-size: 18px;
+  line-height: 1.35;
+}
 
 /* source panel base */
 .source-drawer {
@@ -1865,20 +1905,22 @@ table.data-table {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: var(--primary);
-  color: var(--primary-foreground);
-  border: none;
+  /* Light circle so the two-tone Vinnie mascot (navy + red) reads — the logo IS the bubble. */
+  background: var(--surface);
+  border: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 20px rgba(0, 40, 85, 0.18);
   z-index: 60;
-  transition: transform var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: transform var(--dur) var(--ease), background var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
 }
 .vinnie-fab:hover {
-  background: var(--primary-hover);
+  background: var(--surface-2);
   transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(0, 40, 85, 0.24);
 }
 .vinnie-fab-badge {
   position: absolute;
@@ -1896,6 +1938,72 @@ table.data-table {
   align-items: center;
   justify-content: center;
   border: 2px solid var(--surface);
+}
+/* First-visit greeting bubble that types itself out above the FAB, then slides away. */
+.vinnie-intro {
+  position: fixed;
+  z-index: 61;
+  max-width: 260px;
+  text-align: left;
+  padding: 12px 14px;
+  background: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  cursor: pointer;
+  animation: vinnie-intro-in 0.32s var(--ease) both;
+}
+.vinnie-intro.leaving {
+  animation: vinnie-intro-out 0.34s var(--ease) both;
+}
+.vinnie-intro-text {
+  display: inline;
+}
+.vinnie-intro-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: -2px;
+  background: var(--accent);
+  animation: vinnie-intro-caret 0.9s steps(1) infinite;
+}
+@keyframes vinnie-intro-caret {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes vinnie-intro-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes vinnie-intro-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vinnie-intro,
+  .vinnie-intro.leaving {
+    animation: none;
+  }
+  .vinnie-intro-caret {
+    animation: none;
+  }
 }
 .vinnie-widget {
   position: fixed;
@@ -2274,55 +2382,80 @@ table.data-table {
   text-align: center;
   margin-top: 8px;
 }
+/* ---- Premium month grid: one enclosed, rounded "table" with crisp internal grid lines,
+   a tinted weekday header, hover-reveal day cells, and a ringed today. ---- */
+.cal-month {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--shadow-1, 0 1px 2px rgba(16, 24, 40, 0.05));
+}
 .cal-month-dow {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
 }
 .cal-dow-cell {
   text-align: center;
-  padding: 6px 0;
+  padding: 11px 0;
   font-size: var(--fs-xs);
-  font-weight: 600;
-  color: var(--faint);
+  font-weight: 700;
+  color: var(--muted-foreground);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 .cal-month-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-auto-rows: minmax(98px, 1fr);
-  border-top: 1px solid var(--border);
-  border-left: 1px solid var(--border);
+  grid-auto-rows: minmax(118px, 1fr);
 }
 .cal-cell {
+  position: relative;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  padding: 5px;
+  padding: 8px 8px 7px;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
+  background: var(--surface);
+  transition: background var(--dur) var(--ease);
+}
+.cal-cell:nth-child(7n) {
+  border-right: none;
+}
+.cal-cell:hover {
+  background: var(--surface-2);
 }
 .cal-cell.muted {
   background: var(--surface-2);
 }
 .cal-cell.muted .cal-cell-num {
   color: var(--faint);
+  font-weight: 600;
 }
+/* Today — soft brand wash + a 1.5px inset ring that reads above the grid lines. */
 .cal-cell.is-today {
   background: var(--accent-tint);
+  box-shadow: inset 0 0 0 1.5px var(--accent-border);
 }
 .cal-cell-num {
-  font-size: var(--fs-xs);
+  font-size: 12.5px;
   font-weight: 700;
+  color: var(--foreground);
   align-self: flex-start;
+  line-height: 1;
+  padding: 1px;
 }
 .cal-cell.is-today .cal-cell-num {
   background: var(--accent);
   color: var(--primary-foreground);
   border-radius: 50%;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2335,41 +2468,48 @@ table.data-table {
 }
 .cal-more {
   font-size: 11px;
+  font-weight: 600;
   color: var(--muted-foreground);
   background: none;
   border: none;
   cursor: pointer;
   text-align: left;
-  padding: 1px 2px;
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
 }
 .cal-more:hover {
   color: var(--accent);
+  background: var(--accent-tint);
 }
 .cal-event {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   width: 100%;
   text-align: left;
   border: none;
   border-left: 3px solid var(--border-strong);
-  border-radius: 5px;
-  padding: 3px 6px;
+  border-radius: 6px;
+  padding: 3px 8px;
   font-size: var(--fs-xs);
+  font-weight: 500;
+  line-height: 1.35;
   cursor: pointer;
   min-width: 0;
   background: var(--surface-2);
   color: var(--foreground);
   overflow: hidden;
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 .cal-event.compact {
-  padding: 2px 5px;
+  padding: 2px 7px;
 }
 .cal-event-time {
   font-variant-numeric: tabular-nums;
   color: var(--muted-foreground);
   flex: 0 0 auto;
   font-size: 11px;
+  font-weight: 600;
 }
 .cal-event-title {
   overflow: hidden;
@@ -2377,7 +2517,8 @@ table.data-table {
   white-space: nowrap;
 }
 .cal-event:hover {
-  filter: brightness(0.97);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(16, 24, 40, 0.12);
 }
 .ev-class {
   border-left-color: var(--accent);
@@ -2494,10 +2635,23 @@ table.data-table {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 14px 16px;
-  transition: border-color var(--dur) var(--ease);
+  transition:
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
 }
-.ticket-card:hover {
+.ticket-card--clickable {
+  cursor: pointer;
+}
+.ticket-card--clickable:hover {
   border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+.ticket-card--clickable:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring), var(--shadow-sm);
 }
 .ticket-card-top {
   display: flex;
@@ -2519,10 +2673,6 @@ table.data-table {
   font-size: var(--fs-md);
   font-weight: 700;
   color: var(--foreground);
-  cursor: pointer;
-}
-.ticket-title-btn:hover {
-  color: var(--accent);
 }
 .ticket-preview {
   font-size: var(--fs-sm);
@@ -2709,6 +2859,11 @@ table.data-table {
   }
 }
 @media (max-width: 640px) {
+  /* The rounded month wrapper clips by default; on narrow screens let it scroll horizontally
+     so the 7-column grid stays legible instead of being squashed. */
+  .cal-month {
+    overflow-x: auto;
+  }
   .cal-month-grid,
   .cal-month-dow,
   .cal-week {
@@ -2815,16 +2970,9 @@ table.data-table {
 .convo-rail-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
   padding: 14px 14px 10px;
-}
-.convo-rail-title {
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--faint);
 }
 .convo-new {
   white-space: nowrap;
@@ -2863,7 +3011,7 @@ table.data-table {
   border: none;
   background: transparent;
   color: var(--muted-foreground);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-body);
   padding: 8px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -3113,29 +3261,34 @@ table.data-table {
 }
 
 /* ---------- Report-a-problem floating button ---------- */
+/* Secondary utility FAB — intentionally quieter than the Vinnie bubble: smaller, muted
+   (neutral until hover), lighter shadow, so the two floating actions don't compete. */
 .report-fab {
   position: fixed;
-  right: 88px;
-  bottom: 22px;
-  width: 56px;
-  height: 56px;
+  right: 84px;
+  bottom: 28px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   background: var(--surface);
-  color: var(--danger);
+  color: var(--muted-foreground);
   border: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
-  z-index: 60;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+  opacity: 0.78;
+  z-index: 59;
   transition: transform var(--dur) var(--ease), background var(--dur) var(--ease),
-    border-color var(--dur) var(--ease);
+    border-color var(--dur) var(--ease), color var(--dur) var(--ease), opacity var(--dur) var(--ease);
 }
 .report-fab:hover {
   transform: translateY(-2px);
   background: var(--surface-2);
   border-color: var(--danger);
+  color: var(--danger);
+  opacity: 1;
 }
 .report-intro {
   margin: 0;

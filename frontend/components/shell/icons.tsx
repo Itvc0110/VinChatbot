@@ -135,11 +135,10 @@ export const IconArrow = ({ size = 18 }: P) => (
 );
 
 export const IconCap = ({ size = 18 }: P) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden>
-    <path
-      fill="currentColor"
-      d="M12 3 1 8l11 5 9-4.09V14h2V8L12 3zM5 13.18v3.2L12 20l7-3.62v-3.2l-7 3.2-7-3.4z"
-    />
+  <svg {...base(size)}>
+    <path d="M22 9 12 5 2 9l10 4 10-4Z" />
+    <path d="M6 11.3V16c0 1.1 2.7 2.8 6 2.8s6-1.7 6-2.8v-4.7" />
+    <path d="M22 9v4.5" />
   </svg>
 );
 

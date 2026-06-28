@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth, type SessionUser } from "@/lib/auth";
 import { usePortal } from "@/lib/portalI18n";
 import { IconCap, IconShield } from "@/components/shell/icons";
+import { LogoCopilot } from "@/components/shell/Logos";
 
 const DEMO_PASSWORD = "Demo@123456";
 const DEMO_STUDENT_EMAIL = "student.cs.demo@vinuni.edu.vn";
@@ -66,12 +67,12 @@ export function LoginCard() {
     <div className="ah-login">
       <div className="ah-login-card">
         <div className="ah-login-brand">
-          <span className="ah-login-badge">
-            <IconCap size={26} />
+          <span className="ah-login-badge brand-logo-tile">
+            <LogoCopilot size={44} />
           </span>
           <div>
             <div className="ah-login-brand-name">Student Copilot</div>
-            <div className="ah-login-brand-sub">VinUniversity</div>
+            <div className="ah-login-brand-sub">VinUni Academic Assistant</div>
           </div>
         </div>
 

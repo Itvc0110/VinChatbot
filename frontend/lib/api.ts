@@ -157,6 +157,10 @@ export interface BackendAdminNotification {
   type: string;
   title: string;
   message: string;
+  title_vi?: string | null;
+  title_en?: string | null;
+  message_vi?: string | null;
+  message_en?: string | null;
   priority: string;
   status: string;
   target_scope: string;
@@ -191,6 +195,10 @@ export interface AdminNotificationPayload {
   type?: NotificationType | string;
   title?: string;
   message?: string;
+  title_vi?: string | null;
+  title_en?: string | null;
+  message_vi?: string | null;
+  message_en?: string | null;
   priority?: Notification["priority"];
   status?: Notification["status"];
   target_scope?: "all" | "institute" | "cohort";
@@ -843,6 +851,10 @@ function mapAdminNotification(notification: BackendAdminNotification): Notificat
     type: safeNotificationType(notification.type),
     title: notification.title,
     message: notification.message,
+    title_vi: notification.title_vi ?? undefined,
+    title_en: notification.title_en ?? undefined,
+    message_vi: notification.message_vi ?? undefined,
+    message_en: notification.message_en ?? undefined,
     created_at: notification.created_at,
     read: false,
     important:
@@ -1237,8 +1249,11 @@ export async function deleteSupportTicket(ticketId: string): Promise<SupportTick
 
 // ---- Notifications ----------------------------------------------------------
 // [LIVE] GET /students/me/notifications -> Notification[]
-export async function getStudentNotifications(): Promise<Notification[]> {
-  const rows = await getJSON<BackendNotification[]>("/api/students/me/notifications");
+// `lang` selects the VI/EN variant of each notification's title/message (default VI).
+export async function getStudentNotifications(lang: Lang = "vi"): Promise<Notification[]> {
+  const rows = await getJSON<BackendNotification[]>(
+    `/api/students/me/notifications?lang=${encodeURIComponent(lang)}`
+  );
   return rows.map(mapNotification);
 }
 
@@ -1298,6 +1313,10 @@ export async function createNotification(input: {
   source_url?: string | null;
   forum_topic_id?: string | null;
   forum_comment_id?: string | null;
+  title_vi?: string | null;
+  title_en?: string | null;
+  message_vi?: string | null;
+  message_en?: string | null;
 }): Promise<Notification> {
   const row = await apiRequest<BackendAdminNotification>("/api/admin/notifications", {
     method: "POST",
@@ -1306,6 +1325,10 @@ export async function createNotification(input: {
       type: input.type,
       title: input.title.trim(),
       message: input.message.trim(),
+      title_vi: input.title_vi ?? null,
+      title_en: input.title_en ?? null,
+      message_vi: input.message_vi ?? null,
+      message_en: input.message_en ?? null,
       priority: input.priority ?? "medium",
       status: input.status ?? "draft",
       target_scope: input.target_scope ?? "all",
@@ -1336,6 +1359,10 @@ export async function updateNotification(
       type: patch.type,
       title: patch.title,
       message: patch.message,
+      title_vi: patch.title_vi,
+      title_en: patch.title_en,
+      message_vi: patch.message_vi,
+      message_en: patch.message_en,
       priority: patch.priority,
       target_scope: patch.target_scope,
       institute_id: patch.institute_id,
@@ -1422,14 +1449,19 @@ export async function generateSuggestedQuestions(input: {
 }
 
 // [LIVE] GET /suggestions/me -> grouped suggested questions
-export async function getSuggestedQuestions(): Promise<BackendSuggestedQuestionGroups> {
-  return getJSON<BackendSuggestedQuestionGroups>("/api/suggestions/me");
+// `lang` selects the VI/EN variant of each question's text (default VI).
+export async function getSuggestedQuestions(
+  lang: Lang = "vi"
+): Promise<BackendSuggestedQuestionGroups> {
+  return getJSON<BackendSuggestedQuestionGroups>(
+    `/api/suggestions/me?lang=${encodeURIComponent(lang)}`
+  );
 }
 
 export async function getActiveSuggestedQuestions(
-  _lang: Lang = "en"
+  lang: Lang = "vi"
 ): Promise<SuggestedQuestion[]> {
-  const groups = await getSuggestedQuestions();
+  const groups = await getSuggestedQuestions(lang);
   return [
     ...groups.for_you,
     ...groups.trending_now,
@@ -1707,11 +1739,15 @@ function inferCategory(title: string): SourceCategory {
 }
 
 function mapSummaryToSource(s: SourceSummary, i: number): KnowledgeSource {
-  const type = s.document_type?.includes("pdf")
-    ? "pdf"
-    : s.document_type === "spreadsheet" || s.document_type === "csv"
-    ? "database"
-    : "url";
+  const url = s.source_url || "";
+  const type =
+    s.document_type?.includes("pdf") || /\.pdf(\?|$)/i.test(url)
+      ? "pdf"
+      : /\.docx(\?|$)/i.test(url)
+      ? "docx"
+      : s.document_type === "spreadsheet" || s.document_type === "csv"
+      ? "database"
+      : "url";
   return {
     id: s.content_hash?.slice(0, 12) || `src-${i}`,
     name: s.document_title || s.source_url,
@@ -1731,10 +1767,10 @@ export async function getKnowledgeSources(): Promise<KnowledgeSource[]> {
   return Array.isArray(summaries) ? summaries.map(mapSummaryToSource) : [];
 }
 
-// [LIVE-ish] POST /api/ingest/run  (FastAPI POST /ingest/run)
-//   body: { urls: string[], force: boolean } -> IngestRunResponse
-// URL sources crawl + index through the real pipeline. File uploads (PDF/DOCX) have no
-// backend endpoint yet, so they resolve through the mock path below.
+// [LIVE] Knowledge Base ingestion (admin-only). URL crawl → POST /api/ingest/run; file upload
+// (PDF/DOCX from device) → POST /api/ingest/upload (multipart). Both run the real pipeline
+// (parse → chunk → embed → upsert to the vector DB) and return IngestRunResponse. All calls go
+// through apiRequest, which attaches the Bearer token the backend now requires.
 export interface IngestRunResponse {
   crawled_documents: number;
   indexed_chunks: number;
@@ -1742,46 +1778,67 @@ export interface IngestRunResponse {
   sources: string[];
 }
 
+// Real extracted-text preview for the admin review step (FastAPI POST /ingest/preview).
+// Parses the file/URL and returns the actual text — no embedding/indexing happens yet.
+export interface IngestPreview {
+  title: string;
+  document_type: string;
+  char_count: number;
+  estimated_chunks: number;
+  preview_text: string;
+  truncated: boolean;
+}
+
+export async function previewKnowledgeSource(input: {
+  url?: string;
+  file?: File | null;
+  title?: string;
+}): Promise<IngestPreview> {
+  const form = new FormData();
+  if (input.file) form.append("file", input.file);
+  if (input.url) form.append("url", input.url);
+  if (input.title) form.append("title", input.title);
+  // Multipart: no Content-Type header (browser sets the boundary); apiRequest adds the token.
+  return apiRequest<IngestPreview>("/api/ingest/preview", { method: "POST", body: form });
+}
+
 export async function uploadKnowledgeSource(input: {
   url?: string;
   file?: File | null;
   category: SourceCategory;
-  // Optional metadata captured by the upload form. The live /ingest/run pipeline derives
-  // its own title; these are forwarded as the contract for a future /ingest/upload route.
+  // Title is honored by the upload route; the URL crawl derives its own title from the page.
   title?: string;
   source_type?: "pdf" | "docx" | "url";
 }): Promise<IngestRunResponse> {
   if (input.url) {
-    const res = await fetch("/api/ingest/run", {
+    return apiRequest<IngestRunResponse>("/api/ingest/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ urls: [input.url], force: true }),
     });
-    if (!res.ok) throw new Error(`Ingest failed (${res.status})`);
-    return (await res.json()) as IngestRunResponse;
   }
-  // [MOCK] TODO future backend contract: POST /ingest/upload (multipart: file, category)
-  //   -> IngestRunResponse. No FastAPI route exists for binary uploads yet.
-  return delay(
-    {
-      crawled_documents: 1,
-      indexed_chunks: input.file ? Math.max(8, Math.round(input.file.size / 4000)) : 10,
-      skipped_documents: 0,
-      sources: [input.file?.name ?? "uploaded-document"],
-    },
-    1100
-  );
+  if (input.file) {
+    // Multipart: do NOT set Content-Type — the browser adds the boundary. apiRequest still
+    // attaches the Authorization header.
+    const form = new FormData();
+    form.append("file", input.file);
+    if (input.category) form.append("category", input.category);
+    if (input.title) form.append("title", input.title);
+    return apiRequest<IngestRunResponse>("/api/ingest/upload", {
+      method: "POST",
+      body: form,
+    });
+  }
+  throw new ApiError("Provide a URL or a file to upload.", 400);
 }
 
-// [LIVE-ish] Re-crawl a source by URL through POST /ingest/run (force=true).
+// [LIVE] Re-crawl a source by URL through POST /ingest/run (force=true).
 export async function recrawlSource(sourceUrl: string): Promise<IngestRunResponse> {
-  const res = await fetch("/api/ingest/run", {
+  return apiRequest<IngestRunResponse>("/api/ingest/run", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ urls: [sourceUrl], force: true }),
   });
-  if (!res.ok) throw new Error(`Re-crawl failed (${res.status})`);
-  return (await res.json()) as IngestRunResponse;
 }
 
 // [MOCK] TODO future backend contract: POST /sources/{id}/disable -> { ok: true }

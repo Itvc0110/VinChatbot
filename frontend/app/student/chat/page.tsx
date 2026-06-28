@@ -13,7 +13,8 @@ import { usePortal } from "@/lib/portalI18n";
 import { useAuth } from "@/lib/auth";
 import { useAsync } from "@/lib/useAsync";
 import { getActiveSuggestedQuestions } from "@/lib/api";
-import { IconClock, IconBell, IconTicket, IconCalendar, IconChat } from "@/components/shell/icons";
+import { IconClock, IconBell, IconTicket, IconCalendar } from "@/components/shell/icons";
+import { LogoVinnie } from "@/components/shell/Logos";
 
 const SUGG_ICONS = [IconClock, IconBell, IconTicket, IconCalendar];
 
@@ -42,17 +43,25 @@ function ChatView() {
   // Register this surface so completed answers don't bump the floating-bubble unread badge.
   useEffect(() => chat.registerViewer(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Initial question passed via ?q= (from dashboard quick-ask / suggested chips).
-  const sentInitial = useRef(false);
+  // Entering the Vinnie AI tab always lands on a fresh conversation (the welcome state) rather
+  // than restoring whichever conversation happened to be active — past chats stay available in
+  // the rail. A ?q= (dashboard quick-ask / suggested chip) opens its own new conversation and
+  // sends the question. Runs once per mount; route changes re-mount and re-run.
+  const didInit = useRef(false);
   useEffect(() => {
-    if (sentInitial.current) return;
+    if (didInit.current) return;
+    // Wait for history to settle: on a direct load the async conversation list reconciles the
+    // active conversation, and resetting before that would just get overridden.
+    if (chat.historyLoading) return;
+    didInit.current = true;
     const q = searchParams.get("q");
     if (q && q.trim()) {
-      sentInitial.current = true;
-      chat.send(q.trim());
+      chat.newConversationWithMessage(q.trim());
+    } else {
+      chat.newConversation();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [chat.historyLoading]);
 
   // Initial welcome + suggestion cards show only for an empty conversation; once the first
   // message is sent (or an existing conversation with messages is opened) the streaming
@@ -92,8 +101,8 @@ function ChatView() {
           ) : empty ? (
             <div className="vinnie-welcome-wrap">
               <div className="vinnie-welcome">
-                <span className="vinnie-avatar-lg">
-                  <IconChat size={30} />
+                <span className="vinnie-avatar-lg brand-logo-tile">
+                  <LogoVinnie size={62} />
                 </span>
                 <h1 className="vinnie-welcome-title">{p.chatWelcomeTitle(firstName)}</h1>
                 <p className="vinnie-welcome-sub">{p.chatWelcomeSub}</p>

@@ -71,14 +71,14 @@ const T = {
   },
   policy: {
     en: [
-      "Open the official source",
       "Are there any exceptions?",
       "Prepare a support ticket",
+      "Which office should I contact?",
     ],
     vi: [
-      "Mở nguồn chính thức",
       "Có ngoại lệ nào không?",
       "Soạn phiếu hỗ trợ",
+      "Tôi nên liên hệ phòng ban nào?",
     ],
   },
   // Low confidence / no usable sources → steer to a human channel.
@@ -91,12 +91,12 @@ const T = {
     en: [
       "Can you explain more?",
       "Which office should I contact?",
-      "Where can I read the official policy?",
+      "Prepare a support ticket",
     ],
     vi: [
       "Giải thích thêm giúp tôi?",
       "Tôi nên liên hệ phòng ban nào?",
-      "Tôi đọc chính sách chính thức ở đâu?",
+      "Soạn phiếu hỗ trợ",
     ],
   },
 } as const;
@@ -138,15 +138,26 @@ export function followUpsFor(
   lang: Lang
 ): string[] {
   const fromBackend = backendSuggestions(response);
-  if (fromBackend.length) return fromBackend.slice(0, 5);
+  if (fromBackend.length) return removeSourceOpenSuggestions(fromBackend).slice(0, 5);
 
-  return generateFollowUpSuggestions({
-    userQuestion: question,
-    assistantAnswer: response.answer,
-    language: lang,
-    confidence: response.confidence,
-    citationCount: response.citations.length,
-    needsReview: response.needs_human_review,
+  return removeSourceOpenSuggestions(
+    generateFollowUpSuggestions({
+      userQuestion: question,
+      assistantAnswer: response.answer,
+      language: lang,
+      confidence: response.confidence,
+      citationCount: response.citations.length,
+      needsReview: response.needs_human_review,
+    })
+  );
+}
+
+function removeSourceOpenSuggestions(items: string[]): string[] {
+  return items.filter((q) => {
+    const text = q.trim();
+    return !/\b(open|view|read)\b.*\b(source|policy)\b|\bsource\b|mở\s+nguồn|nguồn\s+chính\s+thức|chính\s+sách\s+chính\s+thức/i.test(
+      text
+    );
   });
 }
 
