@@ -268,8 +268,8 @@
   color: #fff;
 }
 [data-theme="dark"] .ah-topnav {
-  /* its own navy-tinted dark surface, distinct from the page (#16161a) and the
-     default card surface (#1d1e22); blue-gray hairline; soft (not harsh) depth */
+  /* its own navy-tinted dark surface, distinct from the page (#0a0e15) and the
+     default card surface (#11161f); blue-gray hairline; soft (not harsh) depth */
   min-height: 64px;
   padding-block: 0;
   background: #1a2130;
@@ -413,7 +413,7 @@
 }
 [data-theme="dark"] .ah-studentshell ::selection,
 [data-theme="dark"] .ah-authframe ::selection {
-  background: rgba(79, 155, 224, 0.30);
+  background: rgba(95, 145, 240, 0.32);
 }
 
 /* ============================================================================
@@ -466,9 +466,9 @@
 }
 [data-theme="dark"] .vinnie-avatar-lg {
   /* deeper navy/blue glow so the icon block feels lit, not flat, in dark mode */
-  box-shadow: 0 0 0 6px rgba(79, 155, 224, 0.16),
-    0 0 38px rgba(79, 155, 224, 0.30),
-    0 14px 34px rgba(0, 0, 0, 0.55),
+  box-shadow: 0 0 0 6px rgba(95, 145, 240, 0.18),
+    0 0 38px rgba(95, 145, 240, 0.32),
+    0 14px 34px rgba(2, 6, 18, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 

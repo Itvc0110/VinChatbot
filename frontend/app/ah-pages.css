@@ -639,6 +639,18 @@
   font-family: var(--ah-font-head), "Hanken Grotesk", var(--ah-font-body);
   font-size: 28px; font-weight: 700; letter-spacing: 0; margin: 0 0 8px; color: var(--ah-text);
 }
+/* NurA-style gradient headline — a soft top-light → blue fade. Dark-mode only,
+   where the deep blue-black backdrop lets it glow; light mode keeps solid ink.
+   The extra line-height + padding keeps Vietnamese diacritics off the clip box. */
+[data-theme="dark"] .vinnie-welcome-title {
+  background: linear-gradient(180deg, #f1f6ff 0%, #a8c6f6 80%, #7ea9ee 118%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  line-height: 1.22;
+  padding-bottom: 0.06em;
+}
 .vinnie-welcome-sub { font-size: 15px; color: var(--ah-muted); max-width: 56ch; margin: 0 0 28px; line-height: 1.5; }
 .vinnie-sugg-grid {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: 100%; max-width: 620px;
