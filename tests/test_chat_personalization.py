@@ -10,6 +10,7 @@ from typing import Any
 import vinchatbot.app.agents.vinuni_agent as agent_mod
 from vinchatbot.app.api import routes_chat
 from vinchatbot.app.core.config import get_settings
+from vinchatbot.app.core.observability import reset_student_identity, set_student_identity
 from vinchatbot.app.repositories.auth import AuthenticatedUser
 from vinchatbot.app.schemas.chat import ChatRequest, ChatResponse
 from vinchatbot.app.schemas.personalization import (
@@ -363,3 +364,58 @@ def test_agent_hybrid_question_still_requires_citations_for_policy(monkeypatch):
 
     # Hybrid scope does NOT grant the trusted bypass, so an uncited policy claim still degrades.
     assert response.answer != answer
+
+
+# --- Checkpointer isolation (cross-student memory bleed) --------------------------------------
+# The LangGraph checkpointer replays a thread's full history into every turn, carrying the prior
+# turn's personalization context + personal-tool results. The thread_id MUST be namespaced by the
+# verified user so two signed-in students who share a client-supplied conversation_id can never
+# share agent memory (which would make the bot answer student B with student A's replayed identity).
+
+
+class _ConfigCapturingAgent:
+    def __init__(self) -> None:
+        self.configs: list[dict[str, Any]] = []
+
+    async def ainvoke(self, payload, config):
+        self.configs.append(config)
+        return {"messages": [SimpleNamespace(content="ok")]}
+
+
+def _capturing_service(monkeypatch) -> tuple[Any, _ConfigCapturingAgent]:
+    _stub_input_guard(monkeypatch)
+    settings = get_settings().model_copy(update={"enable_output_moderation": False})
+    agent = _ConfigCapturingAgent()
+    service = agent_mod.VinUniAgentService(
+        settings=settings, retriever=SimpleNamespace(), agent=agent
+    )
+    return service, agent
+
+
+def test_checkpointer_thread_is_namespaced_by_verified_user(monkeypatch):
+    service, agent = _capturing_service(monkeypatch)
+    token = set_student_identity(student_profile_id=PROFILE_ID, user_id=STUDENT_USER_ID)
+    try:
+        _run(service.chat(ChatRequest(message="GPA của tôi là bao nhiêu?", conversation_id="shared")))
+    finally:
+        reset_student_identity(token)
+    assert agent.configs[0]["configurable"]["thread_id"] == f"u:{STUDENT_USER_ID}:shared"
+
+
+def test_checkpointer_thread_unnamespaced_without_identity(monkeypatch):
+    service, agent = _capturing_service(monkeypatch)
+    _run(service.chat(ChatRequest(message="VinUni có ngành nào?", conversation_id="shared")))
+    assert agent.configs[0]["configurable"]["thread_id"] == "shared"
+
+
+def test_two_students_sharing_conversation_id_get_distinct_threads(monkeypatch):
+    service, agent = _capturing_service(monkeypatch)
+    other_user_id = uuid.UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
+    for uid in (STUDENT_USER_ID, other_user_id):
+        token = set_student_identity(student_profile_id=PROFILE_ID, user_id=uid)
+        try:
+            _run(service.chat(ChatRequest(message="Mã số sinh viên của tôi?", conversation_id="dup")))
+        finally:
+            reset_student_identity(token)
+    threads = [c["configurable"]["thread_id"] for c in agent.configs]
+    assert threads[0] != threads[1]  # same conversation_id, different verified users → no shared memory

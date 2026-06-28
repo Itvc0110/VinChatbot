@@ -123,7 +123,19 @@ class VinUniAgentService:
             bool(request.backend_personalization_context) and scope == "personal_app_data"
         )
 
-        config = {"configurable": {"thread_id": request.conversation_id}}
+        # SECURITY (isolation): the LangGraph checkpointer replays a thread's full message history
+        # into every turn, and that history carries the prior turn's personalization context + personal
+        # tool results (GPA, student code, schedule). The conversation_id is CLIENT-supplied, so two
+        # different signed-in students sharing one id would share agent memory and the bot would answer
+        # student B with student A's replayed identity. Namespace the thread by the VERIFIED user id so
+        # two users can NEVER collide on a checkpointer thread, whatever conversation_id the client sends.
+        identity = get_student_identity()
+        thread_id = (
+            f"u:{identity.user_id}:{request.conversation_id}"
+            if identity is not None
+            else request.conversation_id
+        )
+        config = {"configurable": {"thread_id": thread_id}}
         user_message = request.message
         if request.filters:
             user_message = (

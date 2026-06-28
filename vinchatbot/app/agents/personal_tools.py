@@ -99,6 +99,53 @@ def _fmt(dt: datetime | None) -> str | None:
     return dt.strftime("%Y-%m-%d %H:%M") if dt else None
 
 
+def _academic_meeting(row: dict) -> dict:
+    """Build a meeting dict from an academic class_meetings row. Carries internal `_start`/`_end`
+    (VN-localized datetimes) for current/next computation; strip them with `_strip_internal` before
+    returning to the model."""
+    start_vn = _to_vn(row.get("start_at"))
+    end_vn = _to_vn(row.get("end_at"))
+    return {
+        "course_code": row.get("course_code"),
+        "course_name": row.get("course_name"),
+        "title": row.get("title"),
+        "type": row.get("meeting_type"),
+        "start": _fmt(start_vn),
+        "end": _fmt(end_vn),
+        "_start": start_vn,
+        "_end": end_vn,
+        "section": row.get("section_code"),
+        "instructor": row.get("instructor_name"),
+        "room": row.get("room_name"),
+        "building": row.get("building"),
+    }
+
+
+def _portal_meeting(row: dict) -> dict:
+    """Build a meeting dict from a portal `schedules` row (the secondary data model)."""
+    start_vn = _to_vn(row.get("start_time"))
+    end_vn = _to_vn(row.get("end_time"))
+    return {
+        "course_code": row.get("course_code"),
+        "course_name": row.get("course_title"),
+        "title": row.get("title"),
+        "type": row.get("schedule_type"),
+        "start": _fmt(start_vn),
+        "end": _fmt(end_vn),
+        "_start": start_vn,
+        "_end": end_vn,
+        "room": row.get("room"),
+        "building": row.get("building"),
+        "instructor": row.get("instructor"),
+    }
+
+
+def _strip_internal(meeting: dict | None) -> dict | None:
+    if not meeting:
+        return meeting
+    return {k: v for k, v in meeting.items() if k not in ("_start", "_end")}
+
+
 def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = None) -> list[Any]:
     """Build the read-only, session-scoped personal tools over the given (read-only) pool.
 
