@@ -8,6 +8,7 @@ import {
   IconTicket,
   IconChat,
 } from "@/components/shell/icons";
+import { LogoCopilot } from "@/components/shell/Logos";
 
 // Presentational LEFT panel for the split-screen login: a general, non-personalized intro to
 // the VinUni Student Copilot. NO user-specific data (the visitor isn't authenticated yet) — only
@@ -17,7 +18,7 @@ const STR = {
   en: {
     label: "About VinUni Student Copilot",
     brandName: "Student Copilot",
-    brandSub: "VinUniversity",
+    brandSub: "VinUni Academic Assistant",
     title: "Welcome to VinUni Student Copilot",
     subtitle:
       "Your personalized academic companion for schedules, announcements, support requests, and smart guidance from Vinnie — in one secure student portal.",
@@ -33,7 +34,7 @@ const STR = {
   vi: {
     label: "Giới thiệu VinUni Student Copilot",
     brandName: "Student Copilot",
-    brandSub: "VinUniversity",
+    brandSub: "Trợ lý học tập VinUni",
     title: "Chào mừng đến với VinUni Student Copilot",
     subtitle:
       "Người bạn đồng hành học tập cho lịch học, thông báo, yêu cầu hỗ trợ và hướng dẫn thông minh từ Vinnie — trong một cổng sinh viên an toàn.",
@@ -71,8 +72,8 @@ export function LoginHeroPanel() {
 
       <div className="login-hero-content">
         <div className="login-brand-block">
-          <span className="login-brand-badge" aria-hidden="true">
-            <IconCap size={24} />
+          <span className="login-brand-badge brand-logo-tile" aria-hidden="true">
+            <LogoCopilot size={42} />
           </span>
           <div>
             <div className="login-brand-name">{s.brandName}</div>

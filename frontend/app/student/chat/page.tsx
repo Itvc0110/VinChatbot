@@ -13,7 +13,8 @@ import { usePortal } from "@/lib/portalI18n";
 import { useAuth } from "@/lib/auth";
 import { useAsync } from "@/lib/useAsync";
 import { getActiveSuggestedQuestions } from "@/lib/api";
-import { IconClock, IconBell, IconTicket, IconCalendar, IconChat } from "@/components/shell/icons";
+import { IconClock, IconBell, IconTicket, IconCalendar } from "@/components/shell/icons";
+import { LogoVinnie } from "@/components/shell/Logos";
 
 const SUGG_ICONS = [IconClock, IconBell, IconTicket, IconCalendar];
 
@@ -100,8 +101,8 @@ function ChatView() {
           ) : empty ? (
             <div className="vinnie-welcome-wrap">
               <div className="vinnie-welcome">
-                <span className="vinnie-avatar-lg">
-                  <IconChat size={30} />
+                <span className="vinnie-avatar-lg brand-logo-tile">
+                  <LogoVinnie size={62} />
                 </span>
                 <h1 className="vinnie-welcome-title">{p.chatWelcomeTitle(firstName)}</h1>
                 <p className="vinnie-welcome-sub">{p.chatWelcomeSub}</p>

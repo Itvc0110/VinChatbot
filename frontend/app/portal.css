@@ -1905,20 +1905,22 @@ table.data-table {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: var(--primary);
-  color: var(--primary-foreground);
-  border: none;
+  /* Light circle so the two-tone Vinnie mascot (navy + red) reads — the logo IS the bubble. */
+  background: var(--surface);
+  border: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 20px rgba(0, 40, 85, 0.18);
   z-index: 60;
-  transition: transform var(--dur) var(--ease), background var(--dur) var(--ease);
+  transition: transform var(--dur) var(--ease), background var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
 }
 .vinnie-fab:hover {
-  background: var(--primary-hover);
+  background: var(--surface-2);
   transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(0, 40, 85, 0.24);
 }
 .vinnie-fab-badge {
   position: absolute;

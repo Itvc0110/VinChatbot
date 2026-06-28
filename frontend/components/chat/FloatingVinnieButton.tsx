@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useChat } from "@/lib/chat";
 import { useI18n } from "@/lib/i18n";
-import { IconChat } from "@/components/shell/icons";
+import { LogoVinnie } from "@/components/shell/Logos";
 import { VinnieChatWidget } from "./VinnieChatWidget";
 
 const STR = {
@@ -273,7 +273,7 @@ export function FloatingVinnieButton() {
             aria-label={s.askVinnie}
             title={s.askVinnie}
           >
-            <IconChat size={24} />
+            <LogoVinnie size={54} />
             {chat.unread > 0 && (
               <span className="vinnie-fab-badge" aria-hidden="true">
                 {chat.unread > 9 ? "9+" : chat.unread}

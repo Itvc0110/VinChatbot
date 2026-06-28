@@ -946,3 +946,20 @@
     max-width: none;
   }
 }
+
+/* ============================================================================
+   Brand logo tiles — the two-tone Student Copilot / Vinnie marks (navy + red on
+   white, see components/shell/Logos.tsx) need a light backing to stay legible in
+   both themes. This utility (loaded last) overrides the brand-filled badge
+   backgrounds on the elements that now hold a Logo* instead of a stroke icon.
+   ============================================================================ */
+.brand-logo-tile {
+  background: #fff;
+  border: 1px solid var(--ah-border, rgba(0, 0, 0, 0.1));
+  color: inherit;
+  overflow: hidden;
+}
+.brand-logo-tile img,
+.brand-logo-tile svg {
+  display: block;
+}
