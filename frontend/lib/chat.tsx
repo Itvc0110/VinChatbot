@@ -34,6 +34,7 @@ import {
   postChat,
   postChatStream,
   submitTicket,
+  suggestTicketDraft,
   saveTicketDraft,
   updateConversation,
   type BackendConversationMessage,
@@ -266,8 +267,10 @@ interface ChatContextValue {
   // Smart ticket draft (PLAN22.6): Vinnie prepares a draft → student reviews → sends. The
   // draft lives here in React state only (never persisted) until the student submits.
   ticketDraft: TicketDraft | null;
-  prepareDraftFromAnswer: (question: string, response: ChatResponse) => void;
+  prepareDraftFromAnswer: (question: string, response: ChatResponse) => Promise<void>;
   prepareBlankDraft: (seed?: Partial<TicketDraft>) => void;
+  // True while Vinnie's draft suggestion is being fetched (the drawer shows a "drafting…" state).
+  draftSuggesting: boolean;
   updateDraft: (patch: Partial<TicketDraft>) => void;
   cancelDraft: () => void;
   // `override` lets a self-contained form (e.g. CreateTicketModal) submit/save a fully-built
@@ -301,6 +304,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [toast, setToast] = useState<string | null>(null);
   const [ticketDraft, setTicketDraft] = useState<TicketDraft | null>(null);
   const [draftBusy, setDraftBusy] = useState(false);
+  const [draftSuggesting, setDraftSuggesting] = useState(false);
   const [ticketsRevision, setTicketsRevision] = useState(0);
   const [composerSeed, setComposerSeed] = useState<{ text: string; nonce: number } | null>(null);
   const seedNonce = useRef(0);
@@ -781,9 +785,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   // --- Smart ticket draft (review-before-send) -------------------------------
   const prepareDraftFromAnswer = useCallback(
-    (question: string, response: ChatResponse) => {
+    async (question: string, response: ChatResponse) => {
+      const draftId = nextDraftId();
+      // Open the drawer immediately with a heuristic draft (feels instant), then let Vinnie refine it.
       setTicketDraft({
-        id: nextDraftId(),
+        id: draftId,
         subject: question.trim().slice(0, 80) || "Support request",
         body: response.answer,
         department: DEPARTMENTS[0],
@@ -793,7 +799,27 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         source_conversation_id: dbConversationId,
         origin_question: question,
         context_preview: shortSummary(question, response.answer),
+        created_by_ai: false,
       });
+      // Ask Vinnie (small/fast model) for a proper summary/description/category. Fields are locked in
+      // the drawer while this runs, so overwriting is safe. Only apply if THIS draft is still open
+      // (the student may have cancelled). On failure we keep the heuristic draft.
+      setDraftSuggesting(true);
+      try {
+        const s = await suggestTicketDraft({
+          origin_question: question,
+          answer: response.answer,
+        });
+        setTicketDraft((cur) =>
+          cur && cur.id === draftId
+            ? { ...cur, subject: s.subject, body: s.body, category: s.category, created_by_ai: true }
+            : cur
+        );
+      } catch {
+        // keep the heuristic draft (created_by_ai stays false)
+      } finally {
+        setDraftSuggesting(false);
+      }
     },
     [dbConversationId]
   );
@@ -825,6 +851,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const cancelDraft = useCallback(() => {
     setTicketDraft(null);
     setDraftBusy(false);
+    setDraftSuggesting(false);
   }, []);
 
   const saveDraft = useCallback(
@@ -1039,6 +1066,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     ticketDraft,
     prepareDraftFromAnswer,
     prepareBlankDraft,
+    draftSuggesting,
     updateDraft,
     cancelDraft,
     saveDraft,

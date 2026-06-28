@@ -91,7 +91,7 @@ class TicketRepository:
                         submitted_at
                     )
                     values (
-                        %s, %s, %s, %s, %s, %s, %s, 'submitted', true, false,
+                        %s, %s, %s, %s, %s, %s, %s, 'submitted', true, %s,
                         %s, %s, %s, %s, now()
                     )
                     returning id
@@ -104,6 +104,7 @@ class TicketRepository:
                         request.department,
                         request.category,
                         request.priority,
+                        request.created_by_ai,
                         request.include_chat_context,
                         request.included_context if request.include_chat_context else None,
                         request.source_conversation_id,

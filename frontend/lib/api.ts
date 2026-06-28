@@ -388,6 +388,7 @@ export interface CreateTicketPayload {
   included_context?: string | null;
   source_conversation_id?: string | null;
   origin_question?: string | null;
+  created_by_ai?: boolean;
 }
 
 export interface AddTicketMessagePayload {
@@ -1097,6 +1098,7 @@ function ticketCreatePayload(payload: CreateTicketPayload): Record<string, unkno
         : undefined,
     source_conversation_id: sourceConversationId,
     origin_question: payload.origin_question ?? undefined,
+    created_by_ai: payload.created_by_ai ?? false,
   };
 }
 
@@ -1121,7 +1123,34 @@ export async function submitTicket(draft: TicketDraft): Promise<SupportTicket> {
     included_context: draft.context_preview,
     source_conversation_id: draft.source_conversation_id,
     origin_question: draft.origin_question,
+    created_by_ai: draft.created_by_ai ?? false,
   });
+}
+
+// [LIVE] POST /tickets/suggest -> Vinnie's drafted {subject, body, category} for review-before-send.
+// Advisory only (nothing is persisted); the backend fails open to a heuristic so this always resolves.
+export async function suggestTicketDraft(payload: {
+  origin_question: string;
+  answer?: string | null;
+  context?: string | null;
+}): Promise<{ subject: string; body: string; category: TicketCategory }> {
+  const row = await apiRequest<{ subject: string; body: string; category: string }>(
+    "/api/tickets/suggest",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        origin_question: payload.origin_question,
+        answer: payload.answer ?? undefined,
+        context: payload.context ?? undefined,
+      }),
+    }
+  );
+  return {
+    subject: row.subject,
+    body: row.body,
+    category: safeTicketCategory(row.category),
+  };
 }
 
 export async function createTicket(payload: CreateTicketPayload): Promise<SupportTicket> {
