@@ -185,7 +185,6 @@ export default function SourcesPage() {
           ))}
         </select>
         <div className="akb-actions">
-          <Link className="btn btn-outline btn-sm" href="/admin/sources/upload">{tr.addUrl}</Link>
           <Link className="btn btn-primary btn-sm" href="/admin/sources/upload">
             <IconUpload size={14} /> {p.admin.addSource}
           </Link>

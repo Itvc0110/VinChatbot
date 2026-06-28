@@ -5,8 +5,6 @@ import { usePathname } from "next/navigation";
 import { usePortal } from "@/lib/portalI18n";
 import {
   IconDatabase,
-  IconInbox,
-  IconSliders,
   IconUpload,
 } from "@/components/shell/icons";
 
@@ -15,15 +13,11 @@ const STR = {
     label: "Knowledge source sections",
     sources: "Sources",
     upload: "Upload",
-    unanswered: "Review queue",
-    context: "Context",
   },
   vi: {
     label: "Các mục nguồn tri thức",
     sources: "Nguồn tri thức",
     upload: "Upload",
-    unanswered: "Hàng đợi duyệt",
-    context: "Ngữ cảnh",
   },
 } as const;
 
@@ -39,8 +33,6 @@ export function SourcesTopNav() {
   const items = [
     { href: "/admin/sources", label: s.sources, icon: <IconDatabase size={15} /> },
     { href: "/admin/sources/upload", label: s.upload, icon: <IconUpload size={15} /> },
-    { href: "/admin/sources/unanswered", label: s.unanswered, icon: <IconInbox size={15} /> },
-    { href: "/admin/sources/context", label: s.context, icon: <IconSliders size={15} /> },
   ];
 
   return (
