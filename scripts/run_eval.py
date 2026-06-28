@@ -32,6 +32,7 @@ REFUSAL_ACTIONS = {
     "restricted_data",
     "abusive_language",
     "out_of_scope",
+    "out_of_scope_task",
     "graceful_degradation",
 }
 

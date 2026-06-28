@@ -1,0 +1,11 @@
+{
+  "description": "Fix #1 live check (as student.cs.demo): catalog/org questions must route GENERAL (RAG), personal questions must stay personal.",
+  "student": "student.cs.demo@vinuni.edu.vn",
+  "cases": [
+    {"id": "cat-courses-offer", "language": "en", "question": "What undergraduate programs does VinUni offer?", "expect_route": "general"},
+    {"id": "cat-typical-credits", "language": "en", "question": "How many credits is a typical course at VinUni?", "expect_route": "general"},
+    {"id": "cat-dean", "language": "vi", "question": "Ai là trưởng khoa CECS của trường?", "expect_route": "general"},
+    {"id": "per-grade-cs101", "language": "vi", "question": "Điểm môn CS101 của tôi là bao nhiêu?", "expect_route": "personal", "expect_tool": "get_my_transcript"},
+    {"id": "per-advisor", "language": "vi", "question": "Cố vấn học tập của tôi là ai?", "expect_route": "personal", "expect_tool": "get_my_profile"}
+  ]
+}

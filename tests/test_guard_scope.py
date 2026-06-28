@@ -68,11 +68,22 @@ MUST_REFUSE_SECURITY = [
     ("Đồ ngu, con bot vô dụng!", "abusive_language"),
 ]
 
+# Non-task off-topic: clearly non-VinUni but not a generative task → out_of_scope (soft-scope may
+# downgrade these to allow, since they'd just hit graceful-degradation downstream).
 MUST_REFUSE_OFFTOPIC = [
     "What is the weather in Hanoi today?",
-    "Write a Python function that sorts a list for me.",
     "Kể cho tôi nghe tiểu sử của một ca sĩ nổi tiếng.",
+    "Who won the World Cup in 2022?",
+]
+
+# Generative out-of-scope TASKS (Phase 5): write code/poems, do math homework, role-play. These are a
+# DISTINCT action (out_of_scope_task) refused before the in-scope fast-allow, and — unlike plain
+# off-topic — soft-scope must NOT downgrade them (a "write code" request is never served).
+MUST_REFUSE_TASK = [
+    "Write a Python function that sorts a list for me.",
     "Giải giúp mình bài toán tích phân bất định này nhé.",
+    "Viết cho tôi một bài thơ về mùa thu Hà Nội.",
+    "make a rhythm about tuition",
 ]
 
 
@@ -90,6 +101,20 @@ def test_security_threats_still_hard_blocked(message, action):
 def test_clearly_offtopic_still_refused_stage1(message):
     # Stage 1 (no soft-scope flag): clearly non-VinUni questions still hard-refuse at the rule tier.
     assert assess_user_message(message).action == "out_of_scope", message
+
+
+@pytest.mark.parametrize("message", MUST_REFUSE_TASK)
+def test_out_of_scope_tasks_refused_stage1(message):
+    # Generative tasks are refused as out_of_scope_task (more specific than plain out_of_scope).
+    assert assess_user_message(message).action == "out_of_scope_task", message
+
+
+@pytest.mark.parametrize("message", MUST_REFUSE_TASK)
+def test_out_of_scope_task_not_downgraded_by_soft_scope(message):
+    # Even with soft-scope ON, a clear generative task is NEVER served — out_of_scope_task is confident
+    # and not softened (unlike plain off-topic, which soft-scope allows through to graceful-degradation).
+    decision = asyncio.run(resolve_guardrail_decision(message, settings=_offline_settings(True)))
+    assert decision.action == "out_of_scope_task", message
 
 
 # --- Stage 2: soft-scope (ENABLE_SOFT_SCOPE) ---

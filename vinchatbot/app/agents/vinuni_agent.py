@@ -19,7 +19,9 @@ from vinchatbot.app.agents.guardrails import (
     resolve_output_decision,
 )
 from vinchatbot.app.agents.output_audit import audit_output
+from vinchatbot.app.agents.personal_tools import PERSONAL_TOOL_NAMES
 from vinchatbot.app.agents.question_scope import classify_question_scope
+from vinchatbot.app.agents.specialists import PERSONAL_INTENT
 from vinchatbot.app.core.config import Settings, get_settings
 from vinchatbot.app.core.observability import (
     estimate_cost_usd,
@@ -27,6 +29,7 @@ from vinchatbot.app.core.observability import (
     get_request_id,
     get_rerank_count,
     get_stage_ledger,
+    get_student_identity,
     ledger_totals,
     record_stage,
     redact,
@@ -37,6 +40,7 @@ from vinchatbot.app.core.observability import (
     sum_token_usage,
 )
 from vinchatbot.app.core.timeutils import current_time_context, is_pure_time_question
+from vinchatbot.app.db.connection import get_readonly_app_db_pool
 from vinchatbot.app.rag.citations import dedupe_citations, excerpt
 from vinchatbot.app.rag.query_engineering import is_identity_query, is_point_lookup
 from vinchatbot.app.rag.retriever import QdrantHybridRetriever, RetrievedChunk, Retriever
@@ -195,6 +199,17 @@ class VinUniAgentService:
             config=config,
         )
         messages = result.get("messages", [])
+        # Phase 5: an answer the read-only personal tools produced is grounded in the student's OWN
+        # verified DB data (not RAG), so it legitimately has no official citations — trust it through
+        # the output guard like the static app-data context, even with no static context (e.g.
+        # personalization disabled). Keyed on ACTUAL personal-tool usage so it also covers a hybrid
+        # fan-out whose personal subtask answered (e.g. "tốt nghiệp loại Xuất sắc cần điểm bao nhiêu",
+        # which classifies hybrid because "tốt nghiệp" is a policy term). Requires a live verified
+        # identity too (defense-in-depth: a forged/injected intent alone can never relax grounding).
+        if get_student_identity() is not None and (
+            result.get("intent") == PERSONAL_INTENT or _used_personal_tool(messages)
+        ):
+            trusted_app_data = True
         answer = _message_content(messages[-1]) if messages else ""
         citations = _extract_citations(messages)
         tool_trace = _extract_tool_trace(messages)
@@ -531,10 +546,14 @@ class VinUniAgentService:
         )
 
     def _build_agent(self):
+        # Phase 5: thread the read-only app DB pool so the graph builds the personal specialist + its
+        # session-scoped DB tools. None (no DB configured / offline) → no personal specialist, general
+        # path unchanged.
         return build_agent_graph(
             self.retriever,
             settings=self.settings,
             checkpointer=self._build_checkpointer(),
+            personal_pool=get_readonly_app_db_pool(),
         )
 
     def _build_checkpointer(self):
@@ -588,6 +607,18 @@ def _iter_tool_payloads(messages: Iterable[Any]) -> Iterable[dict[str, Any]]:
             continue
         if isinstance(payload, dict):
             yield payload
+
+
+def _used_personal_tool(messages: Iterable[Any]) -> bool:
+    """True if any read-only personal tool produced a ToolMessage in this turn (single personal route
+    OR a hybrid fan-out whose personal subtask ran). Used to trust the DB-grounded answer."""
+    for message in messages:
+        if (
+            message.__class__.__name__ == "ToolMessage"
+            and getattr(message, "name", None) in PERSONAL_TOOL_NAMES
+        ):
+            return True
+    return False
 
 
 def _retrieved_texts(messages: Iterable[Any]) -> list[str]:

@@ -19,6 +19,7 @@ from vinchatbot.app.agents.guardrails import (
     resolve_guardrail_decision,
 )
 from vinchatbot.app.agents.vinuni_agent import VinUniAgentService
+from vinchatbot.app.core.observability import reset_student_identity, set_student_identity
 from vinchatbot.app.db.connection import get_app_db_pool
 from vinchatbot.app.dependencies.auth import get_optional_current_user
 from vinchatbot.app.repositories.auth import AuthenticatedUser
@@ -86,6 +87,23 @@ async def _attach_personalization(
     prompt = build_personalization_prompt(context)
     if prompt:
         request.backend_personalization_context = prompt
+
+
+def _bind_student_identity(current_user: AuthenticatedUser | None):
+    """Bind the VERIFIED student's identity for this turn so the read-only personal DB tools can
+    hard-scope every query to this student's own rows.
+
+    Security core: the id is taken ONLY from the authenticated session (current_user), never from the
+    request body or the model. Returns a reset token to clear in a finally block, or None for
+    anonymous / admin / profile-less turns (the personal tools then refuse). Must be called in the
+    same context that runs / spawns the agent so child tool tasks inherit the binding.
+    """
+    if current_user is None or "student" not in current_user.roles:
+        return None
+    profile = current_user.student_profile
+    if not profile or not profile.get("id"):
+        return None
+    return set_student_identity(student_profile_id=profile["id"], user_id=current_user.id)
 
 
 async def _resolve_chat(request: ChatRequest) -> ChatResponse:
@@ -228,7 +246,11 @@ async def chat(
         conversation_repository,
     )
     await _attach_personalization(request, current_user, personalization_repository)
-    response = await _resolve_chat(request)
+    identity_token = _bind_student_identity(current_user)
+    try:
+        response = await _resolve_chat(request)
+    finally:
+        reset_student_identity(identity_token)
     await _persist_assistant_response(persistence, response)
     return response
 
@@ -295,8 +317,14 @@ async def chat_stream(
         # /chat run). An empty step keeps the client on its own localized "Searching…" placeholder.
         yield _sse("status", {"step": ""})
 
-        task = asyncio.create_task(_resolve_chat(request))
+        identity_token = None
+        task = None
         try:
+            # Bind the student identity HERE (in the generator's context) before create_task, so the
+            # task that runs the agent + personal tools inherits the binding (contextvars copy at task
+            # creation). Inside the try so the finally always resets it, even on an unexpected raise.
+            identity_token = _bind_student_identity(current_user)
+            task = asyncio.create_task(_resolve_chat(request))
             # Heartbeat until the verified answer is ready (or the compute fails).
             while True:
                 done, _ = await asyncio.wait({task}, timeout=_HEARTBEAT_SECONDS)
@@ -334,8 +362,9 @@ async def chat_stream(
         finally:
             # Client disconnected / pressed Stop, or we finished — make sure an in-flight agent
             # run doesn't keep computing (and spending) into a dead socket.
-            if not task.done():
+            if task is not None and not task.done():
                 task.cancel()
+            reset_student_identity(identity_token)
 
     return StreamingResponse(
         event_stream(),
