@@ -204,6 +204,23 @@ the four properties. Confirmed findings were addressed; one was empirically refu
   class but never called and blocked by the read-only pool; module-level psycopg import) were judged
   not-impactful and left as-is.
 
+## Post-merge fixes (2026-06-28)
+
+- **Cross-student identity bleed via the LangGraph checkpointer** (fixed): the checkpointer replays a
+  thread's full history (incl. the prior turn's personalization context + personal-tool results) and the
+  `thread_id` was the CLIENT-supplied `conversation_id` — so two signed-in students sharing one id shared
+  agent memory and the bot answered student B with student A's replayed code/GPA. The personal tools were
+  correctly isolated (B's `get_my_profile` returned B's code); only the shared thread leaked. Fix in
+  `VinUniAgentService.chat`: `thread_id = f"u:{verified_user_id}:{conversation_id}"` so two users can never
+  collide, whatever id the client sends; same-user multi-turn memory is preserved. Reproduced before, gone
+  after; regression tests in `tests/test_chat_personalization.py`. Frontend should still reset the
+  conversation list on logout (defense-in-depth; backend is now safe regardless).
+- **`get_my_schedule` "next class" returned a far-future portal date** (fixed): for "môn tiếp theo" the
+  model picked `window="today"`; on a day with no academic class the empty-window path fell back to the
+  unrelated portal `schedules` table (Sept dates). Now a broad forward scan computes the authoritative
+  `next_class` included in EVERY window's response, the portal fallback fires ONLY when the student has no
+  academic timetable at all, and the prompt steers "next class" → `window="next"`.
+
 ## Out of scope
 
 Part B (ticket-drawer LLM-suggested summary/category + live attachments) is deferred to its own plan;
