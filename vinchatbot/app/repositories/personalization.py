@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from psycopg_pool import AsyncConnectionPool
 
+from vinchatbot.app.core.timeutils import VINUNI_TZ, now_in_vietnam
+from vinchatbot.app.repositories.academic import AcademicRepository
 from vinchatbot.app.repositories.students import StudentRepository
 from vinchatbot.app.schemas.personalization import (
     PersonalizationContext,
@@ -18,6 +20,7 @@ from vinchatbot.app.schemas.personalization import (
     PersonalizationStudentProfile,
     PersonalizationSuggestion,
 )
+from vinchatbot.app.services import academic as academic_service
 
 MAX_CONTEXT_COURSES = 5
 MAX_CONTEXT_SCHEDULE = 5
@@ -38,22 +41,30 @@ class PersonalizationRepository:
     def __init__(self, pool: AsyncConnectionPool):
         self.pool = pool
         self.students = StudentRepository(pool)
+        self.academic = AcademicRepository(pool)
 
     async def get_context(self, user_id: uuid.UUID) -> PersonalizationContext | None:
         profile = await self.students.get_current_student_profile(user_id)
         if profile is None:
             return None
 
-        courses = await self.students.get_courses(profile["id"])
-        schedule = await self.students.get_schedule(profile["id"], upcoming_only=True)
+        profile_context, courses, schedule, academic_course_codes = await self._academic_context(
+            user_id, profile
+        )
         deadlines = await self.students.get_deadlines(profile["id"], upcoming_only=True)
+        if academic_course_codes is not None:
+            deadlines = [
+                deadline
+                for deadline in deadlines
+                if not deadline.get("course_code") or deadline.get("course_code") in academic_course_codes
+            ]
         notifications = await self.students.get_notifications(user_id=user_id, profile=profile)
         suggestions = await self.students.get_suggestions(user_id=user_id, profile=profile)
         forum_topics = await self._fetch_forum_topics(profile)
         recent_conversations = await self._fetch_recent_conversations(user_id)
 
         return PersonalizationContext(
-            profile=PersonalizationStudentProfile(**profile),
+            profile=PersonalizationStudentProfile(**profile_context),
             courses=[
                 PersonalizationCourse(**course)
                 for course in courses[:MAX_CONTEXT_COURSES]
@@ -85,6 +96,100 @@ class PersonalizationRepository:
                 for conversation in recent_conversations[:MAX_CONTEXT_CONVERSATIONS]
             ],
         )
+
+    async def _academic_context(
+        self, user_id: uuid.UUID, portal_profile: dict[str, Any]
+    ) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]], set[str] | None]:
+        """Return profile/courses/schedule aligned with the Phase 13 academic read-model.
+
+        The portal profile still owns preferences, advisor details, notifications, deadlines, and
+        suggestions. Academic identity, GPA/CPA, current courses, and timetable come from the same
+        normalized tables as `/academic/me` and `/schedule/me`, so chat and dashboard describe one
+        student record instead of mixing old demo worlds.
+        """
+        profile_context = dict(portal_profile)
+        try:
+            academic_profile = await self.academic.get_student_profile_by_user(user_id)
+        except Exception:
+            academic_profile = None
+
+        if not academic_profile:
+            courses = await self.students.get_courses(portal_profile["id"])
+            schedule = await self.students.get_schedule(portal_profile["id"], upcoming_only=True)
+            return profile_context, courses, schedule, None
+
+        current_term = await self.academic.get_current_term()
+        transcript = await self.academic.get_student_transcript(portal_profile["id"])
+        curriculum = (
+            await self.academic.get_curriculum(academic_profile["program_id"])
+            if academic_profile.get("program_id")
+            else []
+        )
+        now = now_in_vietnam()
+        meetings = await self.academic.get_student_meetings_in_range(
+            student_id=portal_profile["id"],
+            start_at=now,
+            end_at=now + timedelta(days=30),
+        )
+        overview = academic_service.build_overview(
+            profile=academic_profile,
+            current_term=current_term,
+            enrollments=transcript,
+            curriculum=curriculum,
+            upcoming_meetings=meetings[:MAX_CONTEXT_SCHEDULE],
+        )
+
+        profile_context.update(
+            {
+                "student_id": overview.profile.student_code or portal_profile["student_id"],
+                "program": overview.profile.program.name if overview.profile.program else portal_profile.get("program"),
+                "major": portal_profile.get("major")
+                or (overview.profile.program.name if overview.profile.program else None),
+                "cohort": overview.profile.cohort_year or portal_profile.get("cohort"),
+                "academic_year": overview.profile.current_year or portal_profile.get("academic_year"),
+                "academic_summary": {
+                    "gpa": overview.current_gpa,
+                    "cumulative_cpa": overview.cumulative_cpa,
+                    "credits_earned": overview.earned_credits,
+                    "credits_required": overview.required_credits,
+                    "current_semester": current_term.get("code") if current_term else None,
+                    "academic_status": overview.profile.status
+                    or (portal_profile.get("academic_summary") or {}).get("academic_status")
+                    or portal_profile.get("student_status"),
+                },
+            }
+        )
+
+        semester = current_term.get("name") if current_term else None
+        academic_year = str(current_term.get("academic_year")) if current_term else None
+        courses = [
+            {
+                "id": course.id,
+                "course_code": course.code,
+                "course_title": course.name,
+                "credits": course.credits,
+                "semester": semester,
+                "academic_year": academic_year,
+                "instructor": None,
+            }
+            for course in overview.enrolled_courses
+        ]
+        academic_course_codes = {course["course_code"] for course in courses}
+        schedule = [
+            {
+                "id": meeting.id,
+                "title": meeting.title,
+                "schedule_type": meeting.meeting_type,
+                "start_time": meeting.start_at,
+                "end_time": meeting.end_at,
+                "course_code": meeting.course_code,
+                "course_title": meeting.course_name,
+                "location": meeting.building,
+                "room": meeting.room_name,
+            }
+            for meeting in overview.upcoming_meetings
+        ]
+        return profile_context, courses, schedule, academic_course_codes
 
     def _rank_notifications(self, notifications: list[dict[str, Any]]) -> list[dict[str, Any]]:
         priority_rank = {"urgent": 0, "high": 1, "medium": 2, "low": 3}
@@ -170,12 +275,16 @@ class PersonalizationRepository:
 def _fmt_dt(value: datetime | None) -> str:
     if value is None:
         return "n/a"
+    if value.tzinfo is not None:
+        value = value.astimezone(VINUNI_TZ)
     return value.strftime("%Y-%m-%d %H:%M")
 
 
 def _fmt_date(value: datetime | None) -> str:
     if value is None:
         return "n/a"
+    if value.tzinfo is not None:
+        value = value.astimezone(VINUNI_TZ)
     return value.strftime("%Y-%m-%d")
 
 
@@ -199,8 +308,10 @@ def build_personalization_prompt(context: PersonalizationContext) -> str:
     summary = profile.academic_summary
     if summary is not None:
         gpa = f"{summary.gpa}" if summary.gpa is not None else "n/a"
+        cpa = f" CPA {summary.cumulative_cpa};" if summary.cumulative_cpa is not None else ""
         lines.append(
             f"- Academic standing: {summary.academic_status}; GPA {gpa};"
+            f"{cpa}"
             f" credits {summary.credits_earned}/{summary.credits_required};"
             f" current semester {summary.current_semester or 'n/a'}."
         )

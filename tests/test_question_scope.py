@@ -14,6 +14,8 @@ from vinchatbot.app.agents.question_scope import classify_question_scope
         "Tôi đang học những môn nào?",
         "Có topic forum nào liên quan không?",
         "What is my GPA?",
+        "CPA của tôi là bao nhiêu?",
+        "CPA tích lũy của tôi là bao nhiêu?",
         "Do I have any tickets open?",
     ],
 )
@@ -67,6 +69,7 @@ def test_general_unknown_scope(message):
         "mã số sinh viên?",  # student id (generic) without a pronoun
         "lớp hôm nay?",      # class/session (generic) without a pronoun
         "gpa kì này?",       # inherent — personal regardless
+        "cpa tích lũy?",     # inherent — personal regardless
     ],
 )
 def test_authenticated_student_elliptical_is_personal(message):
@@ -116,6 +119,7 @@ def test_catalog_question_is_not_personal_even_authenticated(message):
         "điểm CS101?",
         "cố vấn của tôi là ai?",
         "what's my GPA?",
+        "what is my CPA?",
         "tôi còn bao nhiêu tín chỉ?",
         "lịch hôm nay của tôi?",
         "mã số sinh viên của tôi?",

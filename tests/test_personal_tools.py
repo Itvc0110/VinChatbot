@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 from langchain_core.messages import AIMessage, ToolMessage
@@ -26,6 +26,11 @@ from vinchatbot.app.core.timeutils import VINUNI_TZ
 
 USER_A = uuid.uuid4()
 PROFILE_A = uuid.uuid4()
+FACULTY_ID = uuid.uuid4()
+PROGRAM_ID = uuid.uuid4()
+TERM_ID = uuid.uuid4()
+COURSE_1010 = uuid.uuid4()
+COURSE_2020 = uuid.uuid4()
 
 
 # --- fakes ----------------------------------------------------------------------------------------
@@ -97,14 +102,21 @@ class FakeAcademicRepo:
     async def get_student_profile_by_user(self, user_id):
         FakeAcademicRepo.last_user_id = user_id
         return {
+            "id": PROFILE_A,
+            "user_id": user_id,
             "student_code": "V202400123",
-            "program_id": uuid.uuid4(),
+            "full_name": "Demo Student",
+            "faculty_id": FACULTY_ID,
+            "faculty_code": "CECS",
+            "faculty_name": "CECS",
+            "program_id": PROGRAM_ID,
             "program_name": "Computer Science",
             "program_code": "CS",
             "program_degree_level": "bachelor",
-            "faculty_name": "CECS",
+            "program_curriculum_year": 2026,
             "cohort_year": 2024,
             "current_year": 2,
+            "status": "active",
             "program_total_required_credits": 120,
         }
 
@@ -112,19 +124,67 @@ class FakeAcademicRepo:
         FakeAcademicRepo.last_student_id = student_id
         return [
             {
+                "id": uuid.uuid4(),
+                "student_id": student_id,
                 "course_code": "COMP1010",
                 "course_name": "Intro to CS",
-                "credits": 4,
-                "grade_4": 3.5,
-                "letter_grade": "A-",
+                "credits": 60,
+                "grade_10": 7.0,
+                "grade_4": 3.0,
+                "letter_grade": "B",
                 "passed": True,
                 "status": "completed",
                 "attempt_no": 1,
                 "is_improvement": False,
+                "retake_of_enrollment_id": None,
                 "term_name": "Spring 2025",
+                "term_id": TERM_ID,
+                "term_code": "2026-SUMMER",
+                "start_date": date(2026, 6, 1),
+                "end_date": date(2026, 7, 31),
+                "academic_year": 2026,
+                "term_order": 3,
                 "is_gpa_counted": True,
-                "course_id": "course-1010",
-            }
+                "earned_credits": 60,
+                "completed_at": datetime(2026, 6, 20, tzinfo=UTC),
+                "course_id": COURSE_1010,
+                "course_level": 101,
+                "department_code": "COMP",
+                "is_general_education": False,
+                "section_id": None,
+                "section_code": None,
+            },
+            {
+                "id": uuid.uuid4(),
+                "student_id": student_id,
+                "course_code": "COMP2020",
+                "course_name": "Data Structures",
+                "credits": 4,
+                "grade_10": None,
+                "grade_4": None,
+                "letter_grade": None,
+                "passed": False,
+                "status": "enrolled",
+                "attempt_no": 1,
+                "is_improvement": False,
+                "retake_of_enrollment_id": None,
+                "term_name": "Summer 2026",
+                "term_id": TERM_ID,
+                "term_code": "2026-SUMMER",
+                "start_date": date(2026, 6, 1),
+                "end_date": date(2026, 7, 31),
+                "academic_year": 2026,
+                "term_order": 3,
+                "is_gpa_counted": False,
+                "earned_credits": 0,
+                "completed_at": None,
+                "course_id": COURSE_2020,
+                "course_level": 202,
+                "department_code": "COMP",
+                "is_general_education": False,
+                "section_id": uuid.uuid4(),
+                "section_code": "A",
+            },
         ]
 
     async def get_student_meetings_in_range(self, *, student_id, start_at, end_at):
@@ -133,19 +193,29 @@ class FakeAcademicRepo:
 
     async def get_curriculum(self, program_id):
         return [
-            {"course_id": "course-1010", "course_code": "COMP1010", "course_name": "Intro to CS",
-             "credits": 4, "category": "core", "is_required": True, "suggested_year": 1,
-             "suggested_term": 1},
-            {"course_id": "course-2020", "course_code": "COMP2020", "course_name": "Data Structures",
-             "credits": 4, "category": "core", "is_required": True, "suggested_year": 1,
-             "suggested_term": 2},
+            {"course_id": COURSE_1010, "course_code": "COMP1010", "course_name": "Intro to CS",
+             "credits": 60, "category": "major_core", "is_required": True, "suggested_year": 1,
+             "suggested_term": 1, "course_level": 101, "department_code": "COMP",
+             "is_general_education": False, "description": None},
+            {"course_id": COURSE_2020, "course_code": "COMP2020", "course_name": "Data Structures",
+             "credits": 4, "category": "major_core", "is_required": True, "suggested_year": 1,
+             "suggested_term": 2, "course_level": 202, "department_code": "COMP",
+             "is_general_education": False, "description": None},
         ]
 
     async def get_requisite_status_bulk(self, *, student_id, course_ids, term_id):
         return {}
 
     async def get_current_term(self):
-        return {"id": uuid.uuid4(), "code": "2026-SUMMER"}
+        return {
+            "id": TERM_ID,
+            "code": "2026-SUMMER",
+            "name": "Summer Term 2026",
+            "start_date": date(2026, 6, 1),
+            "end_date": date(2026, 7, 31),
+            "academic_year": 2026,
+            "term_order": 3,
+        }
 
 
 @pytest.fixture
@@ -178,11 +248,12 @@ def test_tools_scope_queries_to_the_session_identity_only(tools):
     try:
         standing = _call(tools["get_my_academic_standing"])
         assert standing["found"] is True and standing["gpa"] == 3.0
+        assert standing["cumulative_cpa"] == 3.0
         # the read used the session's user id, nothing the model supplied
-        assert FakeStudentRepo.last_user_id == USER_A
+        assert FakeAcademicRepo.last_user_id == USER_A
 
         transcript = _call(tools["get_my_transcript"])
-        assert transcript["count"] == 1
+        assert transcript["count"] == 2
         # transcript keyed by the session's student_profile_id
         assert FakeAcademicRepo.last_student_id == PROFILE_A
     finally:
@@ -205,7 +276,7 @@ def test_every_tool_refuses_without_a_signed_in_identity(tools):
 def test_gpa_projection_reachable_target(tools):
     set_student_identity(student_profile_id=PROFILE_A, user_id=USER_A)
     try:
-        # gpa 3.0 over 60 of 120 credits → need (3.3*120 - 3.0*60)/60 = 3.6 on the remaining 60.
+        # CPA 3.0 over 60 GPA credits; 60 remaining credits → need 3.6 to reach 3.3.
         result = _call(tools["project_gpa_for_target"], {"target_gpa": 3.3})
         assert result["found"] is True
         assert result["needed_average_on_remaining"] == 3.6
@@ -222,6 +293,18 @@ def test_gpa_projection_infeasible_target(tools):
         result = _call(tools["project_gpa_for_target"], {"target_gpa": 3.6})
         assert result["needed_average_on_remaining"] == 4.2
         assert result["reachable"] is False
+    finally:
+        reset_student_identity()
+
+
+def test_courses_come_from_current_academic_enrollments_not_legacy_portal(tools):
+    set_student_identity(student_profile_id=PROFILE_A, user_id=USER_A)
+    try:
+        result = _call(tools["get_my_courses"])
+        assert result["source"] == "academic_read_model"
+        assert result["term"] == "2026-SUMMER"
+        assert [course["course_code"] for course in result["courses"]] == ["COMP2020"]
+        assert FakeStudentRepo.last_profile_id is None
     finally:
         reset_student_identity()
 

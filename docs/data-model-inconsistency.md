@@ -1,8 +1,10 @@
 # Known issue: two inconsistent student-enrollment data models
 
-**Status:** open / demo-data issue (not a code bug). Surfaced while validating the Phase 5 personalization
-tools. Affects what the chatbot reports for "my courses" vs "my schedule/transcript", and blocks a true
-"next semester" feature. Documented here so anyone pulling the repo understands the discrepancy.
+**Status:** partially mitigated in code; underlying demo-data issue remains. Surfaced while validating
+the Phase 5 personalization tools. The chatbot now uses the Phase 13 academic read-model for profile,
+GPA/CPA, current courses, current schedule context, curriculum, eligibility, and GPA projection, so it
+matches `student/dashboard` and `student/academic`. The older portal enrollment/deadline tables still
+exist and can still block a true "next semester" feature until the seed data is reconciled.
 
 ## The two models
 
@@ -16,7 +18,7 @@ agree**:
 | Term structure | `academic_terms` (Fall 2025 / Spring 2026 / Summer 2026) | none — `courses.semester` / `academic_year` strings only |
 | Timetable | `class_meetings` (UTC, per section) | `schedules` |
 | Deadlines | — | `deadlines` |
-| Tools that read it | `get_my_schedule`, `get_my_transcript`, `get_my_curriculum_progress`, `get_my_course_eligibility`, `get_my_academic_standing` (GPA from `academic_summaries`) | `get_my_courses`, `get_my_deadlines`, `get_my_schedule` (fallback only) |
+| Tools that read it | `get_my_profile`, `get_my_academic_standing`, `get_my_courses`, `get_my_schedule`, `get_my_transcript`, `get_my_curriculum_progress`, `get_my_course_eligibility`, `project_gpa_for_target`; chat personalization context for profile/current courses/schedule | `get_my_deadlines` and activity surfaces; `get_my_schedule` only as fallback when no academic timetable exists |
 
 `student_profiles.id` is the shared key, but the two enrollment sets are seeded with **different courses and
 even different course codes** for the same student.
@@ -29,25 +31,22 @@ even different course codes** for the same student.
 - **Portal model** (`enrollments`): **CSC101, CSC250, CSC310, CSC330, ECE210 — all labeled "Fall 2026" /
   AY 2026-2027.**
 
-So the chatbot will tell the same student:
-- "What courses am I enrolled in?" → **`get_my_courses` (portal)** → CSC101/250/310/330, ECE210 (Fall 2026)
-- "What's my schedule / what did I fail?" → **`get_my_schedule` / `get_my_transcript` (academic)** → CS102,
-  MATH102, CS201, GEN102 (Summer 2026)
-
-…i.e. **two different course lists**, with mismatched codes (CSC101 vs CS101). Both answers are individually
-"correct" for the model they read; they just describe different worlds.
+Previously the chatbot could tell the same student two different course lists:
+`get_my_courses` read portal rows (CSC101/250/310/330, ECE210), while schedule/transcript read academic rows
+(CS102, MATH102, CS201, GEN102). This has been mitigated by making chat personal tools and backend
+personalization context prefer the academic read-model for academic identity/current-course facts.
 
 ## Consequences
 
-1. **"My courses" ≠ "my schedule/transcript"** — confusing for a student; the tools are faithful to their
-   respective tables.
+1. **Legacy portal course/deadline data still exists** — chat filters course-specific deadlines against
+   current academic courses, but the seed data itself still describes a separate Fall 2026 world.
 2. **No real "next semester" capability.** There is **no Fall 2026 `academic_term`**, **no `planned`
    future-term `student_course_enrollments`**, and **no `class_meetings` for a future term**. The only
    "future" data is the portal `enrollments` labeled Fall 2026, which `get_my_courses` returns but cannot be
    term-filtered or shown as a timetable. So "what classes do I have next semester?" can only echo the portal
    list — no next-semester schedule.
-3. `get_my_courses` reads the portal model only, so it **omits the academic-model current-term enrollments**
-   (the Summer 2026 courses the student is actually attending per the schedule).
+3. The portal/dashboard activity widgets that intentionally read `deadlines`, `notifications`, or
+   suggestions may still surface legacy demo activity until those seeds are reconciled.
 
 ## Recommendation (to unblock next-semester + remove the discrepancy)
 
@@ -58,7 +57,7 @@ So the chatbot will tell the same student:
 3. **Seed a Fall 2026 term** (`academic_terms`) + **`planned` `student_course_enrollments`** (+ optional
    `class_meetings`) for it. Then a term-aware `get_my_enrollments(term="current"|"next"|"all")` tool can
    answer "next semester's classes" cleanly. (Tool not built yet — pending this data.)
-4. Until then, treat `get_my_courses` (portal/Fall-2026) and the academic-model schedule/transcript as
-   **separate views**; don't assume they match.
+4. Until then, treat the portal/Fall-2026 activity seed as demo-only support data; do not use it as the
+   source of truth for academic identity, current courses, GPA/CPA, or transcript answers.
 
 Seed scripts live under `scripts/` (e.g. `seed_demo_data.py`); migrations under `migrations/`.

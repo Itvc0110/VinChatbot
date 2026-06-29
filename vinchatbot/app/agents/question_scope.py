@@ -47,6 +47,8 @@ _INHERENT_PERSONAL_APP_DATA = (
     "han chot",
     "han nop",
     "gpa",
+    "cpa",
+    "cpa tich luy",
     "diem trung binh",
     "credits",
     "tin chi",

@@ -16,6 +16,7 @@ class PersonalizationInstitute(BaseModel):
 
 class PersonalizationAcademicSummary(BaseModel):
     gpa: Decimal | None = None
+    cumulative_cpa: Decimal | None = None
     credits_earned: int
     credits_required: int
     current_semester: str | None = None
@@ -39,6 +40,7 @@ class PersonalizationCourse(BaseModel):
     id: uuid.UUID
     course_code: str
     course_title: str
+    credits: int | None = None
     semester: str | None = None
     academic_year: str | None = None
     instructor: str | None = None
