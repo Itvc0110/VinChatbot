@@ -48,11 +48,6 @@ export interface Strings {
   tooLong: (n: number) => string;
   quickPrompts: string[];
 
-  // composer web-search toggle — FRONTEND-ONLY UI state (see Composer.tsx). The value is
-  // not sent to the backend and does not change the request payload or RAG behavior.
-  webSearch: string;
-  webSearchHint: string;
-
   // panel states
   emptyHint: string;
   cancelledNote: string;
@@ -158,8 +153,6 @@ const en: Strings = {
     "How do I apply for a Leave of Absence?",
     "What are the tuition payment deadlines?",
   ],
-  webSearch: "Web search",
-  webSearchHint: "Search the web for up-to-date information beyond VinUni sources",
 
   emptyHint:
     "Ask a question and the official sources behind each answer appear here. VinChatbot only answers from VinUni sources — and tells you when it can't.",
@@ -271,8 +264,6 @@ const vi: Strings = {
     "Làm sao để xin bảo lưu (Leave of Absence)?",
     "Các hạn nộp học phí là khi nào?",
   ],
-  webSearch: "Web search",
-  webSearchHint: "Tìm kiếm thông tin mới nhất trên web, ngoài nguồn chính thức của VinUni",
 
   emptyHint:
     "Đặt câu hỏi và các nguồn chính thức cho mỗi câu trả lời sẽ hiện ở đây. VinChatbot chỉ trả lời từ nguồn VinUni — và sẽ báo khi không thể.",

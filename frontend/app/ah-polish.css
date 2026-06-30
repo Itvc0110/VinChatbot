@@ -448,7 +448,7 @@
 
 /* ============================================================================
    12. VINNIE AI EXPERIENCE — premium-but-calm assistant treatment
-   (empty state, composer web-search toggle, dashboard Ask-AI card, top nav)
+   (empty state, dashboard Ask-AI card, top nav)
    All selectors below are login/student/chat-only — admin renders none of them.
    ============================================================================ */
 
@@ -495,50 +495,6 @@
 .vinnie-sugg-icon {
   transition: background var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease),
     color var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease);
-}
-
-/* ---- 12c. Composer Web Search toggle (frontend-only UI control) ----------- */
-.composer-tool {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 30px;
-  margin-bottom: 1px; /* optical align with the textarea baseline */
-  padding: 0 11px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-pill);
-  background: var(--surface-2);
-  color: var(--muted-foreground);
-  font: inherit;
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease),
-    border-color var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease),
-    color var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease),
-    transform var(--ah-dur-1, 160ms) var(--ah-ease-soft, ease);
-}
-.composer-tool:hover {
-  color: var(--foreground);
-  border-color: var(--accent-border);
-}
-.composer-tool:active {
-  transform: scale(0.96);
-}
-/* Active = Web Search on: clear (but still soft) brand-blue affordance. */
-.composer-tool.active {
-  background: var(--accent-tint-strong);
-  border-color: var(--accent-border);
-  color: var(--accent);
-}
-.composer-tool.active svg {
-  color: var(--accent);
-}
-/* In the compact floating widget, keep just the globe (tooltip + aria-pressed remain). */
-.vinnie-widget .composer-tool-label {
-  display: none;
 }
 
 /* ---- 12d. Dashboard "Ask Vinnie" — the primary assistant entry point ------ */
