@@ -11,8 +11,10 @@ import {
   IconChat,
   IconCalendar,
   IconTicket,
+  IconForum,
   IconCap,
 } from "./icons";
+import { LogoCopilot } from "./Logos";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 // Academic Horizon student chrome: a fixed horizontal top navigation bar (DESIGN.md §11.2).
@@ -36,7 +38,9 @@ const STR = {
     dashboard: "Dashboard",
     vinnieAi: "Vinnie AI",
     calendar: "Calendar",
+    academic: "Academic",
     events: "Events",
+    forum: "Forum",
     tickets: "Tickets",
   },
   vi: {
@@ -47,7 +51,9 @@ const STR = {
     dashboard: "Bảng điều khiển",
     vinnieAi: "Vinnie AI",
     calendar: "Lịch",
+    academic: "Học tập",
     events: "Sự kiện",
+    forum: "Diễn đàn",
     tickets: "Yêu cầu hỗ trợ",
   },
 } as const;
@@ -122,17 +128,19 @@ export function StudentTopNav() {
     { href: "/student/dashboard", label: s.dashboard, icon: <IconGrid /> },
     { href: "/student/chat", label: s.vinnieAi, icon: <IconChat /> },
     { href: "/student/schedule", label: s.calendar, icon: <IconCalendar /> },
+    { href: "/student/academic", label: s.academic, icon: <IconCap /> },
     { href: "/student/events", label: s.events, icon: <IconCalendar /> },
+    { href: "/student/forum", label: s.forum, icon: <IconForum /> },
     { href: "/student/support", label: s.tickets, icon: <IconTicket /> },
   ];
 
   return (
     <header className="ah-topnav">
       <Link href="/student/dashboard" className="ah-topnav-brand">
-        <span className="ah-topnav-badge">
-          <IconCap size={18} />
+        <span className="ah-topnav-badge brand-logo-tile">
+          <LogoCopilot size={30} />
         </span>
-        VinUni
+        Student Copilot
       </Link>
 
       <nav aria-label={s.primary}>

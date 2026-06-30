@@ -20,13 +20,17 @@ function usePageMeta(role: Role): { title: string; subtitle: string } {
       "/admin/dashboard": p.nav.adminDashboard,
       "/admin/tickets": p.nav.adminTickets,
       "/admin/notifications": p.nav.adminNotifications,
+      "/admin/sources/upload": p.nav.upload,
+      "/admin/sources/unanswered": p.nav.questions,
       "/admin/sources": p.nav.sources,
       "/admin/upload": p.nav.upload,
       "/admin/unanswered": p.nav.questions,
       "/admin/analytics": p.nav.analytics,
       "/admin/logs": p.nav.logs,
     };
-    const key = Object.keys(map).find((k) => pathname.startsWith(k));
+    const key = Object.keys(map)
+      .sort((a, b) => b.length - a.length)
+      .find((k) => pathname.startsWith(k));
     return { title: key ? map[key] : p.adminConsole, subtitle: p.adminConsoleSub };
   }
 

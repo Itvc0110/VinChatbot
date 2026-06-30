@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import type { TicketCategory, TicketPriority } from "@/lib/portalTypes";
+import type { TicketCategory } from "@/lib/portalTypes";
 import { useChat } from "@/lib/chat";
-import { usePortal, DEPARTMENTS } from "@/lib/portalI18n";
+import { usePortal } from "@/lib/portalI18n";
 
 const CATEGORIES: TicketCategory[] = [
   "academic",
@@ -12,7 +12,6 @@ const CATEGORIES: TicketCategory[] = [
   "technical",
   "other",
 ];
-const PRIORITIES: TicketPriority[] = ["low", "medium", "high", "urgent"];
 
 // PLAN22.6 Review Ticket drawer. Vinnie prepares a DRAFT (held in ChatProvider state); this
 // drawer lets the student edit it and is the ONLY surface that submits a ticket to admin.
@@ -23,6 +22,7 @@ export function ReviewTicketDrawer() {
   const chat = useChat();
   const draft = chat.ticketDraft;
   const open = !!draft;
+  const suggesting = chat.draftSuggesting;
 
   useEffect(() => {
     if (!open) return;
@@ -61,8 +61,48 @@ export function ReviewTicketDrawer() {
             </div>
 
             <div className="detail-body">
-              {/* Required wording — review-before-send, NOT "Vinnie created a ticket". */}
-              <p className="review-banner">{p.review.banner}</p>
+              {/* Prominent review-before-send disclaimer — the STUDENT sends it, not Vinnie. */}
+              <div
+                className="review-banner"
+                role="note"
+                style={{
+                  display: "flex",
+                  gap: "0.6rem",
+                  alignItems: "flex-start",
+                  borderLeft: "4px solid #d97706",
+                  background: "#fffbeb",
+                  color: "#7c2d12",
+                  padding: "0.7rem 0.85rem",
+                  borderRadius: "8px",
+                }}
+              >
+                <span aria-hidden="true" style={{ fontSize: "1.1rem", lineHeight: 1.2 }}>
+                  ⚠️
+                </span>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+                  {draft.created_by_ai && (
+                    <span
+                      style={{
+                        alignSelf: "flex-start",
+                        fontSize: "0.72rem",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.03em",
+                        background: "#d97706",
+                        color: "#fff",
+                        padding: "0.1rem 0.5rem",
+                        borderRadius: "999px",
+                      }}
+                    >
+                      {p.review.aiDraftedChip}
+                    </span>
+                  )}
+                  <span style={{ fontWeight: 600 }}>{p.review.banner}</span>
+                  {suggesting && (
+                    <span style={{ fontStyle: "italic", opacity: 0.85 }}>{p.review.aiDrafting}</span>
+                  )}
+                </div>
+              </div>
 
               <form
                 className="form-grid"
@@ -81,63 +121,26 @@ export function ReviewTicketDrawer() {
                     value={draft.subject}
                     onChange={(e) => chat.updateDraft({ subject: e.target.value })}
                     placeholder={p.review.summaryPlaceholder}
+                    disabled={suggesting}
                   />
                 </div>
 
-                <div className="grid cols-2" style={{ gap: 12 }}>
-                  <div className="field">
-                    <label className="field-label" htmlFor="rt-category">
-                      {p.review.category}
-                    </label>
-                    <select
-                      id="rt-category"
-                      className="select"
-                      value={draft.category}
-                      onChange={(e) =>
-                        chat.updateDraft({ category: e.target.value as TicketCategory })
-                      }
-                    >
-                      {CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {p.enums.ticketCategory[c]}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label className="field-label" htmlFor="rt-priority">
-                      {p.review.priority}
-                    </label>
-                    <select
-                      id="rt-priority"
-                      className="select"
-                      value={draft.priority}
-                      onChange={(e) =>
-                        chat.updateDraft({ priority: e.target.value as TicketPriority })
-                      }
-                    >
-                      {PRIORITIES.map((pr) => (
-                        <option key={pr} value={pr}>
-                          {p.enums.ticketPriority[pr]}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
                 <div className="field">
-                  <label className="field-label" htmlFor="rt-office">
-                    {p.review.office}
+                  <label className="field-label" htmlFor="rt-category">
+                    {p.review.category}
                   </label>
                   <select
-                    id="rt-office"
+                    id="rt-category"
                     className="select"
-                    value={draft.department}
-                    onChange={(e) => chat.updateDraft({ department: e.target.value })}
+                    value={draft.category}
+                    onChange={(e) =>
+                      chat.updateDraft({ category: e.target.value as TicketCategory })
+                    }
+                    disabled={suggesting}
                   >
-                    {DEPARTMENTS.map((d) => (
-                      <option key={d} value={d}>
-                        {p.enums.department[d] ?? d}
+                    {CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {p.enums.ticketCategory[c]}
                       </option>
                     ))}
                   </select>
@@ -153,6 +156,7 @@ export function ReviewTicketDrawer() {
                     value={draft.body}
                     onChange={(e) => chat.updateDraft({ body: e.target.value })}
                     placeholder={p.review.descriptionPlaceholder}
+                    disabled={suggesting}
                   />
                 </div>
 
@@ -196,14 +200,14 @@ export function ReviewTicketDrawer() {
                     className="btn btn-outline"
                     type="button"
                     onClick={() => void chat.saveDraft()}
-                    disabled={chat.draftBusy}
+                    disabled={chat.draftBusy || suggesting}
                   >
                     {p.review.saveDraft}
                   </button>
                   <button
                     className="btn btn-primary"
                     type="submit"
-                    disabled={chat.draftBusy || !draft.body.trim()}
+                    disabled={chat.draftBusy || suggesting || !draft.body.trim()}
                   >
                     {chat.draftBusy ? p.review.sending : p.review.sendToAdmin}
                   </button>

@@ -126,6 +126,54 @@
 .atik-reply { display: flex; flex-direction: column; gap: 8px; }
 .atik-empty { padding: 64px 24px; text-align: center; color: var(--ah-muted); }
 
+/* ---- /admin/sources — source workflow tabs -------------------------------- */
+.admin-sources-section { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.asrc-topnav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px;
+  border: 1px solid var(--ah-border);
+  border-radius: var(--ah-radius);
+  background: var(--ah-surface);
+  box-shadow: var(--ah-shadow-sm);
+}
+.asrc-tab {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--ah-radius-sm);
+  color: var(--ah-text-2);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease;
+}
+.asrc-tab:hover {
+  background: var(--ah-surface-2);
+  color: var(--ah-text);
+}
+.asrc-tab.active {
+  background: var(--ah-primary-tint);
+  color: var(--ah-on-primary-tint);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ah-brand) 28%, transparent);
+}
+.asrc-tab-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+@media (max-width: 640px) {
+  .asrc-topnav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .asrc-tab { justify-content: center; }
+}
+
 /* ---- /admin/sources — knowledge base ------------------------------------- */
 .akb-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
 @media (max-width: 760px) { .akb-stats { grid-template-columns: repeat(2, 1fr); } }

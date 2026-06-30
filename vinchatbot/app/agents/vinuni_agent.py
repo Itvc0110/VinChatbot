@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
 from collections.abc import Iterable
 from typing import Any
 
-from vinchatbot.app.agents.graph import build_agent_graph
+from vinchatbot.app.agents.followup_suggest import suggest_follow_ups
+from vinchatbot.app.agents.graph import FANOUT_ROUTE, build_agent_graph
 from vinchatbot.app.agents.guardrails import (
     CONVERSATIONAL_ACTIONS,
     OutputAuditDecision,
@@ -19,6 +21,9 @@ from vinchatbot.app.agents.guardrails import (
     resolve_output_decision,
 )
 from vinchatbot.app.agents.output_audit import audit_output
+from vinchatbot.app.agents.personal_tools import PERSONAL_TOOL_NAMES
+from vinchatbot.app.agents.question_scope import classify_question_scope
+from vinchatbot.app.agents.specialists import PERSONAL_INTENT
 from vinchatbot.app.core.config import Settings, get_settings
 from vinchatbot.app.core.observability import (
     estimate_cost_usd,
@@ -26,6 +31,7 @@ from vinchatbot.app.core.observability import (
     get_request_id,
     get_rerank_count,
     get_stage_ledger,
+    get_student_identity,
     ledger_totals,
     record_stage,
     redact,
@@ -36,8 +42,9 @@ from vinchatbot.app.core.observability import (
     sum_token_usage,
 )
 from vinchatbot.app.core.timeutils import current_time_context, is_pure_time_question
+from vinchatbot.app.db.connection import get_readonly_app_db_pool
 from vinchatbot.app.rag.citations import dedupe_citations, excerpt
-from vinchatbot.app.rag.query_engineering import is_point_lookup
+from vinchatbot.app.rag.query_engineering import is_identity_query, is_point_lookup
 from vinchatbot.app.rag.retriever import QdrantHybridRetriever, RetrievedChunk, Retriever
 from vinchatbot.app.schemas.chat import ChatRequest, ChatResponse, Citation
 from vinchatbot.app.schemas.document import DocumentMetadata
@@ -108,7 +115,29 @@ class VinUniAgentService:
         if self.settings.enable_time_awareness and is_pure_time_question(request.message):
             return self._time_context_response(request, started)
 
-        config = {"configurable": {"thread_id": request.conversation_id}}
+        # Phase 14A hotfix: classify the question's scope (deterministic, no LLM). A
+        # `personal_app_data` question backed by a server-built personalization context may be
+        # answered from that trusted current-student data WITHOUT RAG citations; policy/general
+        # questions are unaffected and still require official grounding. `trusted_app_data` is
+        # derived ONLY from the backend-built context — never from client input.
+        scope = classify_question_scope(request.message)
+        trusted_app_data = (
+            bool(request.backend_personalization_context) and scope == "personal_app_data"
+        )
+
+        # SECURITY (isolation): the LangGraph checkpointer replays a thread's full message history
+        # into every turn, and that history carries the prior turn's personalization context + personal
+        # tool results (GPA, student code, schedule). The conversation_id is CLIENT-supplied, so two
+        # different signed-in students sharing one id would share agent memory and the bot would answer
+        # student B with student A's replayed identity. Namespace the thread by the VERIFIED user id so
+        # two users can NEVER collide on a checkpointer thread, whatever conversation_id the client sends.
+        identity = get_student_identity()
+        thread_id = (
+            f"u:{identity.user_id}:{request.conversation_id}"
+            if identity is not None
+            else request.conversation_id
+        )
+        config = {"configurable": {"thread_id": thread_id}}
         user_message = request.message
         if request.filters:
             user_message = (
@@ -137,8 +166,6 @@ class VinUniAgentService:
             except Exception:
                 logger.debug("Time-context injection skipped.", exc_info=True)
 
-<<<<<<< Updated upstream
-=======
         # Phase 14A: backend-owned personalization. The chat route builds this bounded snapshot of
         # the signed-in student's own data (profile/courses/schedule/deadlines/notifications/
         # suggestions/forum/conversations) server-side; it is advisory background the agent may use
@@ -168,7 +195,6 @@ class VinUniAgentService:
                 f"{request.backend_personalization_context}]"
             )
 
->>>>>>> Stashed changes
         if self.settings.enable_langfuse:
             # Group this turn's traces under the conversation and tag with the request id, so a
             # multi-turn session reads as one thread in Langfuse (the per-call handler is attached
@@ -184,6 +210,18 @@ class VinUniAgentService:
             config=config,
         )
         messages = result.get("messages", [])
+        # Phase 5: an answer the read-only personal tools produced is grounded in the student's OWN
+        # verified DB data (not RAG), so it legitimately has no official citations — trust it through
+        # the output guard like the static app-data context, even with no static context (e.g.
+        # personalization disabled). Keyed on ACTUAL personal-tool usage so it also covers a hybrid
+        # fan-out whose personal subtask answered (e.g. "tốt nghiệp loại Xuất sắc cần điểm bao nhiêu",
+        # which classifies hybrid because "tốt nghiệp" is a policy term). Requires a live verified
+        # identity too (defense-in-depth: a forged/injected intent alone can never relax grounding).
+        personal_data = get_student_identity() is not None and (
+            result.get("intent") == PERSONAL_INTENT or _used_personal_tool(messages)
+        )
+        if personal_data:
+            trusted_app_data = True
         answer = _message_content(messages[-1]) if messages else ""
         citations = _extract_citations(messages)
         tool_trace = _extract_tool_trace(messages)
@@ -192,7 +230,9 @@ class VinUniAgentService:
         # Phase 1.25/A4: unified deterministic output guard (sensitive-output + grounding) with a logged
         # reason. Fail-CLOSED — a check error degrades rather than serves an un-audited answer.
         try:
-            output_decision = resolve_output_decision(answer, citations, retrieved_texts)
+            output_decision = resolve_output_decision(
+                answer, citations, retrieved_texts, trusted_app_data=trusted_app_data
+            )
         except Exception:
             logger.warning("Output audit raised; degrading (fail-closed).", exc_info=True)
             output_decision = OutputAuditDecision(
@@ -248,12 +288,43 @@ class VinUniAgentService:
         # Phase 1.25/B: LLM groundedness auditor — catches the grounded-but-wrong residual (right doc,
         # wrong row/number/year) the deterministic check passes. Scoped to high-stakes point-lookups,
         # gated off by default, fail-open (only a confident grounded:false degrades). The scope signal is
-        # recomputed HERE from the user message + routed intent (not read from the point-lookup contextvar)
-        # so it still fires on turns where the retrieval tool node never ran to mark the flag.
-        if self.settings.enable_output_audit and is_point_lookup(request.message, result.get("intent")):
-            verdict = await audit_output(answer, retrieved_texts, request.message, self.settings)
-            if not verdict.grounded:
-                audit_trace = {"type": "output_audit", "grounded": False, "reason": verdict.reason}
+        # recomputed HERE from the user message + routed intent — the `mark_point_lookup` contextvar set
+        # inside the LangGraph tool node does NOT propagate back to this parent context.
+        # Phase 1.28/D9 widens the gate: ALSO audit identity/role-enumeration queries for
+        # intent-satisfaction (the named person's role must match the role asked) — a grounded answer that
+        # names the wrong-role "President" is degraded to a hedge. `check_intent` only when run_intent so the
+        # point-lookup groundedness path is byte-identical when the intent flag is off.
+        # Phase 1.33: a fan-out turn fuses MULTIPLE domains into one answer, so the single-intent
+        # role/identity-satisfaction check no longer applies (it would judge a multi-domain answer against
+        # one intent and wrongly degrade it). Scope the audit to GROUNDEDNESS-ONLY for fused answers; the
+        # groundedness check runs over the union of all subtasks' evidence. Single-path is byte-identical.
+        # The LLM groundedness/intent audit checks the answer against RETRIEVED evidence. A trusted
+        # personal app-data answer is grounded in the backend context, not retrieval, so skip it
+        # (it would otherwise degrade a correct uncited app-data answer for lack of evidence).
+        fused = result.get("intent") == FANOUT_ROUTE
+        run_audit = (
+            not trusted_app_data
+            and self.settings.enable_output_audit
+            and is_point_lookup(request.message, result.get("intent"))
+        )
+        run_intent = (
+            not trusted_app_data
+            and self.settings.enable_intent_audit
+            and not fused
+            and is_identity_query(request.message, result.get("intent"))
+        )
+        if run_audit or run_intent:
+            verdict = await audit_output(
+                answer, retrieved_texts, request.message, self.settings, check_intent=run_intent
+            )
+            insufficient = (not verdict.grounded) or (run_intent and not verdict.satisfies_intent)
+            if insufficient:
+                audit_trace = {
+                    "type": "output_audit",
+                    "grounded": verdict.grounded,
+                    "satisfies_intent": verdict.satisfies_intent,
+                    "reason": verdict.reason,
+                }
                 self._log_turn(
                     request,
                     intent=result.get("intent"),
@@ -271,7 +342,15 @@ class VinUniAgentService:
                     citations=citations,
                     tool_trace=[*tool_trace, audit_trace],
                 )
-            tool_trace = [*tool_trace, {"type": "output_audit", "grounded": True, "reason": verdict.reason}]
+            tool_trace = [
+                *tool_trace,
+                {
+                    "type": "output_audit",
+                    "grounded": True,
+                    "satisfies_intent": verdict.satisfies_intent,
+                    "reason": verdict.reason,
+                },
+            ]
 
         if self.settings.enable_output_moderation:
             from vinchatbot.app.agents.safety_guard import assess_safety
@@ -297,6 +376,17 @@ class VinUniAgentService:
         confidence = _estimate_confidence(citations)
         needs_human_review = _needs_human_review(answer, citations)
 
+        # Content-derived follow-up chips (small/fast model). Best-effort + bounded: it never blocks or
+        # breaks the turn — on timeout / error / disabled it yields none and the client uses its rules.
+        follow_ups: list[str] = []
+        if self.settings.enable_followup_suggestions:
+            try:
+                follow_ups = await asyncio.wait_for(
+                    suggest_follow_ups(request.message, answer, self.settings), timeout=8.0
+                )
+            except Exception:
+                logger.debug("Follow-up suggestion skipped.", exc_info=True)
+
         self._log_turn(
             request,
             intent=result.get("intent"),
@@ -316,6 +406,8 @@ class VinUniAgentService:
             confidence=confidence,
             tool_trace=tool_trace,
             needs_human_review=needs_human_review,
+            suggested_follow_ups=follow_ups,
+            personal_data=personal_data,
         )
 
     def _sensitive_output_block(
@@ -479,10 +571,14 @@ class VinUniAgentService:
         )
 
     def _build_agent(self):
+        # Phase 5: thread the read-only app DB pool so the graph builds the personal specialist + its
+        # session-scoped DB tools. None (no DB configured / offline) → no personal specialist, general
+        # path unchanged.
         return build_agent_graph(
             self.retriever,
             settings=self.settings,
             checkpointer=self._build_checkpointer(),
+            personal_pool=get_readonly_app_db_pool(),
         )
 
     def _build_checkpointer(self):
@@ -538,6 +634,18 @@ def _iter_tool_payloads(messages: Iterable[Any]) -> Iterable[dict[str, Any]]:
             yield payload
 
 
+def _used_personal_tool(messages: Iterable[Any]) -> bool:
+    """True if any read-only personal tool produced a ToolMessage in this turn (single personal route
+    OR a hybrid fan-out whose personal subtask ran). Used to trust the DB-grounded answer."""
+    for message in messages:
+        if (
+            message.__class__.__name__ == "ToolMessage"
+            and getattr(message, "name", None) in PERSONAL_TOOL_NAMES
+        ):
+            return True
+    return False
+
+
 def _retrieved_texts(messages: Iterable[Any]) -> list[str]:
     texts: list[str] = []
     for payload in _iter_tool_payloads(messages):
@@ -568,6 +676,12 @@ def _extract_citations(messages: Iterable[Any]) -> list[Citation]:
                     score=item.get("score"),
                 )
             )
+    # NOTE (Phase 1.28h, REJECTED): score-sorting these citations before [:8] was A/B-tested to surface the
+    # highest-relevance chunk on multi-call turns. It recovered exp-program-datascience-vi but REGRESSED 5 VI
+    # policy cases' cite_ok (0.941→0.794) — for cross-lingual policy queries it pushed the expected VI policy
+    # source out of the top-8 in favor of higher-scored EN/other chunks. Net-negative → reverted to
+    # first-encountered order. See LOGS/PHASE1.28_LOG.md (1.28h). The cross-lingual citation dilution remains
+    # a documented open item.
     return dedupe_citations(citations)[:8]
 
 
@@ -639,4 +753,3 @@ def response_from_retrieved_chunks(
         tool_trace=[],
         needs_human_review=needs_human_review,
     )
-

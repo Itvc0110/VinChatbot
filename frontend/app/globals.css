@@ -72,41 +72,41 @@
 }
 
 [data-theme="dark"] {
-  /* deep slate, never pure black; surfaces LIGHTEN as they rise */
-  --bg: #131417;
-  --surface: #191b1f;
-  --surface-2: #20232a;
-  --surface-3: #2a2e36;
+  /* Dracula-inspired: lighter graphite-purple surfaces with a little glossy lift,
+     avoiding the old near-black page while keeping strong contrast. */
+  --bg: #282a36;
+  --surface: #343746;
+  --surface-2: #3d4052;
+  --surface-3: #44475a;
 
-  --border: rgba(255, 255, 255, 0.09);
-  --border-strong: rgba(255, 255, 255, 0.16);
+  --border: rgba(248, 248, 242, 0.13);
+  --border-strong: rgba(248, 248, 242, 0.24);
 
-  --foreground: #e7e4df;
-  --muted-foreground: #a7a298;
-  --faint: #837c72;
+  --foreground: #f8f8f2;
+  --muted-foreground: #c9ccdc;
+  --faint: #aeb4cb;
 
-  /* desaturated + lightened so the accent doesn't vibrate on dark */
-  --primary: #4f9be0;
-  --primary-hover: #6baeea;
+  --primary: #5aa9ff;
+  --primary-hover: #7bbcff;
   --primary-foreground: #ffffff;
-  --accent: #7fb0e8; /* readable as text/links on dark */
-  --accent-tint: rgba(127, 176, 232, 0.12);
-  --accent-tint-strong: rgba(127, 176, 232, 0.18);
-  --accent-border: rgba(127, 176, 232, 0.26);
-  --ring: rgba(127, 176, 232, 0.45);
+  --accent: #8be9fd;
+  --accent-tint: rgba(139, 233, 253, 0.13);
+  --accent-tint-strong: rgba(139, 233, 253, 0.2);
+  --accent-border: rgba(139, 233, 253, 0.32);
+  --ring: rgba(139, 233, 253, 0.48);
 
-  --success: #4cc38a;
-  --success-bg: rgba(76, 195, 138, 0.13);
-  --warning: #e0a44a;
-  --warning-bg: rgba(224, 164, 74, 0.14);
-  --danger: #f06a62;
-  --danger-bg: rgba(240, 106, 98, 0.14);
-  --neutral: #9aa3b2;
-  --neutral-bg: rgba(154, 163, 178, 0.14);
+  --success: #50fa7b;
+  --success-bg: rgba(80, 250, 123, 0.13);
+  --warning: #f1fa8c;
+  --warning-bg: rgba(241, 250, 140, 0.14);
+  --danger: #ff79c6;
+  --danger-bg: rgba(255, 121, 198, 0.14);
+  --neutral: #bdc2d7;
+  --neutral-bg: rgba(189, 194, 215, 0.15);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.4);
-  --shadow-pop: 0 14px 36px rgba(0, 0, 0, 0.55);
+  --shadow-sm: 0 1px 2px rgba(15, 17, 28, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --shadow-card: 0 10px 30px rgba(15, 17, 28, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-pop: 0 24px 58px rgba(15, 17, 28, 0.46), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 
   color-scheme: dark;
 }
@@ -134,6 +134,11 @@
   --ah-on-primary: #ffffff;
   --ah-primary-tint: #eaf3ff;
   --ah-on-primary-tint: #002855;
+
+  /* Shared brand "hero" fill (ask-Vinnie card, events banner, avatar). A radial highlight from
+     the top-left adds depth vs. a flat 45° linear fade; stays in the navy→blue family. Theme-
+     agnostic on purpose — these surfaces carry white text in both light and dark. */
+  --ah-hero-gradient: radial-gradient(125% 125% at 0% 0%, #0a5aa8 0%, #00468c 48%, #002855 100%);
 
   /* text + lines */
   --ah-text: #0f172a;
@@ -183,40 +188,40 @@
 }
 
 [data-theme="dark"] {
-  /* Academic Horizon is light-only by spec; these are a derived dark extension. */
-  --ah-bg: #16161a;
-  --ah-surface: #1d1e22;
-  --ah-surface-2: #24252b;
-  --ah-surface-3: #2c2e35;
-  --ah-surface-4: #353841;
+  --ah-bg: #282a36;
+  --ah-surface: #343746;
+  --ah-surface-2: #3d4052;
+  --ah-surface-3: #44475a;
+  --ah-surface-4: #51566d;
 
-  --ah-primary: #7fb0e8;
-  --ah-brand: #4f9be0;
-  --ah-brand-hover: #6baeea;
-  --ah-on-primary: #04243b;
-  --ah-primary-tint: rgba(79, 155, 224, 0.18);
-  --ah-on-primary-tint: #a9d0f5;
+  --ah-primary: #8be9fd;
+  --ah-brand: #5aa9ff;
+  --ah-brand-hover: #7bbcff;
+  --ah-on-primary: #ffffff;
+  --ah-primary-tint: rgba(139, 233, 253, 0.15);
+  --ah-on-primary-tint: #8be9fd;
 
-  --ah-text: #e8edf4;
-  --ah-text-2: #b4c2d4;
-  --ah-muted: #93a1b5;
-  --ah-border: rgba(255, 255, 255, 0.12);
-  --ah-border-strong: rgba(255, 255, 255, 0.2);
-  --ah-outline: #8fa6c0;
+  --ah-text: #f8f8f2;
+  --ah-text-2: #d7d9e8;
+  --ah-muted: #bdc2d7;
+  --ah-border: rgba(248, 248, 242, 0.13);
+  --ah-border-strong: rgba(248, 248, 242, 0.24);
+  --ah-outline: #aeb4cb;
 
-  --ah-info: #5aa7ec;
-  --ah-info-bg: rgba(11, 107, 203, 0.18);
-  --ah-success-bg: rgba(16, 185, 129, 0.16);
-  --ah-warning: #e0a44a;
-  --ah-warning-bg: rgba(224, 164, 74, 0.16);
-  --ah-error: #f06a62;
-  --ah-error-bg: rgba(240, 106, 98, 0.16);
-  --ah-secondary: #aab6c6;
-  --ah-secondary-bg: rgba(130, 150, 180, 0.2);
+  --ah-info: #8be9fd;
+  --ah-info-bg: rgba(139, 233, 253, 0.14);
+  --ah-success: #50fa7b;
+  --ah-success-bg: rgba(80, 250, 123, 0.14);
+  --ah-warning: #f1fa8c;
+  --ah-warning-bg: rgba(241, 250, 140, 0.14);
+  --ah-error: #ff79c6;
+  --ah-error-bg: rgba(255, 121, 198, 0.14);
+  --ah-secondary: #d7d9e8;
+  --ah-secondary-bg: rgba(189, 194, 215, 0.17);
 
-  --ah-shadow-2: 0 4px 20px rgba(0, 0, 0, 0.45);
-  --ah-shadow-pop: 0 14px 36px rgba(0, 0, 0, 0.55);
-  --ah-ring: rgba(127, 176, 232, 0.3);
+  --ah-shadow-2: 0 12px 32px rgba(15, 17, 28, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --ah-shadow-pop: 0 26px 64px rgba(15, 17, 28, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --ah-ring: rgba(139, 233, 253, 0.36);
 }
 
 * {
@@ -269,6 +274,30 @@ textarea::placeholder {
   border-radius: var(--radius-sm);
 }
 
+/* Skip-to-content link: off-screen until focused, then slides into the top-left. First
+   focusable element in each shell so keyboard users jump straight to <main id="main-content">. */
+.skip-link {
+  position: fixed;
+  left: 12px;
+  top: -64px;
+  z-index: 200;
+  display: inline-flex;
+  align-items: center;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 6px 20px rgba(0, 40, 85, 0.28);
+  transition: top var(--dur) var(--ease);
+}
+.skip-link:focus-visible {
+  top: 12px;
+  box-shadow: 0 0 0 3px var(--ring), 0 6px 20px rgba(0, 40, 85, 0.28);
+}
+
 /* ---------- shell ---------- */
 .app {
   display: flex;
@@ -316,7 +345,7 @@ textarea::placeholder {
 }
 .brand-name {
   font-size: var(--fs-body);
-  font-weight: 650;
+  font-weight: 700;
   letter-spacing: -0.01em;
   white-space: nowrap;
 }
@@ -658,15 +687,21 @@ textarea::placeholder {
   margin-bottom: 6px;
 }
 .bot-avatar {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background: var(--primary);
-  color: var(--primary-foreground);
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: #fff;
+  color: inherit;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
+  padding: 1px;
+}
+.bot-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 .msg .body {
   white-space: pre-wrap;
@@ -1056,12 +1091,17 @@ textarea::placeholder {
   padding: 12px 16px 14px;
 }
 .chips {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 8px;
-  flex-wrap: wrap;
   margin-bottom: 10px;
 }
 .prompt-chip {
+  width: 100%;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: var(--fs-xs);
   font-weight: 500;
   border: 1px solid var(--border);
@@ -1070,6 +1110,8 @@ textarea::placeholder {
   padding: 5px 13px;
   cursor: pointer;
   color: var(--muted-foreground);
+  text-align: center;
+  white-space: normal;
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease),
     border-color var(--dur) var(--ease);
 }
@@ -1077,6 +1119,15 @@ textarea::placeholder {
   background: var(--accent-tint);
   color: var(--accent);
   border-color: var(--accent-border);
+}
+.vinnie-widget .chips {
+  grid-template-columns: 1fr;
+}
+.vinnie-widget .prompt-chip {
+  min-height: 40px;
+  justify-content: flex-start;
+  text-align: left;
+  line-height: 1.25;
 }
 .prompt-chip:disabled {
   opacity: 0.5;
@@ -1097,17 +1148,17 @@ textarea::placeholder {
   color: var(--faint);
 }
 .followups-chips {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 7px;
   min-width: 0;
 }
 /* Follow-up chips read slightly larger than the composer quick-prompts. */
 .followups-chips .prompt-chip {
   font-size: var(--fs-sm);
-  max-width: 100%;
-  white-space: normal;
+  min-height: 34px;
   text-align: left;
+  justify-content: flex-start;
 }
 .composer-field {
   display: flex;
@@ -1144,7 +1195,7 @@ textarea::placeholder {
   color: var(--primary-foreground);
   border-radius: var(--radius-sm);
   padding: 9px 18px;
-  font-weight: 650;
+  font-weight: 700;
   cursor: pointer;
   transition: background var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
@@ -1165,7 +1216,7 @@ textarea::placeholder {
   color: var(--danger);
   border-radius: var(--radius-sm);
   padding: 9px 16px;
-  font-weight: 650;
+  font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;

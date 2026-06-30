@@ -13,6 +13,7 @@ import logging
 import re
 import uuid
 from collections.abc import Iterable
+from dataclasses import dataclass
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -138,6 +139,51 @@ def get_user_message() -> str | None:
 
 def reset_user_message() -> None:
     _user_message.set(None)
+
+
+# Authenticated student identity for the current turn (Phase 5 personalization). The security core of
+# the personal DB tools: set ONCE by the chat route from the VERIFIED session (never from client or
+# model input) before the agent runs, then read by the read-only personal tools to hard-scope every
+# query to this student's own rows (WHERE student_profile_id = <this id>). Mirrors set_user_message —
+# a parent `.set()` before any task spawns is visible to the child tool tasks (which copy the binding)
+# and the tools only READ it, so no mutable-list write-back is needed. Default None = anon / admin /
+# no session → the personal tools refuse. The LLM is given NO parameter to name a student, so it can
+# never target another student's data by construction.
+@dataclass(frozen=True)
+class StudentIdentity:
+    student_profile_id: uuid.UUID
+    user_id: uuid.UUID
+
+
+_student_identity: contextvars.ContextVar[StudentIdentity | None] = contextvars.ContextVar(
+    "student_identity", default=None
+)
+
+
+def set_student_identity(
+    student_profile_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> contextvars.Token:
+    return _student_identity.set(
+        StudentIdentity(student_profile_id=student_profile_id, user_id=user_id)
+    )
+
+
+def get_student_identity() -> StudentIdentity | None:
+    return _student_identity.get()
+
+
+def reset_student_identity(token: contextvars.Token | None = None) -> None:
+    """Clear the per-turn student identity. Pass the token from set_student_identity for a precise
+    reset (preferred); a bare call resets to None. Always cleared in the route's finally block."""
+    try:
+        if token is not None:
+            _student_identity.reset(token)
+        else:
+            _student_identity.set(None)
+    except (ValueError, LookupError):
+        # Token from a different context (reused across tasks); fall back to a hard clear.
+        _student_identity.set(None)
 
 
 # Per-turn per-stage cost/latency ledger (Phase C). A turn touches several billable stages
@@ -302,12 +348,19 @@ _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 # Vietnamese-style phone numbers (leading 0 or +84). Deliberately NOT a generic long-digit rule —
 # that would scrub fee amounts / dates / policy codes, which we *want* visible in traces.
 _PHONE_RE = re.compile(r"(?:\+?84|0)\d{8,10}")
+# VinUni student codes, e.g. D2026CECS001 / D2026VIB002 (D + 4-digit year + 2–6 letters + 3 digits).
+# A direct identifier of the signed-in student in the tool↔agent exchange — mask it in traces/logs.
+# Anchored to this exact shape so it never scrubs course codes (CS102) or fee/date numbers.
+_STUDENT_CODE_RE = re.compile(r"\bD\d{4}[A-Z]{2,6}\d{3}\b")
 
 
 def scrub_pii(text: str) -> str:
-    """Mask direct identifiers (email, phone) while leaving amounts/dates intact so traces stay
-    useful for debugging. The bot already refuses personal-record requests upstream."""
-    return _PHONE_RE.sub("[phone]", _EMAIL_RE.sub("[email]", text))
+    """Mask direct identifiers (email, phone, student code) while leaving amounts/dates/course codes
+    intact so traces stay useful for debugging. Masks only the OBSERVABILITY copy — never the live
+    model input or the answer the student sees (which legitimately contains their own data)."""
+    masked = _EMAIL_RE.sub("[email]", text)
+    masked = _PHONE_RE.sub("[phone]", masked)
+    return _STUDENT_CODE_RE.sub("[student-id]", masked)
 
 
 def langfuse_mask(data: Any = None, **_: Any) -> Any:

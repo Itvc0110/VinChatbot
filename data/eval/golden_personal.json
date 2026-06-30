@@ -1,0 +1,333 @@
+{
+  "description": "Phase 5 personalization golden set, facts rebuilt against the live DB on the INTEGRATED branch (post PR#6 read-model; 2026-06-30). Run as an AUTHENTICATED student (identity from --email, default student.cs.demo@vinuni.edu.vn: Bachelor of Computer Science, code D2026CECS001; semester GPA 3.0 / cumulative CPA 3.12; 5 credits earned, 115 remaining of 120; advisor Minh Nguyen; current ACADEMIC courses CS102(retake)/CS201/GEN102/MATH102 in Summer Term 2026 from the dashboard read-model). NOTE: PR#6 changed get_my_academic_standing semantics (earned=passed-credits=5, was 21; projection uses cumulative CPA 3.12). Scored by scripts/run_eval_personal.py for: dispatcher route (expect_route), tools fired (expect_tool), and answer facts. NOT scored by run_eval.py (needs a live session + DB).",
+  "student": "student.cs.demo@vinuni.edu.vn",
+  "cases": [
+    {
+      "id": "pers-gpa-en",
+      "language": "en",
+      "question": "What is my current GPA?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_academic_standing",
+      "required_facts": ["3.0|3.12"]
+    },
+    {
+      "id": "pers-gpa-vi",
+      "language": "vi",
+      "question": "GPA hiện tại của tôi là bao nhiêu?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_academic_standing",
+      "required_facts": ["3.0|3.12"]
+    },
+    {
+      "id": "pers-credits-earned",
+      "language": "en",
+      "question": "How many credits have I earned so far?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_academic_standing",
+      "required_facts": ["5"]
+    },
+    {
+      "id": "pers-credits-required",
+      "language": "en",
+      "question": "How many total credits does my program require?",
+      "expect_route": "personal",
+      "required_facts": ["120"]
+    },
+    {
+      "id": "pers-credits-remaining",
+      "language": "vi",
+      "question": "Tôi còn bao nhiêu tín chỉ nữa thì đủ điều kiện tốt nghiệp?",
+      "expect_route": "personal",
+      "required_facts": ["115"]
+    },
+    {
+      "id": "pers-standing",
+      "language": "en",
+      "question": "Am I in good academic standing?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_academic_standing",
+      "loose": true
+    },
+    {
+      "id": "pers-program",
+      "language": "en",
+      "question": "What program and major am I in?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_profile",
+      "required_facts": ["Computer Science"]
+    },
+    {
+      "id": "pers-advisor-vi",
+      "language": "vi",
+      "question": "Cố vấn học tập của tôi là ai?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_profile",
+      "required_facts": ["Minh Nguyen"]
+    },
+    {
+      "id": "pers-grade-cs101",
+      "language": "en",
+      "question": "What grade did I get in CS101?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_transcript",
+      "required_facts": ["CS101", "B"]
+    },
+    {
+      "id": "pers-failed-course",
+      "language": "vi",
+      "question": "Tôi có bị trượt môn nào không? Nếu có thì môn nào?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_transcript",
+      "required_facts": ["CS102"]
+    },
+    {
+      "id": "pers-courses-enrolled",
+      "language": "en",
+      "question": "What courses am I currently enrolled in?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_courses",
+      "required_facts": ["CS102"],
+      "forbidden_facts": ["CSC101", "CSC250"]
+    },
+    {
+      "id": "pers-deadlines",
+      "language": "en",
+      "question": "What deadlines do I have coming up?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_deadlines",
+      "loose": true
+    },
+    {
+      "id": "pers-remaining-courses",
+      "language": "vi",
+      "question": "Tôi còn phải học những môn bắt buộc nào nữa?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_curriculum_progress",
+      "loose": true
+    },
+    {
+      "id": "pers-eligibility",
+      "language": "en",
+      "question": "Which courses am I eligible to register for next?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_course_eligibility",
+      "loose": true
+    },
+    {
+      "id": "pers-aim-excellent-en",
+      "language": "en",
+      "question": "I want to graduate with an Excellent degree. What average grade do I need on my remaining credits?",
+      "expect_route": "personal",
+      "expect_tool": "project_gpa_for_target",
+      "required_facts": ["3.62"]
+    },
+    {
+      "id": "pers-aim-excellent-vi",
+      "language": "vi",
+      "question": "Tôi muốn tốt nghiệp loại Xuất sắc. Vậy điểm trung bình các môn còn lại của tôi cần đạt bao nhiêu?",
+      "expect_route": "personal",
+      "expect_tool": "project_gpa_for_target",
+      "required_facts": ["3.62"]
+    },
+    {
+      "id": "pers-aim-33",
+      "language": "en",
+      "question": "What average do I need on my remaining credits to reach a 3.3 GPA?",
+      "expect_route": "personal",
+      "expect_tool": "project_gpa_for_target",
+      "required_facts": ["3.308|3.31|3.30"]
+    },
+    {
+      "id": "pers-next-class",
+      "language": "vi",
+      "question": "Tiết học tiếp theo của tôi là khi nào và môn gì?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_schedule",
+      "loose": true
+    },
+    {
+      "id": "pers-classes-this-week",
+      "language": "en",
+      "question": "What classes do I have this week?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_schedule",
+      "loose": true
+    },
+    {
+      "id": "pers-separation-general-fee",
+      "language": "vi",
+      "question": "Học phí một năm của chương trình Cử nhân tại VinUni là bao nhiêu?",
+      "expect_route": "general",
+      "required_facts": ["815,850,000"],
+      "expect_citation": true
+    },
+    {
+      "id": "pers-aim-40-infeasible",
+      "language": "en",
+      "question": "What average would I need on my remaining credits to finish with a perfect 4.0 GPA?",
+      "expect_route": "personal",
+      "expect_tool": "project_gpa_for_target",
+      "required_facts": ["not reachable|cannot|not possible|above the 4.0|không thể|không khả thi"]
+    },
+    {
+      "id": "pers-honors-still-possible",
+      "language": "vi",
+      "question": "Với kết quả hiện tại, tôi còn có thể tốt nghiệp loại Xuất sắc được không?",
+      "expect_route": "personal",
+      "expect_tool": "project_gpa_for_target",
+      "required_facts": ["3.62"]
+    },
+    {
+      "id": "pers-combined-standing",
+      "language": "vi",
+      "question": "Cho tôi biết GPA, số tín chỉ đã đạt và số tín chỉ còn lại của tôi.",
+      "expect_route": "personal",
+      "required_facts": ["3.0|3.12", "115"]
+    },
+    {
+      "id": "pers-on-track",
+      "language": "en",
+      "question": "Am I on track to graduate on time?",
+      "expect_route": "personal",
+      "loose": true
+    },
+    {
+      "id": "pers-passed-count",
+      "language": "en",
+      "question": "How many courses have I passed so far?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_transcript",
+      "loose": true
+    },
+    {
+      "id": "pers-best-grade",
+      "language": "en",
+      "question": "What is my highest grade so far?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_transcript",
+      "loose": true
+    },
+    {
+      "id": "pers-tomorrow",
+      "language": "vi",
+      "question": "Ngày mai tôi có lớp học nào không?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_schedule",
+      "loose": true
+    },
+    {
+      "id": "pers-now-class",
+      "language": "en",
+      "question": "Do I have a class right now?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_schedule",
+      "loose": true
+    },
+    {
+      "id": "pers-student-id",
+      "language": "en",
+      "question": "What is my student ID?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_profile",
+      "required_facts": ["D2026CECS001"]
+    },
+    {
+      "id": "pers-cohort-vi",
+      "language": "vi",
+      "question": "Tôi thuộc khóa (cohort) nào?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_profile",
+      "required_facts": ["2026"]
+    },
+    {
+      "id": "pers-why-blocked",
+      "language": "vi",
+      "question": "Tôi có đủ điều kiện học CS301 chưa? Nếu chưa thì còn thiếu môn tiên quyết nào?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_course_eligibility",
+      "loose": true
+    },
+    {
+      "id": "pers-neg-eligible-general",
+      "language": "vi",
+      "question": "Học bổng Vingroup dành cho ai đủ điều kiện?",
+      "expect_route": "general",
+      "forbidden_facts": ["D2026CECS001", "PE101"],
+      "loose": true
+    },
+    {
+      "id": "pers-nearest-deadline",
+      "language": "en",
+      "question": "What is my nearest upcoming deadline?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_deadlines",
+      "loose": true
+    },
+    {
+      "id": "pers-sep-integrity",
+      "language": "en",
+      "question": "What is VinUni's academic integrity policy?",
+      "expect_route": "general",
+      "loose": true
+    },
+    {
+      "id": "pers-sep-drop-deadline",
+      "language": "vi",
+      "question": "Hạn cuối hủy môn (course drop) trong học kỳ này là khi nào?",
+      "expect_route": "general",
+      "loose": true
+    },
+    {
+      "id": "pers-last-week",
+      "language": "vi",
+      "question": "Lịch học tuần trước của tôi như thế nào?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_schedule",
+      "loose": true
+    },
+    {
+      "id": "pers-today-fullday",
+      "language": "vi",
+      "question": "Hôm nay tôi có những lớp học nào?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_schedule",
+      "loose": true
+    },
+    {
+      "id": "pers-specific-date",
+      "language": "vi",
+      "question": "Cho tôi xem lịch học ngày 24/6 của tôi.",
+      "expect_route": "personal",
+      "expect_tool": "get_my_schedule",
+      "loose": true
+    },
+    {
+      "id": "pers-overfire-greeting-directive",
+      "language": "vi",
+      "question": "hi, trả lời bằng tiếng việt",
+      "expect_route": "general",
+      "forbidden_facts": ["2.97", "D2026CECS001", "PE101", "Gym 1", "16:00"],
+      "loose": true
+    },
+    {
+      "id": "pers-overfire-greeting-plain",
+      "language": "vi",
+      "question": "xin chào",
+      "expect_route": "general",
+      "forbidden_facts": ["2.97", "D2026CECS001", "PE101", "Gym"],
+      "loose": true
+    },
+    {
+      "id": "pers-oos-code",
+      "language": "en",
+      "question": "Write me a Python function that reverses a string.",
+      "expect_route": "refuse"
+    },
+    {
+      "id": "pers-oos-poem",
+      "language": "vi",
+      "question": "Viết cho tôi một bài thơ về mùa thu Hà Nội.",
+      "expect_route": "refuse"
+    }
+  ]
+}

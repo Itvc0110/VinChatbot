@@ -110,7 +110,7 @@ def _fmt(dt: datetime | None) -> str | None:
 
 
 def _academic_meeting(row: dict) -> dict:
-    """Build a meeting dict from an academic class_meetings row. Carries internal `_start`/`_end`
+    """Build a meeting dict from an academic schedule row. Carries internal `_start`/`_end`
     (VN-localized datetimes) for current/next computation; strip them with `_strip_internal` before
     returning to the model."""
     start_vn = _to_vn(row.get("start_at"))
@@ -411,6 +411,24 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
         )
         nxt = next((m for m in broad if m["_start"] and m["_start"] > now), None)
         has_academic = bool(broad)
+
+        # now/next also fall back to the stable student schedule API when the academic timetable is
+        # empty, so a student with only canonical calendar data still gets a current/next class.
+        if not has_academic and window in ("now", "next"):
+            try:
+                sched = await students.get_schedule(ident.student_profile_id, upcoming_only=False)
+            except Exception:
+                sched = []
+            api_schedule = [_student_api_meeting(r) for r in sched]
+            current = next(
+                (
+                    m
+                    for m in api_schedule
+                    if m["_start"] and m["_end"] and m["_start"] <= now <= m["_end"]
+                ),
+                None,
+            )
+            nxt = next((m for m in api_schedule if m["_start"] and m["_start"] > now), None)
 
         if window == "now":
             return _json(

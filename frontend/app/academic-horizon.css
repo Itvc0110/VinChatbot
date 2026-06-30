@@ -123,6 +123,10 @@
   background: var(--ah-secondary-bg);
   color: var(--ah-secondary);
 }
+.ah-chip.error {
+  background: var(--ah-error-bg);
+  color: var(--ah-error);
+}
 
 /* ---- Stat card ----------------------------------------------------------- */
 .ah-ui .stat-card {
@@ -381,6 +385,129 @@ table.ah-table,
   font-size: 12px;
   font-weight: 700;
   flex: 0 0 auto;
+}
+.ah-avatar-btn {
+  border: 0;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px var(--ah-border);
+  transition: box-shadow var(--dur, 170ms) var(--ease, ease),
+    transform var(--dur, 170ms) var(--ease, ease);
+}
+.ah-avatar-btn:hover,
+.ah-avatar-btn.active {
+  box-shadow: 0 0 0 3px var(--ah-ring);
+}
+.ah-avatar-btn:active {
+  transform: translateY(1px);
+}
+.ah-account-menu-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.ah-account-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  z-index: 60;
+  width: min(320px, calc(100vw - 24px));
+  padding: 10px;
+  border: 1px solid var(--ah-border);
+  border-radius: var(--ah-radius);
+  background: var(--ah-surface);
+  box-shadow: var(--ah-shadow-pop);
+}
+.ah-account-menu::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 12px;
+  width: 10px;
+  height: 10px;
+  transform: rotate(45deg);
+  border-left: 1px solid var(--ah-border);
+  border-top: 1px solid var(--ah-border);
+  background: var(--ah-surface);
+}
+.ah-account-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+}
+.ah-account-avatar {
+  width: 38px;
+  height: 38px;
+  font-size: 13px;
+}
+.ah-account-id {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ah-account-name {
+  color: var(--ah-text);
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ah-account-email {
+  color: var(--ah-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ah-account-meta {
+  display: grid;
+  gap: 8px;
+  padding: 10px 8px;
+  margin: 4px 0 8px;
+  border-top: 1px solid var(--ah-border);
+  border-bottom: 1px solid var(--ah-border);
+}
+.ah-account-meta div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ah-muted);
+  font-size: 12px;
+}
+.ah-account-meta strong {
+  color: var(--ah-text);
+  font-weight: 700;
+  text-align: right;
+}
+.ah-account-action {
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--ah-radius-sm);
+  background: transparent;
+  color: var(--ah-text-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.ah-account-action:hover {
+  background: var(--ah-surface-2);
+  color: var(--ah-text);
+}
+.ah-account-action.danger {
+  color: var(--ah-error);
+}
+.ah-account-action.danger:hover {
+  background: var(--ah-error-bg);
 }
 .ah-profile-name {
   font-size: 14px;
@@ -671,7 +798,7 @@ table.ah-table,
 
 /* Dashboard "ask Vinnie" hero → Academic Horizon navy/blue banner. */
 .ah-ui .hero-ask {
-  /* fixed navy→blue gradient (not theme-swapped) so white text stays readable in dark mode */
-  background: linear-gradient(135deg, #002855 0%, #0057a8 100%);
+  /* shared brand hero fill (radial navy→blue); white text stays readable in light + dark */
+  background: var(--ah-hero-gradient);
   border-radius: var(--ah-radius-lg);
 }

@@ -26,6 +26,35 @@ def _scored(id: str, score: float, **meta):
     return SimpleNamespace(id=id, text="", score=score, metadata=SimpleNamespace(**base))
 
 
+def test_canonical_doc_match_fact_intents():
+    # Phase 1.30/S15+S16 doc-pin matcher: confident fact-topic → canonical URL; else None (fail-open).
+    from vinchatbot.app.rag.canonical_lookup import ADMISSION_URL, AID_URL, canonical_doc_match
+    assert canonical_doc_match("What minimum GPA do I need to apply?") == ADMISSION_URL
+    assert canonical_doc_match("điều kiện xét tuyển đại học là gì") == ADMISSION_URL
+    assert canonical_doc_match("What % tuition subsidy do students get?") == AID_URL
+    assert canonical_doc_match("trợ cấp học phí cho sinh viên") == AID_URL
+    # AID is narrowed (1.30b) to the SUBSIDY intent — broad "scholarship"/"financial support" questions whose
+    # answer lives elsewhere must NOT pin the undergrad aid page (they regress via a flipped citation).
+    assert canonical_doc_match("Who is eligible for the Vingroup Science and Technology Scholarship?") is None
+    assert canonical_doc_match("What financial support do PhD students receive?") is None
+    assert canonical_doc_match("What are the financial aid request deadlines?") is None
+    # program: needs program-name AND a fact-context word
+    assert "MD_Program-Specifications" in (canonical_doc_match("How many credits is the Doctor of Medicine program?") or "")
+    assert "BSCS" in (canonical_doc_match("Chương trình Khoa học Máy tính có bao nhiêu tín chỉ?") or "")
+    assert "data-science" in (canonical_doc_match("data science curriculum total credits") or "")
+    # program name WITHOUT fact-context → no pin (won't hijack "who teaches CS")
+    assert canonical_doc_match("Who teaches computer science at VinUni?") is None
+    # DURATION question (1.30b) → no pin: the spec PDFs carry a dual-degree "5/5.5 years" distractor that
+    # regresses duration Qs, and the vector path answers them cleanly → duration is NOT a fact-context word.
+    assert canonical_doc_match("How many years is VinUni's Bachelor of Business Administration program?") is None
+    assert canonical_doc_match("chương trình kỹ thuật điện kéo dài bao nhiêu năm") is None
+    # two programs named → ambiguous → None
+    assert canonical_doc_match("compare computer science and data science credits") is None
+    # plain fee / calendar → None
+    assert canonical_doc_match("How much is the tuition?") is None
+    assert canonical_doc_match("When is the add-drop deadline?") is None
+
+
 def test_litm_reorder_puts_best_at_both_ends():
     # input is relevance-descending
     out = reorder_for_long_context(["a", "b", "c", "d", "e"])

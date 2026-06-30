@@ -1,0 +1,25 @@
+{
+  "name": "vinuni_entity_roles",
+  "description": "Role-disambiguation (E4): the data overloads 'President' across roles, so probe that the bot maps the RIGHT person to the SPECIFIC role asked. Verified 2026-06-24: Council President / Chủ tịch Hội đồng trường = Dr. Lê Mai Lan (governance + bylaws + people/le-mai-lan-phd). Complements identity_intent.json (rector-trap: must NOT name Lê Mai Lan as Rector) and exp-provost (Provost = Rohit Verma). Scored = should pass; if a case fails (role overload) it moves to golden_targets for the D8 entity/role table.",
+  "source": "vinuni.edu.vn/governance + people/le-mai-lan-phd + policy bylaws",
+  "cases": [
+    {
+      "id": "role-council-president-en",
+      "question": "Who is the President of VinUniversity's University Council (the governing body)?",
+      "required_facts": ["Lê Mai Lan|Le Mai Lan"],
+      "forbidden_facts": [],
+      "expected_source": ["vinuni", "governance", "le-mai-lan", "council"],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "role-council-president-vi",
+      "question": "Ai là Chủ tịch Hội đồng trường của VinUni?",
+      "required_facts": ["Lê Mai Lan|Le Mai Lan"],
+      "forbidden_facts": [],
+      "expected_source": ["vinuni", "governance", "le-mai-lan", "hoi-dong"],
+      "language": "vi",
+      "held_out": true
+    }
+  ]
+}

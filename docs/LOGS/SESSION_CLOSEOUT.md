@@ -24,7 +24,7 @@ asked" rule; nothing was committed this arc). Detailed per-phase logs in `LOGS/P
 
 ## DEFERRED (resume points saved)
 - **1.26 / A5 — refusal & don't-over-refuse** → plan **`LOGS/PHASE1.26_PLAN.md`** (Part 1 was built then reverted clean). **Part 1** `restricted_data` HYBRID (regex hard-block + escalate ambiguous to the LLM guard) **fixes `record-privacy-vi`** — ⚠️ probe qwen-7b reliability FIRST. **Part 2** soft-scope A/B (`ENABLE_SOFT_SCOPE`). **Part 3** clarification → **team merge**.
-- **1.27c cross-domain fan-out** — distinct real gap (single-intent routing can't reach another domain's tools) but low measured value (no cross-domain golden). Plan in `.claude/plans/can-we-try-to-merry-mango.md`.
+- ~~**1.27c cross-domain fan-out** (deferred)~~ → **BUILT + PROMOTED in Phase 1.33**: decompose / hedge → parallel specialists → synthesis + L2 retry, `ENABLE_FAN_OUT` **default ON**. Neutral on the single-domain scored set (no regression after the same-intent over-fire fix) + adds the multi-domain coverage the single router can't; reversible via the flag. Plan `.claude/plans/can-we-try-to-merry-mango.md`; outcome `LOGS/PHASE1.33_LOG.md`.
 - **1.28 / A7 contextual retrieval + retrieval-planner** — heaviest; one-time re-ingest.
 - **Q1 multi-question decomposition** — NOT recommended (ReAct BASE_PRINCIPLES step-2 completeness nudge covers it). **Q2 clarification** + **output PII scan** — → team merge / post-personalization. See memories `defer-input-understanding-decomposition-clarification`, `defer-output-pii-scan-until-personalization`.
 - **Track B (perf):** 1.29 async, B2 LangCache semantic answer-cache.

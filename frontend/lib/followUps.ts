@@ -10,6 +10,10 @@
 import type { ChatResponse } from "./types";
 import type { Lang } from "./i18n";
 
+// Few by design: the chips sit under each answer and a single question can be long. Keep this in
+// sync with the backend cap in followup_suggest.py (_MAX_ITEMS).
+const MAX_FOLLOW_UPS = 3;
+
 export interface FollowUpInput {
   userQuestion: string;
   assistantAnswer: string;
@@ -71,14 +75,14 @@ const T = {
   },
   policy: {
     en: [
-      "Open the official source",
       "Are there any exceptions?",
       "Prepare a support ticket",
+      "Which office should I contact?",
     ],
     vi: [
-      "Mở nguồn chính thức",
       "Có ngoại lệ nào không?",
       "Soạn phiếu hỗ trợ",
+      "Tôi nên liên hệ phòng ban nào?",
     ],
   },
   // Low confidence / no usable sources → steer to a human channel.
@@ -91,12 +95,12 @@ const T = {
     en: [
       "Can you explain more?",
       "Which office should I contact?",
-      "Where can I read the official policy?",
+      "Prepare a support ticket",
     ],
     vi: [
       "Giải thích thêm giúp tôi?",
       "Tôi nên liên hệ phòng ban nào?",
-      "Tôi đọc chính sách chính thức ở đâu?",
+      "Soạn phiếu hỗ trợ",
     ],
   },
 } as const;
@@ -125,9 +129,9 @@ export function generateFollowUpSuggestions(input: FollowUpInput): string[] {
   // Top up with generic deepeners so there are always at least three.
   push(T.fallback[language]);
 
-  // De-dupe (preserving order) and keep 3–5.
+  // De-dupe (preserving order) and keep a few — the chips sit under the answer and can be long.
   const unique = Array.from(new Set(out.map((q) => q.trim())));
-  return unique.slice(0, 5);
+  return unique.slice(0, MAX_FOLLOW_UPS);
 }
 
 // Render-time entry point used by the FollowUpSuggestions component. Prefers backend-provided
@@ -138,15 +142,26 @@ export function followUpsFor(
   lang: Lang
 ): string[] {
   const fromBackend = backendSuggestions(response);
-  if (fromBackend.length) return fromBackend.slice(0, 5);
+  if (fromBackend.length) return removeSourceOpenSuggestions(fromBackend).slice(0, MAX_FOLLOW_UPS);
 
-  return generateFollowUpSuggestions({
-    userQuestion: question,
-    assistantAnswer: response.answer,
-    language: lang,
-    confidence: response.confidence,
-    citationCount: response.citations.length,
-    needsReview: response.needs_human_review,
+  return removeSourceOpenSuggestions(
+    generateFollowUpSuggestions({
+      userQuestion: question,
+      assistantAnswer: response.answer,
+      language: lang,
+      confidence: response.confidence,
+      citationCount: response.citations.length,
+      needsReview: response.needs_human_review,
+    })
+  );
+}
+
+function removeSourceOpenSuggestions(items: string[]): string[] {
+  return items.filter((q) => {
+    const text = q.trim();
+    return !/\b(open|view|read)\b.*\b(source|policy)\b|\bsource\b|mở\s+nguồn|nguồn\s+chính\s+thức|chính\s+sách\s+chính\s+thức/i.test(
+      text
+    );
   });
 }
 

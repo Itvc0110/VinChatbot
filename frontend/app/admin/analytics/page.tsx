@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
+import { useAuth } from "@/lib/auth";
 import { getAnalytics, getAdminStats, getKnowledgeSources, getUnansweredQuestions } from "@/lib/api";
 import {
   IconChat,
@@ -69,11 +70,12 @@ function Stat({ value, label, icon, tone = "default" }: { value: React.ReactNode
 
 export default function AnalyticsPage() {
   const { p, lang } = usePortal();
+  const { token } = useAuth();
   const tr = STR[lang];
-  const analytics = useAsync(() => getAnalytics(), []);
-  const stats = useAsync(() => getAdminStats(), []);
-  const sources = useAsync(() => getKnowledgeSources(), []);
-  const questions = useAsync(() => getUnansweredQuestions(), []);
+  const analytics = useAsync(() => getAnalytics(), [token]);
+  const stats = useAsync(() => getAdminStats(), [token]);
+  const sources = useAsync(() => getKnowledgeSources(), [token]);
+  const questions = useAsync(() => getUnansweredQuestions(), [token]);
 
   const a = analytics.status === "success" ? analytics.data : null;
   const s = stats.status === "success" ? stats.data : null;
@@ -133,7 +135,7 @@ export default function AnalyticsPage() {
           <div className="acard">
             <div className="acard-head">
               <h2 className="acard-title">{tr.lowConfidenceHeader}</h2>
-              <Link className="acard-link" href="/admin/unanswered">{tr.reviewQueue} <IconArrow size={13} /></Link>
+              <Link className="acard-link" href="/admin/sources/unanswered">{tr.reviewQueue} <IconArrow size={13} /></Link>
             </div>
             {lowConf.length === 0 ? (
               <p className="attn-sub">{tr.noLowConfidence}</p>
@@ -145,7 +147,7 @@ export default function AnalyticsPage() {
                     <div className="amon-item-q">{q.question}</div>
                     <div className="amon-item-sub">{p.enums.questionReason[q.reason]} · {tr.asked} {q.asked_count}×</div>
                   </div>
-                  <Link className="btn btn-outline btn-sm amon-item-act" href={`/admin/unanswered/${q.id}`}>{tr.review}</Link>
+                  <Link className="btn btn-outline btn-sm amon-item-act" href={`/admin/sources/unanswered/${q.id}`}>{tr.review}</Link>
                 </div>
               ))
             )}
@@ -164,7 +166,7 @@ export default function AnalyticsPage() {
                     <div className="amon-item-q">{q.question}</div>
                     <div className="amon-item-sub">{tr.noVerifiedSource} {p.enums.department[q.suggested_department] ?? q.suggested_department}</div>
                   </div>
-                  <Link className="btn btn-outline btn-sm amon-item-act" href={`/admin/unanswered/${q.id}`}>{tr.linkSource}</Link>
+                  <Link className="btn btn-outline btn-sm amon-item-act" href={`/admin/sources/unanswered/${q.id}`}>{tr.linkSource}</Link>
                 </div>
               ))
             )}

@@ -2,10 +2,20 @@ import type { ChatRequest, ChatResponse, SourceSummary } from "./types";
 import type {
   AdminStats,
   AnalyticsOverview,
+  AdminDashboard,
   CalendarEvent,
   ClassSession,
   Deadline,
   DeadlineKind,
+  ForumAttachment,
+  ForumCategory,
+  ForumComment,
+  ForumMember,
+  ForumSort,
+  ForumTopic,
+  ForumVoteResult,
+  ForumVoteTarget,
+  ForumVoteValue,
   KnowledgeSource,
   Notification,
   NotificationType,
@@ -29,9 +39,6 @@ import type { Lang } from "./i18n";
 import {
   MOCK_ADMIN_STATS,
   MOCK_ANALYTICS,
-  MOCK_NOTIFICATIONS,
-  MOCK_PROFILE,
-  MOCK_SOURCES,
   MOCK_TICKETS,
   MOCK_TUITION,
   MOCK_UNANSWERED,
@@ -138,11 +145,91 @@ export interface BackendNotification {
   end_date?: string | null;
   source_title?: string | null;
   source_url?: string | null;
+  recipient_user_id?: string | null;
+  forum_topic_id?: string | null;
+  forum_comment_id?: string | null;
   created_at: string;
   updated_at: string;
   is_read: boolean;
   important: boolean;
   archived: boolean;
+}
+
+export interface BackendAdminNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  title_vi?: string | null;
+  title_en?: string | null;
+  message_vi?: string | null;
+  message_en?: string | null;
+  priority: string;
+  status: string;
+  target_scope: string;
+  institute_id?: string | null;
+  institute_code?: string | null;
+  course_id?: string | null;
+  course_code?: string | null;
+  cohort?: number | null;
+  deadline?: string | null;
+  event_date?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  source_title?: string | null;
+  source_url?: string | null;
+  forum_topic_id?: string | null;
+  forum_comment_id?: string | null;
+  created_by?: string | null;
+  created_by_email?: string | null;
+  created_by_name?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackendAdminNotificationTarget {
+  id: string;
+  code: string;
+  name_vi: string;
+  name_en: string;
+}
+
+export interface AdminNotificationPayload {
+  type?: NotificationType | string;
+  title?: string;
+  message?: string;
+  title_vi?: string | null;
+  title_en?: string | null;
+  message_vi?: string | null;
+  message_en?: string | null;
+  priority?: Notification["priority"];
+  status?: Notification["status"];
+  target_scope?: "all" | "institute" | "cohort";
+  institute_id?: string | null;
+  cohort?: number | null;
+  deadline?: string | null;
+  event_date?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  source_title?: string | null;
+  source_url?: string | null;
+  forum_topic_id?: string | null;
+  forum_comment_id?: string | null;
+}
+
+export type AdminNotificationCreatePayload = AdminNotificationPayload & {
+  title: string;
+  message: string;
+  type: NotificationType | string;
+};
+
+export interface BackendNotificationReadState {
+  notification_id: string;
+  is_read: boolean;
+}
+
+export interface BackendMarkAllNotificationsReadResponse {
+  updated_count: number;
 }
 
 export interface BackendSuggestedQuestion {
@@ -304,6 +391,7 @@ export interface CreateTicketPayload {
   included_context?: string | null;
   source_conversation_id?: string | null;
   origin_question?: string | null;
+  created_by_ai?: boolean;
 }
 
 export interface AddTicketMessagePayload {
@@ -638,6 +726,7 @@ const NOTIFICATION_TYPES: NotificationType[] = [
   "event",
   "student_services",
   "system",
+  "forum",
 ];
 const DEADLINE_KINDS: DeadlineKind[] = [
   "assignment",
@@ -723,6 +812,10 @@ function mapDeadline(deadline: BackendDeadline): Deadline {
 }
 
 function mapNotification(notification: BackendNotification): Notification {
+  // Forum mention/reply notifications deep-link to the discussion they point at.
+  const forumHref = notification.forum_topic_id
+    ? `/student/forum/topics/${notification.forum_topic_id}`
+    : undefined;
   return {
     id: notification.id,
     type: safeNotificationType(notification.type),
@@ -734,6 +827,7 @@ function mapNotification(notification: BackendNotification): Notification {
     archived: notification.archived,
     source_title: notification.source_title ?? undefined,
     source_url: notification.source_url ?? undefined,
+    action_href: forumHref,
     priority: notification.priority as Notification["priority"],
     target_audience: [notification.target_scope],
     deadline: notification.deadline ?? undefined,
@@ -742,6 +836,53 @@ function mapNotification(notification: BackendNotification): Notification {
     end_date: notification.end_date ?? undefined,
     status: notification.status as Notification["status"],
     updated_at: notification.updated_at,
+    forum_topic_id: notification.forum_topic_id ?? undefined,
+    forum_comment_id: notification.forum_comment_id ?? undefined,
+  };
+}
+
+function mapAdminNotification(notification: BackendAdminNotification): Notification {
+  const forumHref = notification.forum_topic_id
+    ? `/student/forum/topics/${notification.forum_topic_id}`
+    : undefined;
+  const targetAudience =
+    notification.target_scope === "institute" && notification.institute_code
+      ? [notification.institute_code]
+      : notification.target_scope === "cohort" && notification.cohort
+        ? [`Cohort ${notification.cohort}`]
+        : [notification.target_scope];
+  return {
+    id: notification.id,
+    type: safeNotificationType(notification.type),
+    title: notification.title,
+    message: notification.message,
+    title_vi: notification.title_vi ?? undefined,
+    title_en: notification.title_en ?? undefined,
+    message_vi: notification.message_vi ?? undefined,
+    message_en: notification.message_en ?? undefined,
+    created_at: notification.created_at,
+    read: false,
+    important:
+      notification.priority === "high" || notification.priority === "urgent",
+    archived: notification.status === "archived",
+    source_title: notification.source_title ?? undefined,
+    source_url: notification.source_url ?? undefined,
+    action_href: forumHref,
+    priority: notification.priority as Notification["priority"],
+    target_audience: targetAudience,
+    deadline: notification.deadline ?? undefined,
+    event_date: notification.event_date ?? undefined,
+    start_date: notification.start_date ?? undefined,
+    end_date: notification.end_date ?? undefined,
+    status: notification.status as Notification["status"],
+    created_by:
+      notification.created_by_name ??
+      notification.created_by_email ??
+      notification.created_by ??
+      undefined,
+    updated_at: notification.updated_at,
+    forum_topic_id: notification.forum_topic_id ?? undefined,
+    forum_comment_id: notification.forum_comment_id ?? undefined,
   };
 }
 
@@ -751,6 +892,8 @@ function mapSuggestedQuestion(question: BackendSuggestedQuestion): SuggestedQues
   return {
     id: question.id,
     notification_id: question.notification_id ?? question.source_id ?? "",
+    source_type: question.source_type,
+    source_id: question.source_id ?? undefined,
     question_text: question.question_text,
     category,
     trigger_phase: suggestionPhase(question.trigger_phase),
@@ -819,7 +962,7 @@ export async function getStudentDeadlines(): Promise<Deadline[]> {
   return rows.map(mapDeadline).sort((a, b) => a.due_at.localeCompare(b.due_at));
 }
 
-// [MOCK] TODO backend contract: GET /students/me/tuition -> TuitionStatus
+// [MOCK] TODO future backend contract: GET /students/me/tuition -> TuitionStatus
 export async function getTuitionStatus(): Promise<TuitionStatus> {
   return delay(MOCK_TUITION);
 }
@@ -959,6 +1102,7 @@ function ticketCreatePayload(payload: CreateTicketPayload): Record<string, unkno
         : undefined,
     source_conversation_id: sourceConversationId,
     origin_question: payload.origin_question ?? undefined,
+    created_by_ai: payload.created_by_ai ?? false,
   };
 }
 
@@ -983,7 +1127,34 @@ export async function submitTicket(draft: TicketDraft): Promise<SupportTicket> {
     included_context: draft.context_preview,
     source_conversation_id: draft.source_conversation_id,
     origin_question: draft.origin_question,
+    created_by_ai: draft.created_by_ai ?? false,
   });
+}
+
+// [LIVE] POST /tickets/suggest -> Vinnie's drafted {subject, body, category} for review-before-send.
+// Advisory only (nothing is persisted); the backend fails open to a heuristic so this always resolves.
+export async function suggestTicketDraft(payload: {
+  origin_question: string;
+  answer?: string | null;
+  context?: string | null;
+}): Promise<{ subject: string; body: string; category: TicketCategory }> {
+  const row = await apiRequest<{ subject: string; body: string; category: string }>(
+    "/api/tickets/suggest",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        origin_question: payload.origin_question,
+        answer: payload.answer ?? undefined,
+        context: payload.context ?? undefined,
+      }),
+    }
+  );
+  return {
+    subject: row.subject,
+    body: row.body,
+    category: safeTicketCategory(row.category),
+  };
 }
 
 export async function createTicket(payload: CreateTicketPayload): Promise<SupportTicket> {
@@ -1014,7 +1185,7 @@ export async function addTicketMessage(
 
 // [MOCK] No network in MVP — drafts live in ChatProvider React state only (privacy: an
 // unconfirmed, possibly sensitive draft must never be persisted to a DB or localStorage).
-// TODO backend contract (Phase 2): POST /tickets { status: "draft" } scoped to the student
+// TODO future backend contract: POST /tickets { status: "draft" } scoped to the student
 // (admin queries MUST never return drafts).
 export async function saveTicketDraft(draft: TicketDraft): Promise<TicketDraft> {
   return delay({ ...draft }, 150);
@@ -1084,10 +1255,10 @@ export async function getSupportTicketDetail(ticketId: string): Promise<SupportT
   return getTicket(ticketId);
 }
 
-// Ticket visibility mutations. The backend has no permanent-delete endpoint, so archive
-// and delete are modelled as frontend state on the ticket (filtered by the visibility
-// control). These mutate the in-memory demo store so the change persists across reloads.
-// [MOCK] TODO backend contract: PATCH /tickets/{id} { archived } -> SupportTicket
+// Legacy student ticket visibility adapters. Phase 10D backend supports create/reply/detail,
+// but not student archive/delete mutations; active student pages keep visibility local in
+// component state. Keep these isolated until Phase 11 adds real mutation endpoints.
+// [MOCK] TODO Phase 11 backend contract: PATCH /tickets/{id} { archived } -> SupportTicket
 function patchTicket(ticketId: string, patch: Partial<SupportTicket>): SupportTicket {
   const t = MOCK_TICKETS.find((x) => x.id === ticketId);
   if (!t) throw new Error(`Ticket ${ticketId} not found`);
@@ -1103,7 +1274,7 @@ export async function restoreSupportTicket(ticketId: string): Promise<SupportTic
   return delay(patchTicket(ticketId, { archived: false, deleted: false }), 250);
 }
 
-// [MOCK] TODO backend contract: DELETE /tickets/{id} -> { ok: true }
+// [MOCK] TODO Phase 11 backend contract: DELETE /tickets/{id} -> { ok: true }
 // No permanent delete exists; modelled as a "deleted" visibility state instead.
 export async function deleteSupportTicket(ticketId: string): Promise<SupportTicket> {
   return delay(patchTicket(ticketId, { deleted: true }), 250);
@@ -1111,118 +1282,182 @@ export async function deleteSupportTicket(ticketId: string): Promise<SupportTick
 
 // ---- Notifications ----------------------------------------------------------
 // [LIVE] GET /students/me/notifications -> Notification[]
-export async function getStudentNotifications(): Promise<Notification[]> {
-  const rows = await getJSON<BackendNotification[]>("/api/students/me/notifications");
+// `lang` selects the VI/EN variant of each notification's title/message (default VI).
+export async function getStudentNotifications(lang: Lang = "vi"): Promise<Notification[]> {
+  const rows = await getJSON<BackendNotification[]>(
+    `/api/students/me/notifications?lang=${encodeURIComponent(lang)}`
+  );
   return rows.map(mapNotification);
 }
 
-function patchNotification(id: string, patch: Partial<Notification>): Notification {
-  const n = MOCK_NOTIFICATIONS.find((x) => x.id === id);
-  if (!n) throw new Error(`Notification ${id} not found`);
-  Object.assign(n, patch);
-  return { ...n };
-}
-
-// Local-only until notification mutation endpoints exist.
+// [LIVE] POST /students/me/notifications/{id}/read|unread -> read state
 export async function markNotificationRead(id: string, read = true): Promise<Notification> {
-  return delay({ id, read } as Notification, 150);
+  const action = read ? "read" : "unread";
+  const state = await apiRequest<BackendNotificationReadState>(
+    `/api/students/me/notifications/${id}/${action}`,
+    {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    }
+  );
+  return { id: state.notification_id, read: state.is_read } as Notification;
 }
 
-// Local-only until notification mutation endpoints exist.
-export async function markNotificationImportant(
-  id: string,
-  important: boolean
-): Promise<Notification> {
-  return delay({ id, important } as Notification, 150);
-}
-
-// Local-only until notification mutation endpoints exist.
-export async function archiveNotification(id: string): Promise<Notification> {
-  return delay({ id, archived: true } as Notification, 150);
-}
-
-// Local-only until notification mutation endpoints exist.
-export async function deleteNotification(_id: string): Promise<{ ok: true }> {
-  return delay({ ok: true } as const, 150);
+// [LIVE] POST /students/me/notifications/mark-all-read -> update count
+export async function markAllNotificationsRead(): Promise<BackendMarkAllNotificationsReadResponse> {
+  return apiRequest<BackendMarkAllNotificationsReadResponse>(
+    "/api/students/me/notifications/mark-all-read",
+    {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    }
+  );
 }
 
 // ---- Admin notifications + suggested questions (PLAN22.6) -------------------
-// [MOCK] TODO backend contract: GET /admin/notifications -> Notification[] (all statuses)
+// [LIVE] GET /admin/notifications -> Notification[] (all statuses)
 export async function getAdminNotifications(): Promise<Notification[]> {
-  return delay(MOCK_NOTIFICATIONS.map((n) => ({ ...n })));
+  const rows = await getJSON<BackendAdminNotification[]>("/api/admin/notifications");
+  return rows.map(mapAdminNotification);
 }
 
-// [MOCK] TODO backend contract: POST /admin/notifications { ... } -> Notification
-// Admin authors a notification (optionally with reviewed/approved suggested questions). A
-// "published" notification with active questions immediately drives student suggestions.
+// [LIVE] GET /admin/notifications/targets -> institutes the admin may target
+export async function getAdminNotificationTargets(): Promise<BackendAdminNotificationTarget[]> {
+  return getJSON<BackendAdminNotificationTarget[]>("/api/admin/notifications/targets");
+}
+
+// [LIVE] POST /admin/notifications { ... } -> Notification
 export async function createNotification(input: {
   title: string;
   message: string;
-  type: NotificationType;
+  type: NotificationType | string;
   priority?: Notification["priority"];
   target_audience?: string[];
-  deadline?: string;
-  event_date?: string;
+  target_scope?: "all" | "institute" | "cohort";
+  institute_id?: string | null;
+  cohort?: number | null;
+  deadline?: string | null;
+  event_date?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
   status?: Notification["status"];
   suggested_questions?: SuggestedQuestion[];
-  source_title?: string;
-  source_url?: string;
+  source_title?: string | null;
+  source_url?: string | null;
+  forum_topic_id?: string | null;
+  forum_comment_id?: string | null;
+  title_vi?: string | null;
+  title_en?: string | null;
+  message_vi?: string | null;
+  message_en?: string | null;
 }): Promise<Notification> {
-  const now = new Date().toISOString();
-  const notification: Notification = {
-    id: `n-${Math.floor(1000 + Math.random() * 9000)}`,
-    type: input.type,
-    title: input.title.trim(),
-    message: input.message.trim(),
-    created_at: now,
-    updated_at: now,
-    read: false,
-    important: input.priority === "high" || input.priority === "urgent",
-    priority: input.priority,
-    target_audience: input.target_audience,
-    deadline: input.deadline,
-    event_date: input.event_date,
-    status: input.status ?? "draft",
-    created_by: "admin",
-    source_title: input.source_title,
-    source_url: input.source_url,
-    suggested_questions: input.suggested_questions,
-  };
-  MOCK_NOTIFICATIONS.unshift(notification);
-  return delay(notification, 300);
+  const row = await apiRequest<BackendAdminNotification>("/api/admin/notifications", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      type: input.type,
+      title: input.title.trim(),
+      message: input.message.trim(),
+      title_vi: input.title_vi ?? null,
+      title_en: input.title_en ?? null,
+      message_vi: input.message_vi ?? null,
+      message_en: input.message_en ?? null,
+      priority: input.priority ?? "medium",
+      status: input.status ?? "draft",
+      target_scope: input.target_scope ?? "all",
+      institute_id: input.institute_id ?? null,
+      cohort: input.cohort ?? null,
+      deadline: input.deadline || null,
+      event_date: input.event_date || null,
+      start_date: input.start_date || null,
+      end_date: input.end_date || null,
+      source_title: input.source_title ?? null,
+      source_url: input.source_url ?? null,
+      forum_topic_id: input.forum_topic_id ?? null,
+      forum_comment_id: input.forum_comment_id ?? null,
+    }),
+  });
+  return mapAdminNotification(row);
 }
 
-// [MOCK] TODO backend contract: PATCH /admin/notifications/{id} { ... } -> Notification
+// [LIVE] PATCH /admin/notifications/{id} { ... } -> Notification
 export async function updateNotification(
   id: string,
-  patch: Partial<Notification>
+  patch: AdminNotificationPayload
 ): Promise<Notification> {
-  return delay(patchNotification(id, { ...patch, updated_at: new Date().toISOString() }), 200);
+  const row = await apiRequest<BackendAdminNotification>(`/api/admin/notifications/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      type: patch.type,
+      title: patch.title,
+      message: patch.message,
+      title_vi: patch.title_vi,
+      title_en: patch.title_en,
+      message_vi: patch.message_vi,
+      message_en: patch.message_en,
+      priority: patch.priority,
+      target_scope: patch.target_scope,
+      institute_id: patch.institute_id,
+      cohort: patch.cohort,
+      deadline: patch.deadline,
+      event_date: patch.event_date,
+      start_date: patch.start_date,
+      end_date: patch.end_date,
+      source_title: patch.source_title,
+      source_url: patch.source_url,
+      forum_topic_id: patch.forum_topic_id,
+      forum_comment_id: patch.forum_comment_id,
+    }),
+  });
+  return mapAdminNotification(row);
 }
 
-// [MOCK] TODO backend contract: POST /admin/notifications/{id}/publish -> Notification
-// Publishes the notification and activates its admin-approved suggested questions.
+// [LIVE] POST /admin/notifications/{id}/publish -> Notification
 export async function publishNotification(id: string): Promise<Notification> {
-  const n = MOCK_NOTIFICATIONS.find((x) => x.id === id);
-  if (!n) throw new Error(`Notification ${id} not found`);
-  const questions = (n.suggested_questions ?? []).map((q) => ({
-    ...q,
-    is_active: q.approved_by_admin,
-  }));
-  return delay(
-    patchNotification(id, {
-      status: "published",
-      suggested_questions: questions,
-      updated_at: new Date().toISOString(),
-    }),
-    250
+  const row = await apiRequest<BackendAdminNotification>(
+    `/api/admin/notifications/${id}/publish`,
+    {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    }
   );
+  return mapAdminNotification(row);
+}
+
+// [LIVE] POST /admin/notifications/{id}/schedule -> Notification
+export async function scheduleNotification(
+  id: string,
+  publishAt: string,
+  endDate?: string | null
+): Promise<Notification> {
+  const row = await apiRequest<BackendAdminNotification>(
+    `/api/admin/notifications/${id}/schedule`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ publish_at: publishAt, end_date: endDate || null }),
+    }
+  );
+  return mapAdminNotification(row);
+}
+
+// [LIVE] POST /admin/notifications/{id}/archive -> Notification
+export async function archiveAdminNotification(id: string): Promise<Notification> {
+  const row = await apiRequest<BackendAdminNotification>(
+    `/api/admin/notifications/${id}/archive`,
+    {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    }
+  );
+  return mapAdminNotification(row);
 }
 
 // [MOCK] Rule-based for MVP — runs the lib/suggestedQuestions.ts template engine for the
 // notification's current deadline phase. Returns UNSAVED candidates for the admin to
 // review/edit/approve before publishing.
-// TODO backend contract (Phase 2): POST /admin/notifications/{id}/suggested-questions/generate (AI).
+// TODO Phase 11 backend contract: POST /admin/notifications/{id}/suggested-questions/generate (AI).
 export async function generateSuggestedQuestions(input: {
   id?: string;
   type: NotificationType;
@@ -1247,14 +1482,19 @@ export async function generateSuggestedQuestions(input: {
 }
 
 // [LIVE] GET /suggestions/me -> grouped suggested questions
-export async function getSuggestedQuestions(): Promise<BackendSuggestedQuestionGroups> {
-  return getJSON<BackendSuggestedQuestionGroups>("/api/suggestions/me");
+// `lang` selects the VI/EN variant of each question's text (default VI).
+export async function getSuggestedQuestions(
+  lang: Lang = "vi"
+): Promise<BackendSuggestedQuestionGroups> {
+  return getJSON<BackendSuggestedQuestionGroups>(
+    `/api/suggestions/me?lang=${encodeURIComponent(lang)}`
+  );
 }
 
 export async function getActiveSuggestedQuestions(
-  _lang: Lang = "en"
+  lang: Lang = "vi"
 ): Promise<SuggestedQuestion[]> {
-  const groups = await getSuggestedQuestions();
+  const groups = await getSuggestedQuestions(lang);
   return [
     ...groups.for_you,
     ...groups.trending_now,
@@ -1287,8 +1527,6 @@ export async function getStudentCalendar(
   });
 }
 
-<<<<<<< Updated upstream
-=======
 // ---- Academic read APIs (Phase 13B/13C) ------------------------------------
 // All student-facing and resolved through the authenticated session on the backend
 // (current_user.id -> student_profiles.user_id). The client never sends a student_id.
@@ -1522,11 +1760,10 @@ export async function getMonthlySchedule(month: string): Promise<AcademicSchedul
   return getJSON<AcademicScheduleEvent[]>(`/api/schedule/me?month=${encodeURIComponent(month)}`);
 }
 
->>>>>>> Stashed changes
 // ---- Knowledge sources (admin) ---------------------------------------------
 // [LIVE] GET /api/sources -> SourceSummary[]  (FastAPI GET /sources)
-// Mapped onto the richer KnowledgeSource shape the admin table renders. Falls back
-// to demo data if the backend is unreachable so the admin screens stay demoable.
+// Mapped onto the richer KnowledgeSource shape the admin table renders. If the
+// backend is unreachable, the page should show its normal error/retry state.
 function inferCategory(title: string): SourceCategory {
   const t = title.toLowerCase();
   if (/(tuition|fee|payment|financial)/.test(t)) return "Tuition";
@@ -1537,11 +1774,15 @@ function inferCategory(title: string): SourceCategory {
 }
 
 function mapSummaryToSource(s: SourceSummary, i: number): KnowledgeSource {
-  const type = s.document_type?.includes("pdf")
-    ? "pdf"
-    : s.document_type === "spreadsheet" || s.document_type === "csv"
-    ? "database"
-    : "url";
+  const url = s.source_url || "";
+  const type =
+    s.document_type?.includes("pdf") || /\.pdf(\?|$)/i.test(url)
+      ? "pdf"
+      : /\.docx(\?|$)/i.test(url)
+      ? "docx"
+      : s.document_type === "spreadsheet" || s.document_type === "csv"
+      ? "database"
+      : "url";
   return {
     id: s.content_hash?.slice(0, 12) || `src-${i}`,
     name: s.document_title || s.source_url,
@@ -1557,20 +1798,14 @@ function mapSummaryToSource(s: SourceSummary, i: number): KnowledgeSource {
 }
 
 export async function getKnowledgeSources(): Promise<KnowledgeSource[]> {
-  try {
-    const summaries = await getJSON<SourceSummary[]>("/api/sources");
-    if (!Array.isArray(summaries) || summaries.length === 0) return MOCK_SOURCES;
-    return summaries.map(mapSummaryToSource);
-  } catch {
-    // Backend not running / no corpus yet — keep the admin table demoable.
-    return MOCK_SOURCES;
-  }
+  const summaries = await getJSON<SourceSummary[]>("/api/sources");
+  return Array.isArray(summaries) ? summaries.map(mapSummaryToSource) : [];
 }
 
-// [LIVE-ish] POST /api/ingest/run  (FastAPI POST /ingest/run)
-//   body: { urls: string[], force: boolean } -> IngestRunResponse
-// URL sources crawl + index through the real pipeline. File uploads (PDF/DOCX) have no
-// backend endpoint yet, so they resolve through the mock path below.
+// [LIVE] Knowledge Base ingestion (admin-only). URL crawl → POST /api/ingest/run; file upload
+// (PDF/DOCX from device) → POST /api/ingest/upload (multipart). Both run the real pipeline
+// (parse → chunk → embed → upsert to the vector DB) and return IngestRunResponse. All calls go
+// through apiRequest, which attaches the Bearer token the backend now requires.
 export interface IngestRunResponse {
   crawled_documents: number;
   indexed_chunks: number;
@@ -1578,73 +1813,82 @@ export interface IngestRunResponse {
   sources: string[];
 }
 
+// Real extracted-text preview for the admin review step (FastAPI POST /ingest/preview).
+// Parses the file/URL and returns the actual text — no embedding/indexing happens yet.
+export interface IngestPreview {
+  title: string;
+  document_type: string;
+  char_count: number;
+  estimated_chunks: number;
+  preview_text: string;
+  truncated: boolean;
+}
+
+export async function previewKnowledgeSource(input: {
+  url?: string;
+  file?: File | null;
+  title?: string;
+}): Promise<IngestPreview> {
+  const form = new FormData();
+  if (input.file) form.append("file", input.file);
+  if (input.url) form.append("url", input.url);
+  if (input.title) form.append("title", input.title);
+  // Multipart: no Content-Type header (browser sets the boundary); apiRequest adds the token.
+  return apiRequest<IngestPreview>("/api/ingest/preview", { method: "POST", body: form });
+}
+
 export async function uploadKnowledgeSource(input: {
   url?: string;
   file?: File | null;
   category: SourceCategory;
-  // Optional metadata captured by the upload form. The live /ingest/run pipeline derives
-  // its own title; these are forwarded as the contract for a future /ingest/upload route.
+  // Title is honored by the upload route; the URL crawl derives its own title from the page.
   title?: string;
   source_type?: "pdf" | "docx" | "url";
 }): Promise<IngestRunResponse> {
   if (input.url) {
-    try {
-      const res = await fetch("/api/ingest/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ urls: [input.url], force: true }),
-      });
-      if (!res.ok) throw new Error(`Ingest failed (${res.status})`);
-      return (await res.json()) as IngestRunResponse;
-    } catch {
-      // Fall through to a simulated result so the upload flow stays demoable offline.
-      return delay(
-        { crawled_documents: 1, indexed_chunks: 14, skipped_documents: 0, sources: [input.url] },
-        900
-      );
-    }
-  }
-  // [MOCK] TODO backend contract: POST /ingest/upload (multipart: file, category)
-  //   -> IngestRunResponse. No FastAPI route exists for binary uploads yet.
-  return delay(
-    {
-      crawled_documents: 1,
-      indexed_chunks: input.file ? Math.max(8, Math.round(input.file.size / 4000)) : 10,
-      skipped_documents: 0,
-      sources: [input.file?.name ?? "uploaded-document"],
-    },
-    1100
-  );
-}
-
-// [LIVE-ish] Re-crawl a source by URL through POST /ingest/run (force=true).
-export async function recrawlSource(sourceUrl: string): Promise<IngestRunResponse> {
-  try {
-    const res = await fetch("/api/ingest/run", {
+    return apiRequest<IngestRunResponse>("/api/ingest/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ urls: [sourceUrl], force: true }),
+      body: JSON.stringify({ urls: [input.url], force: true }),
     });
-    if (!res.ok) throw new Error(`Re-crawl failed (${res.status})`);
-    return (await res.json()) as IngestRunResponse;
-  } catch {
-    return delay({ crawled_documents: 1, indexed_chunks: 12, skipped_documents: 0, sources: [sourceUrl] }, 800);
   }
+  if (input.file) {
+    // Multipart: do NOT set Content-Type — the browser adds the boundary. apiRequest still
+    // attaches the Authorization header.
+    const form = new FormData();
+    form.append("file", input.file);
+    if (input.category) form.append("category", input.category);
+    if (input.title) form.append("title", input.title);
+    return apiRequest<IngestRunResponse>("/api/ingest/upload", {
+      method: "POST",
+      body: form,
+    });
+  }
+  throw new ApiError("Provide a URL or a file to upload.", 400);
 }
 
-// [MOCK] TODO backend contract: POST /sources/{id}/disable -> { ok: true }
+// [LIVE] Re-crawl a source by URL through POST /ingest/run (force=true).
+export async function recrawlSource(sourceUrl: string): Promise<IngestRunResponse> {
+  return apiRequest<IngestRunResponse>("/api/ingest/run", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ urls: [sourceUrl], force: true }),
+  });
+}
+
+// [MOCK] TODO future backend contract: POST /sources/{id}/disable -> { ok: true }
 export async function disableSource(sourceId: string): Promise<{ ok: true }> {
   return delay({ ok: true } as const, 300);
 }
 
 // ---- Unanswered questions (admin) ------------------------------------------
-// [MOCK] TODO backend contract: GET /admin/unanswered -> UnansweredQuestion[]
+// [MOCK] TODO future backend contract: GET /admin/unanswered -> UnansweredQuestion[]
 //   (populated from chat turns where deriveState == "degraded"/"refusal").
 export async function getUnansweredQuestions(): Promise<UnansweredQuestion[]> {
   return delay([...MOCK_UNANSWERED]);
 }
 
-// [MOCK] TODO backend contract: POST /admin/unanswered/{id}/resolve
+// [MOCK] TODO future backend contract: POST /admin/unanswered/{id}/resolve
 //   body: ResolveQuestionPayload -> UnansweredQuestion (updated)
 export async function resolveUnansweredQuestion(
   questionId: string,
@@ -1661,12 +1905,431 @@ export async function resolveUnansweredQuestion(
 }
 
 // ---- Admin dashboard + analytics -------------------------------------------
-// [MOCK] TODO backend contract: GET /admin/stats -> AdminStats
+// [LIVE] GET /admin/dashboard -> AdminDashboard
+export async function getAdminDashboard(): Promise<AdminDashboard> {
+  return getJSON<AdminDashboard>("/api/admin/dashboard");
+}
+
+// [MOCK] TODO future backend contract: GET /admin/stats -> AdminStats
 export async function getAdminStats(): Promise<AdminStats> {
   return delay(MOCK_ADMIN_STATS);
 }
 
-// [MOCK] TODO backend contract: GET /admin/analytics -> AnalyticsOverview
+// [MOCK] TODO future backend contract: GET /admin/analytics -> AnalyticsOverview
 export async function getAnalytics(): Promise<AnalyticsOverview> {
   return delay(MOCK_ANALYTICS);
+}
+
+// ---- Forum / Discussion Hub -------------------------------------------------
+// [LIVE] FastAPI /forum/* (proxied through /api/forum/*). Public peer discussion,
+// separate from private tickets. @mentions + replies create 'forum' notifications that
+// surface through the existing notification bell (see mapNotification above).
+
+export interface BackendForumCategory {
+  id: string;
+  slug: string;
+  name_en: string;
+  name_vi: string;
+  description_en?: string | null;
+  description_vi?: string | null;
+  color: string;
+  sort_order: number;
+  is_active: boolean;
+  topic_count: number;
+}
+
+export interface BackendForumComment {
+  id: string;
+  topic_id: string;
+  parent_comment_id?: string | null;
+  author_user_id?: string | null;
+  author_name?: string | null;
+  author_roles?: string[] | null;
+  content: string;
+  is_official: boolean;
+  deleted: boolean;
+  score: number;
+  my_vote: number;
+  created_at: string;
+  updated_at: string;
+  replies: BackendForumComment[];
+}
+
+export interface BackendForumTopic {
+  id: string;
+  category_id: string;
+  category_slug?: string | null;
+  category_name_en?: string | null;
+  category_name_vi?: string | null;
+  author_user_id?: string | null;
+  author_name?: string | null;
+  author_roles?: string[] | null;
+  title: string;
+  excerpt?: string | null;
+  tags: string[];
+  is_pinned: boolean;
+  is_locked: boolean;
+  deleted?: boolean;
+  has_official_answer: boolean;
+  view_count: number;
+  comment_count: number;
+  score: number;
+  my_vote: number;
+  created_at: string;
+  updated_at: string;
+  last_activity_at: string;
+  content?: string | null;
+  attachments?: ForumAttachment[] | null;
+  official_comment_id?: string | null;
+  comments?: BackendForumComment[] | null;
+}
+
+export interface BackendForumMember {
+  id: string;
+  full_name: string;
+  preferred_name?: string | null;
+  email?: string | null;
+}
+
+export interface BackendForumVote {
+  target_type: ForumVoteTarget;
+  target_id: string;
+  score: number;
+  my_vote: number;
+}
+
+export interface CreateForumTopicPayload {
+  title: string;
+  content: string;
+  category_id?: string;
+  category_slug?: string;
+  tags?: string[];
+  attachments?: ForumAttachment[];
+  mentioned_user_ids?: string[];
+}
+
+export interface AddForumCommentPayload {
+  content: string;
+  parent_comment_id?: string;
+  mentioned_user_ids?: string[];
+}
+
+export interface UpdateForumTopicPayload {
+  title?: string;
+  content?: string;
+  category_id?: string;
+  category_slug?: string;
+  tags?: string[];
+  attachments?: ForumAttachment[];
+}
+
+export interface UpdateForumCommentPayload {
+  content?: string;
+}
+
+export interface ForumTopicNotificationPayload {
+  title?: string;
+  message?: string;
+  priority?: Notification["priority"];
+  target_scope?: "all" | "institute";
+  institute_id?: string | null;
+  publish?: boolean;
+}
+
+export interface ForumTopicFilters {
+  category?: string;
+  category_id?: string;
+  sort?: ForumSort;
+  q?: string;
+  search?: string;
+  status?: "active" | "archived" | "all";
+}
+
+function clampVote(value: number): ForumVoteValue {
+  return value > 0 ? 1 : value < 0 ? -1 : 0;
+}
+
+function mapForumCategory(c: BackendForumCategory): ForumCategory {
+  return {
+    ...c,
+    description_en: c.description_en ?? undefined,
+    description_vi: c.description_vi ?? undefined,
+  };
+}
+
+function mapForumMember(m: BackendForumMember): ForumMember {
+  return {
+    id: m.id,
+    full_name: m.full_name,
+    preferred_name: m.preferred_name ?? undefined,
+    email: m.email ?? undefined,
+  };
+}
+
+function mapForumComment(c: BackendForumComment): ForumComment {
+  return {
+    id: c.id,
+    topic_id: c.topic_id,
+    parent_comment_id: c.parent_comment_id ?? undefined,
+    author_user_id: c.author_user_id ?? undefined,
+    author_name: c.author_name ?? undefined,
+    author_roles: c.author_roles ?? [],
+    content: c.content,
+    is_official: c.is_official,
+    deleted: c.deleted,
+    score: c.score,
+    my_vote: clampVote(c.my_vote),
+    created_at: c.created_at,
+    updated_at: c.updated_at,
+    replies: (c.replies ?? []).map(mapForumComment),
+  };
+}
+
+function mapForumTopic(t: BackendForumTopic): ForumTopic {
+  return {
+    id: t.id,
+    category_id: t.category_id,
+    category_slug: t.category_slug ?? undefined,
+    category_name_en: t.category_name_en ?? undefined,
+    category_name_vi: t.category_name_vi ?? undefined,
+    author_user_id: t.author_user_id ?? undefined,
+    author_name: t.author_name ?? undefined,
+    author_roles: t.author_roles ?? [],
+    title: t.title,
+    excerpt: t.excerpt ?? undefined,
+    tags: t.tags ?? [],
+    is_pinned: t.is_pinned,
+    is_locked: t.is_locked,
+    deleted: t.deleted ?? false,
+    has_official_answer: t.has_official_answer,
+    view_count: t.view_count,
+    comment_count: t.comment_count,
+    score: t.score,
+    my_vote: clampVote(t.my_vote),
+    created_at: t.created_at,
+    updated_at: t.updated_at,
+    last_activity_at: t.last_activity_at,
+    content: t.content ?? undefined,
+    attachments: t.attachments ?? undefined,
+    official_comment_id: t.official_comment_id ?? undefined,
+    comments: t.comments ? t.comments.map(mapForumComment) : undefined,
+  };
+}
+
+function mapForumVote(v: BackendForumVote): ForumVoteResult {
+  return {
+    target_type: v.target_type,
+    target_id: v.target_id,
+    score: v.score,
+    my_vote: clampVote(v.my_vote),
+  };
+}
+
+export async function getForumCategories(): Promise<ForumCategory[]> {
+  const rows = await getJSON<BackendForumCategory[]>("/api/forum/categories");
+  return rows.map(mapForumCategory);
+}
+
+export async function getForumTopics(filters: ForumTopicFilters = {}): Promise<ForumTopic[]> {
+  const params = new URLSearchParams();
+  if (filters.category && filters.category !== "all") params.set("category", filters.category);
+  if (filters.category_id) params.set("category_id", filters.category_id);
+  if (filters.sort) params.set("sort", filters.sort);
+  if (filters.q && filters.q.trim()) params.set("q", filters.q.trim());
+  if (filters.search && filters.search.trim()) params.set("search", filters.search.trim());
+  if (filters.status && filters.status !== "active") params.set("status", filters.status);
+  const query = params.toString();
+  const rows = await getJSON<BackendForumTopic[]>(`/api/forum/topics${query ? `?${query}` : ""}`);
+  return rows.map(mapForumTopic);
+}
+
+export async function getForumTopic(topicId: string): Promise<ForumTopic> {
+  return mapForumTopic(await getJSON<BackendForumTopic>(`/api/forum/topics/${topicId}`));
+}
+
+export async function getForumComments(topicId: string): Promise<ForumComment[]> {
+  const rows = await getJSON<BackendForumComment[]>(`/api/forum/topics/${topicId}/comments`);
+  return rows.map(mapForumComment);
+}
+
+export async function createForumTopic(payload: CreateForumTopicPayload): Promise<ForumTopic> {
+  const row = await apiRequest<BackendForumTopic>("/api/forum/topics", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return mapForumTopic(row);
+}
+
+export async function updateForumTopic(
+  topicId: string,
+  payload: UpdateForumTopicPayload
+): Promise<ForumTopic> {
+  const row = await apiRequest<BackendForumTopic>(`/api/forum/topics/${topicId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return mapForumTopic(row);
+}
+
+export async function deleteForumTopic(topicId: string): Promise<void> {
+  await apiRequest(`/api/forum/topics/${topicId}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json" },
+  });
+}
+
+export async function addForumComment(
+  topicId: string,
+  payload: AddForumCommentPayload
+): Promise<ForumComment> {
+  const row = await apiRequest<BackendForumComment>(`/api/forum/topics/${topicId}/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return mapForumComment(row);
+}
+
+export async function updateForumComment(
+  commentId: string,
+  payload: UpdateForumCommentPayload
+): Promise<ForumComment> {
+  const row = await apiRequest<BackendForumComment>(`/api/forum/comments/${commentId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return mapForumComment(row);
+}
+
+export async function deleteForumComment(commentId: string): Promise<void> {
+  await apiRequest(`/api/forum/comments/${commentId}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json" },
+  });
+}
+
+export async function voteForumTopic(
+  topicId: string,
+  value: ForumVoteValue
+): Promise<ForumVoteResult> {
+  const row = await apiRequest<BackendForumVote>(`/api/forum/topics/${topicId}/vote`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ value }),
+  });
+  return mapForumVote(row);
+}
+
+export async function voteForumComment(
+  commentId: string,
+  value: ForumVoteValue
+): Promise<ForumVoteResult> {
+  const row = await apiRequest<BackendForumVote>(`/api/forum/comments/${commentId}/vote`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ value }),
+  });
+  return mapForumVote(row);
+}
+
+export async function reportForumContent(payload: {
+  target_type: ForumVoteTarget;
+  target_id: string;
+  reason: string;
+}): Promise<void> {
+  await apiRequest(`/api/forum/reports`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function searchForumMembers(q: string): Promise<ForumMember[]> {
+  if (!q.trim()) return [];
+  const rows = await getJSON<BackendForumMember[]>(
+    `/api/forum/members?q=${encodeURIComponent(q.trim())}`
+  );
+  return rows.map(mapForumMember);
+}
+
+export async function moderateForumTopic(
+  topicId: string,
+  patch: {
+    is_pinned?: boolean;
+    is_locked?: boolean;
+    deleted?: boolean;
+    official_comment_id?: string | null;
+  }
+): Promise<ForumTopic> {
+  const row = await apiRequest<BackendForumTopic>(`/api/forum/topics/${topicId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(patch),
+  });
+  return mapForumTopic(row);
+}
+
+export async function pinForumTopic(topicId: string, pinned: boolean): Promise<ForumTopic> {
+  const action = pinned ? "pin" : "unpin";
+  const row = await apiRequest<BackendForumTopic>(`/api/forum/topics/${topicId}/${action}`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+  return mapForumTopic(row);
+}
+
+export async function lockForumTopic(topicId: string, locked: boolean): Promise<ForumTopic> {
+  const action = locked ? "lock" : "unlock";
+  const row = await apiRequest<BackendForumTopic>(`/api/forum/topics/${topicId}/${action}`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+  return mapForumTopic(row);
+}
+
+export async function archiveForumTopic(topicId: string): Promise<ForumTopic> {
+  const row = await apiRequest<BackendForumTopic>(`/api/forum/topics/${topicId}/archive`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+  return mapForumTopic(row);
+}
+
+export async function createForumTopicNotification(
+  topicId: string,
+  payload: ForumTopicNotificationPayload = {}
+): Promise<Notification> {
+  const row = await apiRequest<BackendAdminNotification>(
+    `/api/forum/topics/${topicId}/notification`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+  return mapAdminNotification(row);
+}
+
+export async function moderateForumComment(
+  commentId: string,
+  patch: { is_official?: boolean; deleted?: boolean }
+): Promise<ForumComment> {
+  const row = await apiRequest<BackendForumComment>(`/api/forum/comments/${commentId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(patch),
+  });
+  return mapForumComment(row);
+}
+
+export async function hideForumComment(commentId: string, hidden: boolean): Promise<ForumComment> {
+  const action = hidden ? "hide" : "unhide";
+  const row = await apiRequest<BackendForumComment>(`/api/forum/comments/${commentId}/${action}`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+  return mapForumComment(row);
 }

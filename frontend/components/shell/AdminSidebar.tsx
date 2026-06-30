@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { UserProfileCard } from "@/components/auth/UserProfileCard";
 import {
   IconShield,
   IconTicket,
@@ -11,10 +10,6 @@ import {
   IconCalendar,
   IconBell,
   IconChart,
-  IconCog,
-  IconUpload,
-  IconInbox,
-  IconSliders,
 } from "./icons";
 
 // Academic Horizon admin chrome: a left sidebar (DESIGN.md §12). Admin is NOT forced into the
@@ -32,32 +27,22 @@ const STR = {
   en: {
     adminConsole: "Admin Console",
     admin: "Admin",
-    knowledge: "Knowledge",
     dashboard: "Dashboard",
     tickets: "Tickets",
     knowledgeBase: "Knowledge Base",
     events: "Events",
-    notifications: "Notifications",
+    notifications: "Notification Management",
     monitoring: "Monitoring",
-    settings: "Settings",
-    uploadSource: "Upload Source",
-    reviewQueue: "Review Queue",
-    context: "Context",
   },
   vi: {
     adminConsole: "Trang quản trị",
     admin: "Quản trị",
-    knowledge: "Tri thức",
     dashboard: "Bảng điều khiển",
     tickets: "Yêu cầu hỗ trợ",
     knowledgeBase: "Cơ sở tri thức",
     events: "Sự kiện",
-    notifications: "Thông báo",
+    notifications: "Quản lý thông báo",
     monitoring: "Giám sát",
-    settings: "Cài đặt",
-    uploadSource: "Tải nguồn lên",
-    reviewQueue: "Hàng đợi duyệt",
-    context: "Ngữ cảnh",
   },
 } as const;
 
@@ -83,13 +68,6 @@ export function AdminSidebar({
     { href: "/admin/events", label: s.events, icon: <IconCalendar /> },
     { href: "/admin/notifications", label: s.notifications, icon: <IconBell /> },
     { href: "/admin/analytics", label: s.monitoring, icon: <IconChart /> },
-    { href: "/admin/settings", label: s.settings, icon: <IconCog /> },
-  ];
-
-  const ADMIN_SECONDARY: NavItem[] = [
-    { href: "/admin/upload", label: s.uploadSource, icon: <IconUpload /> },
-    { href: "/admin/unanswered", label: s.reviewQueue, icon: <IconInbox /> },
-    { href: "/admin/context", label: s.context, icon: <IconSliders /> },
   ];
 
   const renderItem = (item: NavItem) => {
@@ -119,10 +97,7 @@ export function AdminSidebar({
       </div>
       <nav className="ah-sidebar-nav" aria-label={s.admin}>
         <ul>{ADMIN_PRIMARY.map(renderItem)}</ul>
-        <div className="ah-sidebar-group">{s.knowledge}</div>
-        <ul>{ADMIN_SECONDARY.map(renderItem)}</ul>
       </nav>
-      <UserProfileCard />
     </aside>
   );
 }

@@ -12,6 +12,7 @@ import { TicketDetailDrawer } from "@/components/tickets/TicketDetailDrawer";
 import { CreateTicketModal } from "@/components/tickets/CreateTicketModal";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
+import { useAuth } from "@/lib/auth";
 import { useChat } from "@/lib/chat";
 import {
   getSupportTickets,
@@ -26,24 +27,16 @@ const PAGE_SIZE = 6;
 type Lang = "en" | "vi";
 
 const STR: Record<Lang, {
-  vinnieBanner: string;
-  startWithVinnie: string;
   pagination: string;
   prevPage: string;
   nextPage: string;
 }> = {
   en: {
-    vinnieBanner:
-      "Vinnie can help draft, categorize, and route your request before submission.",
-    startWithVinnie: "Start with Vinnie",
     pagination: "Pagination",
     prevPage: "Previous page",
     nextPage: "Next page",
   },
   vi: {
-    vinnieBanner:
-      "Vinnie có thể giúp soạn thảo, phân loại và chuyển yêu cầu của bạn trước khi gửi.",
-    startWithVinnie: "Bắt đầu với Vinnie",
     pagination: "Phân trang",
     prevPage: "Trang trước",
     nextPage: "Trang sau",
@@ -54,16 +47,6 @@ function matchesVisibility(t: SupportTicket, vis: TicketFilterState["visibility"
   if (vis === "deleted") return !!t.deleted;
   if (vis === "archived") return !!t.archived && !t.deleted;
   return !t.archived && !t.deleted;
-}
-
-function SparkIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4L12 3z" />
-      <path d="M19 13l.6 1.8 1.9.7-1.9.7L19 18l-.6-1.8-1.9-.7 1.9-.7z" />
-    </svg>
-  );
 }
 
 function PlusIcon() {
@@ -87,14 +70,23 @@ function Chevron({ dir }: { dir: "left" | "right" }) {
 export default function StudentSupportPage() {
   const { p, lang } = usePortal();
   const s = STR[lang];
+  const { token } = useAuth();
   const { ticketsRevision } = useChat();
-  const loaded = useAsync(getSupportTickets, []);
+  const loaded = useAsync(getSupportTickets, [token]);
   const [items, setItems] = useState<SupportTicket[] | null>(null);
   const [filters, setFilters] = useState<TicketFilterState>(DEFAULT_TICKET_FILTERS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setItems(null);
+    setSelectedId(null);
+    setCreating(false);
+    setToast(null);
+    setPage(1);
+  }, [token]);
 
   useEffect(() => {
     if (loaded.status === "success") setItems(loaded.data);
@@ -208,18 +200,6 @@ export default function StudentSupportPage() {
         </div>
         <button className="ah-btn-red" onClick={() => setCreating(true)}>
           <PlusIcon /> {p.tickets.newTicket}
-        </button>
-      </div>
-
-      <div className="vinnie-banner">
-        <span className="vinnie-banner-icon">
-          <SparkIcon />
-        </span>
-        <span className="vinnie-banner-text">
-          {s.vinnieBanner}
-        </span>
-        <button className="vinnie-banner-btn" onClick={() => setCreating(true)}>
-          {s.startWithVinnie}
         </button>
       </div>
 

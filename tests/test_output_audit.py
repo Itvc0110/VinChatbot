@@ -7,6 +7,7 @@ import vinchatbot.app.agents.vinuni_agent as agent_mod
 from vinchatbot.app.agents.guardrails import OutputAuditDecision
 from vinchatbot.app.agents.output_audit import OutputAuditVerdict, audit_output, parse_verdict
 from vinchatbot.app.core.config import get_settings
+from vinchatbot.app.rag.query_engineering import is_identity_query
 from vinchatbot.app.schemas.chat import ChatRequest
 
 # --- parse_verdict (tolerant, defaults to grounded=True) ---------------------------------------
@@ -149,3 +150,84 @@ def test_output_audit_real_scope_gate_opens_on_point_lookup(monkeypatch):
         service.chat(ChatRequest(message="What is the nursing tuition per year?", conversation_id="audit-real"))
     )
     assert "999,000,000" not in resp.answer  # real is_point_lookup gate opened → auditor degraded it
+
+
+# --- Phase 1.28/D9: intent-satisfaction auditor -------------------------------------------------
+
+def test_is_identity_query_targets_person_and_role_enumeration():
+    # person identity (both name orders) + role enumeration, EN + VI
+    assert is_identity_query("Tan Yap Peng là ai?")
+    assert is_identity_query("Yap-Peng Tan là ai?")
+    assert is_identity_query("Who is Yap-Peng Tan?")
+    assert is_identity_query("Who have served as Presidents of VinUniversity?")
+    assert is_identity_query("VinUni có những hiệu trưởng nào?")
+    # NOT identity: policy "who is eligible/responsible" + plain value lookups must not open the gate
+    assert not is_identity_query("Who is eligible for the Vingroup scholarship?")
+    assert not is_identity_query("Who is responsible for approving petitions?")
+    assert not is_identity_query("When is the tuition payment deadline?")
+    assert not is_identity_query("What is the add-drop deadline?")
+
+
+def test_parse_verdict_satisfies_intent():
+    v = parse_verdict(
+        '{"grounded": true, "satisfies_intent": false, "missing_constraints": ["role: Rector"], '
+        '"reason": "Council President not Rector"}'
+    )
+    assert v.grounded is True
+    assert v.satisfies_intent is False
+    assert "role: Rector" in v.missing_constraints
+    # Absent key (groundedness-only prompt) → satisfies_intent defaults True (fail-open).
+    assert parse_verdict('{"grounded": true}').satisfies_intent is True
+
+
+def test_audit_output_check_intent_flags_role_mismatch():
+    v = asyncio.run(
+        audit_output(
+            "Lê Mai Lan is the Rector of VinUni.",
+            ["Lê Mai Lan, President of the University Council."],
+            "Who is the Rector of VinUni?",
+            _settings(),
+            model=_MockModel(
+                '{"grounded": true, "satisfies_intent": false, "missing_constraints": ["Rector"], '
+                '"reason": "Council President, not Rector"}'
+            ),
+            check_intent=True,
+        )
+    )
+    assert v.grounded is True and v.satisfies_intent is False
+
+
+def _intent_service(monkeypatch, *, satisfies_intent: bool, identity: bool = True):
+    monkeypatch.setattr(agent_mod, "resolve_output_decision", lambda *a, **k: OutputAuditDecision("allow", "t"))
+    monkeypatch.setattr(agent_mod, "is_point_lookup", lambda *a, **k: False)
+    monkeypatch.setattr(agent_mod, "is_identity_query", lambda *a, **k: identity)
+
+    async def _stub_audit(*a, **k):
+        return OutputAuditVerdict(True, [], "stub", satisfies_intent=satisfies_intent)
+
+    monkeypatch.setattr(agent_mod, "audit_output", _stub_audit)
+    settings = get_settings().model_copy(update={"enable_intent_audit": True})
+    agent = _FakeAgent("Lê Mai Lan is the Rector of VinUni.")
+    service = agent_mod.VinUniAgentService(settings=settings, retriever=SimpleNamespace(), agent=agent)
+    return service, agent
+
+
+def test_intent_audit_degrades_wrong_role(monkeypatch):
+    service, _ = _intent_service(monkeypatch, satisfies_intent=False)
+    resp = asyncio.run(service.chat(ChatRequest(message="Who is the Rector of VinUni?", conversation_id="intent-1")))
+    assert resp.needs_human_review is True
+    assert "Lê Mai Lan is the Rector" not in resp.answer  # the wrong-role answer was NOT served
+    assert any(t.get("type") == "output_audit" and t.get("satisfies_intent") is False for t in resp.tool_trace)
+
+
+def test_intent_audit_serves_satisfying_answer(monkeypatch):
+    service, _ = _intent_service(monkeypatch, satisfies_intent=True)
+    resp = asyncio.run(service.chat(ChatRequest(message="Who is the Rector of VinUni?", conversation_id="intent-2")))
+    assert "Rector" in resp.answer  # satisfies_intent → served unchanged
+
+
+def test_intent_audit_skipped_when_not_identity(monkeypatch):
+    # A non-identity turn must not invoke the intent auditor even with the flag on (so a false stub can't degrade).
+    service, _ = _intent_service(monkeypatch, satisfies_intent=False, identity=False)
+    resp = asyncio.run(service.chat(ChatRequest(message="What is the nursing tuition?", conversation_id="intent-3")))
+    assert "Rector" in resp.answer

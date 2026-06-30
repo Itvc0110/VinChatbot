@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import type { Notification, NotificationType } from "@/lib/portalTypes";
 import { Badge, type BadgeTone } from "@/components/ui/primitives";
@@ -15,13 +14,12 @@ const TYPE_TONE: Record<NotificationType, BadgeTone> = {
   event: "success",
   student_services: "neutral",
   system: "neutral",
+  forum: "info",
 };
 
 export interface NotificationHandlers {
   onToggleRead: (n: Notification) => void;
-  onToggleImportant: (n: Notification) => void;
-  onArchive: (n: Notification) => void;
-  onDelete: (n: Notification) => void;
+  onOpen: (n: Notification) => void;
 }
 
 function StarIcon({ filled }: { filled: boolean }) {
@@ -34,28 +32,16 @@ function StarIcon({ filled }: { filled: boolean }) {
   );
 }
 
-function ArchiveIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"
-      fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="4" rx="1" />
-      <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4" />
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"
-      fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-    </svg>
-  );
-}
-
-function NotificationItem({ n, h }: { n: Notification; h: NotificationHandlers }) {
+function NotificationItem({
+  n,
+  h,
+  disabled,
+}: {
+  n: Notification;
+  h: NotificationHandlers;
+  disabled: boolean;
+}) {
   const { p, lang } = usePortal();
-  const [confirming, setConfirming] = useState(false);
 
   return (
     <div className={`notif-item ${n.read ? "read" : "unread"}`}>
@@ -75,7 +61,14 @@ function NotificationItem({ n, h }: { n: Notification; h: NotificationHandlers }
           <span className="notif-time">{relativeTime(n.created_at, lang)}</span>
         </div>
 
-        <div className="notif-title">{n.title}</div>
+        <button
+          type="button"
+          className="notif-title"
+          onClick={() => h.onOpen(n)}
+          style={{ background: "none", border: 0, padding: 0, textAlign: "left" }}
+        >
+          {n.title}
+        </button>
         <p className="notif-message">{n.message}</p>
 
         {(n.source_url || n.action_href || (n.suggested_questions?.length ?? 0) > 0) && (
@@ -104,17 +97,6 @@ function NotificationItem({ n, h }: { n: Notification; h: NotificationHandlers }
           </div>
         )}
 
-        {confirming && (
-          <div className="confirm-row" role="alertdialog">
-            <span>{p.notif.deleteConfirm}</span>
-            <button className="btn btn-sm btn-danger-soft" onClick={() => h.onDelete(n)}>
-              {p.notif.confirmDelete}
-            </button>
-            <button className="btn btn-sm btn-ghost" onClick={() => setConfirming(false)}>
-              {p.notif.cancel}
-            </button>
-          </div>
-        )}
       </div>
 
       <div className="notif-actions">
@@ -122,33 +104,19 @@ function NotificationItem({ n, h }: { n: Notification; h: NotificationHandlers }
           className="icon-action"
           title={n.read ? p.notif.markUnread : p.notif.markRead}
           aria-label={n.read ? p.notif.markUnread : p.notif.markRead}
+          disabled={disabled}
           onClick={() => h.onToggleRead(n)}
         >
           <IconCheck size={15} />
         </button>
         <button
-          className={`icon-action ${n.important ? "active" : ""}`}
-          title={n.important ? p.notif.unmarkImportant : p.notif.markImportant}
-          aria-label={n.important ? p.notif.unmarkImportant : p.notif.markImportant}
-          onClick={() => h.onToggleImportant(n)}
-        >
-          <StarIcon filled={n.important} />
-        </button>
-        <button
           className="icon-action"
-          title={p.notif.archive}
-          aria-label={p.notif.archive}
-          onClick={() => h.onArchive(n)}
+          title={p.view}
+          aria-label={p.view}
+          disabled={disabled}
+          onClick={() => h.onOpen(n)}
         >
-          <ArchiveIcon />
-        </button>
-        <button
-          className="icon-action danger"
-          title={p.notif.delete}
-          aria-label={p.notif.delete}
-          onClick={() => setConfirming(true)}
-        >
-          <TrashIcon />
+          <IconExternal size={15} />
         </button>
       </div>
     </div>
@@ -158,14 +126,16 @@ function NotificationItem({ n, h }: { n: Notification; h: NotificationHandlers }
 export function NotificationList({
   items,
   handlers,
+  pendingIds,
 }: {
   items: Notification[];
   handlers: NotificationHandlers;
+  pendingIds?: Set<string>;
 }) {
   return (
     <div className="notif-list">
       {items.map((n) => (
-        <NotificationItem key={n.id} n={n} h={handlers} />
+        <NotificationItem key={n.id} n={n} h={handlers} disabled={pendingIds?.has(n.id) ?? false} />
       ))}
     </div>
   );

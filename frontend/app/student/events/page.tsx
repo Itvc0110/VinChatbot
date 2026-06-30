@@ -5,6 +5,7 @@ import { AsyncBoundary, EmptyState, Toast } from "@/components/ui/primitives";
 import { EventDetailDrawer } from "@/components/calendar/EventDetailDrawer";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
+import { useAuth } from "@/lib/auth";
 import { getStudentCalendar } from "@/lib/api";
 import type { CalendarEvent } from "@/lib/portalTypes";
 import { formatDate } from "@/lib/format";
@@ -95,9 +96,10 @@ function isRecommended(e: CalendarEvent): boolean {
 
 export default function StudentEventsPage() {
   const { p, lang } = usePortal();
+  const { token } = useAuth();
   const s = STR[lang];
   const locale = lang === "vi" ? "vi-VN" : "en-US";
-  const cal = useAsync(() => getStudentCalendar(), []);
+  const cal = useAsync(() => getStudentCalendar(), [token]);
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<EventFilter>("all");

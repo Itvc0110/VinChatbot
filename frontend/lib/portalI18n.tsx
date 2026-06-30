@@ -66,6 +66,12 @@ export interface PortalStrings {
     emailLabel: string;
     passwordLabel: string;
     signIn: string;
+    or: string;
+    sso: string;
+    continueStudent: string;
+    continueAdmin: string;
+    demoStudent: string;
+    demoAdmin: string;
     securityNote: string;
   };
 
@@ -247,6 +253,8 @@ export interface PortalStrings {
   // Review Ticket drawer (draft → review → send)
   review: {
     banner: string;
+    aiDrafting: string;
+    aiDraftedChip: string;
     category: string;
     office: string;
     priority: string;
@@ -538,6 +546,94 @@ export interface PortalStrings {
   // day-of-week full names
   dayFull: Record<ScheduleDay, string>;
 
+  // Forum / Discussion Hub
+  forum: {
+    title: string;
+    subtitle: string;
+    newTopic: string;
+    allCategories: string;
+    sortActive: string;
+    sortPinned: string;
+    sortNew: string;
+    sortTop: string;
+    sortCommented: string;
+    statusActive: string;
+    statusAll: string;
+    searchPlaceholder: string;
+    clearFilters: string;
+    topicCount: (n: number) => string;
+    commentCount: (n: number) => string;
+    viewCount: (n: number) => string;
+    by: string;
+    reply: string;
+    comment: string;
+    commentPlaceholder: string;
+    replyPlaceholder: string;
+    postComment: string;
+    postReply: string;
+    cancel: string;
+    posting: string;
+    pinned: string;
+    locked: string;
+    archived: string;
+    lockedNotice: string;
+    archivedNotice: string;
+    officialAnswer: string;
+    hiddenComment: string;
+    hiddenCommentBadge: string;
+    authorBadge: string;
+    staffBadge: string;
+    markOfficial: string;
+    unmarkOfficial: string;
+    pin: string;
+    unpin: string;
+    lock: string;
+    unlock: string;
+    archive: string;
+    edit: string;
+    save: string;
+    hide: string;
+    unhide: string;
+    delete: string;
+    moderator: string;
+    createNotification: string;
+    notificationCreated: string;
+    notificationHint: string;
+    relatedForumTopic: string;
+    you: string;
+    report: string;
+    reportTitle: string;
+    reportReasonPlaceholder: string;
+    submitReport: string;
+    reportedToast: string;
+    upvote: string;
+    downvote: string;
+    viewDiscussion: string;
+    backToForum: string;
+    titleLabel: string;
+    titlePlaceholder: string;
+    categoryLabel: string;
+    contentLabel: string;
+    contentPlaceholder: string;
+    tagsLabel: string;
+    tagsPlaceholder: string;
+    attachmentsLabel: string;
+    attachmentUrlPlaceholder: string;
+    attachmentLabelPlaceholder: string;
+    addLink: string;
+    create: string;
+    creating: string;
+    mentionHint: string;
+    mentionNoResults: string;
+    emptyTitle: string;
+    emptyDesc: string;
+    emptyFilteredDesc: string;
+    noComments: string;
+    createError: string;
+    actionFailed: string;
+    removed: string;
+  };
+
   // data-driven enum badge labels
   enums: {
     deadlineKind: Record<DeadlineKind, string>;
@@ -583,7 +679,7 @@ const en: PortalStrings = {
     tickets: "Support Tickets",
     adminDashboard: "Admin Dashboard",
     adminTickets: "Support Tickets",
-    adminNotifications: "Notifications",
+    adminNotifications: "Notification Management",
     sources: "Knowledge Sources",
     upload: "Upload Document",
     questions: "Unanswered Questions",
@@ -606,6 +702,12 @@ const en: PortalStrings = {
     emailLabel: "University email",
     passwordLabel: "Password",
     signIn: "Sign in",
+    or: "or",
+    sso: "Continue with VinUni SSO",
+    continueStudent: "Continue as student",
+    continueAdmin: "Continue as admin",
+    demoStudent: "Demo student",
+    demoAdmin: "Demo admin",
     securityNote: "Your access is based on your VinUni role and permissions.",
   },
   access: {
@@ -783,7 +885,10 @@ const en: PortalStrings = {
   actOpenPolicy: "Open source",
   askVinnieAbout: "Ask Vinnie about this",
   review: {
-    banner: "Vinnie prepared a support ticket draft. Please review it before sending.",
+    banner:
+      "Vinnie drafted this support ticket. Please review and edit it carefully — you're sending it, not Vinnie.",
+    aiDrafting: "Vinnie is drafting your ticket…",
+    aiDraftedChip: "Drafted by Vinnie",
     category: "Category",
     office: "Assigned office",
     priority: "Priority",
@@ -838,7 +943,7 @@ const en: PortalStrings = {
     dateTo: "To",
   },
   adminNotif: {
-    title: "Notifications",
+    title: "Notification Management",
     subtitle: "Create announcements and approve the questions Vinnie suggests from them.",
     listHeading: "Existing notifications",
     createHeading: "Create notification",
@@ -981,7 +1086,7 @@ const en: PortalStrings = {
     disableFailed: "Couldn't disable the source.",
     chunksInfo: (name, n) => `“${name}” has ${n} indexed chunks.`,
     sourcesNote:
-      "Live data from GET /sources; re-crawl posts to /ingest/run. Falls back to demo rows when the backend is offline.",
+      "Live data from GET /sources; re-crawl posts to /ingest/run. Backend errors show the retry state.",
 
     stepSource: "Source",
     stepPreview: "Preview",
@@ -1079,6 +1184,93 @@ const en: PortalStrings = {
     Sun: "Sunday",
   },
 
+  forum: {
+    title: "Discussion Hub",
+    subtitle: "Ask, share and discuss with the VinUni student community.",
+    newTopic: "New topic",
+    allCategories: "All topics",
+    sortActive: "Newest activity",
+    sortPinned: "Pinned first",
+    sortNew: "New",
+    sortTop: "Top",
+    sortCommented: "Most commented",
+    statusActive: "Active topics",
+    statusAll: "All states",
+    searchPlaceholder: "Search discussions…",
+    clearFilters: "Clear filters",
+    topicCount: (n) => `${n} ${n === 1 ? "topic" : "topics"}`,
+    commentCount: (n) => `${n} ${n === 1 ? "comment" : "comments"}`,
+    viewCount: (n) => `${n} ${n === 1 ? "view" : "views"}`,
+    by: "by",
+    reply: "Reply",
+    comment: "Comment",
+    commentPlaceholder: "Add a comment… use @ to mention someone",
+    replyPlaceholder: "Write a reply… use @ to mention someone",
+    postComment: "Post comment",
+    postReply: "Post reply",
+    cancel: "Cancel",
+    posting: "Posting…",
+    pinned: "Pinned",
+    locked: "Locked",
+    archived: "Archived",
+    lockedNotice: "This topic is locked. New comments are disabled.",
+    archivedNotice: "This topic is archived. It is hidden from student lists and read-only.",
+    officialAnswer: "Official answer",
+    hiddenComment: "Comment hidden by moderator.",
+    hiddenCommentBadge: "Hidden comment",
+    authorBadge: "Author",
+    staffBadge: "Admin/staff",
+    markOfficial: "Mark as official",
+    unmarkOfficial: "Unmark official",
+    pin: "Pin",
+    unpin: "Unpin",
+    lock: "Lock",
+    unlock: "Unlock",
+    archive: "Archive",
+    edit: "Edit",
+    save: "Save",
+    hide: "Hide",
+    unhide: "Unhide",
+    delete: "Delete",
+    moderator: "Moderator",
+    createNotification: "Create notification",
+    notificationCreated: "Notification created from this topic.",
+    notificationHint: "Publishes a forum notification that links students back to this topic.",
+    relatedForumTopic: "Related forum topic",
+    you: "You",
+    report: "Report",
+    reportTitle: "Report content",
+    reportReasonPlaceholder: "Tell moderators what's wrong…",
+    submitReport: "Submit report",
+    reportedToast: "Thanks — moderators will review this.",
+    upvote: "Upvote",
+    downvote: "Downvote",
+    viewDiscussion: "View discussion",
+    backToForum: "Back to forum",
+    titleLabel: "Title",
+    titlePlaceholder: "What do you want to discuss?",
+    categoryLabel: "Category",
+    contentLabel: "Details",
+    contentPlaceholder: "Share the details… use @ to mention someone",
+    tagsLabel: "Tags",
+    tagsPlaceholder: "Add a tag and press Enter",
+    attachmentsLabel: "Links",
+    attachmentUrlPlaceholder: "https://…",
+    attachmentLabelPlaceholder: "Label (optional)",
+    addLink: "Add link",
+    create: "Post topic",
+    creating: "Posting…",
+    mentionHint: "Type @ to mention a member",
+    mentionNoResults: "No members found",
+    emptyTitle: "No discussions yet",
+    emptyDesc: "Be the first to start a conversation.",
+    emptyFilteredDesc: "No topics match these filters yet.",
+    noComments: "No comments yet — start the discussion.",
+    createError: "Couldn't post. Please try again.",
+    actionFailed: "Something went wrong. Please try again.",
+    removed: "[removed]",
+  },
+
   enums: {
     deadlineKind: {
       assignment: "assignment",
@@ -1114,6 +1306,7 @@ const en: PortalStrings = {
       event: "Event",
       student_services: "Student Services",
       system: "System",
+      forum: "Forum",
     },
     eventType: {
       class: "Class",
@@ -1171,7 +1364,7 @@ const vi: PortalStrings = {
     tickets: "Yêu cầu hỗ trợ",
     adminDashboard: "Bảng quản trị",
     adminTickets: "Yêu cầu hỗ trợ",
-    adminNotifications: "Thông báo",
+    adminNotifications: "Quản lý thông báo",
     sources: "Nguồn tri thức",
     upload: "Tải tài liệu",
     questions: "Câu hỏi chưa trả lời",
@@ -1194,6 +1387,12 @@ const vi: PortalStrings = {
     emailLabel: "Email trường",
     passwordLabel: "Mật khẩu",
     signIn: "Đăng nhập",
+    or: "hoặc",
+    sso: "Tiếp tục với VinUni SSO",
+    continueStudent: "Vào bằng tài khoản sinh viên",
+    continueAdmin: "Vào bằng tài khoản quản trị",
+    demoStudent: "Sinh viên demo",
+    demoAdmin: "Quản trị demo",
     securityNote: "Quyền truy cập dựa trên vai trò và quyền hạn VinUni của bạn.",
   },
   access: {
@@ -1371,7 +1570,10 @@ const vi: PortalStrings = {
   actOpenPolicy: "Mở nguồn",
   askVinnieAbout: "Hỏi Vinnie về việc này",
   review: {
-    banner: "Vinnie đã soạn sẵn một phiếu hỗ trợ. Vui lòng xem lại trước khi gửi.",
+    banner:
+      "Vinnie đã soạn phiếu hỗ trợ này. Hãy kiểm tra và chỉnh sửa cẩn thận — người gửi là bạn, không phải Vinnie.",
+    aiDrafting: "Vinnie đang soạn phiếu cho bạn…",
+    aiDraftedChip: "Do Vinnie soạn",
     category: "Danh mục",
     office: "Phòng ban phụ trách",
     priority: "Ưu tiên",
@@ -1426,7 +1628,7 @@ const vi: PortalStrings = {
     dateTo: "Đến",
   },
   adminNotif: {
-    title: "Thông báo",
+    title: "Quản lý thông báo",
     subtitle: "Tạo thông báo và duyệt các câu hỏi Vinnie gợi ý từ thông báo đó.",
     listHeading: "Thông báo hiện có",
     createHeading: "Tạo thông báo",
@@ -1569,7 +1771,7 @@ const vi: PortalStrings = {
     disableFailed: "Không tắt được nguồn này.",
     chunksInfo: (name, n) => `“${name}” có ${n} đoạn đã lập chỉ mục.`,
     sourcesNote:
-      "Dữ liệu trực tiếp từ GET /sources; thu thập lại gọi /ingest/run. Hiển thị dữ liệu demo khi backend ngoại tuyến.",
+      "Dữ liệu trực tiếp từ GET /sources; thu thập lại gọi /ingest/run. Lỗi backend sẽ hiển thị trạng thái thử lại.",
 
     stepSource: "Nguồn",
     stepPreview: "Xem trước",
@@ -1667,6 +1869,93 @@ const vi: PortalStrings = {
     Sun: "Chủ Nhật",
   },
 
+  forum: {
+    title: "Diễn đàn thảo luận",
+    subtitle: "Hỏi, chia sẻ và thảo luận cùng cộng đồng sinh viên VinUni.",
+    newTopic: "Tạo chủ đề",
+    allCategories: "Tất cả chủ đề",
+    sortActive: "Hoạt động mới nhất",
+    sortPinned: "Ghim trước",
+    sortNew: "Mới nhất",
+    sortTop: "Nổi bật",
+    sortCommented: "Nhiều bình luận",
+    statusActive: "Đang hiển thị",
+    statusAll: "Tất cả trạng thái",
+    searchPlaceholder: "Tìm kiếm thảo luận…",
+    clearFilters: "Xóa bộ lọc",
+    topicCount: (n) => `${n} chủ đề`,
+    commentCount: (n) => `${n} bình luận`,
+    viewCount: (n) => `${n} lượt xem`,
+    by: "bởi",
+    reply: "Trả lời",
+    comment: "Bình luận",
+    commentPlaceholder: "Thêm bình luận… dùng @ để nhắc tên ai đó",
+    replyPlaceholder: "Viết trả lời… dùng @ để nhắc tên ai đó",
+    postComment: "Đăng bình luận",
+    postReply: "Đăng trả lời",
+    cancel: "Hủy",
+    posting: "Đang đăng…",
+    pinned: "Đã ghim",
+    locked: "Đã khóa",
+    archived: "Đã lưu trữ",
+    lockedNotice: "Chủ đề này đã bị khóa. Không thể thêm bình luận mới.",
+    archivedNotice: "Chủ đề này đã được lưu trữ. Sinh viên không thấy trong danh sách và không thể trả lời.",
+    officialAnswer: "Câu trả lời chính thức",
+    hiddenComment: "Bình luận đã được quản trị viên ẩn.",
+    hiddenCommentBadge: "Bình luận ẩn",
+    authorBadge: "Tác giả",
+    staffBadge: "Quản trị/nhân viên",
+    markOfficial: "Đánh dấu chính thức",
+    unmarkOfficial: "Bỏ đánh dấu",
+    pin: "Ghim",
+    unpin: "Bỏ ghim",
+    lock: "Khóa",
+    unlock: "Mở khóa",
+    archive: "Lưu trữ",
+    edit: "Sửa",
+    save: "Lưu",
+    hide: "Ẩn",
+    unhide: "Hiện lại",
+    delete: "Xóa",
+    moderator: "Quản trị",
+    createNotification: "Tạo thông báo",
+    notificationCreated: "Đã tạo thông báo từ chủ đề này.",
+    notificationHint: "Đăng thông báo diễn đàn và liên kết sinh viên về chủ đề này.",
+    relatedForumTopic: "Chủ đề liên quan",
+    you: "Bạn",
+    report: "Báo cáo",
+    reportTitle: "Báo cáo nội dung",
+    reportReasonPlaceholder: "Cho quản trị viên biết vấn đề là gì…",
+    submitReport: "Gửi báo cáo",
+    reportedToast: "Cảm ơn — quản trị viên sẽ xem xét.",
+    upvote: "Tán thành",
+    downvote: "Phản đối",
+    viewDiscussion: "Xem thảo luận",
+    backToForum: "Quay lại diễn đàn",
+    titleLabel: "Tiêu đề",
+    titlePlaceholder: "Bạn muốn thảo luận điều gì?",
+    categoryLabel: "Danh mục",
+    contentLabel: "Nội dung",
+    contentPlaceholder: "Chia sẻ chi tiết… dùng @ để nhắc tên ai đó",
+    tagsLabel: "Thẻ",
+    tagsPlaceholder: "Nhập thẻ và nhấn Enter",
+    attachmentsLabel: "Liên kết",
+    attachmentUrlPlaceholder: "https://…",
+    attachmentLabelPlaceholder: "Nhãn (tùy chọn)",
+    addLink: "Thêm liên kết",
+    create: "Đăng chủ đề",
+    creating: "Đang đăng…",
+    mentionHint: "Gõ @ để nhắc tên thành viên",
+    mentionNoResults: "Không tìm thấy thành viên",
+    emptyTitle: "Chưa có thảo luận nào",
+    emptyDesc: "Hãy là người đầu tiên bắt đầu cuộc trò chuyện.",
+    emptyFilteredDesc: "Chưa có chủ đề phù hợp với bộ lọc này.",
+    noComments: "Chưa có bình luận — hãy bắt đầu thảo luận.",
+    createError: "Không thể đăng. Vui lòng thử lại.",
+    actionFailed: "Đã xảy ra lỗi. Vui lòng thử lại.",
+    removed: "[đã xóa]",
+  },
+
   enums: {
     deadlineKind: {
       assignment: "bài tập",
@@ -1702,6 +1991,7 @@ const vi: PortalStrings = {
       event: "Sự kiện",
       student_services: "Dịch vụ sinh viên",
       system: "Hệ thống",
+      forum: "Diễn đàn",
     },
     eventType: {
       class: "Lớp học",

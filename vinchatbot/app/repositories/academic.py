@@ -364,6 +364,7 @@ class AcademicRepository:
                 coalesce(required.code, required.course_code) as required_course_code,
                 coalesce(required.name, required.course_title) as required_course_name,
                 coalesce(required.name_vi, required.course_title_vi) as required_course_name_vi,
+                required.credits as required_course_credits,
                 exists (
                     select 1
                     from student_course_enrollments passed_sce
@@ -427,6 +428,7 @@ class AcademicRepository:
                 coalesce(required.code, required.course_code) as required_course_code,
                 coalesce(required.name, required.course_title) as required_course_name,
                 coalesce(required.name_vi, required.course_title_vi) as required_course_name_vi,
+                required.credits as required_course_credits,
                 exists (
                     select 1
                     from student_course_enrollments passed_sce

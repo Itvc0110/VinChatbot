@@ -5,6 +5,7 @@ import { AsyncBoundary, EmptyState, Toast } from "@/components/ui/primitives";
 import { TicketBadge } from "@/components/tickets/TicketBadge";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
+import { useAuth } from "@/lib/auth";
 import { getAdminTicket, getAdminTickets, updateAdminTicket, respondToTicket } from "@/lib/api";
 import { initials, formatDateTime, relativeTime } from "@/lib/format";
 import type { SupportTicket, TicketStatus, TicketPriority } from "@/lib/portalTypes";
@@ -82,8 +83,9 @@ const STR = {
 export default function AdminTicketsPage() {
   const { p, lang } = usePortal();
   const s = STR[lang];
+  const { token } = useAuth();
   const locale = lang === "vi" ? "vi-VN" : "en-US";
-  const loaded = useAsync(getAdminTickets, []);
+  const loaded = useAsync(getAdminTickets, [token]);
   const [items, setItems] = useState<SupportTicket[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -91,6 +93,13 @@ export default function AdminTicketsPage() {
   const [priorityFilter, setPriorityFilter] = useState<TicketPriority | "all">("all");
   const [reply, setReply] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    setItems(null);
+    setSelectedId(null);
+    setReply("");
+    setToast(null);
+  }, [token]);
 
   useEffect(() => {
     if (loaded.status === "success") setItems(loaded.data);

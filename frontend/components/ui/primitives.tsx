@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import type { AsyncState } from "@/lib/portalTypes";
 import { useI18n } from "@/lib/i18n";
 
@@ -17,6 +18,69 @@ const STR = {
     retryLabel: "Thử lại",
   },
 } as const;
+
+// ---- Modal (centered popup with scrim) -------------------------------------
+// A small, focus-trapping-free dialog used for popups (report a problem, day schedule,
+// notification detail). Closes on scrim click and Escape. Render conditionally by the caller.
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+  size = "md",
+  labelledBy,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title?: React.ReactNode;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+  size?: "sm" | "md" | "lg";
+  labelledBy?: string;
+}) {
+  const { lang } = useI18n();
+  const s = STR[lang];
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div className="modal-scrim" onClick={onClose}>
+      <div
+        className={`modal-card modal-${size}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={labelledBy}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {title !== undefined && (
+          <div className="modal-head">
+            <h3 className="modal-title">{title}</h3>
+            <button
+              className="modal-close"
+              onClick={onClose}
+              aria-label={s.dismiss}
+              title={s.dismiss}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        <div className="modal-body">{children}</div>
+        {footer && <div className="modal-foot">{footer}</div>}
+      </div>
+    </div>
+  );
+}
 
 // ---- Page header ------------------------------------------------------------
 export function PageHeader({
@@ -60,15 +124,17 @@ export function Card({
   children,
   className = "",
   style,
+  id,
   as: As = "div",
 }: {
   children: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  id?: string;
   as?: "div" | "section";
 }) {
   return (
-    <As className={`card ${className}`} style={style}>
+    <As id={id} className={`card ${className}`} style={style}>
       {children}
     </As>
   );
@@ -129,7 +195,7 @@ export function EmptyState({
 }) {
   return (
     <div className="empty-state">
-      {icon && <span className="empty-icon">{icon}</span>}
+      {icon && <span className="empty-icon" aria-hidden="true">{icon}</span>}
       <p className="empty-title">{title}</p>
       {description && <p className="empty-desc">{description}</p>}
     </div>

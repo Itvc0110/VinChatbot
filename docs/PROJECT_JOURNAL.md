@@ -31,7 +31,10 @@ stretch. Deployed-app (auth/UI/admin) required by brief but not built yet.
   (strip_boilerplate) → chunk (+structured records: calendar_event/fee_record/table) →
   content-hash dedup → embed → Qdrant. Chat never crawls.
 - **Multi-agent is in-process LangGraph** (supervisor+specialists). **No MCP/A2A** (deferred;
-  shown as future hooks in ARCHITECTURE.md §2a).
+  shown as future hooks in ARCHITECTURE.md §2a). **Phase 1.33 multi-domain fan-out** (decompose / hedge →
+  parallel specialists → synthesis) is **PROMOTED — `ENABLE_FAN_OUT` default ON**, the live flow; a
+  single-domain question (the ~87%) still takes the single-specialist path byte-identically — see ARCHITECTURE
+  §2c. Set `ENABLE_FAN_OUT=false` to revert.
 
 ## Phase history (eval = `scripts/run_eval.py` on golden sets in `data/eval/golden/`)
 - **Phase 1.0 — foundation**: 761-doc Qdrant Cloud corpus, multi-agent graph, CI, eval. **47.2%**.

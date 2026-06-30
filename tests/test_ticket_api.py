@@ -165,7 +165,7 @@ class FakeTicketRepository:
                 "priority": request.priority,
                 "status": "submitted",
                 "confirmed_by_user": True,
-                "created_by_ai": False,
+                "created_by_ai": getattr(request, "created_by_ai", False),
                 "include_chat_context": request.include_chat_context,
                 "included_context": (
                     request.included_context if request.include_chat_context else None
@@ -364,6 +364,68 @@ def test_student_can_create_ticket():
     assert body["confirmed_by_user"] is True
     assert body["created_by_ai"] is False
     assert body["submitted_at"] is not None
+
+
+def test_ai_drafted_flag_persists_on_create():
+    response = _run(
+        _request(
+            "POST",
+            "/tickets",
+            _ticket_app(current_user=_student_user(), repository=FakeTicketRepository()),
+            json={
+                "subject": "Vinnie-drafted: Canvas login",
+                "body": "I can't log into Canvas.",
+                "category": "technical",
+                "priority": "medium",
+                "created_by_ai": True,
+            },
+        )
+    )
+
+    body = response.json()
+    assert response.status_code == 201
+    assert body["created_by_ai"] is True
+    assert body["confirmed_by_user"] is True  # the drawer is the confirm step
+
+
+def test_student_can_request_ticket_suggestion(monkeypatch):
+    import vinchatbot.app.api.routes_tickets as rt
+    from vinchatbot.app.schemas.tickets import SuggestedTicketDraft
+
+    async def fake_suggest(request):
+        return SuggestedTicketDraft(
+            subject="Cannot log into Canvas",
+            body="I am unable to log into Canvas and need help.",
+            category="technical",
+        )
+
+    monkeypatch.setattr(rt, "suggest_ticket_draft", fake_suggest)
+    response = _run(
+        _request(
+            "POST",
+            "/tickets/suggest",
+            _ticket_app(current_user=_student_user()),
+            json={"origin_question": "I can't log into Canvas", "answer": "Try resetting your password."},
+        )
+    )
+
+    body = response.json()
+    assert response.status_code == 200
+    assert body["subject"] == "Cannot log into Canvas"
+    assert body["category"] == "technical"
+
+
+def test_non_student_cannot_request_ticket_suggestion():
+    response = _run(
+        _request(
+            "POST",
+            "/tickets/suggest",
+            _ticket_app(current_user=_global_admin_user()),
+            json={"origin_question": "anything"},
+        )
+    )
+
+    assert response.status_code == 403
 
 
 def test_student_can_add_message_to_own_ticket():

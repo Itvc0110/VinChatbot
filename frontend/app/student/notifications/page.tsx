@@ -15,17 +15,19 @@ import {
   NotificationList,
   type NotificationHandlers,
 } from "@/components/notifications/NotificationList";
+import { NotificationDetailModal } from "@/components/notifications/NotificationDetailModal";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal } from "@/lib/portalI18n";
+import { useAuth } from "@/lib/auth";
 import {
   getStudentNotifications,
+  markAllNotificationsRead,
   markNotificationRead,
-  markNotificationImportant,
-  archiveNotification,
-  deleteNotification,
 } from "@/lib/api";
 import type { Notification } from "@/lib/portalTypes";
 import { IconBell, IconCheck } from "@/components/shell/icons";
+
+const NOTIFICATIONS_CHANGED_EVENT = "vinchatbot:notifications-changed";
 
 function matchesFilter(n: Notification, f: NotifFilter): boolean {
   switch (f) {
@@ -41,18 +43,29 @@ function matchesFilter(n: Notification, f: NotifFilter): boolean {
 }
 
 export default function StudentNotificationsPage() {
-  const { p } = usePortal();
-  const loaded = useAsync(getStudentNotifications, []);
+  const { p, lang } = usePortal();
+  const { token } = useAuth();
+  const loaded = useAsync(() => getStudentNotifications(lang), [token, lang]);
   const [items, setItems] = useState<Notification[] | null>(null);
   const [filter, setFilter] = useState<NotifFilter>("all");
   const [toast, setToast] = useState<string | null>(null);
+  const [detail, setDetail] = useState<Notification | null>(null);
+  const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
+  const [markingAll, setMarkingAll] = useState(false);
 
-  // Seed the working copy from the backend; mutations below are UI-local until
-  // notification mutation endpoints exist.
+  useEffect(() => {
+    setItems(null);
+    setFilter("all");
+    setToast(null);
+    setDetail(null);
+    setPendingIds(new Set());
+    setMarkingAll(false);
+  }, [token]);
+
   useEffect(() => {
     if (loaded.status === "success") setItems(loaded.data);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded.status]);
+  }, [loaded.status, loaded.status === "success" ? loaded.data : null]);
 
   const all = (items ?? []).filter((n) => !n.archived);
   const unreadCount = all.filter((n) => !n.read).length;
@@ -61,34 +74,71 @@ export default function StudentNotificationsPage() {
     setItems((cur) => (cur ?? []).map((n) => (n.id === id ? { ...n, ...p2 } : n)));
   }
 
+  function setPending(id: string, pending: boolean) {
+    setPendingIds((cur) => {
+      const next = new Set(cur);
+      if (pending) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function announceNotificationChange() {
+    window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED_EVENT));
+  }
+
   const handlers: NotificationHandlers = {
     onToggleRead: (n) => {
-      patch(n.id, { read: !n.read });
-      markNotificationRead(n.id, !n.read).catch(() => setToast(p.notif.actionFailed));
+      if (pendingIds.has(n.id)) return;
+      const nextRead = !n.read;
+      setPending(n.id, true);
+      patch(n.id, { read: nextRead });
+      markNotificationRead(n.id, nextRead)
+        .then((updated) => {
+          patch(n.id, { read: updated.read });
+          announceNotificationChange();
+        })
+        .catch(() => {
+          patch(n.id, { read: n.read });
+          setDetail((current) =>
+            current?.id === n.id ? { ...current, read: n.read } : current
+          );
+          setToast(p.notif.actionFailed);
+        })
+        .finally(() => setPending(n.id, false));
     },
-    onToggleImportant: (n) => {
-      patch(n.id, { important: !n.important });
-      markNotificationImportant(n.id, !n.important).catch(() =>
-        setToast(p.notif.actionFailed)
-      );
-    },
-    onArchive: (n) => {
-      patch(n.id, { archived: true });
-      archiveNotification(n.id).catch(() => setToast(p.notif.actionFailed));
-    },
-    onDelete: (n) => {
-      setItems((cur) => (cur ?? []).filter((x) => x.id !== n.id));
-      deleteNotification(n.id).catch(() => setToast(p.notif.actionFailed));
+    onOpen: (n) => {
+      setDetail(n.read ? n : { ...n, read: true });
+      if (n.read || pendingIds.has(n.id)) return;
+      setPending(n.id, true);
+      patch(n.id, { read: true });
+      markNotificationRead(n.id, true)
+        .then((updated) => {
+          patch(n.id, { read: updated.read });
+          announceNotificationChange();
+        })
+        .catch(() => {
+          patch(n.id, { read: n.read });
+          setToast(p.notif.actionFailed);
+        })
+        .finally(() => setPending(n.id, false));
     },
   };
 
   function markAllRead() {
-    setItems((cur) => (cur ?? []).map((n) => ({ ...n, read: true })));
-    all
-      .filter((n) => !n.read)
-      .forEach((n) =>
-        markNotificationRead(n.id, true).catch(() => setToast(p.notif.actionFailed))
-      );
+    if (markingAll || unreadCount === 0) return;
+    const previous = items ?? [];
+    setMarkingAll(true);
+    setItems((cur) =>
+      (cur ?? []).map((n) => (n.archived ? n : { ...n, read: true }))
+    );
+    markAllNotificationsRead()
+      .then(announceNotificationChange)
+      .catch(() => {
+        setItems(previous);
+        setToast(p.notif.actionFailed);
+      })
+      .finally(() => setMarkingAll(false));
   }
 
   const visible = all.filter((n) => matchesFilter(n, filter));
@@ -100,7 +150,11 @@ export default function StudentNotificationsPage() {
         description={p.notif.unreadCount(unreadCount)}
         actions={
           unreadCount > 0 ? (
-            <button className="btn btn-outline btn-sm" onClick={markAllRead}>
+            <button
+              className="btn btn-outline btn-sm"
+              disabled={markingAll}
+              onClick={markAllRead}
+            >
               <IconCheck size={15} /> {p.notif.markAllRead}
             </button>
           ) : undefined
@@ -120,11 +174,12 @@ export default function StudentNotificationsPage() {
           ) : visible.length === 0 ? (
             <EmptyState icon={<IconBell size={28} />} title={p.notif.noMatch} />
           ) : (
-            <NotificationList items={visible} handlers={handlers} />
+            <NotificationList items={visible} handlers={handlers} pendingIds={pendingIds} />
           )
         }
       </AsyncBoundary>
 
+      <NotificationDetailModal notification={detail} onClose={() => setDetail(null)} />
       {toast && <Toast message={toast} tone="danger" onClose={() => setToast(null)} />}
     </div>
   );

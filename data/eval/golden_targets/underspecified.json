@@ -1,0 +1,25 @@
+{
+  "name": "vinuni_underspecified_targets",
+  "description": "TARGET (roadmap #2, D4): a required slot (term / program) is missing and multiple candidates exist. Desired behavior = clarify-or-default-and-state, NOT a conf-0 degrade. Behavior probe — required_facts are loose markers that a clarifying OR assumption-stating answer would contain (a term word, a program word, or an explicit 'which/depends'); a bare degrade contains none. NOTE: clarification was previously deferred to the teammate UX merge — confirm scope before building D4. Move to data/eval/golden/ when D4 lands.",
+  "source": "behavior probe (no single source doc)",
+  "cases": [
+    {
+      "id": "underspec-payment-deadline-noterm-en",
+      "question": "When is the tuition payment deadline?",
+      "required_facts": ["term|semester|which|Fall|Spring|Summer|depend|assum"],
+      "forbidden_facts": [],
+      "expected_source": ["vinuni"],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "underspec-tuition-noprogram-en",
+      "question": "How much is the tuition at VinUni?",
+      "required_facts": ["program|major|which|Nursing|all majors|depend|815,850,000|35,000"],
+      "forbidden_facts": [],
+      "expected_source": ["vinuni"],
+      "language": "en",
+      "held_out": false
+    }
+  ]
+}

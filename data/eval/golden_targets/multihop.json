@@ -1,0 +1,219 @@
+{
+  "name": "vinuni_multihop_targets",
+  "description": "TARGET (dependent multi-hop): the answer to one part depends on resolving another (deadline → consequence). Tests sequential reasoning (D8/sequential, composes with D2). Facts verified 2026-06-24 from the financial tariff + academic regulations: tuition refund is timing-based (80% / 50% by date relative to the official start; full only for force-majeure); a course dropped after the Drop Date records a 'W' grade. Move to data/eval/golden/ when the multi-hop path lands. | Stage-0.5 expansion 2026-06-25: +cases authored from VERIFIED corpus facts, tagged failure_type (coverage/multi_question/chained) + domains; substrate for G1 multi-label routing+synthesis (cross-ref PHASE1.29_PLAN Phase 1.31).",
+  "source": "policy.vinuni financial-regulations-and-tariff + academic-regulations",
+  "cases": [
+    {
+      "id": "multihop-withdraw-refund-en",
+      "question": "If I withdraw from a course after the semester has started, am I refunded the full tuition?",
+      "required_facts": [
+        "refund",
+        "80%|50%|partial|not full|no|depend"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "financial",
+        "tariff"
+      ],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "multihop-drop-after-deadline-transcript-en",
+      "question": "If I drop a course after the drop deadline, will it show on my transcript?",
+      "required_facts": [
+        "W|withdraw",
+        "transcript|grade|record"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "academic-regulations",
+        "registrar"
+      ],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "multihop-late-tuition-penalty-en",
+      "question": "If I do not pay my tuition by the payment deadline, how much is the late payment fee I have to pay?",
+      "required_facts": [
+        "late payment",
+        "2.000.000|2,000,000"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "financial-regulations-and-tariff-for-student"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "chained",
+      "domains": [
+        "policy",
+        "financial"
+      ]
+    },
+    {
+      "id": "multihop-withdraw-before-start-refund-pct-en",
+      "question": "If I withdraw from a semester before its official start date, what percentage of my paid tuition is refunded?",
+      "required_facts": [
+        "before the official start|before official start",
+        "80%"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "financial-regulations-and-tariff-for-student"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "chained",
+      "domains": [
+        "policy",
+        "financial"
+      ]
+    },
+    {
+      "id": "multihop-withdraw-within-two-weeks-refund-en",
+      "question": "If I withdraw from a semester within two weeks after its official start date, what portion of the tuition fee do I get back?",
+      "required_facts": [
+        "within two weeks",
+        "50%|partial|not full"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "financial-regulations-and-tariff-for-student"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "chained",
+      "domains": [
+        "policy",
+        "financial"
+      ]
+    },
+    {
+      "id": "multihop-freshman-low-gpa-standing-en",
+      "question": "If a freshman's cumulative GPA falls below 1.20, what academic standing are they placed on?",
+      "required_facts": [
+        "1.20",
+        "Academic Warning|warning"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "academic-regulations-for-full-time-undergraduate-programs"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "chained",
+      "domains": [
+        "policy",
+        "calendar"
+      ]
+    },
+    {
+      "id": "multihop-three-warnings-dismissal-en",
+      "question": "If I receive academic warnings three times in total, what happens to my enrolment at VinUni?",
+      "required_facts": [
+        "three times",
+        "dismissal|dismiss"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "academic-regulations-for-full-time-undergraduate-programs"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "chained",
+      "domains": [
+        "policy",
+        "calendar"
+      ]
+    },
+    {
+      "id": "multihop-below-40pct-grade-en",
+      "question": "If I score below 40% of the total assessment in a course, what grade will I receive?",
+      "required_facts": [
+        "40%",
+        "failing grade|F"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "academic-regulations-for-full-time-undergraduate-programs"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "chained",
+      "domains": [
+        "policy",
+        "calendar"
+      ]
+    },
+    {
+      "id": "multihop-incomplete-not-made-up-en",
+      "question": "If I am given an Incomplete grade and do not make up the work within the required period, what does the grade become?",
+      "required_facts": [
+        "incomplete",
+        "converted to an F|F"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "academic-regulations-for-full-time-undergraduate-programs"
+      ],
+      "language": "en",
+      "held_out": false,
+      "failure_type": "chained",
+      "domains": [
+        "policy",
+        "calendar"
+      ]
+    },
+    {
+      "id": "multihop-late-tuition-penalty-vi",
+      "question": "Nếu tôi không hoàn thành nộp học phí đúng hạn theo quy định, tôi phải nộp phí trả trễ là bao nhiêu?",
+      "required_facts": [
+        "trả trễ|late payment",
+        "2.000.000|2,000,000"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "financial-regulations-and-tariff-for-student"
+      ],
+      "language": "vi",
+      "held_out": false,
+      "failure_type": "chained",
+      "domains": [
+        "policy",
+        "financial"
+      ]
+    },
+    {
+      "id": "multihop-freshman-low-gpa-standing-vi",
+      "question": "Nếu điểm trung bình tích lũy của sinh viên năm nhất dưới 1,20 thì sinh viên đó bị xếp vào tình trạng học vụ nào?",
+      "required_facts": [
+        "dưới 1,20|1,20",
+        "Cảnh báo học tập|cảnh báo"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "QC-dao-tao-dai-hoc|academic-regulations"
+      ],
+      "language": "vi",
+      "held_out": false,
+      "failure_type": "chained",
+      "domains": [
+        "policy",
+        "calendar"
+      ]
+    }
+  ]
+}

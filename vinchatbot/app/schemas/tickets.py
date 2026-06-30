@@ -15,6 +15,10 @@ TICKET_STATUSES = {
 }
 TICKET_PRIORITIES = {"low", "medium", "high", "urgent"}
 
+# Categories the student-facing ticket drawer offers (must match the frontend `TicketCategory` set in
+# `frontend/lib/portalTypes.ts`). The AI draft suggestion is constrained to these; anything else → "other".
+TICKET_CATEGORIES = {"academic", "schedule", "student_services", "technical", "other"}
+
 
 class TicketMessageResponse(BaseModel):
     id: uuid.UUID
@@ -83,6 +87,9 @@ class CreateTicketRequest(BaseModel):
     included_context: str | None = Field(default=None, max_length=4000)
     source_conversation_id: uuid.UUID | None = None
     origin_question: str | None = Field(default=None, max_length=1000)
+    # True when the draft was produced by Vinnie's suggestion (the student still reviewed + confirmed in
+    # the drawer, so confirmed_by_user stays true). Lets admin see the ticket was AI-drafted.
+    created_by_ai: bool = False
 
     @field_validator("priority")
     @classmethod
@@ -92,6 +99,22 @@ class CreateTicketRequest(BaseModel):
             allowed = ", ".join(sorted(TICKET_PRIORITIES))
             raise ValueError(f"priority must be one of: {allowed}")
         return priority
+
+
+class SuggestTicketRequest(BaseModel):
+    """Input for the Vinnie ticket-draft suggestion — the conversation the client already has."""
+
+    origin_question: str = Field(min_length=1, max_length=2000)
+    answer: str | None = Field(default=None, max_length=8000)
+    context: str | None = Field(default=None, max_length=8000)
+
+
+class SuggestedTicketDraft(BaseModel):
+    """A drafted ticket (summary / description / category) for the student to review before sending."""
+
+    subject: str = Field(max_length=200)
+    body: str = Field(max_length=5000)
+    category: str = Field(default="other", max_length=120)
 
 
 class AddTicketMessageRequest(BaseModel):

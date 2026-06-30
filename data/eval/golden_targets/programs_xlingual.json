@@ -1,0 +1,23 @@
+{
+  "name": "vinuni_programs_xlingual_targets",
+  "description": "TARGET (failing-until-fixed): VI program-fact queries that under-retrieve the authoritative ENGLISH curriculum PDFs. Decoded 2026-06-24: MD-vi/Nursing-vi hedge because the VI cross-lingual retrieval surfaces VI FAQ/tariff/bio pages (no credit number) instead of the EN curriculum/program-spec PDF that holds 228 / 126. Same class as exp-program-datascience-vi. Substrate for the cross-lingual retrieval-precision fix (S16/B). Facts source-verified (MD=6yr/228, Nursing=126); move to data/eval/golden/ when the fix lands.",
+  "source": "policy.vinuni MD_Program-Specifications + BN curriculum (EN PDFs)",
+  "cases": [
+    {
+      "id": "prog-nursing-credits-vi",
+      "question": "Chương trình Cử nhân Điều dưỡng hiện tại của VinUni cần bao nhiêu tín chỉ cho bằng đơn, không tính ngành phụ?",
+      "required_facts": [
+        "126"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "policy.vinuni",
+        "BN_",
+        "dieu-duong",
+        "chs.vinuni"
+      ],
+      "language": "vi",
+      "held_out": false
+    }
+  ]
+}

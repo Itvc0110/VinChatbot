@@ -1,0 +1,1178 @@
+{
+  "name": "vinuni_fanout_targets",
+  "description": "TARGET (Phase 1.33 multi-domain fan-out): calibration set for the dispatch planner's 1-vs-many decision. fanout_expected={mode:single|decompose|hedge,intents:[...]} is OUR tag (run_eval ignores it) for the router-decision A/B. Buckets: anti-over-fire traps (must stay SINGLE) + route-ambiguous mis-routes (HEDGE) + genuine compounds/3-part/multi-question (DECOMPOSE) + multi-turn reference-resolution (turns) + one-part-OOS + VI. Facts verified vs vinuni_full_e5_v2. A/B ON vs OFF at --runs 1.",
+  "cases": [
+    {
+      "id": "trap-nursing-tuition-fall-en",
+      "question": "What is the tuition for the Bachelor of Nursing for the fall semester?",
+      "required_facts": [
+        "174,825,000"
+      ],
+      "forbidden_facts": [
+        "September 21, 2026",
+        "21-Sep",
+        "Fall'26 Instruction Begins"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tuition-rates-and-fees",
+        "tuition-fee/undergraduate"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "financial"
+        ]
+      }
+    },
+    {
+      "id": "trap-medicine-semester-tuition-en",
+      "question": "How much is the listed tuition fee per semester for the Doctor of Medicine program in the spring term?",
+      "required_facts": [
+        "407,925,000"
+      ],
+      "forbidden_facts": [
+        "February 15, 2027",
+        "15-Feb",
+        "Spring'27 Instruction Begins"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tuition-rates-and-fees",
+        "tuition-fee/undergraduate"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "financial"
+        ]
+      }
+    },
+    {
+      "id": "trap-withdrawal-refund-policy-en",
+      "question": "What is VinUni's policy on course-withdrawal tuition refunds?",
+      "required_facts": [
+        "80%|80 percent"
+      ],
+      "forbidden_facts": [
+        "October 9, 2026",
+        "9-Oct",
+        "March 5, 2027",
+        "Course Drop Deadline"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "trap-withdrawal-limit-policy-en",
+      "question": "What does VinUni's course-withdrawal limit policy allow over a student's program of study?",
+      "required_facts": [
+        "18 credits|maximum of 18",
+        "withdraw"
+      ],
+      "forbidden_facts": [
+        "October 9, 2026",
+        "9-Oct",
+        "Course Drop Deadline",
+        "9,780,000"
+      ],
+      "expected_source": [
+        "academic-regulations-for-full-time-undergraduate-programs"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "trap-adddrop-deadline-spring-en",
+      "question": "What is the Add, Transfer Credit, and Independent Study deadline for the spring term?",
+      "required_facts": [
+        "February 26, 2027|26 tháng 2 năm 2027"
+      ],
+      "forbidden_facts": [
+        "407,925,000",
+        "174,825,000",
+        "9,780,000",
+        "March 5, 2027"
+      ],
+      "expected_source": [
+        "vinuni-academic-calendar",
+        "academic-calendar"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "calendar"
+        ]
+      }
+    },
+    {
+      "id": "trap-coursedrop-deadline-fall-en",
+      "question": "When is the Course Drop Deadline for the fall semester at VinUni?",
+      "required_facts": [
+        "October 9, 2026|9 tháng 10 năm 2026"
+      ],
+      "forbidden_facts": [
+        "174,825,000",
+        "9,780,000",
+        "October 1, 2026",
+        "March 5, 2027"
+      ],
+      "expected_source": [
+        "vinuni-academic-calendar",
+        "academic-calendar"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "calendar"
+        ]
+      }
+    },
+    {
+      "id": "trap-cs-credits-single-major-en",
+      "question": "How many credits is the VinUni Computer Science bachelor's program for the single major?",
+      "required_facts": [
+        "120"
+      ],
+      "forbidden_facts": [
+        "9,780,000",
+        "27,195,000",
+        "October 1, 2026",
+        "February 26, 2027"
+      ],
+      "expected_source": [
+        "policy.vinuni",
+        "BSCS",
+        "computer-science"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "services"
+        ]
+      }
+    },
+    {
+      "id": "trap-library-loan-limit-en",
+      "question": "How many books can a VinUni undergraduate student borrow from the library and for how long?",
+      "required_facts": [
+        "3",
+        "2 weeks"
+      ],
+      "forbidden_facts": [
+        "9,780,000",
+        "October 9, 2026",
+        "March 5, 2027"
+      ],
+      "expected_source": [
+        "library-policies-for-users",
+        "Library-Access-Services-Policy",
+        "student-life-support/library"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "services"
+        ]
+      }
+    },
+    {
+      "id": "trap-nursing-tuition-nam-vi",
+      "question": "Học phí niêm yết theo năm học của chương trình Cử nhân Điều dưỡng VinUni cho năm học 2025-2026 là bao nhiêu?",
+      "required_facts": [
+        "349.650.000|349,650,000"
+      ],
+      "forbidden_facts": [
+        "1 tháng 10 năm 2026",
+        "26 tháng 2 năm 2027",
+        "October 1, 2026"
+      ],
+      "expected_source": [
+        "tai-chinh-va-bieu-phi",
+        "hoc-phi",
+        "cau-hoi-thuong-gap"
+      ],
+      "language": "vi",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "financial"
+        ]
+      }
+    },
+    {
+      "id": "trap-loa-duration-vi",
+      "question": "Sinh viên VinUni được bảo lưu (nghỉ học tạm thời) có kế hoạch tối đa bao nhiêu học kỳ?",
+      "required_facts": [
+        "3 học kỳ|tối đa 3"
+      ],
+      "forbidden_facts": [
+        "1 tháng 10 năm 2026",
+        "26 tháng 2 năm 2027",
+        "9.780.000",
+        "2.000.000"
+      ],
+      "expected_source": [
+        "tam-nghi-hoc-thoi-hoc-hoc-lai",
+        "leave-of-absence",
+        "registrar.vinuni"
+      ],
+      "language": "vi",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "trap-transcript-time-vi",
+      "question": "VinUni mất bao lâu (mấy ngày làm việc) để xử lý yêu cầu cấp bảng điểm?",
+      "required_facts": [
+        "2-3 ngày làm việc|2–3 ngày làm việc|2-3 working days"
+      ],
+      "forbidden_facts": [
+        "1 tháng 10 năm 2026",
+        "26 tháng 2 năm 2027",
+        "9.780.000"
+      ],
+      "expected_source": [
+        "yeu-cau-cap-bang-diem-va-chung-nhan",
+        "request-transcripts-certifications",
+        "registrar.vinuni"
+      ],
+      "language": "vi",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "services"
+        ]
+      }
+    },
+    {
+      "id": "chain-academic-warning-standing-en",
+      "question": "If a freshman's cumulative GPA falls below 1.20, what academic standing are they placed on?",
+      "required_facts": [
+        "Academic Warning",
+        "1.20"
+      ],
+      "forbidden_facts": [
+        "9,780,000",
+        "October 9, 2026",
+        "March 5, 2027"
+      ],
+      "expected_source": [
+        "academic-regulations-for-full-time-undergraduate-programs"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "chain-dismissal-warnings-en",
+      "question": "How many academic warnings lead to academic dismissal at VinUni, and how is an academic probation counted toward that total?",
+      "required_facts": [
+        "three times|3 times",
+        "two times|2 times"
+      ],
+      "forbidden_facts": [
+        "9,780,000",
+        "October 9, 2026",
+        "February 26, 2027"
+      ],
+      "expected_source": [
+        "academic-regulations-for-full-time-undergraduate-programs"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "chain-overload-approval-en",
+      "question": "If a VinUni undergraduate wants to register for more than 22 credits in a semester, whose approval is required?",
+      "required_facts": [
+        "22 credits",
+        "Dean|College Dean|Dean-designee"
+      ],
+      "forbidden_facts": [
+        "9,780,000",
+        "October 1, 2026",
+        "March 5, 2027"
+      ],
+      "expected_source": [
+        "academic-regulations-for-full-time-undergraduate-programs"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "hedge-course-eval-period-en",
+      "question": "Is there an end-of-semester course evaluation period, and when is it for Fall 2026?",
+      "required_facts": [
+        "December 21, 2026|21-31 Dec|21-Dec",
+        "December 31, 2026|31-Dec",
+        "course evaluation"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "VinUni-Academic-Calendar.pdf",
+        "all-policies/course-evaluation"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "hedge",
+        "intents": [
+          "calendar",
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "hedge-course-drop-deadline-en",
+      "question": "Can I drop a course at VinUni, and by when?",
+      "required_facts": [
+        "W|Withdrawal",
+        "March 5, 2027|5-Mar|October 9, 2026|9-Oct",
+        "18 credits|30%"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "VinUni-Academic-Calendar.pdf",
+        "academic-regulations-for-full-time-undergraduate-programs"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "hedge",
+        "intents": [
+          "calendar",
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "hedge-tuition-refund-eligibility-en",
+      "question": "Am I eligible for a tuition refund if I withdraw, and how much would I get back?",
+      "required_facts": [
+        "80%",
+        "50%",
+        "two weeks"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "all-policies"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "hedge",
+        "intents": [
+          "financial",
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "hedge-merit-scholarship-eligibility-amount-en",
+      "question": "Who qualifies for VinUni's merit-based scholarship, and how much of the tuition does it cover?",
+      "required_facts": [
+        "outstanding academic",
+        "50",
+        "100"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "scholarship-and-financial-aid/undergraduate-programs/scholarships",
+        "criteria-to-maintain-the-entry-scholarship-and-financial-aid-support"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "hedge",
+        "intents": [
+          "financial",
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "hedge-merit-scholarship-renewal-en",
+      "question": "What is required to keep a VinUni merit-based scholarship, and what tuition percentage does it cover?",
+      "required_facts": [
+        "cumulative GPA",
+        "disciplinary standing|E.X.C.E.L|EXCEL",
+        "Full & 100%|50|100"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "criteria-to-maintain-the-entry-scholarship-and-financial-aid-support",
+        "GDL-SAM-004"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "hedge",
+        "intents": [
+          "financial",
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "hedge-library-overdue-fine-en",
+      "question": "Am I charged for returning a library book late at VinUni, and how much per day?",
+      "required_facts": [
+        "10,000",
+        "normal material|per day|/day",
+        "Library Rules|overdue"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "all-policies"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "hedge",
+        "intents": [
+          "financial",
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "hedge-loa-eligibility-fee-en",
+      "question": "Can I take a leave of absence at VinUni, and is there a processing fee for the related tuition deferment or refund?",
+      "required_facts": [
+        "full-time students",
+        "2,000,000"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "procedure-for-requesting-a-leave-of-absence",
+        "financial-regulations-and-tariff-for-student"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "hedge",
+        "intents": [
+          "policy",
+          "financial"
+        ]
+      }
+    },
+    {
+      "id": "hedge-tuition-refund-eligibility-vi",
+      "question": "Tôi có được hoàn học phí nếu rút khỏi khóa học không, và được hoàn bao nhiêu phần trăm?",
+      "required_facts": [
+        "80%",
+        "50%",
+        "hai tuần|two weeks"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "VU_TS03.VN_Quy-dinh-tai-chinh-va-Bieu-phi",
+        "financial-regulations-and-tariff-for-student"
+      ],
+      "language": "vi",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "hedge",
+        "intents": [
+          "financial",
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "hedge-course-drop-deadline-vi",
+      "question": "Tôi có thể rút một môn học tại VinUni không, và hạn cuối để rút là khi nào?",
+      "required_facts": [
+        "30%|W",
+        "5-Mar|5 tháng 3|9-Oct|9 tháng 10"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "VU_HT03.VN_QC-dao-tao-dai-hoc",
+        "VinUni-Academic-Calendar.pdf"
+      ],
+      "language": "vi",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "hedge",
+        "intents": [
+          "calendar",
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "decompose-md-tuition-weather-en",
+      "question": "What is the Doctor of Medicine program's listed tuition fee per academic year, and what's the weather in Hanoi tomorrow?",
+      "required_facts": [
+        "815,850,000"
+      ],
+      "forbidden_facts": [
+        "sunny",
+        "rain",
+        "degrees",
+        "°C",
+        "Celsius",
+        "forecast"
+      ],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tuition-rates-and-fees"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "financial",
+          "services"
+        ]
+      }
+    },
+    {
+      "id": "decompose-mba-tuition-stockprice-en",
+      "question": "What is the total tuition fee for VinUni's MBA program, and what is Vingroup's stock price today?",
+      "required_facts": [
+        "1,398,600,000"
+      ],
+      "forbidden_facts": [
+        "VND per share",
+        "stock price is",
+        "shares closed",
+        "USD per share"
+      ],
+      "expected_source": [
+        "tuition-fee/postgraduate"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "financial",
+          "services"
+        ]
+      }
+    },
+    {
+      "id": "decompose-eval-period-cafeteria-menu-vi",
+      "question": "Kỳ đánh giá khóa học cuối kỳ Fall 2026 diễn ra khi nào, và thực đơn căng tin VinUni ngày mai có gì?",
+      "required_facts": [
+        "21-31-Dec|21 tháng 12|December 21, 2026",
+        "Fall'26|Fall 2026"
+      ],
+      "forbidden_facts": [
+        "phở",
+        "cơm gà",
+        "menu is",
+        "thực đơn ngày mai là"
+      ],
+      "expected_source": [
+        "VinUni-Academic-Calendar.pdf"
+      ],
+      "language": "vi",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "calendar",
+          "services"
+        ]
+      }
+    },
+    {
+      "id": "dc-md-tuition-fall-start-en",
+      "question": "What is the Doctor of Medicine (MD) program's listed annual tuition at VinUni, and on what date does Fall 2026 instruction begin?",
+      "required_facts": [
+        "815,850,000|35,000",
+        "21-Sep|September 21, 2026|2026-09-21"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "experience.vinuni.edu.vn/new-students/tuition-rates-and-fees",
+        "VinUni-Academic-Calendar"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "financial",
+          "calendar"
+        ]
+      }
+    },
+    {
+      "id": "dc-md-tuition-course-drop-deadline-en",
+      "question": "How much is the MD program's annual tuition at VinUni, and what is the course-drop deadline for the Fall 2026 semester?",
+      "required_facts": [
+        "815,850,000|35,000",
+        "9-Oct|October 9, 2026|2026-10-09"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "experience.vinuni.edu.vn/new-students/tuition-rates-and-fees",
+        "VinUni-Academic-Calendar"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "financial",
+          "calendar"
+        ]
+      }
+    },
+    {
+      "id": "dc-withdraw-refund-rule-course-drop-deadline-en",
+      "question": "When can I still drop a course in Fall 2026 without it staying on my record, and what percentage of tuition is refunded if I withdraw before the official semester start date?",
+      "required_facts": [
+        "9-Oct|October 9, 2026|Course Drop Deadline",
+        "80%|refund"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "VinUni-Academic-Calendar",
+        "financial-regulations-and-tariff-for-student"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "calendar",
+          "financial"
+        ]
+      }
+    },
+    {
+      "id": "dc-academic-warning-gpa-fall-grades-release-en",
+      "question": "What cumulative GPA puts a freshman on academic warning at VinUni, and when are Fall 2026 grades released?",
+      "required_facts": [
+        "1.20|1.40|1.60|1.80|academic warning",
+        "25-Jan|12-Feb|Grade release|Marking"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "VU_HT03.EN_Academic-Regulations-For-Full-Time-Undergraduate-Programs",
+        "VinUni-Academic-Calendar"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "policy",
+          "calendar"
+        ]
+      }
+    },
+    {
+      "id": "dc-final-exam-period-id-card-fee-en",
+      "question": "When is the Fall 2026 final exam period at VinUni, and how much does it cost to replace a lost student ID card?",
+      "required_facts": [
+        "11-22-Jan|Final Exam Period|exam period",
+        "200,000"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "VinUni-Academic-Calendar",
+        "financial-regulations-and-tariff-for-student"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "calendar",
+          "financial"
+        ]
+      }
+    },
+    {
+      "id": "dc-transcript-processing-time-fall-last-day-en",
+      "question": "How long does the Registrar take to process an official transcript request at VinUni, and when is the last day of instruction for the Fall 2026 semester?",
+      "required_facts": [
+        "2-3 working days|2–3 working days|processing",
+        "31-Dec|December 31, 2026|Last Day of Instruction"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "registrar.vinuni.edu.vn/academics/request-transcripts-certifications",
+        "VinUni-Academic-Calendar"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "services",
+          "calendar"
+        ]
+      }
+    },
+    {
+      "id": "dc-id-card-replacement-fee-spring-start-en",
+      "question": "What is the fee to replace a student ID card at VinUni, and on what date does Spring 2027 instruction begin?",
+      "required_facts": [
+        "200,000",
+        "15-Feb|February 15, 2027|2027-02-15"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "VinUni-Academic-Calendar"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "financial",
+          "calendar"
+        ]
+      }
+    },
+    {
+      "id": "dc-cap-lai-the-sv-hoc-ky-thu-bat-dau-vi",
+      "question": "Phí cấp lại thẻ sinh viên tại VinUni là bao nhiêu, và học kỳ mùa thu 2026 bắt đầu giảng dạy vào ngày nào?",
+      "required_facts": [
+        "200.000|200,000",
+        "21-Sep|21 tháng 9|2026-09-21"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "Quy-dinh-tai-chinh-va-Bieu-phi",
+        "VinUni-Academic-Calendar"
+      ],
+      "language": "vi",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "financial",
+          "calendar"
+        ]
+      }
+    },
+    {
+      "id": "dc-canh-bao-hoc-vu-gpa-diem-cong-bo-vi",
+      "question": "Mức GPA tích lũy nào khiến sinh viên năm nhất bị cảnh báo học vụ tại VinUni, và điểm học kỳ mùa thu 2026 được công bố khi nào?",
+      "required_facts": [
+        "1,20|1,40|1,60|1,80|cảnh báo",
+        "25-Jan|12-Feb|Grade release|Marking"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "VU_HT03.VN_QC-dao-tao-dai-hoc-he-chinh-quy",
+        "VinUni-Academic-Calendar"
+      ],
+      "language": "vi",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "policy",
+          "calendar"
+        ]
+      }
+    },
+    {
+      "id": "dc-3part-md-tuition-fall-start-adddrop-en",
+      "question": "What is the MD program's listed annual tuition at VinUni, on what date does Fall 2026 instruction begin, and how long does the add/drop period last each semester?",
+      "required_facts": [
+        "815,850,000|35,000",
+        "21-Sep|September 21, 2026|2026-09-21",
+        "two weeks|first two weeks"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "experience.vinuni.edu.vn/new-students/tuition-rates-and-fees",
+        "VinUni-Academic-Calendar",
+        "INTERNATIONAL-STUDENT-HANDBOOK"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "financial",
+          "calendar",
+          "calendar"
+        ]
+      }
+    },
+    {
+      "id": "dc-3part-late-fee-fall-start-course-drop-en",
+      "question": "How much is the late tuition payment fee at VinUni, when does Fall 2026 instruction begin, and what is the Fall 2026 course-drop deadline?",
+      "required_facts": [
+        "2,000,000|2.000.000",
+        "21-Sep|September 21, 2026|2026-09-21",
+        "9-Oct|October 9, 2026|2026-10-09"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "VinUni-Academic-Calendar"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "financial",
+          "calendar",
+          "calendar"
+        ]
+      }
+    },
+    {
+      "id": "dc-3part-transcript-fee-time-fall-grades-en",
+      "question": "How much does VinUni charge for an official transcript, how long does the Registrar take to process the request, and when are Fall 2026 grades released?",
+      "required_facts": [
+        "50,000",
+        "2-3 working days|2–3 working days|processing",
+        "25-Jan|12-Feb|Grade release|Marking"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "registrar.vinuni.edu.vn/academics/request-transcripts-certifications",
+        "VinUni-Academic-Calendar"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "services",
+          "services",
+          "calendar"
+        ]
+      }
+    },
+    {
+      "id": "mq-withdraw-refund-wgrade-en",
+      "question": "If I drop a course within the first two weeks of the semester, what percentage of my tuition is refunded, and will a W grade show up on my transcript?",
+      "required_facts": [
+        "80%",
+        "W|Withdrawal|Withdrawn"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "academic-regulations-for-full-time-undergraduate-programs"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "financial",
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "mq-tier1-sanction-warning-gpa-en",
+      "question": "What sanction can I expect for a Tier 1 academic integrity violation at VinUni, and what cumulative GPA puts a first-year student on academic warning?",
+      "required_facts": [
+        "verbal warning|educational intervention|re-read|re-do",
+        "1.20"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "student-academic-integrity",
+        "academic-regulations-for-full-time-undergraduate-programs"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "policy",
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "mq-library-roombooking-overduefine-en",
+      "question": "Can VinUni students reserve a group study room in the library online, and what is the overdue fine per day for a normal library item?",
+      "required_facts": [
+        "19 rooms|book online|room booking",
+        "10,000"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "library.vinuni.edu.vn/room-booking",
+        "financial-regulations-and-tariff-for-student"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "services",
+          "financial"
+        ]
+      }
+    },
+    {
+      "id": "mq-latefee-drop-deadline-en",
+      "question": "How much is the late tuition payment fee at VinUni, and what is the Fall 2026 course drop deadline?",
+      "required_facts": [
+        "2,000,000|2.000.000",
+        "October 9, 2026|9-Oct|2026-10-09"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "VinUni-Academic-Calendar"
+      ],
+      "language": "en",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "financial",
+          "calendar"
+        ]
+      }
+    },
+    {
+      "id": "mt-nursing-tuition-credit-fee-en",
+      "language": "en",
+      "turns": [
+        "What is the listed annual tuition for the Bachelor of Nursing program at VinUni?",
+        "And how much is it per credit?"
+      ],
+      "required_facts": [
+        "9,780,000"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "tai-chinh-va-bieu-phi"
+      ],
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "financial"
+        ]
+      }
+    },
+    {
+      "id": "mt-transcript-fee-then-process-en",
+      "language": "en",
+      "turns": [
+        "How much does VinUni charge for an official transcript?",
+        "Okay, and what are the steps to request one from the Registrar?"
+      ],
+      "required_facts": [
+        "Student Document Request Form|select the document type|2.3 working days|2-3 working days"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "registrar.vinuni.edu.vn/academics/request-transcripts-certifications"
+      ],
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "services"
+        ]
+      }
+    },
+    {
+      "id": "mt-fall-start-then-drop-deadline-en",
+      "language": "en",
+      "turns": [
+        "When does Fall 2026 instruction begin at VinUni?",
+        "And what is the course drop deadline for that same semester?"
+      ],
+      "required_facts": [
+        "October 9, 2026|9-Oct|2026-10-09"
+      ],
+      "forbidden_facts": [
+        "October 1, 2026|1-Oct"
+      ],
+      "expected_source": [
+        "VinUni-Academic-Calendar"
+      ],
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "calendar"
+        ]
+      }
+    },
+    {
+      "id": "dc-vi-hocphi-dieuduong-ngaybatdau-fall",
+      "question": "Học phí mỗi năm của chương trình Cử nhân Điều dưỡng tại VinUni là bao nhiêu, và học kỳ Fall 2026 bắt đầu giảng dạy vào ngày nào?",
+      "required_facts": [
+        "349.650.000|349,650,000",
+        "21 tháng 9 năm 2026|September 21, 2026|21-Sep|2026-09-21"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "tai-chinh-va-bieu-phi",
+        "admissions.vinuni.edu.vn/vi/dai-hoc/cau-hoi-thuong-gap",
+        "VinUni-Academic-Calendar"
+      ],
+      "language": "vi",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "financial",
+          "calendar"
+        ]
+      }
+    },
+    {
+      "id": "dc-vi-rutmon-hoanphi-diemW",
+      "question": "Nếu tôi rút một môn học trong vòng hai tuần đầu của học kỳ thì được hoàn lại bao nhiêu phần trăm học phí, và bảng điểm có ghi điểm W hay không?",
+      "required_facts": [
+        "80%",
+        "W|Withdrawal|Withdrawn|rút môn"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "QC-dao-tao-dai-hoc-he-chinh-quy"
+      ],
+      "language": "vi",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "financial",
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "dc-vi-latefee-canhbao-gpa",
+      "question": "Phí nộp học phí muộn tại VinUni là bao nhiêu, và mức điểm trung bình chung nào khiến sinh viên năm nhất bị cảnh báo học tập?",
+      "required_facts": [
+        "2.000.000|2,000,000",
+        "1.20"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "financial-regulations-and-tariff-for-student",
+        "QC-dao-tao-dai-hoc-he-chinh-quy"
+      ],
+      "language": "vi",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "financial",
+          "policy"
+        ]
+      }
+    },
+    {
+      "id": "dc-vi-thuvien-datphong-phiphat",
+      "question": "Sinh viên VinUni có thể đặt phòng học nhóm tại thư viện trực tuyến không, và phí phạt trả trễ mỗi ngày cho một tài liệu thường là bao nhiêu?",
+      "required_facts": [
+        "19 rooms|book online|room booking|đặt phòng",
+        "10,000|10.000"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "library.vinuni.edu.vn/room-booking",
+        "financial-regulations-and-tariff-for-student"
+      ],
+      "language": "vi",
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "decompose",
+        "intents": [
+          "services",
+          "financial"
+        ]
+      }
+    },
+    {
+      "id": "mt-md-tuition-fall-start-en",
+      "language": "en",
+      "turns": [
+        "What is the listed annual tuition for VinUni's Doctor of Medicine program?",
+        "And when does that program's Fall 2026 term begin?"
+      ],
+      "required_facts": [
+        "September 21, 2026|21-Sep|2026-09-21"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "VinUni-Academic-Calendar"
+      ],
+      "held_out": false,
+      "fanout_expected": {
+        "mode": "single",
+        "intents": [
+          "calendar"
+        ]
+      }
+    }
+  ]
+}

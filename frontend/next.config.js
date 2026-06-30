@@ -17,6 +17,14 @@ const nextConfig = {
         destination: `${BACKEND_URL}/students/:path*`,
       },
       {
+        source: "/api/academic/:path*",
+        destination: `${BACKEND_URL}/academic/:path*`,
+      },
+      {
+        source: "/api/schedule/:path*",
+        destination: `${BACKEND_URL}/schedule/:path*`,
+      },
+      {
         source: "/api/suggestions/:path*",
         destination: `${BACKEND_URL}/suggestions/:path*`,
       },
@@ -31,6 +39,18 @@ const nextConfig = {
       {
         source: "/api/admin/tickets/:path*",
         destination: `${BACKEND_URL}/admin/tickets/:path*`,
+      },
+      {
+        source: "/api/admin/dashboard",
+        destination: `${BACKEND_URL}/admin/dashboard`,
+      },
+      {
+        source: "/api/admin/notifications/:path*",
+        destination: `${BACKEND_URL}/admin/notifications/:path*`,
+      },
+      {
+        source: "/api/forum/:path*",
+        destination: `${BACKEND_URL}/forum/:path*`,
       },
       // Order matters: the more specific /stream rule must precede the catch-all /chat.
       {
@@ -49,6 +69,14 @@ const nextConfig = {
       {
         source: "/api/ingest/run",
         destination: `${BACKEND_URL}/ingest/run`,
+      },
+      {
+        source: "/api/ingest/upload",
+        destination: `${BACKEND_URL}/ingest/upload`,
+      },
+      {
+        source: "/api/ingest/preview",
+        destination: `${BACKEND_URL}/ingest/preview`,
       },
     ];
   },

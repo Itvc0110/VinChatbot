@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import ValidationError
 
+from vinchatbot.app.agents.ticket_suggest import suggest_ticket_draft
 from vinchatbot.app.db.connection import get_app_db_pool
 from vinchatbot.app.dependencies.auth import require_roles
 from vinchatbot.app.repositories.auth import AuthenticatedUser
@@ -15,6 +16,8 @@ from vinchatbot.app.schemas.tickets import (
     AdminTicketFilters,
     AdminUpdateTicketRequest,
     CreateTicketRequest,
+    SuggestedTicketDraft,
+    SuggestTicketRequest,
     TicketDetailResponse,
     TicketMessageResponse,
     TicketSummaryResponse,
@@ -64,6 +67,16 @@ async def get_my_ticket(
     if ticket is None:
         raise ticket_not_found()
     return TicketDetailResponse(**ticket)
+
+
+@router.post("/tickets/suggest", response_model=SuggestedTicketDraft)
+async def suggest_ticket(
+    request: SuggestTicketRequest,
+    current_user: StudentUser,
+) -> SuggestedTicketDraft:
+    """Vinnie drafts a ticket (summary/description/category) from the conversation for the student to
+    review before sending. Advisory only — nothing is persisted here. Fails open to a heuristic draft."""
+    return await suggest_ticket_draft(request)
 
 
 @router.post("/tickets", response_model=TicketDetailResponse, status_code=status.HTTP_201_CREATED)

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 # VinUni operates on Vietnam local time; "today" must be anchored there, not the server's UTC.
@@ -50,6 +50,19 @@ def current_time_context(now: datetime | None = None) -> dict[str, str]:
         "academic_year": academic_year,
         "term": term,
     }
+
+
+def week_bounds(now: datetime, offset_weeks: int = 0) -> tuple[datetime, datetime]:
+    """Return the half-open ``[Monday 00:00, next Monday 00:00)`` range for the calendar week that
+    contains ``now``, shifted by ``offset_weeks`` (0 = this week, -1 = last week, +1 = next week).
+
+    Weeks are Monday→Sunday and anchored in ``now``'s own timezone — pass ``now_in_vietnam()`` so the
+    range matches VinUni local time. Example: any day in 2026-06-22..06-28 with offset 0 →
+    (2026-06-22 00:00, 2026-06-29 00:00); the Sunday end for display is ``end - 1 day``.
+    """
+    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    monday = day_start - timedelta(days=day_start.weekday()) + timedelta(weeks=offset_weeks)
+    return monday, monday + timedelta(weeks=1)
 
 
 def _strip_accents(text: str) -> str:

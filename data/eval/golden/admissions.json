@@ -1,0 +1,56 @@
+{
+  "name": "vinuni_admissions",
+  "description": "VinUni undergraduate admission facts, verified 2026-06-24 from v2-indexed authoritative pages, NOT bot output. SCORED = passes on v2+D9: the 3 admission rounds (Early/Regular/Rolling). The undergraduate admission GPA (8.0) cases were moved to golden_targets/admissions_financial_retrieval.json (the admissions FAQ is out-ranked by the academic-regulations PDF → bot answers 'no minimum'/6.5). The apply-documents case was dropped (genuinely fuzzy — many valid answers). IELTS 6.5 already covered in expansion.json.",
+  "source": "admissions.vinuni.edu.vn",
+  "cases": [
+    {
+      "id": "adm-rounds-en",
+      "question": "What are the undergraduate admission rounds at VinUni?",
+      "required_facts": [
+        "Early",
+        "Regular",
+        "Rolling"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "admissions.vinuni",
+        "key-dates"
+      ],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "adm-gpa-undergrad-en",
+      "question": "What minimum high-school GPA does VinUni require to apply for undergraduate admission?",
+      "required_facts": [
+        "8.0"
+      ],
+      "forbidden_facts": [
+        "no minimum",
+        "does not specify"
+      ],
+      "expected_source": [
+        "admissions.vinuni",
+        "general-admissions",
+        "faqs"
+      ],
+      "language": "en",
+      "held_out": false
+    },
+    {
+      "id": "adm-gpa-undergrad-vi",
+      "question": "VinUni yêu cầu điểm trung bình (GPA) bậc trung học tối thiểu là bao nhiêu để nộp hồ sơ xét tuyển đại học?",
+      "required_facts": [
+        "8.0"
+      ],
+      "forbidden_facts": [],
+      "expected_source": [
+        "admissions.vinuni",
+        "cau-hoi-thuong-gap",
+        "dai-hoc"
+      ],
+      "language": "vi",
+      "held_out": false
+    }
+  ]
+}

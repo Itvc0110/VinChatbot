@@ -198,6 +198,9 @@ export interface TicketDraft {
   // A short, reviewable summary (question + answer) shown in the drawer and attached only
   // if the student keeps "include chat context" ticked. Built by shortSummary() in chat.tsx.
   context_preview: string;
+  // True once Vinnie's suggestion populated this draft (Part B). Drives the "AI-drafted" disclaimer
+  // and is persisted on the created ticket (created_by_ai) when the student confirms + sends.
+  created_by_ai?: boolean;
 }
 
 // ---- Notifications ----------------------------------------------------------
@@ -208,10 +211,11 @@ export type NotificationType =
   | "deadline"
   | "event"
   | "student_services"
-  | "system";
+  | "system"
+  | "forum";
 
 export type NotificationPriority = "low" | "medium" | "high" | "urgent";
-export type NotificationStatus = "draft" | "published" | "archived";
+export type NotificationStatus = "draft" | "scheduled" | "published" | "archived";
 
 export interface Notification {
   id: string;
@@ -219,6 +223,12 @@ export interface Notification {
   type: NotificationType;
   title: string;
   message: string;
+  // Optional per-language variants (admin authoring). Student reads already arrive
+  // resolved to the active language in `title`/`message`.
+  title_vi?: string;
+  title_en?: string;
+  message_vi?: string;
+  message_en?: string;
   created_at: string; // ISO datetime
   read: boolean;
   important: boolean;
@@ -240,6 +250,10 @@ export interface Notification {
   updated_at?: string;
   // Admin-approved suggested questions generated for this notification.
   suggested_questions?: SuggestedQuestion[];
+  // Forum mention/reply notifications carry the discussion they point at, so the UI can
+  // build an in-app deep link to the topic.
+  forum_topic_id?: string;
+  forum_comment_id?: string;
 }
 
 // Which "deadline phase" a notification is in relative to today — drives whether Vinnie
@@ -251,6 +265,8 @@ export type SuggestedQuestionPhase = "early" | "near_deadline" | "overdue" | "ac
 export interface SuggestedQuestion {
   id: string;
   notification_id: string;
+  source_type?: string;
+  source_id?: string;
   question_text: string;
   category: NotificationType;
   trigger_phase: SuggestedQuestionPhase;
@@ -361,6 +377,163 @@ export interface AnalyticsOverview {
   avg_confidence: number;
   verified_rate: number;
   total_questions: number;
+}
+
+export interface AdminDashboardScope {
+  kind: "global" | "institute" | "none" | string;
+  institute_id?: string | null;
+  institute_code?: string | null;
+}
+
+export interface AdminDashboardOverview {
+  total_users: number;
+  total_students: number;
+  total_institutes: number;
+  total_tickets: number;
+  open_tickets: number;
+  need_admin_response: number;
+  urgent_tickets: number;
+  upcoming_deadlines: number;
+  upcoming_schedules: number;
+  upcoming_events: number;
+  published_notifications: number;
+}
+
+export interface AdminDashboardCount {
+  key: string;
+  count: number;
+}
+
+export interface AdminDashboardInstituteCount {
+  institute_id: string;
+  institute_code: string;
+  institute_name_en: string;
+  institute_name_vi: string;
+  student_count: number;
+}
+
+export interface AdminDashboardRecentTicket {
+  id: string;
+  subject: string;
+  status: TicketStatus | string;
+  priority: TicketPriority | string;
+  student_id?: string | null;
+  student_name?: string | null;
+  institute_id?: string | null;
+  institute_code?: string | null;
+  due_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminDashboardUpcomingItem {
+  id: string;
+  item_type: "deadline" | "schedule" | "event" | "notification" | string;
+  title: string;
+  starts_at: string;
+  ends_at?: string | null;
+  course_code?: string | null;
+  institute_id?: string | null;
+  institute_code?: string | null;
+  source_title?: string | null;
+  source_url?: string | null;
+}
+
+export interface AdminDashboard {
+  scope: AdminDashboardScope;
+  overview: AdminDashboardOverview;
+  ticket_counts_by_status: AdminDashboardCount[];
+  ticket_counts_by_priority: AdminDashboardCount[];
+  student_counts_by_institute: AdminDashboardInstituteCount[];
+  recent_tickets: AdminDashboardRecentTicket[];
+  upcoming_items: AdminDashboardUpcomingItem[];
+}
+
+// ---- Forum / Discussion Hub -------------------------------------------------
+// Public peer discussion, deliberately separate from private support tickets.
+
+export type ForumSort = "active" | "pinned" | "newest_activity" | "most_commented" | "new" | "top";
+export type ForumVoteValue = -1 | 0 | 1;
+export type ForumVoteTarget = "topic" | "comment";
+
+export interface ForumCategory {
+  id: string;
+  slug: string;
+  name_en: string;
+  name_vi: string;
+  description_en?: string;
+  description_vi?: string;
+  color: string;
+  sort_order: number;
+  is_active: boolean;
+  topic_count: number;
+}
+
+export interface ForumAttachment {
+  url: string;
+  label?: string;
+}
+
+// A person who can be @mentioned (used by the mention autocomplete).
+export interface ForumMember {
+  id: string;
+  full_name: string;
+  preferred_name?: string;
+  email?: string;
+}
+
+export interface ForumComment {
+  id: string;
+  topic_id: string;
+  parent_comment_id?: string;
+  author_user_id?: string;
+  author_name?: string;
+  author_roles: string[];
+  content: string;
+  is_official: boolean;
+  deleted: boolean;
+  score: number;
+  my_vote: ForumVoteValue;
+  created_at: string;
+  updated_at: string;
+  replies: ForumComment[];
+}
+
+export interface ForumTopic {
+  id: string;
+  category_id: string;
+  category_slug?: string;
+  category_name_en?: string;
+  category_name_vi?: string;
+  author_user_id?: string;
+  author_name?: string;
+  author_roles: string[];
+  title: string;
+  excerpt?: string;
+  tags: string[];
+  is_pinned: boolean;
+  is_locked: boolean;
+  deleted: boolean;
+  has_official_answer: boolean;
+  view_count: number;
+  comment_count: number;
+  score: number;
+  my_vote: ForumVoteValue;
+  created_at: string;
+  updated_at: string;
+  last_activity_at: string;
+  // Detail-only fields (absent on list summaries).
+  content?: string;
+  attachments?: ForumAttachment[];
+  official_comment_id?: string;
+  comments?: ForumComment[];
+}
+
+export interface ForumVoteResult {
+  target_type: ForumVoteTarget;
+  target_id: string;
+  score: number;
+  my_vote: ForumVoteValue;
 }
 
 // A generic async-state envelope the views use for loading/error/empty/success.

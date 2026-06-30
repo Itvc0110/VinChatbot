@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
 
+import vinchatbot.app.agents.vinuni_agent as agent_mod
 from vinchatbot.app.api import routes_chat
+from vinchatbot.app.core.config import get_settings
 from vinchatbot.app.schemas.chat import ChatRequest, RetrievalFilters
 
 
@@ -25,11 +28,23 @@ def test_chat_returns_service_unavailable_for_unexpected_provider_error(monkeypa
     assert "ValueError" in error.value.detail
 
 
-def test_chat_guardrail_does_not_initialize_agent_for_blocked_request(monkeypatch):
-    def fail_if_initialized():
-        raise AssertionError("Agent must not be initialized for a blocked request")
+# Guardrails now run ONCE inside VinUniAgentService.chat (the duplicate route-level pre-call was
+# removed). A blocked request must still be handled by the guard WITHOUT ever invoking the LLM graph
+# (agent.ainvoke). We build a real service whose graph-agent raises if reached, proving that.
+class _GraphMustNotRun:
+    async def ainvoke(self, *_args, **_kwargs):
+        raise AssertionError("LLM graph must not run for a guardrail-blocked request")
 
-    monkeypatch.setattr(routes_chat, "get_agent_service", fail_if_initialized)
+
+def _service_with_unreachable_graph():
+    settings = get_settings().model_copy(update={"enable_safety_on_all": False})
+    return agent_mod.VinUniAgentService(
+        settings=settings, retriever=SimpleNamespace(), agent=_GraphMustNotRun()
+    )
+
+
+def test_chat_guardrail_blocks_without_running_the_llm_graph(monkeypatch):
+    monkeypatch.setattr(routes_chat, "get_agent_service", _service_with_unreachable_graph)
 
     response = asyncio.run(
         routes_chat.chat(
@@ -41,10 +56,7 @@ def test_chat_guardrail_does_not_initialize_agent_for_blocked_request(monkeypatc
 
 
 def test_chat_guardrail_blocks_prompt_injection_inside_filters(monkeypatch):
-    def fail_if_initialized():
-        raise AssertionError("Agent must not be initialized for a blocked request")
-
-    monkeypatch.setattr(routes_chat, "get_agent_service", fail_if_initialized)
+    monkeypatch.setattr(routes_chat, "get_agent_service", _service_with_unreachable_graph)
 
     response = asyncio.run(
         routes_chat.chat(
@@ -61,10 +73,7 @@ def test_chat_guardrail_blocks_prompt_injection_inside_filters(monkeypatch):
 
 
 def test_chat_guardrail_deescalates_abusive_message_before_agent(monkeypatch):
-    def fail_if_initialized():
-        raise AssertionError("Agent must not be initialized for a blocked request")
-
-    monkeypatch.setattr(routes_chat, "get_agent_service", fail_if_initialized)
+    monkeypatch.setattr(routes_chat, "get_agent_service", _service_with_unreachable_graph)
 
     response = asyncio.run(
         routes_chat.chat(ChatRequest(message="Địt con cụ mày!", conversation_id="abuse-test"))

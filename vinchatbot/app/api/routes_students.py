@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -11,6 +12,8 @@ from vinchatbot.app.repositories.students import StudentRepository
 from vinchatbot.app.schemas.students import (
     CourseResponse,
     DeadlineResponse,
+    NotificationMarkAllReadResponse,
+    NotificationReadStateResponse,
     NotificationResponse,
     ScheduleItemResponse,
     StudentProfileResponse,
@@ -89,22 +92,89 @@ async def student_deadlines(
 async def student_notifications(
     current_user: StudentUser,
     repository: Annotated[StudentRepository, Depends(get_student_repository)],
+    lang: Annotated[str, Query()] = "vi",
 ) -> list[NotificationResponse]:
     profile = await current_student_profile(current_user, repository)
     notifications = await repository.get_notifications(
         user_id=current_user.id,
         profile=profile,
+        lang=lang,
     )
     return [NotificationResponse(**notification) for notification in notifications]
+
+
+@router.post(
+    "/students/me/notifications/mark-all-read",
+    response_model=NotificationMarkAllReadResponse,
+)
+async def mark_all_student_notifications_read(
+    current_user: StudentUser,
+    repository: Annotated[StudentRepository, Depends(get_student_repository)],
+) -> NotificationMarkAllReadResponse:
+    profile = await current_student_profile(current_user, repository)
+    updated_count = await repository.mark_all_notifications_read(
+        user_id=current_user.id,
+        profile=profile,
+    )
+    return NotificationMarkAllReadResponse(updated_count=updated_count)
+
+
+@router.post(
+    "/students/me/notifications/{notification_id}/read",
+    response_model=NotificationReadStateResponse,
+)
+async def mark_student_notification_read(
+    notification_id: uuid.UUID,
+    current_user: StudentUser,
+    repository: Annotated[StudentRepository, Depends(get_student_repository)],
+) -> NotificationReadStateResponse:
+    profile = await current_student_profile(current_user, repository)
+    state = await repository.mark_notification_read(
+        notification_id=notification_id,
+        user_id=current_user.id,
+        profile=profile,
+    )
+    if state is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notification not found.",
+        )
+    return NotificationReadStateResponse(**state)
+
+
+@router.post(
+    "/students/me/notifications/{notification_id}/unread",
+    response_model=NotificationReadStateResponse,
+)
+async def mark_student_notification_unread(
+    notification_id: uuid.UUID,
+    current_user: StudentUser,
+    repository: Annotated[StudentRepository, Depends(get_student_repository)],
+) -> NotificationReadStateResponse:
+    profile = await current_student_profile(current_user, repository)
+    state = await repository.mark_notification_unread(
+        notification_id=notification_id,
+        user_id=current_user.id,
+        profile=profile,
+    )
+    if state is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notification not found.",
+        )
+    return NotificationReadStateResponse(**state)
 
 
 @router.get("/suggestions/me", response_model=SuggestedQuestionGroupsResponse)
 async def student_suggestions(
     current_user: StudentUser,
     repository: Annotated[StudentRepository, Depends(get_student_repository)],
+    lang: Annotated[str, Query()] = "vi",
 ) -> SuggestedQuestionGroupsResponse:
     profile = await current_student_profile(current_user, repository)
-    suggestions = await repository.get_suggestions(profile)
+    suggestions = await repository.get_suggestions(
+        user_id=current_user.id, profile=profile, lang=lang
+    )
     return group_suggestions(suggestions)
 
 

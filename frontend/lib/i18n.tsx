@@ -48,11 +48,6 @@ export interface Strings {
   tooLong: (n: number) => string;
   quickPrompts: string[];
 
-  // composer web-search toggle — FRONTEND-ONLY UI state (see Composer.tsx). The value is
-  // not sent to the backend and does not change the request payload or RAG behavior.
-  webSearch: string;
-  webSearchHint: string;
-
   // panel states
   emptyHint: string;
   cancelledNote: string;
@@ -71,6 +66,7 @@ export interface Strings {
   unverifiedTag: string;
   showPassage: string;
   untitledSource: string;
+  personalDataSource: string;
 
   // chat message chrome + follow-ups
   youLabel: string;
@@ -149,7 +145,7 @@ const en: Strings = {
   srcOfficial: "Official source",
   srcType: { pdf: "PDF", url: "URL", database: "Database", official: "Official page" },
 
-  placeholder: "Ask about academics, deadlines, fees, services… (EN or VI)",
+  placeholder: "Ask about academics, deadlines, fees, services…",
   send: "Send",
   stop: "Stop",
   tooLong: (n) => `Message is ${n} characters — keep it under 4000.`,
@@ -158,8 +154,6 @@ const en: Strings = {
     "How do I apply for a Leave of Absence?",
     "What are the tuition payment deadlines?",
   ],
-  webSearch: "Web search",
-  webSearchHint: "Web search is off by default",
 
   emptyHint:
     "Ask a question and the official sources behind each answer appear here. VinChatbot only answers from VinUni sources — and tells you when it can't.",
@@ -183,6 +177,7 @@ const en: Strings = {
   unverifiedTag: "Needs confirmation",
   showPassage: "Show the full passage",
   untitledSource: "Untitled source",
+  personalDataSource: "Your personal data",
 
   youLabel: "You",
   retry: "Retry",
@@ -262,7 +257,7 @@ const vi: Strings = {
   srcOfficial: "Nguồn chính thức",
   srcType: { pdf: "PDF", url: "URL", database: "Cơ sở dữ liệu", official: "Trang chính thức" },
 
-  placeholder: "Hỏi về học vụ, hạn chót, học phí, dịch vụ… (Anh hoặc Việt)",
+  placeholder: "Hỏi về học vụ, hạn chót, học phí, dịch vụ…",
   send: "Gửi",
   stop: "Dừng",
   tooLong: (n) => `Tin nhắn dài ${n} ký tự — giữ dưới 4000.`,
@@ -271,8 +266,6 @@ const vi: Strings = {
     "Làm sao để xin bảo lưu (Leave of Absence)?",
     "Các hạn nộp học phí là khi nào?",
   ],
-  webSearch: "Tìm web",
-  webSearchHint: "Tìm web mặc định đang tắt",
 
   emptyHint:
     "Đặt câu hỏi và các nguồn chính thức cho mỗi câu trả lời sẽ hiện ở đây. VinChatbot chỉ trả lời từ nguồn VinUni — và sẽ báo khi không thể.",
@@ -296,6 +289,7 @@ const vi: Strings = {
   unverifiedTag: "Cần xác nhận",
   showPassage: "Xem toàn bộ đoạn trích",
   untitledSource: "Nguồn chưa có tiêu đề",
+  personalDataSource: "Dữ liệu cá nhân của bạn",
 
   youLabel: "Bạn",
   retry: "Thử lại",
@@ -342,15 +336,15 @@ const I18nContext = createContext<{
   t: Strings;
   setLang: (l: Lang) => void;
 }>({
-  lang: "en",
-  t: en,
+  lang: "vi",
+  t: vi,
   setLang: () => {},
 });
 
 // App-wide language provider. Self-managed (persists to localStorage) so the toggle in
 // the top bar switches UI chrome across every portal screen, not just one page.
 export function LanguageProvider({
-  initialLang = "en",
+  initialLang = "vi",
   children,
 }: {
   initialLang?: Lang;

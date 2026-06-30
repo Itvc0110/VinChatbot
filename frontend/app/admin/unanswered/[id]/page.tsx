@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import {
   AsyncBoundary,
   Card,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/primitives";
 import { useAsync } from "@/lib/useAsync";
 import { usePortal, DEPARTMENTS } from "@/lib/portalI18n";
+import { useAuth } from "@/lib/auth";
 import { getUnansweredQuestions, resolveUnansweredQuestion } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 import type { QuestionPriority, ResolveQuestionPayload } from "@/lib/portalTypes";
@@ -26,12 +27,17 @@ const PRIORITY_TONE: Record<QuestionPriority, BadgeTone> = {
 
 export default function QuestionDetailPage() {
   const { p, lang } = usePortal();
+  const { token } = useAuth();
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const pathname = usePathname();
   const id = params.id;
   const locale = lang === "vi" ? "vi-VN" : "en-US";
+  const backHref = pathname.startsWith("/admin/sources/unanswered")
+    ? "/admin/sources/unanswered"
+    : "/admin/unanswered";
 
-  const all = useAsync(getUnansweredQuestions, []);
+  const all = useAsync(getUnansweredQuestions, [token]);
   const [toast, setToast] = useState<string | null>(null);
   const [working, setWorking] = useState<string | null>(null);
 
@@ -39,6 +45,15 @@ export default function QuestionDetailPage() {
   const [addToKb, setAddToKb] = useState(true);
   const [department, setDepartment] = useState(DEPARTMENTS[0]);
   const [sourceUrl, setSourceUrl] = useState("");
+
+  useEffect(() => {
+    setToast(null);
+    setWorking(null);
+    setAnswer("");
+    setAddToKb(true);
+    setDepartment(DEPARTMENTS[0]);
+    setSourceUrl("");
+  }, [token]);
 
   async function act(
     action: ResolveQuestionPayload["action"],
@@ -55,7 +70,7 @@ export default function QuestionDetailPage() {
       };
       setToast(msg[action]);
       if (action === "official_answer" || action === "mark_resolved" || action === "forward") {
-        setTimeout(() => router.push("/admin/unanswered"), 900);
+        setTimeout(() => router.push(backHref), 900);
       }
     } catch {
       setToast(p.admin.actionFailed);
@@ -66,7 +81,7 @@ export default function QuestionDetailPage() {
 
   return (
     <div className="page-inner" style={{ maxWidth: 920 }}>
-      <a className="btn btn-ghost btn-sm" href="/admin/unanswered" style={{ marginBottom: 14 }}>
+      <a className="btn btn-ghost btn-sm" href={backHref} style={{ marginBottom: 14 }}>
         {p.admin.backToInbox}
       </a>
 

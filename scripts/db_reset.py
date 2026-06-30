@@ -26,8 +26,6 @@ APP_MANAGED_TABLES = (
     "events",
     "notification_reads",
     "notifications",
-<<<<<<< Updated upstream
-=======
     "forum_reports",
     "forum_mentions",
     "forum_votes",
@@ -35,9 +33,6 @@ APP_MANAGED_TABLES = (
     "forum_topics",
     "forum_categories",
     "student_schedule_events",
-    "schedules",
-    "academic_summaries",
-    "enrollments",
     "class_meetings",
     "student_course_enrollments",
     "course_requisites",
@@ -45,10 +40,14 @@ APP_MANAGED_TABLES = (
     "course_sections",
     "rooms",
     "academic_terms",
->>>>>>> Stashed changes
+    "schedules",
+    "academic_summaries",
+    "enrollments",
     "deadlines",
     "courses",
     "student_profiles",
+    "programs",
+    "faculties",
     "institutes",
     "sessions",
     "user_roles",
@@ -56,9 +55,6 @@ APP_MANAGED_TABLES = (
     "users",
     "schema_migrations",
 )
-<<<<<<< Updated upstream
-APP_MANAGED_FUNCTIONS = ("set_updated_at",)
-=======
 APP_MANAGED_FUNCTIONS = (
     "normalize_student_course_enrollment",
     "sync_student_schedule_event_local_times",
@@ -66,8 +62,10 @@ APP_MANAGED_FUNCTIONS = (
     "app_stable_uuid",
     "set_updated_at",
 )
->>>>>>> Stashed changes
 APP_MANAGED_TYPES: tuple[str, ...] = ()
+APP_MANAGED_PRE_DROP_CONSTRAINTS = (
+    ("forum_topics", "forum_topics_official_comment_fk"),
+)
 
 
 def validate_reset_environment(app_env: str) -> None:
@@ -119,6 +117,13 @@ def reset_app_database(settings: Settings | None = None, *, yes: bool = False) -
 
     with connect_direct(settings) as conn:
         with conn.transaction():
+            for table, constraint in APP_MANAGED_PRE_DROP_CONSTRAINTS:
+                conn.execute(
+                    sql.SQL("alter table if exists {} drop constraint if exists {}").format(
+                        sql.Identifier(table),
+                        sql.Identifier(constraint),
+                    )
+                )
             for table in APP_MANAGED_TABLES:
                 drop_relation_if_exists(conn, table)
             for type_name in APP_MANAGED_TYPES:

@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     app_database_url_pooled: str | None = Field(
         default=None, validation_alias="APP_DATABASE_URL_POOLED"
     )
+    # Optional dedicated READ-ONLY connection for the personalization DB tools (Phase 5). Point this at
+    # a Neon role with only GRANT SELECT so the student-facing tools can never write, even on a bug. If
+    # unset, the read-only pool falls back to the normal URL but still forces every transaction
+    # read-only (default_transaction_read_only=on) as defense-in-depth.
+    app_database_url_readonly: str | None = Field(
+        default=None, validation_alias="APP_DATABASE_URL_READONLY"
+    )
     app_database_pool_min_size: int = Field(
         default=1, validation_alias="APP_DATABASE_POOL_MIN_SIZE"
     )
@@ -35,6 +42,20 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = Field(default=False, validation_alias="RATE_LIMIT_ENABLED")
     rate_limit_max_requests: int = Field(default=30, validation_alias="RATE_LIMIT_MAX_REQUESTS")
     rate_limit_window_seconds: int = Field(default=60, validation_alias="RATE_LIMIT_WINDOW_SECONDS")
+    # Trust X-Forwarded-For ONLY when the socket peer is a known proxy (comma-separated IPs). Empty =
+    # never trust XFF (use the socket peer) — prevents a client from spoofing its rate-limit key (A3).
+    trusted_proxies: str = Field(default="", validation_alias="TRUSTED_PROXIES")
+
+    # Login brute-force protection (A2): per-account + per-IP attempt limiting. After
+    # LOGIN_MAX_ATTEMPTS failures within the window, further attempts are 429'd until it rolls off.
+    login_max_attempts: int = Field(default=8, validation_alias="LOGIN_MAX_ATTEMPTS")
+    login_attempt_window_seconds: int = Field(
+        default=300, validation_alias="LOGIN_ATTEMPT_WINDOW_SECONDS"
+    )
+
+    # Vinnie is auth-only (verified students). Require a valid session on /chat + /chat/stream
+    # server-side (A4). Set false only to expose a public general-RAG chat (no personal tools).
+    require_auth_for_chat: bool = Field(default=True, validation_alias="REQUIRE_AUTH_FOR_CHAT")
 
     # Observability (Phase 1.5a). Structured logging + per-turn cost/token capture. All
     # fail-open and behavior-preserving; log_format=auto -> json in prod, text in dev.
@@ -58,10 +79,32 @@ class Settings(BaseSettings):
     openrouter_chat_model: str = Field(
         default="openai/gpt-4o-mini", validation_alias="OPENROUTER_CHAT_MODEL"
     )
+    # Part B: a dedicated SMALL/FAST model (separate LLM call) for drafting a support ticket from the
+    # conversation. Still OpenRouter — change only TICKET_SUGGEST_MODEL in .env to swap it. Kept off the
+    # main chat model so the draft tier stays cheap/fast independently.
+    ticket_suggest_model: str = Field(
+        default="openai/gpt-4o-mini", validation_alias="TICKET_SUGGEST_MODEL"
+    )
+    # Per-answer follow-up question suggestions: a dedicated SMALL/FAST model (separate LLM call) that
+    # derives the next questions a student would naturally ask from THIS turn's answer, replacing the
+    # frontend's canned rule-based chips. Still OpenRouter — change only FOLLOWUP_SUGGEST_MODEL to swap.
+    # Fail-open: on no key / error the backend returns none and the client falls back to its rules.
+    followup_suggest_model: str = Field(
+        default="google/gemini-2.5-flash", validation_alias="FOLLOWUP_SUGGEST_MODEL"
+    )
+    enable_followup_suggestions: bool = Field(
+        default=True, validation_alias="ENABLE_FOLLOWUP_SUGGESTIONS"
+    )
     # Answer/routing temperature (Phase 1.11). 0.0 = deterministic answers (the consistency fix);
     # the proven root of "same question, different answer" was sampling. Raise toward 0.1–0.3 only if
     # answer diversity is wanted at the cost of run-to-run stability. Guard models keep their own temp.
     llm_temperature: float = Field(default=0.0, validation_alias="LLM_TEMPERATURE")
+    # Per-request timeout + retries on the chat client (Phase 1.33 reliability fix). The OpenAI SDK default
+    # is 600s with no app override — a stalled OpenRouter connection then freezes the whole turn (and, in a
+    # fan-out turn, blocks the asyncio.gather over subtasks). Fail-fast + a couple retries keeps a user's turn
+    # responsive and stops long eval runs from hanging for minutes on one bad call.
+    llm_request_timeout_s: float = Field(default=60.0, validation_alias="LLM_REQUEST_TIMEOUT_S")
+    llm_max_retries: int = Field(default=2, validation_alias="LLM_MAX_RETRIES")
     # ReAct loop bound (Phase 1.17): max LangGraph super-steps per specialist turn. Agent-decided
     # cross-lingual adds ~one retry tool call (~2 steps); this caps runaway loops while leaving room for
     # native-search → cross_lingual retry → get_source_detail → answer. ~2 super-steps per tool call.
@@ -90,8 +133,11 @@ class Settings(BaseSettings):
 
     qdrant_url: str | None = Field(default=None, validation_alias="QDRANT_URL")
     qdrant_api_key: str | None = Field(default=None, validation_alias="QDRANT_API_KEY")
+    # The live collection (Phase 1.28): e5-large embeddings, `--student-only` filtered rebuild that drops
+    # non-student noise chunks. Default points here so a missing env var fails safe to the right collection
+    # (was `vinuni_documents`, the ancient 3-small collection).
     qdrant_collection: str = Field(
-        default="vinuni_documents", validation_alias="QDRANT_COLLECTION"
+        default="vinuni_full_e5_v2", validation_alias="QDRANT_COLLECTION"
     )
     qdrant_local_path: str = Field(default="data/qdrant", validation_alias="QDRANT_LOCAL_PATH")
     qdrant_timeout_seconds: int = Field(default=120, validation_alias="QDRANT_TIMEOUT_SECONDS")
@@ -169,6 +215,14 @@ class Settings(BaseSettings):
     enable_canonical_policy_boost: bool = Field(
         default=False, validation_alias="ENABLE_CANONICAL_POLICY_BOOST"
     )
+    # Canonical doc-pin for fact-intents (Phase 1.30/S15+S16, default off → A/B): generalizes the policy
+    # doc-pin (1.21) to admission-GPA / financial-aid-% / program-credits questions. The boost (1.30a) was
+    # A/B-rejected (authoritative doc out-ranked/unretrieved → a score nudge can't move selection). Instead,
+    # on a confident fact-topic match (canonical_lookup.canonical_doc_match), fetch the curated canonical page
+    # by source_url and non-evicting-prepend it. Fail-open.
+    enable_canonical_doc_pin: bool = Field(
+        default=False, validation_alias="ENABLE_CANONICAL_DOC_PIN"
+    )
     # Policy doc-pin (Phase 1.21, default off → A/B): the canonical-boost (above) was rejected — a score
     # nudge can't move which DOCUMENT is cited (the magnet PDF / the page's own PDF twin / on-topic
     # non-policy pages out-rank the canonical page with gaps too large for any boost). Instead, when a
@@ -186,6 +240,19 @@ class Settings(BaseSettings):
     enable_policy_auto_index: bool = Field(
         default=False, validation_alias="ENABLE_POLICY_AUTO_INDEX"
     )
+    # Incremental ingest (re-ingest cost saver, default off → full re-embed as today). When on (or via the
+    # ingest `--incremental` flag) and the target collection already exists, re-embed ONLY chunks whose
+    # content-addressed point id is not already present, and delete genuinely-stale points. Point ids =
+    # uuid5 of a content-hash chunk_id, so "id present" == "identical text already embedded" → reuses
+    # existing vectors instead of paying to re-embed unchanged chunks. ASSUMES the batch is the COMPLETE
+    # corpus (true for scripts/ingest_documents.py): it cross-checks the scroll against the reported point
+    # count, aborts on zero content-address overlap (wrong hashing/embedding scheme) and on any large
+    # deletion (partial/failed crawl) — use --recreate for an intentional full rebuild. Qdrant only.
+    # Limitation: the id is text-derived, so a chunk with unchanged text but changed metadata keeps its old
+    # payload (run --recreate to fully reconcile payload metadata).
+    enable_incremental_ingest: bool = Field(
+        default=False, validation_alias="ENABLE_INCREMENTAL_INGEST"
+    )
     # Mass cache (Phase A2c): exact-match Redis cache of LLM responses + rerank scores, keyed on the FULL
     # prompt/content (→ reproducible A/Bs AND cheaper). Fail-open: no REDIS_URL / any redis error ⇒ cache
     # MISS, never an exception. Keys namespaced by CACHE_VERSION (bump to invalidate after a logic-only
@@ -200,6 +267,21 @@ class Settings(BaseSettings):
     # deterministic-first gate (a strong, unambiguous keyword signal routes WITHOUT the LLM). Fail-safe: off
     # = current router behaviour byte-identical.
     enable_router_v2: bool = Field(default=False, validation_alias="ENABLE_ROUTER_V2")
+    # Multi-domain FAN-OUT (Phase 1.33, PROMOTED — default ON). The supervisor is a DISPATCH PLANNER that may
+    # emit >1 {query,intent} assignment — DECOMPOSE a compound question into per-domain subtasks, or HEDGE an
+    # ambiguous route to the candidate specialists — dispatched in parallel and merged by a synthesis node.
+    # A single-assignment plan (the ~90%) takes the single-specialist path, byte-identical (single-assignment
+    # defers to route_intent; same-intent over-fires collapse to one specialist). Set ENABLE_FAN_OUT=false to
+    # revert. Post over-fire-fix the full-set A/B is neutral on single-domain traffic (no regression); fan-out
+    # adds the multi-domain coverage the single router structurally can't. fan_out_max_subtasks caps cost;
+    # reroute_min_score is the per-subtask low-coverage threshold for a one-shot re-route to `services`.
+    enable_fan_out: bool = Field(default=True, validation_alias="ENABLE_FAN_OUT")
+    fan_out_max_subtasks: int = Field(default=3, validation_alias="FAN_OUT_MAX_SUBTASKS")
+    fan_out_reroute_min_score: float = Field(default=0.3, validation_alias="FAN_OUT_REROUTE_MIN_SCORE")
+    # Optional stronger model for the dispatch planner's 1-vs-many decision (the routing model gpt-4o-mini
+    # under-fires decompose/hedge). Empty = use openrouter_chat_model. The planner call is small (~700 in/
+    # ~80 out tokens) so even a premium model is ~cents/1000-calls — optimize for decision quality + latency.
+    planner_model: str = Field(default="", validation_alias="PLANNER_MODEL")
     # Cross-lingual expansion (Phase 1.8). ALWAYS-ON translation, default OFF since Phase 1.14: the e5
     # multilingual embedding matches VI↔EN natively, so the always-on LLM translation is unnecessary
     # noise + the dominant run-to-run nondeterminism source (it hurt VI calendar in the 1.14 A/B). Set
@@ -271,6 +353,12 @@ class Settings(BaseSettings):
     # fail-OPEN on critic error. Default off; A/B before flipping (guards must stay 1.000, no passing
     # case may degrade).
     enable_output_audit: bool = Field(default=False, validation_alias="ENABLE_OUTPUT_AUDIT")
+    # Intent-satisfaction auditor (Phase 1.28/D9): extends the output-audit critic from groundedness-only to
+    # ALSO judge whether the answer resolves the SPECIFIC role/attribute asked (e.g. the Rector, not a
+    # different-role "President"). Scoped to identity/role-enumeration queries (is_identity_query), fail-OPEN,
+    # default off. On a confident satisfies_intent:false → graceful-degradation (hedge), turning
+    # confidently-wrong identity answers into safe refusals. A/B before flipping (guards stay 1.000).
+    enable_intent_audit: bool = Field(default=False, validation_alias="ENABLE_INTENT_AUDIT")
     # Model for the output-audit critic. Empty → fall back to guard_model (qwen-2.5-7b). Decoupled from
     # guard_model so the groundedness judge can use a more capable model than the input guard without
     # disturbing the input-guard A/B history. Accepts any OpenRouter chat model id.

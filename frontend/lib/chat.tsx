@@ -10,10 +10,11 @@
 // request is keyed by the conversation's UI id). Conversations are ordered by last activity;
 // selecting one never reorders, only SENDING a message bumps a conversation to the top.
 //
-// The general/personal toggle is gone: the student is signed in, so every question is sent
-// with their profile/schedule/deadlines/tuition context attached and the backend agent
-// decides what it actually needs. Sources are no longer shown by default — each answer
-// carries its own citations and a "Sources" button that opens the shared source drawer.
+// The general/personal toggle is gone: the student is signed in, so every question is
+// personalized. Phase 14A moved personalization to a backend-owned context layer — the chat
+// route builds the student's context server-side from authenticated data and attaches it to
+// the agent; the frontend sends only the raw question. Sources are no longer shown by default —
+// each answer carries its own citations and a "Sources" button that opens the shared drawer.
 
 import {
   createContext,
@@ -25,24 +26,15 @@ import {
   useState,
 } from "react";
 import type { ChatMessage, ChatResponse } from "@/lib/types";
-import type {
-  ClassSession,
-  Deadline,
-  StudentProfile,
-  TicketDraft,
-  TuitionStatus,
-} from "@/lib/portalTypes";
+import type { TicketDraft } from "@/lib/portalTypes";
 import {
   deleteConversation as deleteBackendConversation,
   getConversationMessages,
   getConversations,
   postChat,
   postChatStream,
-  getStudentProfile,
-  getStudentSchedule,
-  getStudentDeadlines,
-  getTuitionStatus,
   submitTicket,
+  suggestTicketDraft,
   saveTicketDraft,
   updateConversation,
   type BackendConversationMessage,
@@ -52,7 +44,6 @@ import { useAuth } from "@/lib/auth";
 import { DEPARTMENTS } from "@/lib/portalI18n";
 import { usePortal } from "@/lib/portalI18n";
 import { friendlyError } from "@/lib/chatErrors";
-import { formatVnd, formatDate } from "@/lib/format";
 
 let counter = 0;
 const nextId = () => `m${Date.now()}-${counter++}`;
@@ -64,56 +55,10 @@ let stableOrderSeq = 0;
 const nextLocalOrder = () => ++localOrderSeq;
 const nextStableOrder = () => ++stableOrderSeq;
 
-// Compact, plain-text snapshot of the student's context, prepended to the question so the
-// agent can personalize ("when is my next class?") without the user choosing a mode.
-function buildPersonalContext(
-  profile: StudentProfile | null,
-  schedule: ClassSession[],
-  deadlines: Deadline[],
-  tuition: TuitionStatus | null
-): string {
-  const lines: string[] = ["[Student context — personalize the answer using this when relevant]"];
-  if (profile) {
-    lines.push(
-      `Name: ${profile.full_name}; Program: ${profile.program}; Year ${profile.year}; Student ID ${profile.student_id}; GPA ${profile.gpa}; Credits ${profile.credits_earned}/${profile.credits_required}.`
-    );
-  }
-  if (tuition) {
-    lines.push(
-      `Tuition: paid ${formatVnd(tuition.total_paid_vnd)} of ${formatVnd(
-        tuition.total_charged_vnd
-      )}, balance ${formatVnd(tuition.balance_vnd)}${
-        tuition.next_due_at
-          ? `, next installment ${formatVnd(
-              tuition.next_due_amount_vnd ?? 0
-            )} due ${formatDate(tuition.next_due_at)}`
-          : ""
-      }.`
-    );
-  }
-  if (deadlines.length) {
-    lines.push(
-      "Upcoming deadlines: " +
-        deadlines.slice(0, 5).map((d) => `${d.title} (${formatDate(d.due_at)})`).join("; ") +
-        "."
-    );
-  }
-  if (schedule.length) {
-    lines.push(
-      "Weekly classes: " +
-        schedule
-          .map((s) => `${s.day} ${s.start}-${s.end} ${s.course_title} (${s.room})`)
-          .join("; ") +
-        "."
-    );
-  }
-  return lines.join("\n");
-}
-
 // Privacy-safe context for a support ticket: ONLY the triggering question + Vinnie's
-// answer, trimmed. Deliberately excludes buildPersonalContext() (name/GPA/tuition/schedule)
-// so no profile PII can leak into a ticket. Shown in the Review drawer and attached only if
-// the student keeps "include chat context" ticked.
+// answer, trimmed. Deliberately excludes any profile PII (name/GPA/tuition/schedule) so none
+// can leak into a ticket. Shown in the Review drawer and attached only if the student keeps
+// "include chat context" ticked.
 function shortSummary(question: string, answer: string): string {
   const q = question.replace(/\s+/g, " ").trim().slice(0, 300);
   const a = answer.replace(/\s+/g, " ").trim().slice(0, 600);
@@ -181,6 +126,10 @@ function chatResponseFromStoredMessage(message: BackendConversationMessage): Cha
       typeof raw?.db_conversation_id === "string"
         ? raw.db_conversation_id
         : message.conversation_id,
+    suggested_follow_ups: Array.isArray(raw?.suggested_follow_ups)
+      ? (raw.suggested_follow_ups as string[]).filter((q) => typeof q === "string")
+      : [],
+    personal_data: raw?.personal_data === true,
   };
 }
 
@@ -302,6 +251,9 @@ interface ChatContextValue {
   messagesLoading: boolean;
   messagesError: string | null;
   newConversation: () => void;
+  // Start a fresh conversation AND immediately send `text` into it (used by the dashboard
+  // quick-ask ?q= flow so each quick-ask opens its own new conversation).
+  newConversationWithMessage: (text: string) => void;
   switchConversation: (id: string) => void;
   renameConversation: (id: string, title: string) => void;
   deleteConversation: (id: string) => void;
@@ -319,12 +271,18 @@ interface ChatContextValue {
   // Smart ticket draft (PLAN22.6): Vinnie prepares a draft → student reviews → sends. The
   // draft lives here in React state only (never persisted) until the student submits.
   ticketDraft: TicketDraft | null;
-  prepareDraftFromAnswer: (question: string, response: ChatResponse) => void;
+  prepareDraftFromAnswer: (question: string, response: ChatResponse) => Promise<void>;
   prepareBlankDraft: (seed?: Partial<TicketDraft>) => void;
+  // True while Vinnie's draft suggestion is being fetched (the drawer shows a "drafting…" state).
+  draftSuggesting: boolean;
   updateDraft: (patch: Partial<TicketDraft>) => void;
   cancelDraft: () => void;
-  saveDraft: () => Promise<void>;
-  submitDraft: () => Promise<void>;
+  // `override` lets a self-contained form (e.g. CreateTicketModal) submit/save a fully-built
+  // draft in one step, bypassing the in-state draft used by the Review drawer. Returns whether
+  // it succeeded so the caller can decide to close. The single submit path (api.submitTicket)
+  // is unchanged either way.
+  saveDraft: (override?: TicketDraft) => Promise<boolean>;
+  submitDraft: (override?: TicketDraft) => Promise<boolean>;
   draftBusy: boolean;
   // Bumps each time a ticket is successfully sent to admin (the single submit path), so any
   // open ticket list (e.g. the support page) can refresh without a hard reload.
@@ -350,6 +308,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [toast, setToast] = useState<string | null>(null);
   const [ticketDraft, setTicketDraft] = useState<TicketDraft | null>(null);
   const [draftBusy, setDraftBusy] = useState(false);
+  const [draftSuggesting, setDraftSuggesting] = useState(false);
   const [ticketsRevision, setTicketsRevision] = useState(0);
   const [composerSeed, setComposerSeed] = useState<{ text: string; nonce: number } | null>(null);
   const seedNonce = useRef(0);
@@ -370,13 +329,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // never confuse two conversations' streams.
   const abortMap = useRef<Map<string, AbortController>>(new Map());
 
-  const personalData = useRef<{
-    profile: StudentProfile | null;
-    schedule: ClassSession[];
-    deadlines: Deadline[];
-    tuition: TuitionStatus | null;
-  }>({ profile: null, schedule: [], deadlines: [], tuition: null });
-
   useEffect(() => {
     conversationsRef.current = conversations;
   }, [conversations]);
@@ -384,23 +336,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     activeIdRef.current = activeId;
   }, [activeId]);
-
-  useEffect(() => {
-    let alive = true;
-    Promise.all([
-      getStudentProfile(),
-      getStudentSchedule(),
-      getStudentDeadlines(),
-      getTuitionStatus(),
-    ])
-      .then(([profile, schedule, deadlines, tuition]) => {
-        if (alive) personalData.current = { profile, schedule, deadlines, tuition };
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -610,14 +545,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       // is shown as an error, not retried.
       let received = false;
 
-      const sent = `${buildPersonalContext(
-        personalData.current.profile,
-        personalData.current.schedule,
-        personalData.current.deadlines,
-        personalData.current.tuition
-      )}\n\nQuestion: ${text}`;
+      // Phase 14A: send ONLY the student's actual question. Personalization is now owned by the
+      // backend — the chat route builds the student's context server-side from authenticated data
+      // and attaches it to the agent input. The frontend no longer prepends any hidden profile/
+      // schedule/deadline/tuition block, so the persisted user message is the real question.
       const request = {
-        message: sent,
+        message: text,
         conversation_id: threadId,
         db_conversation_id: dbConversationId,
       };
@@ -856,9 +789,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   // --- Smart ticket draft (review-before-send) -------------------------------
   const prepareDraftFromAnswer = useCallback(
-    (question: string, response: ChatResponse) => {
+    async (question: string, response: ChatResponse) => {
+      const draftId = nextDraftId();
+      // Open the drawer immediately with a heuristic draft (feels instant), then let Vinnie refine it.
       setTicketDraft({
-        id: nextDraftId(),
+        id: draftId,
         subject: question.trim().slice(0, 80) || "Support request",
         body: response.answer,
         department: DEPARTMENTS[0],
@@ -868,7 +803,27 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         source_conversation_id: dbConversationId,
         origin_question: question,
         context_preview: shortSummary(question, response.answer),
+        created_by_ai: false,
       });
+      // Ask Vinnie (small/fast model) for a proper summary/description/category. Fields are locked in
+      // the drawer while this runs, so overwriting is safe. Only apply if THIS draft is still open
+      // (the student may have cancelled). On failure we keep the heuristic draft.
+      setDraftSuggesting(true);
+      try {
+        const s = await suggestTicketDraft({
+          origin_question: question,
+          answer: response.answer,
+        });
+        setTicketDraft((cur) =>
+          cur && cur.id === draftId
+            ? { ...cur, subject: s.subject, body: s.body, category: s.category, created_by_ai: true }
+            : cur
+        );
+      } catch {
+        // keep the heuristic draft (created_by_ai stays false)
+      } finally {
+        setDraftSuggesting(false);
+      }
     },
     [dbConversationId]
   );
@@ -900,30 +855,47 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const cancelDraft = useCallback(() => {
     setTicketDraft(null);
     setDraftBusy(false);
+    setDraftSuggesting(false);
   }, []);
 
-  const saveDraft = useCallback(async () => {
-    if (!ticketDraft) return;
-    // No network in MVP — the draft already lives in state; this just confirms to the user.
-    await saveTicketDraft(ticketDraft);
-    setTicketDraft(null);
-    setToast(p.review.draftSaved);
-  }, [ticketDraft, p]);
+  const saveDraft = useCallback(
+    async (override?: TicketDraft): Promise<boolean> => {
+      const draft = override ?? ticketDraft;
+      if (!draft) return false;
+      // No network in MVP — the draft already lives in state; this just confirms to the user.
+      try {
+        await saveTicketDraft(draft);
+        setTicketDraft(null);
+        setToast(p.review.draftSaved);
+        return true;
+      } catch {
+        setToast(p.review.submitFailed);
+        return false;
+      }
+    },
+    [ticketDraft, p]
+  );
 
-  const submitDraft = useCallback(async () => {
-    if (!ticketDraft || draftBusy) return;
-    setDraftBusy(true);
-    try {
-      const ticket = await submitTicket(ticketDraft);
-      setTicketDraft(null);
-      setTicketsRevision((r) => r + 1);
-      setToast(p.review.submitted(ticket.id));
-    } catch {
-      setToast(p.review.submitFailed);
-    } finally {
-      setDraftBusy(false);
-    }
-  }, [ticketDraft, draftBusy, p]);
+  const submitDraft = useCallback(
+    async (override?: TicketDraft): Promise<boolean> => {
+      const draft = override ?? ticketDraft;
+      if (!draft || draftBusy) return false;
+      setDraftBusy(true);
+      try {
+        const ticket = await submitTicket(draft);
+        setTicketDraft(null);
+        setTicketsRevision((r) => r + 1);
+        setToast(p.review.submitted(ticket.id));
+        return true;
+      } catch {
+        setToast(p.review.submitFailed);
+        return false;
+      } finally {
+        setDraftBusy(false);
+      }
+    },
+    [ticketDraft, draftBusy, p]
+  );
 
   const seedComposer = useCallback((text: string) => {
     seedNonce.current += 1;
@@ -941,6 +913,26 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setActiveId(conv.id);
     closeSources();
   }, [conversations, activeId, closeSources]);
+
+  // Open a brand-new conversation and send the first message into it in one step. Builds the
+  // conversation object up-front (with the user turn already in it) so `ask` targets it directly
+  // and never races the async activeId update.
+  const newConversationWithMessage = useCallback(
+    (text: string) => {
+      const title = titleFromText(text);
+      const conv = makeConversation({
+        title,
+        messages: [{ id: nextId(), role: "user", text }],
+        lastActivity: Date.now(),
+        localOrder: nextLocalOrder(),
+      });
+      setConversations((prev) => [...prev, conv]);
+      setActiveId(conv.id);
+      closeSources();
+      void ask(conv.id, conv.threadId, conv.dbConversationId, text, title, false);
+    },
+    [ask, closeSources]
+  );
 
   // Switch the active conversation. Allowed even while another conversation streams — the
   // in-flight reply keeps running in the background and lands in its own conversation.
@@ -1015,6 +1007,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const conversationsView = useMemo<ConversationSummary[]>(
     () =>
       [...conversations]
+        .filter((c) => c.dbConversationId || c.messages.length > 0 || c.busy)
         .sort(sortConversations)
         .map((c) => ({
           id: c.id,
@@ -1062,6 +1055,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     messagesLoading,
     messagesError,
     newConversation,
+    newConversationWithMessage,
     switchConversation,
     renameConversation,
     deleteConversation,
@@ -1076,6 +1070,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     ticketDraft,
     prepareDraftFromAnswer,
     prepareBlankDraft,
+    draftSuggesting,
     updateDraft,
     cancelDraft,
     saveDraft,

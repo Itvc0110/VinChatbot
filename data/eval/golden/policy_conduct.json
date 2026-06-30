@@ -53,7 +53,7 @@
       "id": "pol-loa-fulltime-vi",
       "language": "vi",
       "question": "Quy trình xin nghỉ học tạm thời tại VinUni áp dụng cho đối tượng sinh viên nào?",
-      "required_facts": ["toàn thời gian"],
+      "required_facts": ["toàn thời gian|chính thức|full-time"],
       "expected_source": "procedure-for-requesting-a-leave-of-absence",
       "expects_refusal": false
     }

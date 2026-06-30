@@ -2,8 +2,14 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from vinchatbot.app.api.ratelimit import (
+    SlidingWindowRateLimiter,
+    _client_key,
+    _parse_trusted_proxies,
+)
+from vinchatbot.app.core.config import Settings, get_settings
 from vinchatbot.app.dependencies.auth import get_auth_repository, get_current_user
 from vinchatbot.app.repositories.auth import AuthenticatedUser, AuthRepository
 from vinchatbot.app.schemas.auth import (
@@ -30,6 +36,25 @@ def invalid_credentials_error() -> HTTPException:
     )
 
 
+# Per-(email+IP) login brute-force limiter (A2). In-process sliding window — counts only FAILED
+# attempts and rejects before verifying once over the limit, so legit logins are never throttled.
+_login_limiter: SlidingWindowRateLimiter | None = None
+
+
+def _get_login_limiter(settings: Settings) -> SlidingWindowRateLimiter:
+    global _login_limiter
+    if _login_limiter is None:
+        _login_limiter = SlidingWindowRateLimiter(
+            settings.login_max_attempts, settings.login_attempt_window_seconds
+        )
+    return _login_limiter
+
+
+def _login_attempt_key(request: LoginRequest, http_request: Request, settings: Settings) -> str:
+    ip = _client_key(http_request, _parse_trusted_proxies(settings.trusted_proxies))
+    return f"{(request.email or '').strip().lower()}|{ip}"
+
+
 def current_user_response(user: AuthenticatedUser) -> CurrentUserResponse:
     return CurrentUserResponse(
         id=user.id,
@@ -45,16 +70,31 @@ def current_user_response(user: AuthenticatedUser) -> CurrentUserResponse:
 @router.post("/login", response_model=LoginResponse)
 async def login(
     request: LoginRequest,
+    http_request: Request,
     repository: Annotated[AuthRepository, Depends(get_auth_repository)],
 ) -> LoginResponse:
+    settings = get_settings()
+    limiter = _get_login_limiter(settings)
+    key = _login_attempt_key(request, http_request, settings)
+    blocked, retry_after = limiter.peek_blocked(key)
+    if blocked:
+        retry_secs = int(retry_after) + 1
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts. Please wait and try again.",
+            headers={"Retry-After": str(retry_secs)},
+        )
+
     user = await repository.find_user_by_email(request.email)
     if (
         user is None
         or user.status != "active"
         or not verify_password(request.password, user.password_hash)
     ):
+        limiter.record(key)  # count only FAILED attempts toward the lockout
         raise invalid_credentials_error()
 
+    limiter.reset_key(key)  # successful login clears the failure count
     token = generate_session_token()
     session_id = await repository.create_session(
         user_id=user.id,

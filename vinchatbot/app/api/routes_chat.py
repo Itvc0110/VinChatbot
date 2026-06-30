@@ -12,17 +12,16 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from vinchatbot.app.agents.guardrails import (
-    CONVERSATIONAL_ACTIONS,
-    build_conversational_response,
-    build_guardrail_response,
-    resolve_guardrail_decision,
-)
 from vinchatbot.app.agents.vinuni_agent import VinUniAgentService
+from vinchatbot.app.core.observability import reset_student_identity, set_student_identity
 from vinchatbot.app.db.connection import get_app_db_pool
-from vinchatbot.app.dependencies.auth import get_optional_current_user
+from vinchatbot.app.dependencies.auth import get_chat_user
 from vinchatbot.app.repositories.auth import AuthenticatedUser
 from vinchatbot.app.repositories.conversations import ConversationRepository
+from vinchatbot.app.repositories.personalization import (
+    PersonalizationRepository,
+    build_personalization_prompt,
+)
 from vinchatbot.app.schemas.chat import ChatRequest, ChatResponse
 from vinchatbot.app.schemas.conversations import AppendMessageRequest, CreateConversationRequest
 
@@ -47,27 +46,71 @@ async def get_optional_conversation_repository() -> ConversationRepository | Non
     return ConversationRepository(pool) if pool is not None else None
 
 
+async def get_optional_personalization_repository() -> PersonalizationRepository | None:
+    pool = get_app_db_pool()
+    return PersonalizationRepository(pool) if pool is not None else None
+
+
+async def _attach_personalization(
+    request: ChatRequest,
+    current_user: AuthenticatedUser | None,
+    repository: PersonalizationRepository | None,
+) -> None:
+    """Build the current student's context server-side and attach it to the request.
+
+    Always clears any client-supplied value first so a caller can never inject a fabricated
+    personalization block. Only authenticated students with AI personalization enabled receive a
+    context; anonymous and admin/staff turns leave the field None. Failures are swallowed so
+    personalization never breaks chat.
+    """
+    request.backend_personalization_context = None
+    if current_user is None or repository is None:
+        return
+    if "student" not in current_user.roles:
+        return
+
+    try:
+        context = await repository.get_context(current_user.id)
+    except Exception:  # noqa: BLE001 - personalization must not break chat.
+        logger.exception("Skipping chat personalization because context lookup failed.")
+        return
+
+    if context is None or not context.profile.ai_personalization_enabled:
+        return
+
+    prompt = build_personalization_prompt(context)
+    if prompt:
+        request.backend_personalization_context = prompt
+
+
+def _bind_student_identity(current_user: AuthenticatedUser | None):
+    """Bind the VERIFIED student's identity for this turn so the read-only personal DB tools can
+    hard-scope every query to this student's own rows.
+
+    Security core: the id is taken ONLY from the authenticated session (current_user), never from the
+    request body or the model. Returns a reset token to clear in a finally block, or None for
+    anonymous / admin / profile-less turns (the personal tools then refuse). Must be called in the
+    same context that runs / spawns the agent so child tool tasks inherit the binding.
+    """
+    if current_user is None or "student" not in current_user.roles:
+        return None
+    profile = current_user.student_profile
+    if not profile or not profile.get("id"):
+        return None
+    return set_student_identity(student_profile_id=profile["id"], user_id=current_user.id)
+
+
 async def _resolve_chat(request: ChatRequest) -> ChatResponse:
-    """Run guardrails + the agent and return the FINAL, safety-checked ChatResponse.
+    """Run the agent and return the FINAL, safety-checked ChatResponse.
 
     Shared by the JSON endpoint and the streaming endpoint so both go through the
     identical faithfulness / moderation gates — the streamed answer is the verified
     one, never a raw generation that might later be retracted.
-    """
-    guardrail_decision = await resolve_guardrail_decision(
-        request.message,
-        list(request.filters.compact().values()) if request.filters else None,
-    )
-    if not guardrail_decision.allowed:
-        logger.info(
-            "Chat request handled before agent initialization action=%s conversation_id=%s",
-            guardrail_decision.action,
-            request.conversation_id,
-        )
-        if guardrail_decision.action in CONVERSATIONAL_ACTIONS:
-            return await build_conversational_response(guardrail_decision, request.message)
-        return build_guardrail_response(guardrail_decision, request.message)
 
+    Guardrails run ONCE, inside ``VinUniAgentService.chat`` (which builds the conversational /
+    guardrail responses AND logs the guard-handled turn). The earlier duplicate pre-call here was
+    removed to avoid double guard cost/latency per turn.
+    """
     try:
         return await get_agent_service().chat(request)
     except RuntimeError as exc:
@@ -170,11 +213,15 @@ async def chat(
     request: ChatRequest,
     current_user: Annotated[
         AuthenticatedUser | None,
-        Depends(get_optional_current_user),
+        Depends(get_chat_user),
     ] = None,
     conversation_repository: Annotated[
         ConversationRepository | None,
         Depends(get_optional_conversation_repository),
+    ] = None,
+    personalization_repository: Annotated[
+        PersonalizationRepository | None,
+        Depends(get_optional_personalization_repository),
     ] = None,
 ) -> ChatResponse:
     persistence = await _prepare_chat_persistence(
@@ -182,7 +229,12 @@ async def chat(
         current_user,
         conversation_repository,
     )
-    response = await _resolve_chat(request)
+    await _attach_personalization(request, current_user, personalization_repository)
+    identity_token = _bind_student_identity(current_user)
+    try:
+        response = await _resolve_chat(request)
+    finally:
+        reset_student_identity(identity_token)
     await _persist_assistant_response(persistence, response)
     return response
 
@@ -211,11 +263,15 @@ async def chat_stream(
     request: ChatRequest,
     current_user: Annotated[
         AuthenticatedUser | None,
-        Depends(get_optional_current_user),
+        Depends(get_chat_user),
     ] = None,
     conversation_repository: Annotated[
         ConversationRepository | None,
         Depends(get_optional_conversation_repository),
+    ] = None,
+    personalization_repository: Annotated[
+        PersonalizationRepository | None,
+        Depends(get_optional_personalization_repository),
     ] = None,
 ) -> StreamingResponse:
     """Verify-then-reveal streaming.
@@ -237,6 +293,7 @@ async def chat_stream(
         current_user,
         conversation_repository,
     )
+    await _attach_personalization(request, current_user, personalization_repository)
 
     async def event_stream():
         # First yield flushes the 200 + SSE headers right away and tells the client the stream
@@ -244,8 +301,14 @@ async def chat_stream(
         # /chat run). An empty step keeps the client on its own localized "Searching…" placeholder.
         yield _sse("status", {"step": ""})
 
-        task = asyncio.create_task(_resolve_chat(request))
+        identity_token = None
+        task = None
         try:
+            # Bind the student identity HERE (in the generator's context) before create_task, so the
+            # task that runs the agent + personal tools inherits the binding (contextvars copy at task
+            # creation). Inside the try so the finally always resets it, even on an unexpected raise.
+            identity_token = _bind_student_identity(current_user)
+            task = asyncio.create_task(_resolve_chat(request))
             # Heartbeat until the verified answer is ready (or the compute fails).
             while True:
                 done, _ = await asyncio.wait({task}, timeout=_HEARTBEAT_SECONDS)
@@ -283,8 +346,9 @@ async def chat_stream(
         finally:
             # Client disconnected / pressed Stop, or we finished — make sure an in-flight agent
             # run doesn't keep computing (and spending) into a dead socket.
-            if not task.done():
+            if task is not None and not task.done():
                 task.cancel()
+            reset_student_identity(identity_token)
 
     return StreamingResponse(
         event_stream(),

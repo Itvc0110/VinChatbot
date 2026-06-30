@@ -5,42 +5,40 @@
       "id": "conduct-scope-en",
       "language": "en",
       "question": "Who does the VinUni Student Code of Conduct apply to?",
-      "required_facts": ["all", "students"],
+      "required_facts": [
+        "all",
+        "students"
+      ],
       "expected_source": "code-of-conduct"
     },
     {
       "id": "conduct-purpose-en",
       "language": "en",
       "question": "What is the purpose of the VinUni Student Code of Conduct?",
-      "required_facts": ["behavior", "respect"],
+      "required_facts": [
+        "behavior",
+        "respect"
+      ],
       "expected_source": "code-of-conduct"
     },
     {
       "id": "conduct-disciplinary-tiers-en",
       "language": "en",
       "question": "What levels of disciplinary action can a VinUni student face for violations?",
-      "required_facts": ["warning", "suspension", "dismissal"],
+      "required_facts": [
+        "warning",
+        "suspension",
+        "dismissal"
+      ],
       "expected_source": "vinuni.edu.vn"
     },
     {
       "id": "conduct-report-misconduct-en",
       "language": "en",
       "question": "How can someone report suspected student misconduct at VinUni?",
-      "required_facts": ["connect-sam@vinuni.edu.vn"],
-      "expected_source": "vinuni.edu.vn"
-    },
-    {
-      "id": "conduct-disciplinary-tiers-vi",
-      "language": "vi",
-      "question": "Sinh viên VinUni vi phạm có thể bị xử lý kỷ luật ở những mức nào?",
-      "required_facts": ["khiển trách", "cảnh cáo", "đình chỉ", "buộc thôi học"],
-      "expected_source": "vinuni.edu.vn"
-    },
-    {
-      "id": "conduct-scope-vi",
-      "language": "vi",
-      "question": "Bộ Quy tắc ứng xử của sinh viên VinUni áp dụng cho những ai?",
-      "required_facts": ["tất cả sinh viên"],
+      "required_facts": [
+        "connect-sam@vinuni.edu.vn"
+      ],
       "expected_source": "vinuni.edu.vn"
     }
   ]

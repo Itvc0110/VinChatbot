@@ -30,6 +30,12 @@ export interface ChatResponse {
   tool_trace: ToolTraceEntry[];
   needs_human_review: boolean;
   db_conversation_id?: string | null;
+  // Backend-generated, content-derived follow-up questions. Empty/absent → the client falls back to
+  // its rule-based chips (see followUps.ts).
+  suggested_follow_ups?: string[];
+  // True when the answer was grounded in the signed-in student's own verified data; the UI shows a
+  // "Dữ liệu cá nhân của bạn" source label instead of (absent) web citations.
+  personal_data?: boolean;
 }
 
 // Mirrors vinchatbot/app/schemas/document.py SourceSummary — returned by GET /sources.

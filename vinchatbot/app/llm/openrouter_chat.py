@@ -41,6 +41,10 @@ def build_chat_model(
         base_url=settings.openrouter_base_url,
         default_headers=headers or None,
         temperature=0.1 if temperature is None else temperature,
+        # Fail-fast on a stalled connection + a couple retries (Phase 1.33): the OpenAI SDK defaults to a 600s
+        # timeout, so without these one hung OpenRouter call freezes the turn (and blocks a fan-out gather).
+        timeout=settings.llm_request_timeout_s,
+        max_retries=settings.llm_max_retries,
         # Langfuse tracing (fail-open: [] -> None when disabled). Attaching at the model captures
         # every LLM call — supervisor, specialists, query expansion, guard, capability replies.
         callbacks=get_langfuse_callbacks(settings) or None,

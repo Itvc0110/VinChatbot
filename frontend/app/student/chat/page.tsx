@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ChatColumn } from "@/components/ChatColumn";
 import { Composer } from "@/components/Composer";
@@ -12,9 +13,15 @@ import { usePortal } from "@/lib/portalI18n";
 import { useAuth } from "@/lib/auth";
 import { useAsync } from "@/lib/useAsync";
 import { getActiveSuggestedQuestions } from "@/lib/api";
-import { IconClock, IconBell, IconTicket, IconCalendar, IconChat } from "@/components/shell/icons";
+import { IconClock, IconBell, IconTicket, IconCalendar } from "@/components/shell/icons";
+import { LogoVinnie } from "@/components/shell/Logos";
 
 const SUGG_ICONS = [IconClock, IconBell, IconTicket, IconCalendar];
+
+interface SuggestionItem {
+  text: string;
+  relatedHref?: string;
+}
 
 // Full "Ask Vinnie" page. The chat state lives in the shared ChatProvider (mounted in the
 // student shell), so this page and the floating bubble are the SAME conversation. Layout only:
@@ -23,11 +30,11 @@ const SUGG_ICONS = [IconClock, IconBell, IconTicket, IconCalendar];
 // panel. The streaming/SSE logic in lib/chat + ChatColumn is unchanged.
 function ChatView() {
   const { p, lang } = usePortal();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const chat = useChat();
   const searchParams = useSearchParams();
 
-  const suggested = useAsync(() => getActiveSuggestedQuestions(lang), [lang]);
+  const suggested = useAsync(() => getActiveSuggestedQuestions(lang), [lang, token]);
   const chips =
     suggested.status === "success" && suggested.data.length > 0
       ? suggested.data.map((q) => q.question_text)
@@ -36,24 +43,41 @@ function ChatView() {
   // Register this surface so completed answers don't bump the floating-bubble unread badge.
   useEffect(() => chat.registerViewer(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Initial question passed via ?q= (from dashboard quick-ask / suggested chips).
-  const sentInitial = useRef(false);
+  // Entering the Vinnie AI tab always lands on a fresh conversation (the welcome state) rather
+  // than restoring whichever conversation happened to be active — past chats stay available in
+  // the rail. A ?q= (dashboard quick-ask / suggested chip) opens its own new conversation and
+  // sends the question. Runs once per mount; route changes re-mount and re-run.
+  const didInit = useRef(false);
   useEffect(() => {
-    if (sentInitial.current) return;
+    if (didInit.current) return;
+    // Wait for history to settle: on a direct load the async conversation list reconciles the
+    // active conversation, and resetting before that would just get overridden.
+    if (chat.historyLoading) return;
+    didInit.current = true;
     const q = searchParams.get("q");
     if (q && q.trim()) {
-      sentInitial.current = true;
-      chat.send(q.trim());
+      chat.newConversationWithMessage(q.trim());
+    } else {
+      chat.newConversation();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  }, [chat.historyLoading]);
 
   // Initial welcome + suggestion cards show only for an empty conversation; once the first
   // message is sent (or an existing conversation with messages is opened) the streaming
   // ChatColumn takes over and these are gone.
   const empty = chat.messages.length === 0;
   const firstName = (user?.name ?? "").split(" ").slice(-1)[0] || user?.name || "";
-  const suggestionCards = chips.slice(0, 4);
+  const suggestionItems: SuggestionItem[] =
+    suggested.status === "success" && suggested.data.length > 0
+      ? suggested.data.slice(0, 4).map((question) => ({
+          text: question.question_text,
+          relatedHref:
+            question.source_type === "forum_topic" && question.source_id
+              ? `/student/forum/topics/${question.source_id}`
+              : undefined,
+        }))
+      : p.chatSuggested.slice(0, 4).map((text) => ({ text }));
 
   return (
     <div className="chat-shell">
@@ -77,26 +101,32 @@ function ChatView() {
           ) : empty ? (
             <div className="vinnie-welcome-wrap">
               <div className="vinnie-welcome">
-                <span className="vinnie-avatar-lg">
-                  <IconChat size={30} />
+                <span className="vinnie-avatar-lg brand-logo-tile">
+                  <LogoVinnie size={62} />
                 </span>
                 <h1 className="vinnie-welcome-title">{p.chatWelcomeTitle(firstName)}</h1>
                 <p className="vinnie-welcome-sub">{p.chatWelcomeSub}</p>
                 <div className="vinnie-sugg-grid">
-                  {suggestionCards.map((q, i) => {
+                  {suggestionItems.map((item, i) => {
                     const Ic = SUGG_ICONS[i % SUGG_ICONS.length];
                     return (
-                      <button
-                        key={q}
-                        className="vinnie-sugg-card"
-                        disabled={chat.busy}
-                        onClick={() => chat.send(q)}
-                      >
-                        <span className="vinnie-sugg-icon">
-                          <Ic size={18} />
-                        </span>
-                        <span className="vinnie-sugg-text">{q}</span>
-                      </button>
+                      <div key={item.text} className="vinnie-sugg-wrap">
+                        <button
+                          className="vinnie-sugg-card"
+                          disabled={chat.busy}
+                          onClick={() => chat.send(item.text)}
+                        >
+                          <span className="vinnie-sugg-icon">
+                            <Ic size={18} />
+                          </span>
+                          <span className="vinnie-sugg-text">{item.text}</span>
+                        </button>
+                        {item.relatedHref && (
+                          <Link className="vinnie-sugg-related" href={item.relatedHref}>
+                            {p.forum.relatedForumTopic}
+                          </Link>
+                        )}
+                      </div>
                     );
                   })}
                 </div>

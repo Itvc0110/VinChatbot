@@ -42,32 +42,6 @@
       "expects_refusal": false
     },
     {
-      "id": "fin-other-bachelor-semester-vi",
-      "language": "vi",
-      "question": "Học phí niêm yết mỗi học kỳ của các chương trình Cử nhân khác tại VinUni là bao nhiêu?",
-      "required_facts": [
-        "407,925,000"
-      ],
-      "expected_source": [
-        "financial-regulations-and-tariff-for-student",
-        "tai-chinh-va-bieu-phi"
-      ],
-      "expects_refusal": false
-    },
-    {
-      "id": "fin-standard-credit-vi",
-      "language": "vi",
-      "question": "Học phí niêm yết theo tín chỉ của chương trình Cử nhân tiêu chuẩn là bao nhiêu?",
-      "required_facts": [
-        "27,195,000"
-      ],
-      "expected_source": [
-        "financial-regulations-and-tariff-for-student",
-        "tai-chinh-va-bieu-phi"
-      ],
-      "expects_refusal": false
-    },
-    {
       "id": "fin-currency-en",
       "language": "en",
       "question": "In what currency are VinUni student tuition fees listed?",
@@ -103,40 +77,6 @@
       "expects_refusal": false
     },
     {
-      "id": "fin-nursing-tuition-year-vi",
-      "language": "vi",
-      "held_out": true,
-      "question": "Học phí niêm yết mỗi năm học của chương trình Cử nhân Điều dưỡng là bao nhiêu?",
-      "required_facts": [
-        "349,650,000"
-      ],
-      "forbidden_facts": [
-        "815,850,000"
-      ],
-      "expected_source": [
-        "financial-regulations-and-tariff-for-student",
-        "tai-chinh-va-bieu-phi"
-      ],
-      "expects_refusal": false
-    },
-    {
-      "id": "fin-nursing-tuition-credit-vi",
-      "language": "vi",
-      "held_out": true,
-      "question": "Học phí niêm yết theo tín chỉ của chương trình Cử nhân Điều dưỡng là bao nhiêu?",
-      "required_facts": [
-        "9,780,000"
-      ],
-      "forbidden_facts": [
-        "27,195,000"
-      ],
-      "expected_source": [
-        "financial-regulations-and-tariff-for-student",
-        "tai-chinh-va-bieu-phi"
-      ],
-      "expects_refusal": false
-    },
-    {
       "id": "fin-standard-credit-en",
       "language": "en",
       "held_out": true,
@@ -154,40 +94,6 @@
       "expects_refusal": false
     },
     {
-      "id": "fin-other-bachelor-year-vi",
-      "language": "vi",
-      "held_out": true,
-      "question": "Học phí niêm yết mỗi năm học của các chương trình Cử nhân khác tại VinUni là bao nhiêu?",
-      "required_facts": [
-        "815,850,000"
-      ],
-      "forbidden_facts": [
-        "349,650,000"
-      ],
-      "expected_source": [
-        "financial-regulations-and-tariff-for-student",
-        "tai-chinh-va-bieu-phi"
-      ],
-      "expects_refusal": false
-    },
-    {
-      "id": "fin-medicine-tuition-year-vi",
-      "language": "vi",
-      "held_out": true,
-      "question": "Học phí niêm yết mỗi năm học của chương trình Doctor of Medicine tại VinUni là bao nhiêu?",
-      "required_facts": [
-        "815,850,000"
-      ],
-      "forbidden_facts": [
-        "349,650,000"
-      ],
-      "expected_source": [
-        "financial-regulations-and-tariff-for-student",
-        "tai-chinh-va-bieu-phi"
-      ],
-      "expects_refusal": false
-    },
-    {
       "id": "fin-other-bachelor-semester-en",
       "language": "en",
       "held_out": true,
@@ -197,20 +103,6 @@
       ],
       "forbidden_facts": [
         "815,850,000"
-      ],
-      "expected_source": [
-        "financial-regulations-and-tariff-for-student",
-        "tai-chinh-va-bieu-phi"
-      ],
-      "expects_refusal": false
-    },
-    {
-      "id": "fin-currency-vi",
-      "language": "vi",
-      "held_out": true,
-      "question": "Học phí của sinh viên VinUni được niêm yết bằng đơn vị tiền tệ nào?",
-      "required_facts": [
-        "VND"
       ],
       "expected_source": [
         "financial-regulations-and-tariff-for-student",

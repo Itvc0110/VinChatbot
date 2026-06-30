@@ -1,14 +1,17 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { useI18n, type Lang } from "@/lib/i18n";
 import { initials } from "@/lib/format";
-import { IconBell } from "./icons";
+import { IconCog } from "./icons";
+import { AdminNotificationBell } from "@/components/notifications/AdminNotificationBell";
+import Link from "next/link";
 
 // Academic Horizon admin top header (DESIGN.md §12): page title + global actions + language /
 // theme toggles + notification bell + profile. Pairs with AdminSidebar inside the admin shell.
-// The mobile menu button toggles the sidebar via onMenu. Sign-out lives in the sidebar footer.
+// The mobile menu button toggles the sidebar via onMenu. Account actions live in the avatar menu.
 
 function MenuIcon() {
   return (
@@ -35,10 +38,40 @@ function MoonIcon() {
     </svg>
   );
 }
+function SignOutIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+    </svg>
+  );
+}
 
 const STR = {
-  en: { openMenu: "Open menu", language: "Language", notifications: "Notifications" },
-  vi: { openMenu: "Mở menu", language: "Ngôn ngữ", notifications: "Thông báo" },
+  en: {
+    openMenu: "Open menu",
+    language: "Language",
+    notifications: "Notification management",
+    account: "Admin account",
+    role: "Role",
+    department: "Department",
+    adminRole: "Administrator",
+    adminFallback: "VinUni administration",
+    settings: "Settings",
+    signOut: "Sign out",
+  },
+  vi: {
+    openMenu: "Mở menu",
+    language: "Ngôn ngữ",
+    notifications: "Quản lý thông báo",
+    account: "Tài khoản quản trị",
+    role: "Vai trò",
+    department: "Phòng ban",
+    adminRole: "Quản trị viên",
+    adminFallback: "Quản trị VinUni",
+    settings: "Cài đặt",
+    signOut: "Đăng xuất",
+  },
 } as const;
 
 export function AdminHeader({
@@ -52,11 +85,32 @@ export function AdminHeader({
   actions?: React.ReactNode;
   onMenu?: () => void;
 }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
   const { lang, setLang, t } = useI18n();
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement>(null);
   const s = STR[lang];
   const nextTheme = theme === "dark" ? t.themeLight : t.themeDark;
+  const adminDetail = user?.department || s.adminFallback;
+
+  useEffect(() => {
+    if (!accountOpen) return;
+    function onPointerDown(event: MouseEvent) {
+      if (!accountRef.current?.contains(event.target as Node)) {
+        setAccountOpen(false);
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setAccountOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [accountOpen]);
 
   return (
     <header className="ah-admin-header">
@@ -92,13 +146,64 @@ export function AdminHeader({
         <button className="icon-btn" onClick={toggle} aria-label={nextTheme} title={nextTheme}>
           {theme === "dark" ? <SunIcon /> : <MoonIcon />}
         </button>
-        <button type="button" className="ah-iconbtn" aria-label={s.notifications}>
-          <IconBell />
-          <span className="ah-iconbtn-dot" aria-hidden />
-        </button>
-        <span className="ah-avatar" title={user?.name}>
-          {user ? initials(user.name) : "?"}
-        </span>
+        <AdminNotificationBell />
+        <div className="ah-account-menu-wrap" ref={accountRef}>
+          <button
+            type="button"
+            className={`ah-avatar ah-avatar-btn ${accountOpen ? "active" : ""}`}
+            title={user?.name}
+            aria-label={s.account}
+            aria-haspopup="menu"
+            aria-expanded={accountOpen}
+            onClick={() => setAccountOpen((open) => !open)}
+          >
+            {user ? initials(user.name) : "?"}
+          </button>
+          {accountOpen && user && (
+            <div className="ah-account-menu" role="menu">
+              <div className="ah-account-head">
+                <span className="ah-avatar ah-account-avatar" aria-hidden>
+                  {initials(user.name)}
+                </span>
+                <div className="ah-account-id">
+                  <span className="ah-account-name">{user.name}</span>
+                  <span className="ah-account-email">{user.email}</span>
+                </div>
+              </div>
+              <div className="ah-account-meta">
+                <div>
+                  <span>{s.role}</span>
+                  <strong>{s.adminRole}</strong>
+                </div>
+                <div>
+                  <span>{s.department}</span>
+                  <strong>{adminDetail}</strong>
+                </div>
+              </div>
+              <Link
+                className="ah-account-action"
+                href="/admin/settings"
+                role="menuitem"
+                onClick={() => setAccountOpen(false)}
+              >
+                <IconCog size={16} />
+                {s.settings}
+              </Link>
+              <button
+                type="button"
+                className="ah-account-action danger"
+                role="menuitem"
+                onClick={() => {
+                  setAccountOpen(false);
+                  void logout();
+                }}
+              >
+                <SignOutIcon />
+                {s.signOut}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

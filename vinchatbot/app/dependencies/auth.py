@@ -70,6 +70,24 @@ async def get_optional_current_user(
     return user
 
 
+async def get_chat_user(
+    authorization: Annotated[str | None, Header(alias="Authorization")] = None,
+) -> AuthenticatedUser | None:
+    """Identity dependency for /chat. Vinnie is auth-only, so when REQUIRE_AUTH_FOR_CHAT is set
+    (default) a VALID session is required (401 otherwise); flip it off to expose a public general-RAG
+    chat, where this behaves like get_optional_current_user (anonymous allowed)."""
+    from vinchatbot.app.core.config import get_settings
+
+    if not get_settings().require_auth_for_chat:
+        return await get_optional_current_user(authorization)
+    token = extract_bearer_token(authorization)  # raises 401 when missing/malformed
+    repository = get_auth_repository()
+    user = await repository.get_user_by_session_token_hash(hash_session_token(token))
+    if user is None:
+        raise invalid_session_error()
+    return user
+
+
 def require_roles(*roles: str) -> Callable[[AuthenticatedUser], AuthenticatedUser]:
     required = set(roles)
 
