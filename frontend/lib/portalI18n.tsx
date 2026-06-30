@@ -68,10 +68,8 @@ export interface PortalStrings {
     signIn: string;
     or: string;
     sso: string;
-    continueStudent: string;
-    continueAdmin: string;
-    demoStudent: string;
-    demoAdmin: string;
+    studentAccounts: string;
+    passwordHint: string;
     securityNote: string;
   };
 
@@ -704,10 +702,8 @@ const en: PortalStrings = {
     signIn: "Sign in",
     or: "or",
     sso: "Continue with VinUni SSO",
-    continueStudent: "Continue as student",
-    continueAdmin: "Continue as admin",
-    demoStudent: "Demo student",
-    demoAdmin: "Demo admin",
+    studentAccounts: "Student accounts",
+    passwordHint: "Password",
     securityNote: "Your access is based on your VinUni role and permissions.",
   },
   access: {
@@ -1389,10 +1385,8 @@ const vi: PortalStrings = {
     signIn: "Đăng nhập",
     or: "hoặc",
     sso: "Tiếp tục với VinUni SSO",
-    continueStudent: "Vào bằng tài khoản sinh viên",
-    continueAdmin: "Vào bằng tài khoản quản trị",
-    demoStudent: "Sinh viên demo",
-    demoAdmin: "Quản trị demo",
+    studentAccounts: "Tài khoản sinh viên",
+    passwordHint: "Mật khẩu",
     securityNote: "Quyền truy cập dựa trên vai trò và quyền hạn VinUni của bạn.",
   },
   access: {
