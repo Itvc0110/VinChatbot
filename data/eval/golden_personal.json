@@ -241,10 +241,18 @@
     },
     {
       "id": "pers-why-blocked",
-      "language": "en",
-      "question": "Why can't I register for CS301 yet?",
+      "language": "vi",
+      "question": "Tôi có đủ điều kiện học CS301 chưa? Nếu chưa thì còn thiếu môn tiên quyết nào?",
       "expect_route": "personal",
       "expect_tool": "get_my_course_eligibility",
+      "loose": true
+    },
+    {
+      "id": "pers-neg-eligible-general",
+      "language": "vi",
+      "question": "Học bổng Vingroup dành cho ai đủ điều kiện?",
+      "expect_route": "general",
+      "forbidden_facts": ["D2026CECS001", "PE101"],
       "loose": true
     },
     {

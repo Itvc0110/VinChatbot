@@ -102,6 +102,28 @@ _GENERIC_APP_DATA = (
     "nien khoa",
 )
 
+# Personal PROGRESS / ELIGIBILITY markers (Phase 5 polish). Unlike the generic list above, these count
+# as personal ONLY with an EXPLICIT first-person pronoun — NOT via the authenticated-ellipsis. Reason:
+# an authenticated student also asks the GENERAL version of these ("ai đủ điều kiện học bổng?", "do most
+# students graduate on time?", "what are the prerequisites for CS301?"), which has no first-person
+# pronoun; gating on the pronoun routes "Am I on track to graduate?" / "Tôi có đủ điều kiện học CS301?"
+# personal while leaving the general phrasings on the RAG path (precision: no over-fire). "register" /
+# "đăng ký" is deliberately NOT here (would catch "how do I register for courses?").
+_PERSONAL_PROGRESS = (
+    "on track",
+    "graduate on time",
+    "tot nghiep dung han",
+    "ra truong",
+    "eligible",
+    "eligibility",
+    "du dieu kien",
+    "prerequisite",
+    "prerequisites",
+    "tien quyet",
+    "blocked",
+    "bi chan",
+)
+
 # Official policy / regulation / institutional-fact terms — answers asserting these still require
 # RAG/official citations.
 _POLICY_TERMS = (
@@ -267,11 +289,19 @@ def classify_question_scope(
         normalized, _SELF_REFERENCE
     )
 
+    # A progress/eligibility intent counts as personal ONLY with an explicit first-person pronoun
+    # ("am I on track to graduate?", "tôi có đủ điều kiện học CS301?") — NOT via authenticated-ellipsis,
+    # so the general phrasings ("who is eligible…?", "do most students graduate on time?") stay general.
+    has_personal_progress = has_pronoun and _matches_any(normalized, _PERSONAL_PROGRESS)
+
     # A personal/app-data angle: an inherently-personal data noun, OR a generic app-data noun paired
     # with a first-person pronoun ("những môn của tôi") — or, for a signed-in student, a generic noun
-    # alone, since they routinely omit the pronoun ("điểm CS101?", "cố vấn?").
+    # alone, since they routinely omit the pronoun ("điểm CS101?", "cố vấn?") — or an explicit
+    # first-person progress/eligibility question.
     personal_app_data = (
-        has_inherent_personal or ((has_pronoun or authenticated) and has_generic_app_data)
+        has_inherent_personal
+        or ((has_pronoun or authenticated) and has_generic_app_data)
+        or has_personal_progress
     ) and not catalog_general
 
     if has_policy and (personal_app_data or has_pronoun):

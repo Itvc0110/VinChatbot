@@ -131,3 +131,34 @@ def test_catalog_question_is_not_personal_even_authenticated(message):
 def test_personal_questions_preserved_under_catalog_guard(message):
     # The catalog guard must NOT down-route genuine personal questions (no over-correction).
     assert classify_question_scope(message, authenticated=True) == "personal_app_data"
+
+
+# B1: progress / eligibility intents count as personal ONLY with an explicit first-person pronoun.
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Am I on track to graduate on time?",
+        "Tôi có tốt nghiệp đúng hạn không?",
+        "Tôi có đủ điều kiện học CS301 chưa? Nếu chưa thì vì sao?",
+        "Do I have the prerequisites for CS301?",
+        "Am I eligible for the Vingroup scholarship?",
+    ],
+)
+def test_first_person_progress_is_personal(message):
+    assert classify_question_scope(message, authenticated=True) in {"personal_app_data", "hybrid"}
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Who is eligible for the Vingroup scholarship?",
+        "Học bổng Vingroup dành cho ai đủ điều kiện?",
+        "Do most students graduate on time?",
+        "What are the prerequisites for CS301?",
+        "Sinh viên cần đủ điều kiện gì để tốt nghiệp?",
+    ],
+)
+def test_general_progress_without_first_person_is_not_personal(message):
+    # Over-fire guard: the GENERAL phrasings (no first-person pronoun) must stay off the personal path
+    # EVEN for a signed-in student — gating progress/eligibility terms on the pronoun is what prevents it.
+    assert classify_question_scope(message, authenticated=True) not in {"personal_app_data", "hybrid"}
