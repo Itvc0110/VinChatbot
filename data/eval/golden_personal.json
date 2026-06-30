@@ -1,5 +1,5 @@
 {
-  "description": "Phase 5 personalization golden set, facts rebuilt against the live DB (2026-06-30). Run as an AUTHENTICATED student (identity from --email, default student.cs.demo@vinuni.edu.vn: Bachelor of Computer Science, code D2026CECS001, GPA 2.97, 21/99/120 credits, advisor Minh Nguyen; current ACADEMIC courses CS102(retake)/CS201/GEN102/MATH102/PE101 in Summer Term 2026 — get_my_courses now reads the academic model so it matches the schedule/transcript). Scored by scripts/run_eval_personal.py for: dispatcher route (expect_route), which tools fired (expect_tool), and answer facts. NOT scored by run_eval.py (these need a live session + DB).",
+  "description": "Phase 5 personalization golden set, facts rebuilt against the live DB on the INTEGRATED branch (post PR#6 read-model; 2026-06-30). Run as an AUTHENTICATED student (identity from --email, default student.cs.demo@vinuni.edu.vn: Bachelor of Computer Science, code D2026CECS001; semester GPA 3.0 / cumulative CPA 3.12; 5 credits earned, 115 remaining of 120; advisor Minh Nguyen; current ACADEMIC courses CS102(retake)/CS201/GEN102/MATH102 in Summer Term 2026 from the dashboard read-model). NOTE: PR#6 changed get_my_academic_standing semantics (earned=passed-credits=5, was 21; projection uses cumulative CPA 3.12). Scored by scripts/run_eval_personal.py for: dispatcher route (expect_route), tools fired (expect_tool), and answer facts. NOT scored by run_eval.py (needs a live session + DB).",
   "student": "student.cs.demo@vinuni.edu.vn",
   "cases": [
     {
@@ -8,7 +8,7 @@
       "question": "What is my current GPA?",
       "expect_route": "personal",
       "expect_tool": "get_my_academic_standing",
-      "required_facts": ["2.97"]
+      "required_facts": ["3.0|3.12"]
     },
     {
       "id": "pers-gpa-vi",
@@ -16,7 +16,7 @@
       "question": "GPA hiện tại của tôi là bao nhiêu?",
       "expect_route": "personal",
       "expect_tool": "get_my_academic_standing",
-      "required_facts": ["2.97"]
+      "required_facts": ["3.0|3.12"]
     },
     {
       "id": "pers-credits-earned",
@@ -24,7 +24,7 @@
       "question": "How many credits have I earned so far?",
       "expect_route": "personal",
       "expect_tool": "get_my_academic_standing",
-      "required_facts": ["21"]
+      "required_facts": ["5"]
     },
     {
       "id": "pers-credits-required",
@@ -38,7 +38,7 @@
       "language": "vi",
       "question": "Tôi còn bao nhiêu tín chỉ nữa thì đủ điều kiện tốt nghiệp?",
       "expect_route": "personal",
-      "required_facts": ["99"]
+      "required_facts": ["115"]
     },
     {
       "id": "pers-standing",
@@ -119,7 +119,7 @@
       "question": "I want to graduate with an Excellent degree. What average grade do I need on my remaining credits?",
       "expect_route": "personal",
       "expect_tool": "project_gpa_for_target",
-      "required_facts": ["3.73"]
+      "required_facts": ["3.62"]
     },
     {
       "id": "pers-aim-excellent-vi",
@@ -127,7 +127,7 @@
       "question": "Tôi muốn tốt nghiệp loại Xuất sắc. Vậy điểm trung bình các môn còn lại của tôi cần đạt bao nhiêu?",
       "expect_route": "personal",
       "expect_tool": "project_gpa_for_target",
-      "required_facts": ["3.73"]
+      "required_facts": ["3.62"]
     },
     {
       "id": "pers-aim-33",
@@ -135,7 +135,7 @@
       "question": "What average do I need on my remaining credits to reach a 3.3 GPA?",
       "expect_route": "personal",
       "expect_tool": "project_gpa_for_target",
-      "required_facts": ["3.37"]
+      "required_facts": ["3.308|3.31|3.30"]
     },
     {
       "id": "pers-next-class",
@@ -175,14 +175,14 @@
       "question": "Với kết quả hiện tại, tôi còn có thể tốt nghiệp loại Xuất sắc được không?",
       "expect_route": "personal",
       "expect_tool": "project_gpa_for_target",
-      "required_facts": ["3.73"]
+      "required_facts": ["3.62"]
     },
     {
       "id": "pers-combined-standing",
       "language": "vi",
       "question": "Cho tôi biết GPA, số tín chỉ đã đạt và số tín chỉ còn lại của tôi.",
       "expect_route": "personal",
-      "required_facts": ["2.97", "21"]
+      "required_facts": ["3.0|3.12", "115"]
     },
     {
       "id": "pers-on-track",
