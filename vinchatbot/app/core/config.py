@@ -42,6 +42,20 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = Field(default=False, validation_alias="RATE_LIMIT_ENABLED")
     rate_limit_max_requests: int = Field(default=30, validation_alias="RATE_LIMIT_MAX_REQUESTS")
     rate_limit_window_seconds: int = Field(default=60, validation_alias="RATE_LIMIT_WINDOW_SECONDS")
+    # Trust X-Forwarded-For ONLY when the socket peer is a known proxy (comma-separated IPs). Empty =
+    # never trust XFF (use the socket peer) — prevents a client from spoofing its rate-limit key (A3).
+    trusted_proxies: str = Field(default="", validation_alias="TRUSTED_PROXIES")
+
+    # Login brute-force protection (A2): per-account + per-IP attempt limiting. After
+    # LOGIN_MAX_ATTEMPTS failures within the window, further attempts are 429'd until it rolls off.
+    login_max_attempts: int = Field(default=8, validation_alias="LOGIN_MAX_ATTEMPTS")
+    login_attempt_window_seconds: int = Field(
+        default=300, validation_alias="LOGIN_ATTEMPT_WINDOW_SECONDS"
+    )
+
+    # Vinnie is auth-only (verified students). Require a valid session on /chat + /chat/stream
+    # server-side (A4). Set false only to expose a public general-RAG chat (no personal tools).
+    require_auth_for_chat: bool = Field(default=True, validation_alias="REQUIRE_AUTH_FOR_CHAT")
 
     # Observability (Phase 1.5a). Structured logging + per-turn cost/token capture. All
     # fail-open and behavior-preserving; log_format=auto -> json in prod, text in dev.

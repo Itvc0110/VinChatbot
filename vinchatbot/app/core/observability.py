@@ -348,12 +348,19 @@ _EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 # Vietnamese-style phone numbers (leading 0 or +84). Deliberately NOT a generic long-digit rule —
 # that would scrub fee amounts / dates / policy codes, which we *want* visible in traces.
 _PHONE_RE = re.compile(r"(?:\+?84|0)\d{8,10}")
+# VinUni student codes, e.g. D2026CECS001 / D2026VIB002 (D + 4-digit year + 2–6 letters + 3 digits).
+# A direct identifier of the signed-in student in the tool↔agent exchange — mask it in traces/logs.
+# Anchored to this exact shape so it never scrubs course codes (CS102) or fee/date numbers.
+_STUDENT_CODE_RE = re.compile(r"\bD\d{4}[A-Z]{2,6}\d{3}\b")
 
 
 def scrub_pii(text: str) -> str:
-    """Mask direct identifiers (email, phone) while leaving amounts/dates intact so traces stay
-    useful for debugging. The bot already refuses personal-record requests upstream."""
-    return _PHONE_RE.sub("[phone]", _EMAIL_RE.sub("[email]", text))
+    """Mask direct identifiers (email, phone, student code) while leaving amounts/dates/course codes
+    intact so traces stay useful for debugging. Masks only the OBSERVABILITY copy — never the live
+    model input or the answer the student sees (which legitimately contains their own data)."""
+    masked = _EMAIL_RE.sub("[email]", text)
+    masked = _PHONE_RE.sub("[phone]", masked)
+    return _STUDENT_CODE_RE.sub("[student-id]", masked)
 
 
 def langfuse_mask(data: Any = None, **_: Any) -> Any:

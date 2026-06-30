@@ -12,16 +12,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from vinchatbot.app.agents.guardrails import (
-    CONVERSATIONAL_ACTIONS,
-    build_conversational_response,
-    build_guardrail_response,
-    resolve_guardrail_decision,
-)
 from vinchatbot.app.agents.vinuni_agent import VinUniAgentService
 from vinchatbot.app.core.observability import reset_student_identity, set_student_identity
 from vinchatbot.app.db.connection import get_app_db_pool
-from vinchatbot.app.dependencies.auth import get_optional_current_user
+from vinchatbot.app.dependencies.auth import get_chat_user
 from vinchatbot.app.repositories.auth import AuthenticatedUser
 from vinchatbot.app.repositories.conversations import ConversationRepository
 from vinchatbot.app.repositories.personalization import (
@@ -107,26 +101,16 @@ def _bind_student_identity(current_user: AuthenticatedUser | None):
 
 
 async def _resolve_chat(request: ChatRequest) -> ChatResponse:
-    """Run guardrails + the agent and return the FINAL, safety-checked ChatResponse.
+    """Run the agent and return the FINAL, safety-checked ChatResponse.
 
     Shared by the JSON endpoint and the streaming endpoint so both go through the
     identical faithfulness / moderation gates — the streamed answer is the verified
     one, never a raw generation that might later be retracted.
-    """
-    guardrail_decision = await resolve_guardrail_decision(
-        request.message,
-        list(request.filters.compact().values()) if request.filters else None,
-    )
-    if not guardrail_decision.allowed:
-        logger.info(
-            "Chat request handled before agent initialization action=%s conversation_id=%s",
-            guardrail_decision.action,
-            request.conversation_id,
-        )
-        if guardrail_decision.action in CONVERSATIONAL_ACTIONS:
-            return await build_conversational_response(guardrail_decision, request.message)
-        return build_guardrail_response(guardrail_decision, request.message)
 
+    Guardrails run ONCE, inside ``VinUniAgentService.chat`` (which builds the conversational /
+    guardrail responses AND logs the guard-handled turn). The earlier duplicate pre-call here was
+    removed to avoid double guard cost/latency per turn.
+    """
     try:
         return await get_agent_service().chat(request)
     except RuntimeError as exc:
@@ -229,7 +213,7 @@ async def chat(
     request: ChatRequest,
     current_user: Annotated[
         AuthenticatedUser | None,
-        Depends(get_optional_current_user),
+        Depends(get_chat_user),
     ] = None,
     conversation_repository: Annotated[
         ConversationRepository | None,
@@ -279,7 +263,7 @@ async def chat_stream(
     request: ChatRequest,
     current_user: Annotated[
         AuthenticatedUser | None,
-        Depends(get_optional_current_user),
+        Depends(get_chat_user),
     ] = None,
     conversation_repository: Annotated[
         ConversationRepository | None,

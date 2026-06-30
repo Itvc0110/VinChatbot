@@ -8,7 +8,9 @@ import pytest
 from fastapi import FastAPI, HTTPException
 from httpx import ASGITransport, AsyncClient
 
+from vinchatbot.app.api import routes_auth
 from vinchatbot.app.api.routes_auth import router as auth_router
+from vinchatbot.app.core.config import get_settings
 from vinchatbot.app.dependencies.auth import get_auth_repository, require_roles
 from vinchatbot.app.repositories.auth import AuthenticatedUser, UserAuthRecord
 from vinchatbot.app.security.passwords import hash_password, verify_password
@@ -220,6 +222,55 @@ def test_inactive_user_cannot_login():
     response = _run(request())
 
     assert response.status_code == 401
+
+
+def test_login_locks_out_after_repeated_failures(monkeypatch):
+    # A2: after LOGIN_MAX_ATTEMPTS failures the endpoint 429s — even with the correct password — until
+    # the window rolls off. Reset the module limiter + shrink the threshold for a fast test.
+    monkeypatch.setattr(routes_auth, "_login_limiter", None)
+    settings = get_settings()
+    monkeypatch.setattr(settings, "login_max_attempts", 3)
+    monkeypatch.setattr(settings, "login_attempt_window_seconds", 300)
+    repository = FakeAuthRepository()
+
+    async def run():
+        transport = ASGITransport(app=_auth_app(repository))
+        async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+            wrong = [
+                (await client.post(
+                    "/auth/login",
+                    json={"email": "student.business.demo@vinuni.edu.vn", "password": "nope"},
+                )).status_code
+                for _ in range(3)
+            ]
+            locked = await client.post(
+                "/auth/login",
+                json={"email": "student.business.demo@vinuni.edu.vn", "password": "nope"},
+            )
+            even_correct = await client.post(
+                "/auth/login",
+                json={"email": "student.business.demo@vinuni.edu.vn", "password": DEMO_PASSWORD},
+            )
+            return wrong, locked, even_correct
+
+    wrong, locked, even_correct = _run(run())
+    assert wrong == [401, 401, 401]
+    assert locked.status_code == 429
+    assert int(locked.headers.get("Retry-After", "0")) >= 1
+    assert even_correct.status_code == 429  # locked regardless of correct password within the window
+
+
+def test_successful_login_does_not_count_toward_lockout(monkeypatch):
+    # Only FAILED attempts count: a correct login clears the counter, so repeated good logins never lock.
+    monkeypatch.setattr(routes_auth, "_login_limiter", None)
+    settings = get_settings()
+    monkeypatch.setattr(settings, "login_max_attempts", 3)
+    repository = FakeAuthRepository()
+
+    async def run():
+        return [(await _login(repository)).status_code for _ in range(5)]
+
+    assert _run(run()) == [200, 200, 200, 200, 200]
 
 
 def test_me_returns_safe_current_user_data():

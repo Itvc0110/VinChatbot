@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException
 from httpx import ASGITransport, AsyncClient
 
 from vinchatbot.app.api import routes_chat
+from vinchatbot.app.core.config import get_settings
 from vinchatbot.app.repositories.auth import AuthenticatedUser
 from vinchatbot.app.schemas.chat import ChatRequest, ChatResponse
 
@@ -105,6 +106,9 @@ def test_unauthenticated_chat_still_works_and_does_not_persist(monkeypatch):
 
 def test_unauthenticated_http_chat_response_omits_new_null_field(monkeypatch):
     monkeypatch.setattr(routes_chat, "_resolve_chat", _fake_resolve_chat)
+    # This test covers the anonymous response serialization; allow anon by turning the auth-only
+    # gate off for it (A4 makes /chat require a verified session by default).
+    monkeypatch.setattr(get_settings(), "require_auth_for_chat", False)
     app = FastAPI()
     app.include_router(routes_chat.router)
 
