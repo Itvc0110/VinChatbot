@@ -57,3 +57,12 @@ def test_scrub_pii_masks_identifiers_but_keeps_course_codes_and_amounts():
     assert "CS102" in out
     assert "815,850,000" in out
     assert "@vinuni.edu.vn" not in out and "D2026CECS001" not in out
+
+
+def test_scrub_pii_masks_all_student_code_shapes():
+    # Covers the new DB shapes (VU25CECS005, VU24VIB025, D13CECS001) plus the legacy D2026CECS001.
+    for code in ("VU25CECS005", "VU24VIB025", "D13CECS001", "D2026CECS001"):
+        assert code not in scrub_pii(f"student {code} asked")
+    # must NOT mask a course code or a plain term like CS102 / GEN101
+    assert "CS102" in scrub_pii("enrolled in CS102")
+    assert "GEN101" in scrub_pii("passed GEN101")

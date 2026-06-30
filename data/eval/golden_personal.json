@@ -1,5 +1,5 @@
 {
-  "description": "Phase 5 personalization golden set, facts rebuilt against the live DB on the INTEGRATED branch (post PR#6 read-model; 2026-06-30). Run as an AUTHENTICATED student (identity from --email, default student.cs.demo@vinuni.edu.vn: Bachelor of Computer Science, code D2026CECS001; semester GPA 3.0 / cumulative CPA 3.12; 5 credits earned, 115 remaining of 120; advisor Minh Nguyen; current ACADEMIC courses CS102(retake)/CS201/GEN102/MATH102 in Summer Term 2026 from the dashboard read-model). NOTE: PR#6 changed get_my_academic_standing semantics (earned=passed-credits=5, was 21; projection uses cumulative CPA 3.12). Scored by scripts/run_eval_personal.py for: dispatcher route (expect_route), tools fired (expect_tool), and answer facts. NOT scored by run_eval.py (needs a live session + DB).",
+  "description": "Phase 5 personalization golden set, facts re-pinned against the NEW DB (ep-delicate-mouse; 2026-07-01). Run as an AUTHENTICATED student (identity from --email, default student.cs.demo@vinuni.edu.vn: Bachelor of Science in Computer Science, code D13CECS001, cohort 2025, advisor 'Demo CS Advisor'; semester GPA 3.0 / cumulative CPA 3.12; 5 credits earned, 115 remaining of 120; current ACADEMIC courses CS102(retake)/CS201/GEN102/MATH102 in Summer Term 2026 from the dashboard read-model). 'my GPA' = cumulative CPA. Scored by scripts/run_eval_personal.py for: dispatcher route (expect_route), tools fired (expect_tool), and answer facts. NOT scored by run_eval.py (needs a live session + DB).",
   "student": "student.cs.demo@vinuni.edu.vn",
   "cases": [
     {
@@ -62,7 +62,7 @@
       "question": "Cố vấn học tập của tôi là ai?",
       "expect_route": "personal",
       "expect_tool": "get_my_profile",
-      "required_facts": ["Minh Nguyen"]
+      "required_facts": ["Demo CS Advisor"]
     },
     {
       "id": "pers-grade-cs101",
@@ -229,7 +229,7 @@
       "question": "What is my student ID?",
       "expect_route": "personal",
       "expect_tool": "get_my_profile",
-      "required_facts": ["D2026CECS001"]
+      "required_facts": ["D13CECS001"]
     },
     {
       "id": "pers-cohort-vi",
@@ -237,7 +237,7 @@
       "question": "Tôi thuộc khóa (cohort) nào?",
       "expect_route": "personal",
       "expect_tool": "get_my_profile",
-      "required_facts": ["2026"]
+      "required_facts": ["2025"]
     },
     {
       "id": "pers-why-blocked",
