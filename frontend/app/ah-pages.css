@@ -979,9 +979,12 @@
 }
 
 .sched-week-scroll {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: min(74vh, calc(100dvh - 172px));
   border-radius: var(--ah-radius);
   box-shadow: var(--ah-shadow-soft, var(--ah-shadow-2));
+  background: var(--sched-surface);
+  overscroll-behavior: contain;
 }
 .sched-week-grid {
   min-width: 1184px;
@@ -991,9 +994,13 @@
   border: 1px solid var(--sched-border);
   border-radius: var(--ah-radius);
   background: var(--sched-surface);
-  overflow: hidden;
+  overflow: visible;
 }
 .sched-week-nav {
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 8;
   background: var(--sched-primary-dark);
   color: #fff;
   display: flex;
@@ -1022,6 +1029,9 @@
   background: var(--sched-primary-soft);
 }
 .sched-week-head {
+  position: sticky;
+  top: 0;
+  z-index: 6;
   background: var(--sched-surface-soft);
   border-left: 1px solid var(--sched-border);
   border-bottom: 1px solid var(--sched-border);
@@ -1058,6 +1068,9 @@
     var(--sched-surface);
 }
 .sched-time-rail {
+  position: sticky;
+  left: 0;
+  z-index: 4;
   border-right: 1px solid var(--sched-border);
 }
 .sched-week-day {

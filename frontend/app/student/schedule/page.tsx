@@ -139,15 +139,17 @@ const STR: Record<Lang, ScheduleCopy> = {
 };
 
 const VIEW_KEYS: ScheduleViewMode[] = ["week", "month"];
-const TIMETABLE_START_HOUR = 6;
-const TIMETABLE_END_HOUR = 19;
+const TIMETABLE_START_HOUR = 0;
+const TIMETABLE_END_HOUR = 24;
 const HOUR_HEIGHT = 58;
 const TIMETABLE_BODY_HEIGHT = (TIMETABLE_END_HOUR - TIMETABLE_START_HOUR) * HOUR_HEIGHT;
 const TIMETABLE_HOURS = Array.from(
-  { length: TIMETABLE_END_HOUR - TIMETABLE_START_HOUR },
+  { length: TIMETABLE_END_HOUR - TIMETABLE_START_HOUR + 1 },
   (_, i) => TIMETABLE_START_HOUR + i
 );
 const MIN_EVENT_HEIGHT = 52;
+const NON_OVERLAP_GAP_MINUTES = 15;
+const NON_OVERLAP_EVENT_TYPES = new Set<CalendarEventType>(["class", "exam"]);
 
 const PERIODS = [
   { no: 1, start: 6 * 60 + 45, end: 7 * 60 + 30 },
@@ -248,12 +250,8 @@ function periodLabel(event: CalendarEvent, s: ScheduleCopy): string | null {
   if (event.all_day || !event.end) return null;
   const startMin = minutesOfDay(new Date(event.start));
   const endMin = minutesOfDay(new Date(event.end));
-  const first =
-    PERIODS.find((p) => startMin >= p.start - 8 && startMin <= p.end + 8) ??
-    PERIODS.find((p) => p.start >= startMin);
-  const last =
-    [...PERIODS].reverse().find((p) => endMin >= p.start - 8 && endMin <= p.end + 12) ??
-    [...PERIODS].reverse().find((p) => p.end <= endMin);
+  const first = PERIODS.find((p) => startMin >= p.start - 8 && startMin <= p.end + 8);
+  const last = [...PERIODS].reverse().find((p) => endMin >= p.start - 8 && endMin <= p.end + 12);
   if (!first || !last) return null;
   return `${s.period} ${first.no}${last.no !== first.no ? ` - ${last.no}` : ""}`;
 }
@@ -289,14 +287,73 @@ function eventTone(type: CalendarEventType): string {
   return "event";
 }
 
-function eventPositionStyle(event: CalendarEvent): CSSProperties {
+type EventSpan = { start: number; end: number };
+
+function eventSpan(event: CalendarEvent): EventSpan {
   const start = new Date(event.start);
   const end = event.end ? new Date(event.end) : new Date(start.getTime() + 60 * 60 * 1000);
   const startMin = event.all_day ? TIMETABLE_START_HOUR * 60 : minutesOfDay(start);
   const rawEndMin = event.all_day ? startMin + 60 : minutesOfDay(end);
   const endMin = rawEndMin <= startMin ? startMin + 60 : rawEndMin;
-  const top = ((startMin - TIMETABLE_START_HOUR * 60) / 60) * HOUR_HEIGHT;
-  const height = ((endMin - startMin) / 60) * HOUR_HEIGHT;
+  return {
+    start: clamp(startMin, TIMETABLE_START_HOUR * 60, TIMETABLE_END_HOUR * 60),
+    end: clamp(endMin, TIMETABLE_START_HOUR * 60, TIMETABLE_END_HOUR * 60),
+  };
+}
+
+function dateAtMinutes(base: Date, minutes: number): Date {
+  const next = new Date(base);
+  next.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+  return next;
+}
+
+function shouldSeparateEvent(event: CalendarEvent): boolean {
+  return !event.all_day && Boolean(event.end) && NON_OVERLAP_EVENT_TYPES.has(event.type);
+}
+
+function eventWithTime(event: CalendarEvent, startMin: number, endMin: number): CalendarEvent {
+  const start = new Date(event.start);
+  const nextStart = dateAtMinutes(start, startMin);
+  const nextEnd = dateAtMinutes(start, endMin);
+  if (nextStart.getTime() === start.getTime() && event.end && nextEnd.getTime() === new Date(event.end).getTime()) {
+    return event;
+  }
+  return { ...event, start: nextStart.toISOString(), end: nextEnd.toISOString() };
+}
+
+function separateOverlappingTimes(events: CalendarEvent[]): CalendarEvent[] {
+  const separated: CalendarEvent[] = [];
+  const byDay = groupByDay(events);
+  const dayEnd = TIMETABLE_END_HOUR * 60;
+
+  for (const dayEvents of byDay.values()) {
+    let nextAvailable = TIMETABLE_START_HOUR * 60;
+
+    for (const event of sortEvents(dayEvents)) {
+      if (!shouldSeparateEvent(event)) {
+        separated.push(event);
+        continue;
+      }
+
+      const span = eventSpan(event);
+      const duration = Math.max(15, span.end - span.start);
+      const start = Math.max(span.start, nextAvailable);
+      const end = Math.min(dayEnd, start + duration);
+      const safeStart = end > start ? start : Math.max(TIMETABLE_START_HOUR * 60, dayEnd - duration);
+      const safeEnd = Math.min(dayEnd, safeStart + duration);
+
+      separated.push(eventWithTime(event, safeStart, safeEnd));
+      nextAvailable = Math.min(dayEnd, safeEnd + NON_OVERLAP_GAP_MINUTES);
+    }
+  }
+
+  return sortEvents(separated);
+}
+
+function eventPositionStyle(event: CalendarEvent): CSSProperties {
+  const { start, end } = eventSpan(event);
+  const top = ((start - TIMETABLE_START_HOUR * 60) / 60) * HOUR_HEIGHT;
+  const height = ((end - start) / 60) * HOUR_HEIGHT;
   const safeHeight = Math.max(MIN_EVENT_HEIGHT, height);
   return {
     "--event-top": `${clamp(top, 0, TIMETABLE_BODY_HEIGHT - MIN_EVENT_HEIGHT)}px`,
@@ -527,9 +584,15 @@ function WeekSchedule({
   const days = weekDays(cursor);
   const weekStart = startOfWeek(cursor);
   const byDay = useMemo(() => groupByDay(events), [events]);
+  const scrollRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const target = Math.max(0, (6 - TIMETABLE_START_HOUR) * HOUR_HEIGHT);
+    scrollRef.current?.scrollTo({ top: target });
+  }, [cursor]);
 
   return (
-    <section className="sched-week-scroll" aria-label={s.views.week}>
+    <section ref={scrollRef} className="sched-week-scroll" aria-label={s.views.week}>
       <div
         className="sched-week-grid"
         style={
@@ -583,9 +646,7 @@ function WeekSchedule({
                   onClick={() => onSelectEvent(event)}
                 >
                   <span className="sched-week-event-title">{eventTitle(event)}</span>
-                  <span className="sched-week-event-meta">
-                    {periodLabel(event, s) ?? timeRange(event, locale, s)}
-                  </span>
+                  <span className="sched-week-event-meta">{timeRange(event, locale, s)}</span>
                   {event.location && <span className="sched-week-event-meta">{event.location}</span>}
                   {instructorFrom(event) && (
                     <span className="sched-week-event-meta">{instructorFrom(event)}</span>
@@ -642,7 +703,7 @@ export default function StudentCalendarPage() {
     [sched]
   );
   const events = useMemo(
-    () => uniqueEvents([...calEvents, ...academicEvents]),
+    () => separateOverlappingTimes(uniqueEvents([...calEvents, ...academicEvents])),
     [calEvents, academicEvents]
   );
 

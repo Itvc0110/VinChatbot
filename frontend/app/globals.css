@@ -72,46 +72,41 @@
 }
 
 [data-theme="dark"] {
-  /* NurA-inspired cool blue-black: deep navy page, never pure black; surfaces
-     LIGHTEN as they rise. The whole ramp carries a subtle cool (blue) temperature
-     so it reads as one calm, modern material — and unifies with the navy sidebar
-     (portal.css) and the navy-tinted top nav (ah-polish.css). */
-  --bg: #0a0e15;
-  --surface: #11161f;
-  --surface-2: #181f2b;
-  --surface-3: #222b3a;
+  /* Dracula-inspired: lighter graphite-purple surfaces with a little glossy lift,
+     avoiding the old near-black page while keeping strong contrast. */
+  --bg: #282a36;
+  --surface: #343746;
+  --surface-2: #3d4052;
+  --surface-3: #44475a;
 
-  /* hairlines are a low-opacity cool-white so they read on the blue-black ramp */
-  --border: rgba(141, 166, 216, 0.13);
-  --border-strong: rgba(141, 166, 216, 0.22);
+  --border: rgba(248, 248, 242, 0.13);
+  --border-strong: rgba(248, 248, 242, 0.24);
 
-  --foreground: #e6ebf4; /* cool off-white, not pure white (avoids halation) */
-  --muted-foreground: #9aa6be; /* ≥7:1 on surfaces */
-  --faint: #79859b; /* ≥3:1 for small UI labels */
+  --foreground: #f8f8f2;
+  --muted-foreground: #c9ccdc;
+  --faint: #aeb4cb;
 
-  /* vivid NurA blue for fills; a lighter, readable tint for text/links on dark */
-  --primary: #2d6cf0; /* fill (buttons) — white text passes AA (4.68:1) */
-  --primary-hover: #4480f5;
+  --primary: #5aa9ff;
+  --primary-hover: #7bbcff;
   --primary-foreground: #ffffff;
-  --accent: #7fb2f7; /* readable as text/links on dark (≥6.9:1 on surfaces) */
-  --accent-tint: rgba(95, 145, 240, 0.13);
-  --accent-tint-strong: rgba(95, 145, 240, 0.2);
-  --accent-border: rgba(110, 160, 245, 0.3);
-  --ring: rgba(95, 145, 240, 0.55);
+  --accent: #8be9fd;
+  --accent-tint: rgba(139, 233, 253, 0.13);
+  --accent-tint-strong: rgba(139, 233, 253, 0.2);
+  --accent-border: rgba(139, 233, 253, 0.32);
+  --ring: rgba(139, 233, 253, 0.48);
 
-  --success: #4cc38a;
-  --success-bg: rgba(76, 195, 138, 0.13);
-  --warning: #e0a44a;
-  --warning-bg: rgba(224, 164, 74, 0.14);
-  --danger: #f06a62;
-  --danger-bg: rgba(240, 106, 98, 0.14);
-  --neutral: #9aa3b2;
-  --neutral-bg: rgba(154, 163, 178, 0.14);
+  --success: #50fa7b;
+  --success-bg: rgba(80, 250, 123, 0.13);
+  --warning: #f1fa8c;
+  --warning-bg: rgba(241, 250, 140, 0.14);
+  --danger: #ff79c6;
+  --danger-bg: rgba(255, 121, 198, 0.14);
+  --neutral: #bdc2d7;
+  --neutral-bg: rgba(189, 194, 215, 0.15);
 
-  /* deeper shadows read against the blue-black; a faint blue cast adds depth */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.45);
-  --shadow-pop: 0 16px 40px rgba(2, 6, 18, 0.6);
+  --shadow-sm: 0 1px 2px rgba(15, 17, 28, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  --shadow-card: 0 10px 30px rgba(15, 17, 28, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-pop: 0 24px 58px rgba(15, 17, 28, 0.46), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 
   color-scheme: dark;
 }
@@ -193,42 +188,40 @@
 }
 
 [data-theme="dark"] {
-  /* Academic Horizon is light-only by spec; this dark extension is tuned to the
-     same NurA cool blue-black ramp as the base tokens above, so the portal pages
-     and the chat share one material. */
-  --ah-bg: #0a0e15;
-  --ah-surface: #11161f;
-  --ah-surface-2: #181f2b;
-  --ah-surface-3: #222b3a;
-  --ah-surface-4: #2c374a;
+  --ah-bg: #282a36;
+  --ah-surface: #343746;
+  --ah-surface-2: #3d4052;
+  --ah-surface-3: #44475a;
+  --ah-surface-4: #51566d;
 
-  --ah-primary: #8fb8f7; /* strong headings/icons on dark */
-  --ah-brand: #2d6cf0; /* vivid NurA blue — fills, active states, links */
-  --ah-brand-hover: #4480f5;
+  --ah-primary: #8be9fd;
+  --ah-brand: #5aa9ff;
+  --ah-brand-hover: #7bbcff;
   --ah-on-primary: #ffffff;
-  --ah-primary-tint: rgba(95, 145, 240, 0.18);
-  --ah-on-primary-tint: #a9c8f7;
+  --ah-primary-tint: rgba(139, 233, 253, 0.15);
+  --ah-on-primary-tint: #8be9fd;
 
-  --ah-text: #e6ebf4;
-  --ah-text-2: #b2bfd6;
-  --ah-muted: #8593ad;
-  --ah-border: rgba(141, 166, 216, 0.14);
-  --ah-border-strong: rgba(141, 166, 216, 0.24);
-  --ah-outline: #8090aa;
+  --ah-text: #f8f8f2;
+  --ah-text-2: #d7d9e8;
+  --ah-muted: #bdc2d7;
+  --ah-border: rgba(248, 248, 242, 0.13);
+  --ah-border-strong: rgba(248, 248, 242, 0.24);
+  --ah-outline: #aeb4cb;
 
-  --ah-info: #5aa0f0;
-  --ah-info-bg: rgba(45, 108, 240, 0.18);
-  --ah-success-bg: rgba(16, 185, 129, 0.16);
-  --ah-warning: #e0a44a;
-  --ah-warning-bg: rgba(224, 164, 74, 0.16);
-  --ah-error: #f06a62;
-  --ah-error-bg: rgba(240, 106, 98, 0.16);
-  --ah-secondary: #aab6c6;
-  --ah-secondary-bg: rgba(130, 150, 180, 0.2);
+  --ah-info: #8be9fd;
+  --ah-info-bg: rgba(139, 233, 253, 0.14);
+  --ah-success: #50fa7b;
+  --ah-success-bg: rgba(80, 250, 123, 0.14);
+  --ah-warning: #f1fa8c;
+  --ah-warning-bg: rgba(241, 250, 140, 0.14);
+  --ah-error: #ff79c6;
+  --ah-error-bg: rgba(255, 121, 198, 0.14);
+  --ah-secondary: #d7d9e8;
+  --ah-secondary-bg: rgba(189, 194, 215, 0.17);
 
-  --ah-shadow-2: 0 4px 20px rgba(0, 0, 0, 0.5);
-  --ah-shadow-pop: 0 16px 40px rgba(2, 6, 18, 0.6);
-  --ah-ring: rgba(95, 145, 240, 0.32);
+  --ah-shadow-2: 0 12px 32px rgba(15, 17, 28, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --ah-shadow-pop: 0 26px 64px rgba(15, 17, 28, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --ah-ring: rgba(139, 233, 253, 0.36);
 }
 
 * {
@@ -694,15 +687,21 @@ textarea::placeholder {
   margin-bottom: 6px;
 }
 .bot-avatar {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background: var(--primary);
-  color: var(--primary-foreground);
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: #fff;
+  color: inherit;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
+  padding: 1px;
+}
+.bot-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 .msg .body {
   white-space: pre-wrap;

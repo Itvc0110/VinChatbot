@@ -5,6 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import { ChatCitationList } from "./ChatCitationList";
 import { FlagForm } from "./FlagForm";
 import { StreamingStatus } from "./chat/StreamingStatus";
+import { LogoVinnie } from "./shell/Logos";
 
 // Optional inline-citation wiring: turns [1], [2]… in the answer text into clickable
 // markers that open the source panel for that exact source.
@@ -17,13 +18,8 @@ interface CiteOpts {
 
 function BotAvatar() {
   return (
-    <span className="bot-avatar" aria-hidden="true">
-      <svg viewBox="0 0 24 24" width="13" height="13">
-        <path
-          fill="#fff"
-          d="M12 3 1 8l11 5 9-4.09V14h2V8L12 3zM5 13.18v3.2L12 20l7-3.62v-3.2l-7 3.2-7-3.4z"
-        />
-      </svg>
+    <span className="bot-avatar brand-logo-tile" aria-hidden="true">
+      <LogoVinnie size={18} />
     </span>
   );
 }

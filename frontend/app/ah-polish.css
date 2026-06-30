@@ -31,8 +31,12 @@
 }
 [data-theme="dark"] .ah-studentshell,
 [data-theme="dark"] .ah-authframe {
-  --ah-shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.40), 0 6px 18px rgba(0, 0, 0, 0.40);
-  --ah-shadow-lift: 0 2px 8px rgba(0, 0, 0, 0.50), 0 16px 34px rgba(0, 0, 0, 0.55);
+  --ah-shadow-soft: 0 1px 2px rgba(15, 17, 28, 0.28),
+    0 10px 24px rgba(15, 17, 28, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  --ah-shadow-lift: 0 4px 10px rgba(15, 17, 28, 0.32),
+    0 20px 42px rgba(15, 17, 28, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
 /* ---- Respect reduced-motion: drop transforms/animations, keep color fades -- */
@@ -268,13 +272,13 @@
   color: #fff;
 }
 [data-theme="dark"] .ah-topnav {
-  /* its own navy-tinted dark surface, distinct from the page (#0a0e15) and the
-     default card surface (#11161f); blue-gray hairline; soft (not harsh) depth */
+  /* Dracula graphite surface with a soft glossy edge, lighter than the old near-black nav. */
   min-height: 64px;
   padding-block: 0;
-  background: #1a2130;
-  border-bottom: 1px solid rgba(125, 155, 200, 0.18);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.30), 0 6px 22px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(180deg, #3b3f51 0%, #343746 100%);
+  border-bottom: 1px solid rgba(248, 248, 242, 0.14);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 10px 28px rgba(15, 17, 28, 0.34);
 }
 [data-theme="dark"] .ah-topnav-brand {
   font-size: 18px;
@@ -304,15 +308,16 @@
 [data-theme="dark"] .ah-topnav .icon-btn,
 [data-theme="dark"] .ah-topnav .ah-iconbtn,
 [data-theme="dark"] .ah-topnav .ah-profile {
-  background: var(--ah-surface);
+  background: rgba(248, 248, 242, 0.06);
   border-color: var(--ah-border);
   color: var(--ah-text-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 [data-theme="dark"] .ah-topnav .seg-opt {
   color: var(--ah-text-2);
 }
 [data-theme="dark"] .ah-topnav .seg-opt.active {
-  background: var(--ah-surface-2);
+  background: rgba(139, 233, 253, 0.13);
   color: var(--ah-brand);
 }
 [data-theme="dark"] .ah-topnav .ah-avatar {

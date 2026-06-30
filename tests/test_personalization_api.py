@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from fastapi import FastAPI
@@ -41,6 +41,9 @@ OTHER_USER_ID = uuid.UUID("99999999-9999-9999-9999-999999999999")
 PROFILE_ID = uuid.UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")
 INSTITUTE_ID = uuid.UUID("dddddddd-dddd-dddd-dddd-dddddddddddd")
 COURSE_ID = uuid.UUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
+FACULTY_ID = uuid.UUID("77777777-7777-7777-7777-777777777777")
+PROGRAM_ID = uuid.UUID("88888888-8888-8888-8888-888888888888")
+TERM_ID = uuid.UUID("99999999-9999-9999-9999-999999999990")
 NOW = datetime(2026, 10, 1, tzinfo=UTC)
 
 
@@ -337,42 +340,10 @@ class FakeStudentRepository:
         }
 
     async def get_courses(self, student_profile_id):
-        self.profile_ids_seen.append(student_profile_id)
-        # More than the bound so truncation is observable.
-        return [
-            {
-                "id": uuid.uuid5(uuid.NAMESPACE_URL, f"course-{index}"),
-                "course_code": f"CSC{200 + index}",
-                "course_title": f"Course {index}",
-                "credits": 3,
-                "semester": "Fall 2026",
-                "academic_year": "2026-2027",
-                "instructor": "Tuan Nguyen",
-                "institute": None,
-            }
-            for index in range(MAX_CONTEXT_COURSES + 2)
-        ]
+        raise AssertionError("legacy portal courses should not be used when academic data exists")
 
     async def get_schedule(self, student_profile_id, *, upcoming_only=True):
-        self.profile_ids_seen.append(student_profile_id)
-        assert upcoming_only is True
-        return [
-            {
-                "id": uuid.UUID("11111111-1111-1111-1111-111111111111"),
-                "course_id": COURSE_ID,
-                "course_code": "CSC202",
-                "course_title": "Data Structures and Algorithms",
-                "title": "CSC202 Lab",
-                "schedule_type": "lab",
-                "start_time": NOW + timedelta(days=1),
-                "end_time": NOW + timedelta(days=1, hours=2),
-                "location": "VinUni Campus",
-                "building": "Building 2",
-                "room": "201",
-                "instructor": "Tuan Nguyen",
-                "recurrence_rule": None,
-            }
-        ]
+        raise AssertionError("legacy portal schedule should not be used when academic data exists")
 
     async def get_deadlines(self, student_profile_id, *, upcoming_only=True):
         self.profile_ids_seen.append(student_profile_id)
@@ -457,10 +428,171 @@ class FakeStudentRepository:
         ]
 
 
-def _repository_with_fake_students() -> tuple[PersonalizationRepository, FakeStudentRepository]:
+class FakeAcademicRepository:
+    def __init__(self) -> None:
+        self.user_ids_seen: list[uuid.UUID] = []
+        self.student_ids_seen: list[uuid.UUID] = []
+
+    async def get_student_profile_by_user(self, user_id):
+        self.user_ids_seen.append(user_id)
+        if user_id != STUDENT_USER_ID:
+            return None
+        return {
+            "id": PROFILE_ID,
+            "user_id": user_id,
+            "student_code": "D2026CECS001",
+            "full_name": "Demo CECS Student",
+            "current_year": 1,
+            "cohort_year": 2026,
+            "status": "active",
+            "faculty_id": FACULTY_ID,
+            "faculty_code": "CECS",
+            "faculty_name": "College of Engineering and Computer Science",
+            "program_id": PROGRAM_ID,
+            "program_code": "BS-CS",
+            "program_name": "Computer Science",
+            "program_degree_level": "bachelor",
+            "program_curriculum_year": 2026,
+            "program_total_required_credits": 120,
+        }
+
+    async def get_current_term(self):
+        return {
+            "id": TERM_ID,
+            "code": "2026-SUMMER",
+            "name": "Summer Term 2026",
+            "start_date": date(2026, 6, 1),
+            "end_date": date(2026, 7, 31),
+            "academic_year": 2026,
+            "term_order": 3,
+        }
+
+    async def get_student_transcript(self, student_id):
+        self.student_ids_seen.append(student_id)
+        rows = [
+            self._enrollment(
+                student_id=student_id,
+                course_id=COURSE_ID,
+                code="CSC202",
+                name="Data Structures and Algorithms",
+                status="completed",
+                credits=5,
+                grade_4=Decimal("3.12"),
+                passed=True,
+                earned_credits=5,
+                is_gpa_counted=True,
+            )
+        ]
+        for index in range(MAX_CONTEXT_COURSES + 2):
+            rows.append(
+                self._enrollment(
+                    student_id=student_id,
+                    course_id=uuid.uuid5(uuid.NAMESPACE_URL, f"active-course-{index}"),
+                    code=f"CS{300 + index}",
+                    name=f"Academic Course {index}",
+                    status="enrolled",
+                    credits=3,
+                    grade_4=None,
+                    passed=False,
+                    earned_credits=0,
+                    is_gpa_counted=False,
+                )
+            )
+        return rows
+
+    async def get_curriculum(self, program_id):
+        return [
+            {
+                "course_id": uuid.uuid5(uuid.NAMESPACE_URL, f"active-course-{index}"),
+                "course_code": f"CS{300 + index}",
+                "course_name": f"Academic Course {index}",
+                "credits": 3,
+                "category": "major_core",
+                "is_required": True,
+                "suggested_year": 1,
+                "suggested_term": 3,
+                "course_level": 300 + index,
+                "department_code": "CS",
+                "is_general_education": False,
+                "description": None,
+            }
+            for index in range(MAX_CONTEXT_COURSES + 2)
+        ]
+
+    async def get_student_meetings_in_range(self, *, student_id, start_at, end_at):
+        self.student_ids_seen.append(student_id)
+        return [
+            {
+                "id": uuid.UUID("11111111-1111-1111-1111-111111111111"),
+                "course_code": "CS300",
+                "course_name": "Academic Course 0",
+                "title": "CS300 Lab",
+                "meeting_type": "lab",
+                "start_at": NOW + timedelta(days=1),
+                "end_at": NOW + timedelta(days=1, hours=2),
+                "section_code": "A",
+                "instructor_name": "Tuan Nguyen",
+                "room_name": "201",
+                "building": "Building 2",
+                "note": None,
+            }
+        ]
+
+    def _enrollment(
+        self,
+        *,
+        student_id,
+        course_id,
+        code,
+        name,
+        status,
+        credits,
+        grade_4,
+        passed,
+        earned_credits,
+        is_gpa_counted,
+    ):
+        return {
+            "id": uuid.uuid5(uuid.NAMESPACE_URL, f"enrollment-{course_id}-{status}"),
+            "student_id": student_id,
+            "status": status,
+            "attempt_no": 1,
+            "is_improvement": False,
+            "retake_of_enrollment_id": None,
+            "grade_10": None,
+            "grade_4": grade_4,
+            "letter_grade": "B" if grade_4 is not None else None,
+            "passed": passed,
+            "earned_credits": earned_credits,
+            "is_gpa_counted": is_gpa_counted,
+            "completed_at": NOW if passed else None,
+            "term_id": TERM_ID,
+            "term_code": "2026-SUMMER",
+            "term_name": "Summer Term 2026",
+            "start_date": date(2026, 6, 1),
+            "end_date": date(2026, 7, 31),
+            "academic_year": 2026,
+            "term_order": 3,
+            "course_id": course_id,
+            "course_code": code,
+            "course_name": name,
+            "credits": credits,
+            "course_level": 300,
+            "department_code": "CS",
+            "is_general_education": False,
+            "section_id": uuid.uuid5(uuid.NAMESPACE_URL, f"section-{course_id}"),
+            "section_code": "A",
+        }
+
+
+def _repository_with_fake_students() -> tuple[
+    PersonalizationRepository, FakeStudentRepository, FakeAcademicRepository
+]:
     repository = PersonalizationRepository(pool=None)  # type: ignore[arg-type]
     fake_students = FakeStudentRepository()
+    fake_academic = FakeAcademicRepository()
     repository.students = fake_students  # type: ignore[assignment]
+    repository.academic = fake_academic  # type: ignore[assignment]
 
     async def fake_forum_topics(profile):
         assert profile["id"] == PROFILE_ID
@@ -489,38 +621,44 @@ def _repository_with_fake_students() -> tuple[PersonalizationRepository, FakeStu
 
     repository._fetch_forum_topics = fake_forum_topics  # type: ignore[assignment]
     repository._fetch_recent_conversations = fake_recent_conversations  # type: ignore[assignment]
-    return repository, fake_students
+    return repository, fake_students, fake_academic
 
 
 def test_repository_returns_none_for_user_without_profile():
-    repository, _ = _repository_with_fake_students()
+    repository, _, _ = _repository_with_fake_students()
     assert _run(repository.get_context(OTHER_USER_ID)) is None
 
 
 def test_repository_scopes_every_source_to_the_current_student():
-    repository, fake_students = _repository_with_fake_students()
+    repository, fake_students, fake_academic = _repository_with_fake_students()
 
     context = _run(repository.get_context(STUDENT_USER_ID))
 
     assert context is not None
-    # Courses/schedule/deadlines are all fetched with THIS student's profile id only.
-    assert set(fake_students.profile_ids_seen) == {PROFILE_ID}
+    # Academic courses/schedule are fetched with THIS student's academic profile id only.
+    assert fake_academic.user_ids_seen == [STUDENT_USER_ID]
+    assert set(fake_academic.student_ids_seen) == {PROFILE_ID}
+    # Portal deadlines are still fetched with THIS student's profile id only.
+    assert fake_students.profile_ids_seen == [PROFILE_ID]
     # Notifications + suggestions are fetched for THIS user id only.
     assert fake_students.notification_user_ids == [STUDENT_USER_ID]
     assert fake_students.suggestion_user_ids == [STUDENT_USER_ID]
 
 
 def test_repository_applies_per_source_limits():
-    repository, _ = _repository_with_fake_students()
+    repository, _, _ = _repository_with_fake_students()
 
     context = _run(repository.get_context(STUDENT_USER_ID))
 
     assert context is not None
     assert len(context.courses) == MAX_CONTEXT_COURSES
+    assert context.courses[0].course_code == "CS300"
+    assert context.profile.academic_summary is not None
+    assert context.profile.academic_summary.gpa == Decimal("3.12")
 
 
 def test_repository_excludes_archived_notifications():
-    repository, _ = _repository_with_fake_students()
+    repository, _, _ = _repository_with_fake_students()
 
     context = _run(repository.get_context(STUDENT_USER_ID))
 

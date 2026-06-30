@@ -185,7 +185,9 @@ class VinUniAgentService:
                     "personal app-data part of the question directly from it (no official web "
                     "citation needed) — but do not invent anything not present here. For any "
                     "official policy/rule, still rely on retrieved official sources and say so if "
-                    "they are missing."
+                    "they are missing. If the user asks an identity/profile question, answer only "
+                    "with profile, academic summary, and current-course facts; do not volunteer "
+                    "schedule items or deadlines unless the user asks for them."
                 )
             else:
                 usage_directive = (
@@ -754,4 +756,3 @@ def response_from_retrieved_chunks(
         tool_trace=[],
         needs_human_review=needs_human_review,
     )
-

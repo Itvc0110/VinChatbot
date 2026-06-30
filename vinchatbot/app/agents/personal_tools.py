@@ -33,6 +33,7 @@ from vinchatbot.app.core.observability import StudentIdentity, get_student_ident
 from vinchatbot.app.core.timeutils import VINUNI_TZ, now_in_vietnam
 from vinchatbot.app.repositories.academic import AcademicRepository
 from vinchatbot.app.repositories.students import StudentRepository
+from vinchatbot.app.services import academic as academic_service
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +165,52 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
     def _identity() -> StudentIdentity | None:
         return get_student_identity()
 
+    async def _academic_record(ident: StudentIdentity) -> dict[str, Any] | None:
+        profile = await academic.get_student_profile_by_user(ident.user_id)
+        if profile is None:
+            return None
+        current_term = await academic.get_current_term()
+        transcript = await academic.get_student_transcript(ident.student_profile_id)
+        curriculum = (
+            await academic.get_curriculum(profile["program_id"])
+            if profile.get("program_id")
+            else []
+        )
+        overview = academic_service.build_overview(
+            profile=profile,
+            current_term=current_term,
+            enrollments=transcript,
+            curriculum=curriculum,
+            upcoming_meetings=[],
+        )
+        progress = academic_service.build_curriculum_progress(
+            program=profile if profile.get("program_id") else None,
+            curriculum=curriculum,
+            enrollments=transcript,
+        )
+        return {
+            "profile": profile,
+            "current_term": current_term,
+            "transcript": transcript,
+            "curriculum": curriculum,
+            "overview": overview,
+            "progress": progress,
+        }
+
+    def _course_payload(course: Any, *, status: str | None = None, term: str | None = None) -> dict[str, Any]:
+        payload = {
+            "course_code": course.code,
+            "course_title": course.name,
+            "credits": course.credits,
+            "course_level": course.course_level,
+            "department_code": course.department_code,
+        }
+        if status is not None:
+            payload["status"] = status
+        if term is not None:
+            payload["term"] = term
+        return payload
+
     # ---- profile & standing -------------------------------------------------------------------
 
     @tool
@@ -189,14 +236,15 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
             {
                 "found": True,
                 "student_code": acad.get("student_code") or portal.get("student_id"),
-                "program": portal.get("program") or acad.get("program_name"),
+                "program": acad.get("program_name") or portal.get("program"),
                 "program_code": acad.get("program_code"),
-                "major": portal.get("major"),
+                "major": portal.get("major") or acad.get("program_name"),
                 "degree_level": acad.get("program_degree_level"),
                 "faculty": acad.get("faculty_name"),
                 "institute": (portal.get("institute") or {}).get("name_en"),
-                "cohort": portal.get("cohort") or acad.get("cohort_year"),
-                "academic_year": portal.get("academic_year") or acad.get("current_year"),
+                "cohort": acad.get("cohort_year") or portal.get("cohort"),
+                "academic_year": acad.get("current_year") or portal.get("academic_year"),
+                "academic_status": acad.get("status") or portal.get("student_status"),
                 "advisor_name": portal.get("advisor_name"),
                 "advisor_email": portal.get("advisor_email"),
                 "total_required_credits": acad.get("program_total_required_credits"),
@@ -205,30 +253,38 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
 
     @tool
     async def get_my_academic_standing() -> str:
-        """Return the signed-in student's authoritative GPA, credits earned, credits required,
-        academic standing/status, and current semester (read from the official academic summary —
-        never recomputed). No input. Use for "what is my GPA / how many credits do I have / am I in
-        good standing?"."""
+        """Return the signed-in student's GPA/CPA, credits earned, credits required, progress,
+        academic standing/status, and current term from the same academic read-model used by the
+        student dashboard. No input. Use for "what is my GPA / CPA / how many credits do I have /
+        am I in good standing?"."""
         ident = _identity()
         if ident is None:
             return _json(_REFUSAL)
         try:
-            portal = await students.get_current_student_profile(ident.user_id)
+            record = await _academic_record(ident)
         except Exception:
             logger.exception("get_my_academic_standing failed.")
             return _error("Could not read the academic standing right now.")
-        summary = (portal or {}).get("academic_summary")
-        if not summary:
-            return _json({"found": False, "message": "No academic summary on record yet."})
+        if record is None:
+            return _json({"found": False, "message": "No academic profile on record yet."})
+        overview = record["overview"]
+        summary = overview.summary
+        current_term = record["current_term"]
+        profile = record["profile"]
         return _json(
             {
                 "found": True,
-                "gpa": summary.get("gpa"),
+                "gpa": overview.current_gpa,
+                "current_gpa": overview.current_gpa,
+                "cumulative_cpa": overview.cumulative_cpa,
                 "gpa_scale": "4.0",
-                "credits_earned": summary.get("credits_earned"),
-                "credits_required": summary.get("credits_required"),
-                "academic_status": summary.get("academic_status"),
-                "current_semester": summary.get("current_semester"),
+                "credits_earned": overview.earned_credits,
+                "credits_required": overview.required_credits,
+                "progress_percent": summary.progress_percent,
+                "completed_required_courses": summary.completed_required_courses,
+                "remaining_required_courses": summary.remaining_required_courses,
+                "academic_status": profile.get("status"),
+                "current_semester": current_term.get("code") if current_term else None,
             }
         )
 
@@ -344,28 +400,38 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
 
     @tool
     async def get_my_courses() -> str:
-        """Return the signed-in student's own enrolled courses (code, title, credits, term,
-        instructor). No input. Use for "what courses am I taking / what am I enrolled in?"."""
+        """Return the signed-in student's own current academic-term courses from the same academic
+        read-model used by the dashboard (code, title, credits, term, status). No input. Use for
+        "what courses am I taking / what am I enrolled in?"."""
         ident = _identity()
         if ident is None:
             return _json(_REFUSAL)
         try:
-            rows = await students.get_courses(ident.student_profile_id)
+            record = await _academic_record(ident)
         except Exception:
             logger.exception("get_my_courses failed.")
             return _error("Could not read the enrolled courses right now.")
+        if record is None:
+            return _json({"found": False, "message": "No academic profile on record."})
+        overview = record["overview"]
+        current_term = record["current_term"]
         courses = [
-            {
-                "course_code": row.get("course_code"),
-                "course_title": row.get("course_title"),
-                "credits": row.get("credits"),
-                "semester": row.get("semester"),
-                "academic_year": row.get("academic_year"),
-                "instructor": row.get("instructor"),
-            }
-            for row in rows
+            _course_payload(
+                course,
+                status="in_progress",
+                term=current_term.get("code") if current_term else None,
+            )
+            for course in overview.enrolled_courses
         ]
-        return _json({"count": len(courses), "courses": courses})
+        return _json(
+            {
+                "found": True,
+                "source": "academic_read_model",
+                "term": current_term.get("code") if current_term else None,
+                "count": len(courses),
+                "courses": courses,
+            }
+        )
 
     @tool
     async def get_my_transcript() -> str:
@@ -406,10 +472,18 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
         if ident is None:
             return _json(_REFUSAL)
         try:
+            record = await _academic_record(ident)
             rows = await students.get_deadlines(ident.student_profile_id, upcoming_only=True)
         except Exception:
             logger.exception("get_my_deadlines failed.")
             return _error("Could not read the deadlines right now.")
+        if record is not None:
+            current_course_codes = {course.code for course in record["overview"].enrolled_courses}
+            rows = [
+                row
+                for row in rows
+                if not row.get("course_code") or row.get("course_code") in current_course_codes
+            ]
         deadlines = [
             {
                 "title": row.get("title"),
@@ -435,50 +509,60 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
             return _json(_REFUSAL)
         try:
             acad_profile = await academic.get_student_profile_by_user(ident.user_id)
-            portal = await students.get_current_student_profile(ident.user_id)
         except Exception:
             logger.exception("get_my_curriculum_progress failed.")
             return _error("Could not read curriculum progress right now.")
         if not acad_profile or not acad_profile.get("program_id"):
             return _json({"found": False, "message": "No program/curriculum on record."})
         try:
-            curriculum = await academic.get_curriculum(acad_profile["program_id"])
             transcript = await academic.get_student_transcript(ident.student_profile_id)
+            curriculum = await academic.get_curriculum(acad_profile["program_id"])
         except Exception:
             logger.exception("get_my_curriculum_progress curriculum/transcript failed.")
             return _error("Could not read curriculum progress right now.")
-
-        passed_course_ids = {row.get("course_id") for row in transcript if row.get("passed")}
-        remaining = [
-            {
-                "course_code": course.get("course_code"),
-                "course_name": course.get("course_name"),
-                "credits": course.get("credits"),
-                "category": course.get("category"),
-                "is_required": course.get("is_required"),
-                "suggested_year": course.get("suggested_year"),
-                "suggested_term": course.get("suggested_term"),
-            }
-            for course in curriculum
-            if course.get("course_id") not in passed_course_ids
-        ]
-        summary = (portal or {}).get("academic_summary") or {}
-        total_required = acad_profile.get("program_total_required_credits") or summary.get(
-            "credits_required"
+        progress = academic_service.build_curriculum_progress(
+            program=acad_profile,
+            curriculum=curriculum,
+            enrollments=transcript,
         )
-        credits_earned = summary.get("credits_earned")
-        credits_remaining = None
-        if total_required is not None and credits_earned is not None:
-            credits_remaining = max(0, int(total_required) - int(credits_earned))
+
+        def item(course: Any) -> dict[str, Any]:
+            return {
+                "course_code": course.course.code,
+                "course_name": course.course.name,
+                "credits": course.course.credits,
+                "category": course.category,
+                "is_required": course.is_required,
+                "suggested_year": course.suggested_year,
+                "suggested_term": course.suggested_term,
+                "status": course.status,
+                "grade_4": course.grade_4,
+            }
+
+        remaining = [item(course) for course in progress.remaining_required]
+        remaining_zero_credit = [item(course) for course in progress.remaining_zero_credit]
+        in_progress = [item(course) for course in progress.in_progress]
+        failed = [item(course) for course in progress.failed]
+        credits_remaining = max(
+            0, int(progress.summary.required_credits) - int(progress.summary.earned_credits)
+        )
         return _json(
             {
                 "found": True,
                 "program": acad_profile.get("program_name"),
-                "total_required_credits": total_required,
-                "credits_earned": credits_earned,
+                "total_required_credits": progress.summary.required_credits,
+                "credits_earned": progress.summary.earned_credits,
                 "credits_remaining": credits_remaining,
-                "remaining_courses_count": len(remaining),
+                "progress_percent": progress.summary.progress_percent,
+                "completed_required_courses": progress.summary.completed_required_courses,
+                "remaining_required_courses": progress.summary.remaining_required_courses,
+                "in_progress_courses_count": len(in_progress),
+                "in_progress_courses": in_progress,
+                "failed_courses_count": len(failed),
+                "failed_courses": failed,
+                "remaining_courses_count": len(remaining) + len(remaining_zero_credit),
                 "remaining_courses": remaining,
+                "remaining_zero_credit_courses": remaining_zero_credit,
             }
         )
 
@@ -494,44 +578,45 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
             acad_profile = await academic.get_student_profile_by_user(ident.user_id)
             if not acad_profile or not acad_profile.get("program_id"):
                 return _json({"found": False, "message": "No program/curriculum on record."})
+            term = await academic.get_current_term()
             curriculum = await academic.get_curriculum(acad_profile["program_id"])
             transcript = await academic.get_student_transcript(ident.student_profile_id)
-            term = await academic.get_current_term()
         except Exception:
             logger.exception("get_my_course_eligibility failed.")
             return _error("Could not read course eligibility right now.")
         if not term:
             return _error("No current academic term is available to evaluate eligibility.")
 
-        passed_course_ids = {row.get("course_id") for row in transcript if row.get("passed")}
-        remaining = [c for c in curriculum if c.get("course_id") not in passed_course_ids]
-        course_ids = [c["course_id"] for c in remaining if c.get("course_id")]
         try:
             requisites = await academic.get_requisite_status_bulk(
                 student_id=ident.student_profile_id,
-                course_ids=course_ids,
+                course_ids=[c["course_id"] for c in curriculum if c.get("course_id")],
                 term_id=term["id"],
             )
         except Exception:
             logger.exception("get_my_course_eligibility requisites failed.")
             return _error("Could not evaluate prerequisites right now.")
+        eligibility = academic_service.build_course_eligibility(
+            term=term,
+            curriculum=curriculum,
+            enrollments=transcript,
+            requisites_by_course=requisites,
+        )
 
-        eligible, blocked = [], []
-        for course in remaining:
-            reqs = requisites.get(course.get("course_id"), [])
-            unmet = [r for r in reqs if not r.get("satisfied")]
-            entry = {
-                "course_code": course.get("course_code"),
-                "course_name": course.get("course_name"),
-                "credits": course.get("credits"),
+        def entry(course: Any) -> dict[str, Any]:
+            return {
+                "course_code": course.course.code,
+                "course_name": course.course.name,
+                "credits": course.course.credits,
+                "category": course.category,
+                "is_required": course.is_required,
+                "already_completed": course.already_completed,
+                "can_retake_or_improve": course.can_retake_or_improve,
+                "blocking_reasons": course.blocking_reasons,
             }
-            if unmet:
-                entry["missing_prerequisites"] = [
-                    r.get("required_course_code") for r in unmet if r.get("required_course_code")
-                ]
-                blocked.append(entry)
-            else:
-                eligible.append(entry)
+
+        eligible = [entry(course) for course in eligibility.eligible]
+        blocked = [entry(course) for course in eligibility.blocked]
         return _json(
             {
                 "found": True,
@@ -559,46 +644,53 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
         except (TypeError, ValueError):
             return _error("target_gpa must be a number on the 4.0 scale (e.g. 3.6 for Excellent).")
         try:
-            portal = await students.get_current_student_profile(ident.user_id)
-            acad_profile = await academic.get_student_profile_by_user(ident.user_id)
+            record = await _academic_record(ident)
         except Exception:
             logger.exception("project_gpa_for_target failed.")
             return _error("Could not read academic standing for the projection right now.")
-        summary = (portal or {}).get("academic_summary") or {}
-        gpa = summary.get("gpa")
-        credits_earned = summary.get("credits_earned")
-        total_required = (acad_profile or {}).get("program_total_required_credits") or summary.get(
-            "credits_required"
+        if record is None:
+            return _json({"found": False, "message": "No academic profile on record."})
+        overview = record["overview"]
+        transcript_summary = academic_service.build_transcript_summary(
+            record["profile"]["id"], record["transcript"]
         )
-        if gpa is None or credits_earned is None or not total_required:
+        cpa = overview.cumulative_cpa
+        credits_earned = overview.earned_credits
+        gpa_credits = transcript_summary.gpa_credits
+        total_required = overview.required_credits
+        if cpa is None or not total_required:
             return _json(
                 {
                     "found": False,
                     "message": "Not enough academic data (GPA / credits) to compute a projection.",
                 }
             )
-        gpa = float(gpa)
+        cpa = float(cpa)
         credits_earned = int(credits_earned)
+        gpa_credits = int(gpa_credits)
         total_required = int(total_required)
         credits_remaining = total_required - credits_earned
+        projected_total_gpa_credits = gpa_credits + max(0, credits_remaining)
 
         result: dict[str, Any] = {
             "found": True,
             "target_gpa": round(target, 3),
-            "current_gpa": round(gpa, 3),
+            "current_gpa": round(cpa, 3),
+            "current_cumulative_cpa": round(cpa, 3),
             "credits_earned": credits_earned,
+            "gpa_credits": gpa_credits,
             "total_required_credits": total_required,
             "credits_remaining": max(0, credits_remaining),
         }
         if credits_remaining <= 0:
             result["already_completed_credits"] = True
-            result["reachable"] = gpa >= target
+            result["reachable"] = cpa >= target
             result["message"] = (
                 "All required credits are already earned; the cumulative GPA is fixed at the current value."
             )
             return _json(result)
 
-        needed = (target * total_required - gpa * credits_earned) / credits_remaining
+        needed = (target * projected_total_gpa_credits - cpa * gpa_credits) / credits_remaining
         result["needed_average_on_remaining"] = round(needed, 3)
         if needed <= 0:
             result["reachable"] = True
