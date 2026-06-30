@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import type {
   AcademicCurriculumProgress,
+  AcademicCourse,
   AcademicEligibility,
   AcademicEnrollment,
   AcademicTranscript,
@@ -279,6 +280,10 @@ function statusLabel(st: RowStatus, s: (typeof STR)[Lang]): string {
   }
 }
 
+function courseName(course: AcademicCourse, lang: Lang): string {
+  return lang === "vi" ? course.name_vi ?? course.name : course.name;
+}
+
 // Localize a backend term name ("Fall Term 2025") to Vietnamese ("Học kỳ Thu 2025"). Leaves the
 // English string untouched for `en` and when the season pattern isn't recognized.
 const SEASON_VI: Record<string, string> = {
@@ -388,7 +393,7 @@ export default function StudentAcademicPage() {
         ) : curriculum.status === "error" ? (
           <SectionError code={curriculum.code} detail={curriculum.message} s={s} onRetry={curriculum.reload} />
         ) : (
-          <CurriculumView data={curriculum.data} s={s} />
+          <CurriculumView data={curriculum.data} s={s} lang={lang} />
         )}
       </Card>
 
@@ -402,7 +407,7 @@ export default function StudentAcademicPage() {
         ) : eligibility.status === "error" ? (
           <SectionError code={eligibility.code} detail={eligibility.message} s={s} onRetry={eligibility.reload} />
         ) : (
-          <EligibilityView data={eligibility.data} s={s} />
+          <EligibilityView data={eligibility.data} s={s} lang={lang} />
         )}
       </Card>
     </div>
@@ -555,7 +560,7 @@ function TermBlock({
                 <tr key={e.id}>
                   <td>
                     <span className="acad-course-code">{e.course.code}</span>{" "}
-                    <span className="acad-course-name">{e.course.name}</span>
+                    <span className="acad-course-name">{courseName(e.course, lang)}</span>
                   </td>
                   <td className="num">{e.course.credits}</td>
                   <td className="num">{e.attempt_no}</td>
@@ -577,7 +582,15 @@ function TermBlock({
 
 // ---- Curriculum / Program Progress -----------------------------------------
 
-function CurriculumView({ data, s }: { data: AcademicCurriculumProgress; s: (typeof STR)[Lang] }) {
+function CurriculumView({
+  data,
+  s,
+  lang,
+}: {
+  data: AcademicCurriculumProgress;
+  s: (typeof STR)[Lang];
+  lang: Lang;
+}) {
   const pct = Math.max(0, Math.min(100, Number(data.summary.progress_percent) || 0));
   const completed = data.completed.length;
   const inProgress = data.in_progress.length;
@@ -613,7 +626,7 @@ function CurriculumView({ data, s }: { data: AcademicCurriculumProgress; s: (typ
 
       <div className="acad-chip-groups">
         {groups.map((g) => (
-          <ChipGroup key={g.label} label={g.label} items={g.items} tone={g.tone} s={s} />
+          <ChipGroup key={g.label} label={g.label} items={g.items} tone={g.tone} s={s} lang={lang} />
         ))}
       </div>
     </div>
@@ -625,11 +638,13 @@ function ChipGroup({
   items,
   tone,
   s,
+  lang,
 }: {
   label: string;
   items: CurriculumProgressCourse[];
   tone: string;
   s: (typeof STR)[Lang];
+  lang: Lang;
 }) {
   const shown = items.slice(0, MAX_CHIPS);
   const extra = items.length - shown.length;
@@ -643,7 +658,7 @@ function ChipGroup({
       ) : (
         <div className="chip-row">
           {shown.map((c) => (
-            <span key={c.course.id} className={`ah-chip ${tone}`} title={c.course.name}>
+            <span key={c.course.id} className={`ah-chip ${tone}`} title={courseName(c.course, lang)}>
               {c.course.code}
               {c.grade_4 ? ` · ${c.grade_4}` : ""}
             </span>
@@ -657,7 +672,15 @@ function ChipGroup({
 
 // ---- Course Eligibility ----------------------------------------------------
 
-function EligibilityView({ data, s }: { data: AcademicEligibility; s: (typeof STR)[Lang] }) {
+function EligibilityView({
+  data,
+  s,
+  lang,
+}: {
+  data: AcademicEligibility;
+  s: (typeof STR)[Lang];
+  lang: Lang;
+}) {
   return (
     <div className="acad-elig">
       <div className="acad-elig-block">
@@ -669,7 +692,7 @@ function EligibilityView({ data, s }: { data: AcademicEligibility; s: (typeof ST
         ) : (
           <div className="acad-elig-grid">
             {data.eligible.map((c) => (
-              <EligibleCard key={c.course.id} c={c} s={s} />
+              <EligibleCard key={c.course.id} c={c} s={s} lang={lang} />
             ))}
           </div>
         )}
@@ -684,7 +707,7 @@ function EligibilityView({ data, s }: { data: AcademicEligibility; s: (typeof ST
         ) : (
           <div className="acad-elig-grid">
             {data.blocked.map((c) => (
-              <BlockedCard key={c.course.id} c={c} s={s} />
+              <BlockedCard key={c.course.id} c={c} s={s} lang={lang} />
             ))}
           </div>
         )}
@@ -693,13 +716,13 @@ function EligibilityView({ data, s }: { data: AcademicEligibility; s: (typeof ST
   );
 }
 
-function EligibleCard({ c, s }: { c: EligibleCourse; s: (typeof STR)[Lang] }) {
+function EligibleCard({ c, s, lang }: { c: EligibleCourse; s: (typeof STR)[Lang]; lang: Lang }) {
   return (
     <div className="acad-elig-card">
       <div className="acad-elig-head">
         <div className="acad-elig-title">
           <span className="acad-course-code">{c.course.code}</span>{" "}
-          <span className="acad-course-name">{c.course.name}</span>
+          <span className="acad-course-name">{courseName(c.course, lang)}</span>
         </div>
         <span className="ah-chip success">{s.eligibleStatus}</span>
       </div>
@@ -711,7 +734,7 @@ function EligibleCard({ c, s }: { c: EligibleCourse; s: (typeof STR)[Lang] }) {
   );
 }
 
-function BlockedCard({ c, s }: { c: EligibleCourse; s: (typeof STR)[Lang] }) {
+function BlockedCard({ c, s, lang }: { c: EligibleCourse; s: (typeof STR)[Lang]; lang: Lang }) {
   const unmetPre = c.prerequisites.filter((r) => !r.satisfied);
   const unmetCo = c.corequisites.filter((r) => !r.satisfied);
 
@@ -719,10 +742,12 @@ function BlockedCard({ c, s }: { c: EligibleCourse; s: (typeof STR)[Lang] }) {
   let lines: string[] = [];
   if (unmetPre.length > 0) {
     heading = s.missingPrereq;
-    lines = unmetPre.map((r) => s.needGradeLine(r.required_course.code, r.required_course.name, r.min_grade_4 ?? null));
+    lines = unmetPre.map((r) =>
+      s.needGradeLine(r.required_course.code, courseName(r.required_course, lang), r.min_grade_4 ?? null)
+    );
   } else if (unmetCo.length > 0) {
     heading = s.needCoreq;
-    lines = unmetCo.map((r) => `${r.required_course.code} ${r.required_course.name}`);
+    lines = unmetCo.map((r) => `${r.required_course.code} ${courseName(r.required_course, lang)}`);
   } else if (c.blocking_reasons.length > 0) {
     // Fall back to the backend-provided reason text (preserved verbatim).
     heading = s.blockedReason;
@@ -734,7 +759,7 @@ function BlockedCard({ c, s }: { c: EligibleCourse; s: (typeof STR)[Lang] }) {
       <div className="acad-elig-head">
         <div className="acad-elig-title">
           <span className="acad-course-code">{c.course.code}</span>{" "}
-          <span className="acad-course-name">{c.course.name}</span>
+          <span className="acad-course-name">{courseName(c.course, lang)}</span>
         </div>
         <span className="ah-chip error">{s.blocked}</span>
       </div>

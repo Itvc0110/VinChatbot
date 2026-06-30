@@ -164,12 +164,12 @@ class AdminDashboardRepository:
 
     async def _count_schedules(self, scope: uuid.UUID | None) -> int:
         scope_clause, params = self._student_scope_clause(scope, "sp")
-        extra = "and s.end_time >= now()" if scope_clause else "where s.end_time >= now()"
+        extra = "and se.end_at >= now()" if scope_clause else "where se.end_at >= now()"
         return await self._count(
             f"""
             select count(*) as count
-            from schedules s
-            join student_profiles sp on sp.id = s.student_profile_id
+            from student_schedule_events se
+            join student_profiles sp on sp.id = se.student_id
             {scope_clause}
             {extra}
             """,
@@ -313,7 +313,7 @@ class AdminDashboardRepository:
             "and d.due_at >= now()" if deadline_scope else "where d.due_at >= now()"
         )
         schedule_filter = (
-            "and s.end_time >= now()" if schedule_scope else "where s.end_time >= now()"
+            "and se.end_at >= now()" if schedule_scope else "where se.end_at >= now()"
         )
         event_filter = (
             "and coalesce(e.end_time, e.start_time) >= now()"
@@ -338,7 +338,7 @@ class AdminDashboardRepository:
                     d.title,
                     d.due_at as starts_at,
                     null::timestamptz as ends_at,
-                    c.course_code,
+                    coalesce(c.code, c.course_code) as course_code,
                     dsp.institute_id,
                     i.code as institute_code,
                     d.source_title,
@@ -351,19 +351,19 @@ class AdminDashboardRepository:
                 {deadline_filter}
                 union all
                 select
-                    s.id,
+                    se.id,
                     'schedule'::text as item_type,
-                    s.title,
-                    s.start_time as starts_at,
-                    s.end_time as ends_at,
-                    c.course_code,
+                    se.title,
+                    se.start_at as starts_at,
+                    se.end_at as ends_at,
+                    coalesce(c.code, c.course_code) as course_code,
                     ssp.institute_id,
                     i.code as institute_code,
                     null::text as source_title,
                     null::text as source_url
-                from schedules s
-                join student_profiles ssp on ssp.id = s.student_profile_id
-                left join courses c on c.id = s.course_id
+                from student_schedule_events se
+                join student_profiles ssp on ssp.id = se.student_id
+                left join courses c on c.id = se.course_id
                 left join institutes i on i.id = ssp.institute_id
                 {schedule_scope}
                 {schedule_filter}
@@ -390,7 +390,7 @@ class AdminDashboardRepository:
                     n.title,
                     coalesce(n.deadline, n.event_date, n.start_date, n.created_at) as starts_at,
                     n.end_date as ends_at,
-                    c.course_code,
+                    coalesce(c.code, c.course_code) as course_code,
                     n.institute_id,
                     i.code as institute_code,
                     n.source_title,

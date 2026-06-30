@@ -22,7 +22,7 @@ from vinchatbot.app.schemas.personalization import (
 )
 from vinchatbot.app.services import academic as academic_service
 
-MAX_CONTEXT_COURSES = 5
+MAX_CONTEXT_COURSES = 12
 MAX_CONTEXT_SCHEDULE = 5
 MAX_CONTEXT_DEADLINES = 5
 MAX_CONTEXT_NOTIFICATIONS = 5
@@ -167,10 +167,11 @@ class PersonalizationRepository:
                 "id": course.id,
                 "course_code": course.code,
                 "course_title": course.name,
+                "course_title_vi": course.name_vi,
                 "credits": course.credits,
                 "semester": semester,
                 "academic_year": academic_year,
-                "instructor": None,
+                "instructor": course.instructor_name,
             }
             for course in overview.enrolled_courses
         ]
@@ -184,6 +185,7 @@ class PersonalizationRepository:
                 "end_time": meeting.end_at,
                 "course_code": meeting.course_code,
                 "course_title": meeting.course_name,
+                "course_title_vi": meeting.course_name_vi,
                 "location": meeting.building,
                 "room": meeting.room_name,
             }
@@ -317,10 +319,22 @@ def build_personalization_prompt(context: PersonalizationContext) -> str:
         )
 
     if context.courses:
-        lines.append("Current courses:")
+        lines.append(
+            "Current courses (complete list when shown; include 0-credit courses, but do not add "
+            "them to credit totals):"
+        )
         for course in context.courses:
             instructor = f" — {course.instructor}" if course.instructor else ""
-            lines.append(f"- {course.course_code} {course.course_title}{instructor}")
+            vi = f" / {course.course_title_vi}" if course.course_title_vi else ""
+            if course.credits is None:
+                credits = "credits n/a"
+            elif course.credits == 0:
+                credits = "0 credits"
+            else:
+                credits = f"{course.credits} credits"
+            lines.append(
+                f"- {course.course_code} {course.course_title}{vi} ({credits}){instructor}"
+            )
 
     if context.schedule:
         lines.append("Next schedule items:")

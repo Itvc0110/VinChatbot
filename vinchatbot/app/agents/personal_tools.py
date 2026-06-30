@@ -110,7 +110,7 @@ def _fmt(dt: datetime | None) -> str | None:
 
 
 def _academic_meeting(row: dict) -> dict:
-    """Build a meeting dict from an academic class_meetings row. Carries internal `_start`/`_end`
+    """Build a meeting dict from an academic schedule row. Carries internal `_start`/`_end`
     (VN-localized datetimes) for current/next computation; strip them with `_strip_internal` before
     returning to the model."""
     start_vn = _to_vn(row.get("start_at"))
@@ -118,6 +118,7 @@ def _academic_meeting(row: dict) -> dict:
     return {
         "course_code": row.get("course_code"),
         "course_name": row.get("course_name"),
+        "course_name_vi": row.get("course_name_vi"),
         "title": row.get("title"),
         "type": row.get("meeting_type"),
         "start": _fmt(start_vn),
@@ -131,13 +132,14 @@ def _academic_meeting(row: dict) -> dict:
     }
 
 
-def _portal_meeting(row: dict) -> dict:
-    """Build a meeting dict from a portal `schedules` row (the secondary data model)."""
+def _student_api_meeting(row: dict) -> dict:
+    """Build a meeting dict from the stable student schedule API shape."""
     start_vn = _to_vn(row.get("start_time"))
     end_vn = _to_vn(row.get("end_time"))
     return {
         "course_code": row.get("course_code"),
         "course_name": row.get("course_title"),
+        "course_name_vi": row.get("course_title_vi"),
         "title": row.get("title"),
         "type": row.get("schedule_type"),
         "start": _fmt(start_vn),
@@ -243,7 +245,9 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
         payload = {
             "course_code": course.code,
             "course_title": course.name,
+            "course_title_vi": course.name_vi,
             "credits": course.credits,
+            "instructor": course.instructor_name,
             "course_level": course.course_level,
             "department_code": course.department_code,
         }
@@ -408,19 +412,23 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
         nxt = next((m for m in broad if m["_start"] and m["_start"] > now), None)
         has_academic = bool(broad)
 
-        # now/next also fall back to the portal schedule when the academic timetable is empty, so a
-        # student with only portal data still gets a current/next class (shape parity with day/week).
+        # now/next also fall back to the stable student schedule API when the academic timetable is
+        # empty, so a student with only canonical calendar data still gets a current/next class.
         if not has_academic and window in ("now", "next"):
             try:
                 sched = await students.get_schedule(ident.student_profile_id, upcoming_only=False)
             except Exception:
                 sched = []
-            portal = [_portal_meeting(r) for r in sched]
+            api_schedule = [_student_api_meeting(r) for r in sched]
             current = next(
-                (m for m in portal if m["_start"] and m["_end"] and m["_start"] <= now <= m["_end"]),
+                (
+                    m
+                    for m in api_schedule
+                    if m["_start"] and m["_end"] and m["_start"] <= now <= m["_end"]
+                ),
                 None,
             )
-            nxt = next((m for m in portal if m["_start"] and m["_start"] > now), None)
+            nxt = next((m for m in api_schedule if m["_start"] and m["_start"] > now), None)
 
         if window == "now":
             return _json(
@@ -445,8 +453,8 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
             return _error("Could not read the class schedule right now.")
         meetings = [_strip_internal(_academic_meeting(r)) for r in win_rows]
 
-        # Portal fallback ONLY when the student has NO academic timetable at all (not merely an empty
-        # window). Filter the portal schedule to the SAME resolved range — no upcoming-only drop.
+        # Stable student-schedule API fallback ONLY when the student has NO academic timetable at
+        # all (not merely an empty window). It is backed by the canonical student calendar table.
         source = "academic"
         if not has_academic:
             try:
@@ -454,14 +462,16 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
             except Exception:
                 sched = []
             if sched:
-                source = "portal"
-                portal = [_portal_meeting(r) for r in sched]
+                source = "student_schedule_api"
+                api_schedule = [_student_api_meeting(r) for r in sched]
                 meetings = [
                     _strip_internal(m)
-                    for m in portal
+                    for m in api_schedule
                     if m["_start"] and range_start <= m["_start"] < range_end
                 ]
-                nxt = nxt or next((m for m in portal if m["_start"] and m["_start"] > now), None)
+                nxt = nxt or next(
+                    (m for m in api_schedule if m["_start"] and m["_start"] > now), None
+                )
 
         return _json(
             {
@@ -483,7 +493,7 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
     @tool
     async def get_my_courses() -> str:
         """Return the signed-in student's own current academic-term courses from the same academic
-        read-model used by the dashboard (code, title, credits, term, status). No input. Use for
+        read-model used by the dashboard (code, title, credits, instructor, term, status). No input. Use for
         "what courses am I taking / what am I enrolled in?". Reads the academic model so it matches
         get_my_schedule / get_my_transcript."""
         ident = _identity()
@@ -506,13 +516,29 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
             )
             for course in overview.enrolled_courses
         ]
+        zero_credit_courses = [
+            course for course in courses if int(course.get("credits") or 0) == 0
+        ]
         return _json(
             {
                 "found": True,
                 "source": "academic_read_model",
                 "term": current_term.get("code") if current_term else None,
                 "count": len(courses),
+                "credit_bearing_count": len(courses) - len(zero_credit_courses),
+                "zero_credit_count": len(zero_credit_courses),
+                "current_credits": sum(
+                    int(course.get("credits") or 0)
+                    for course in courses
+                    if int(course.get("credits") or 0) > 0
+                ),
                 "courses": courses,
+                "zero_credit_courses": zero_credit_courses,
+                "instruction": (
+                    "When listing enrolled courses, include zero-credit courses in courses/count, "
+                    "but do not add them to current_credits. Use course_title_vi for Vietnamese "
+                    "answers when it is present; use course_title for English answers."
+                ),
             }
         )
 
@@ -533,6 +559,7 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
             {
                 "course_code": row.get("course_code"),
                 "course_name": row.get("course_name"),
+                "course_name_vi": row.get("course_name_vi"),
                 "credits": row.get("credits"),
                 "grade_4": row.get("grade_4"),
                 "letter_grade": row.get("letter_grade"),
@@ -574,6 +601,7 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
                 "due_at": _fmt(_to_vn(row.get("due_at"))),
                 "course_code": row.get("course_code"),
                 "course_title": row.get("course_title"),
+                "course_title_vi": row.get("course_title_vi"),
             }
             for row in rows
         ]
@@ -613,6 +641,7 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
             return {
                 "course_code": course.course.code,
                 "course_name": course.course.name,
+                "course_name_vi": course.course.name_vi,
                 "credits": course.course.credits,
                 "category": course.category,
                 "is_required": course.is_required,
@@ -690,6 +719,7 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
             return {
                 "course_code": course.course.code,
                 "course_name": course.course.name,
+                "course_name_vi": course.course.name_vi,
                 "credits": course.course.credits,
                 "category": course.category,
                 "is_required": course.is_required,

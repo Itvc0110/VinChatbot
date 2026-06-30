@@ -43,6 +43,7 @@ class CourseResponse(BaseModel):
     id: uuid.UUID
     course_code: str
     course_title: str
+    course_title_vi: str | None = None
     credits: int
     semester: str | None = None
     academic_year: str | None = None
@@ -55,6 +56,7 @@ class ScheduleItemResponse(BaseModel):
     course_id: uuid.UUID | None = None
     course_code: str | None = None
     course_title: str | None = None
+    course_title_vi: str | None = None
     title: str
     schedule_type: str
     start_time: datetime
@@ -71,6 +73,7 @@ class DeadlineResponse(BaseModel):
     course_id: uuid.UUID | None = None
     course_code: str | None = None
     course_title: str | None = None
+    course_title_vi: str | None = None
     title: str
     kind: str | None = None
     due_at: datetime

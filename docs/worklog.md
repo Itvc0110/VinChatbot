@@ -219,4 +219,3 @@ Baseline progression this phase: **0.969/226 → 0.965/199 (prune) → 0.98/199*
   the Academic Calendar PDF) — candidate for a deterministic structured calendar lookup.
 - The golden set is **partly circular/narrow** in places (facts authored from source docs); held-out
   student-phrased cases are tagged `held_out: true`.
-

@@ -88,6 +88,7 @@ export interface BackendCourse {
   id: string;
   course_code: string;
   course_title: string;
+  course_title_vi?: string | null;
   credits: number;
   semester?: string | null;
   academic_year?: string | null;
@@ -100,6 +101,7 @@ export interface BackendScheduleItem {
   course_id?: string | null;
   course_code?: string | null;
   course_title?: string | null;
+  course_title_vi?: string | null;
   title: string;
   schedule_type: string;
   start_time: string;
@@ -116,6 +118,7 @@ export interface BackendDeadline {
   course_id?: string | null;
   course_code?: string | null;
   course_title?: string | null;
+  course_title_vi?: string | null;
   title: string;
   kind?: string | null;
   due_at: string;
@@ -786,6 +789,7 @@ function mapScheduleItem(item: BackendScheduleItem): ClassSession {
     id: item.id,
     course_code: item.course_code ?? item.title,
     course_title: item.course_title ?? item.title,
+    course_title_vi: item.course_title_vi ?? undefined,
     day: SCHEDULE_DAYS[start.getDay()],
     start: isoTime(item.start_time),
     end: isoTime(item.end_time),
@@ -1502,9 +1506,8 @@ export async function getActiveSuggestedQuestions(
 }
 
 // ---- Calendar ---------------------------------------------------------------
-// [LIVE-composed] The backend exposes schedule and deadlines separately in Phase 7.
-// Calendar UI gets a combined feed from those real endpoints; campus event data remains
-// empty until a dedicated student events endpoint exists.
+// [LIVE-composed] Frontend only consumes stable APIs. The backend maps schedule data from
+// the canonical student calendar table and combines it with deadline data here.
 export async function getStudentCalendar(
   from?: string,
   to?: string
@@ -1585,7 +1588,9 @@ export interface AcademicCourse {
   id: string;
   code: string;
   name: string;
+  name_vi?: string | null;
   credits: number;
+  instructor_name?: string | null;
   course_level?: number | null;
   department_code?: string | null;
   is_general_education?: boolean;
@@ -1615,6 +1620,7 @@ export interface AcademicScheduleEvent {
   id: string;
   course_code: string;
   course_name: string;
+  course_name_vi?: string | null;
   section_code?: string | null;
   instructor_name?: string | null;
   meeting_type: AcademicMeetingType;

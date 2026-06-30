@@ -4,12 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth, type SessionUser } from "@/lib/auth";
 import { usePortal } from "@/lib/portalI18n";
-import { IconCap, IconShield } from "@/components/shell/icons";
 import { LogoCopilot } from "@/components/shell/Logos";
 
-const DEMO_PASSWORD = "Demo@123456";
-const DEMO_STUDENT_EMAIL = "student.cs.demo@vinuni.edu.vn";
-const DEMO_ADMIN_EMAIL = "admin.global.demo@vinuni.edu.vn";
+const DEMO_PASSWORD = "VinUni@2026!";
+const DEMO_STUDENT_EMAILS = ["quynh.bao.le013@vinuni.edu.vn", "dang.khanh.la097@vinuni.edu.vn"];
 
 function MailIcon() {
   return (
@@ -55,12 +53,6 @@ export function LoginCard() {
     } finally {
       setBusy(false);
     }
-  };
-
-  const signInDemo = async (nextEmail: string) => {
-    setEmail(nextEmail);
-    setPassword(DEMO_PASSWORD);
-    await signIn(nextEmail, DEMO_PASSWORD);
   };
 
   return (
@@ -154,29 +146,13 @@ export function LoginCard() {
           {p.login.sso}
         </button>
 
-        <div className="ah-login-demo">
-          <button
-            type="button"
-            className="ah-login-demo-btn"
-            onClick={() => signInDemo(DEMO_STUDENT_EMAIL)}
-            disabled={busy}
-          >
-            <IconCap size={15} /> {p.login.continueStudent}
-          </button>
-          <button
-            type="button"
-            className="ah-login-demo-btn"
-            onClick={() => signInDemo(DEMO_ADMIN_EMAIL)}
-            disabled={busy}
-          >
-            <IconShield size={15} /> {p.login.continueAdmin}
-          </button>
-        </div>
-
         <div className="ah-login-demo-hint">
-          <span>{p.login.demoStudent}: {DEMO_STUDENT_EMAIL}</span>
-          <span>{p.login.demoAdmin}: {DEMO_ADMIN_EMAIL}</span>
-          <span>Password: {DEMO_PASSWORD}</span>
+          <span>
+            {p.login.studentAccounts}: {DEMO_STUDENT_EMAILS.join(", ")}
+          </span>
+          <span>
+            {p.login.passwordHint}: {DEMO_PASSWORD}
+          </span>
         </div>
 
         <p className="ah-login-foot">{p.login.securityNote}</p>

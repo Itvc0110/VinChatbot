@@ -66,14 +66,11 @@ export interface PortalStrings {
     emailLabel: string;
     passwordLabel: string;
     signIn: string;
-    continueStudent: string;
-    continueAdmin: string;
-    sso: string;
-    ssoHint: string;
-    securityNote: string;
-    demoStudent: string;
-    demoAdmin: string;
     or: string;
+    sso: string;
+    studentAccounts: string;
+    passwordHint: string;
+    securityNote: string;
   };
 
   access: {
@@ -215,6 +212,8 @@ export interface PortalStrings {
     you: string;
     staff: string;
     systemAuthor: string;
+    respondToAdmin: string;
+    respondToAdminPlaceholder: string;
     vis: { active: string; archived: string; deleted: string };
     // PLAN23.6.01 board
     subtitle: string;
@@ -701,14 +700,11 @@ const en: PortalStrings = {
     emailLabel: "University email",
     passwordLabel: "Password",
     signIn: "Sign in",
-    continueStudent: "Continue as Student",
-    continueAdmin: "Continue as Admin",
-    sso: "Continue with VinUni SSO",
-    ssoHint: "Demo: signs in as the student account",
-    securityNote: "Your access is based on your VinUni role and permissions.",
-    demoStudent: "Student demo account",
-    demoAdmin: "Admin demo account",
     or: "or",
+    sso: "Continue with VinUni SSO",
+    studentAccounts: "Student accounts",
+    passwordHint: "Password",
+    securityNote: "Your access is based on your VinUni role and permissions.",
   },
   access: {
     title: "Access denied",
@@ -849,6 +845,8 @@ const en: PortalStrings = {
     you: "You",
     staff: "Staff",
     systemAuthor: "System",
+    respondToAdmin: "Add a response for staff",
+    respondToAdminPlaceholder: "Write an update for the support team…",
     vis: { active: "Active", archived: "Hidden / Archived", deleted: "Deleted" },
     subtitle: "Track your requests and responses from VinUni support teams.",
     newTicket: "New ticket",
@@ -1385,14 +1383,11 @@ const vi: PortalStrings = {
     emailLabel: "Email trường",
     passwordLabel: "Mật khẩu",
     signIn: "Đăng nhập",
-    continueStudent: "Tiếp tục với vai trò Sinh viên",
-    continueAdmin: "Tiếp tục với vai trò Quản trị",
-    sso: "Tiếp tục với VinUni SSO",
-    ssoHint: "Demo: đăng nhập bằng tài khoản sinh viên",
-    securityNote: "Quyền truy cập dựa trên vai trò và quyền hạn VinUni của bạn.",
-    demoStudent: "Tài khoản demo Sinh viên",
-    demoAdmin: "Tài khoản demo Quản trị",
     or: "hoặc",
+    sso: "Tiếp tục với VinUni SSO",
+    studentAccounts: "Tài khoản sinh viên",
+    passwordHint: "Mật khẩu",
+    securityNote: "Quyền truy cập dựa trên vai trò và quyền hạn VinUni của bạn.",
   },
   access: {
     title: "Truy cập bị từ chối",
@@ -1533,6 +1528,8 @@ const vi: PortalStrings = {
     you: "Bạn",
     staff: "Cán bộ",
     systemAuthor: "Hệ thống",
+    respondToAdmin: "Phản hồi thêm cho admin",
+    respondToAdminPlaceholder: "Viết nội dung bổ sung cho đội ngũ hỗ trợ…",
     vis: { active: "Đang hoạt động", archived: "Ẩn / Lưu trữ", deleted: "Đã xóa" },
     subtitle: "Theo dõi yêu cầu và phản hồi từ các phòng ban hỗ trợ VinUni.",
     newTicket: "Tạo phiếu",

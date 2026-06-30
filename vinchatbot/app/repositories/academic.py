@@ -140,7 +140,9 @@ class AcademicRepository:
                 id,
                 coalesce(code, course_code) as code,
                 coalesce(name, course_title) as name,
+                coalesce(name_vi, course_title_vi) as name_vi,
                 credits,
+                instructor as instructor_name,
                 course_level,
                 department_code,
                 is_general_education,
@@ -167,7 +169,9 @@ class AcademicRepository:
                 c.id as course_id,
                 coalesce(c.code, c.course_code) as course_code,
                 coalesce(c.name, c.course_title) as course_name,
+                coalesce(c.name_vi, c.course_title_vi) as course_name_vi,
                 c.credits,
+                c.instructor as instructor_name,
                 c.course_level,
                 c.department_code,
                 c.is_general_education,
@@ -193,6 +197,7 @@ class AcademicRepository:
                 required.id as required_course_id,
                 coalesce(required.code, required.course_code) as required_course_code,
                 coalesce(required.name, required.course_title) as required_course_name,
+                coalesce(required.name_vi, required.course_title_vi) as required_course_name_vi,
                 required.credits as required_course_credits
             from course_requisites cr
             join courses required on required.id = cr.required_course_id
@@ -230,7 +235,9 @@ class AcademicRepository:
                 c.id as course_id,
                 coalesce(c.code, c.course_code) as course_code,
                 coalesce(c.name, c.course_title) as course_name,
+                coalesce(c.name_vi, c.course_title_vi) as course_name_vi,
                 c.credits,
+                coalesce(cs.instructor_name, c.instructor) as instructor_name,
                 c.course_level,
                 c.department_code,
                 c.is_general_education,
@@ -256,29 +263,31 @@ class AcademicRepository:
         rows = await self._fetchall(
             """
             select
-                cm.id,
-                cm.section_id,
-                cm.title,
-                cm.meeting_type,
-                cm.start_at,
-                cm.end_at,
-                cm.note,
+                se.id,
+                se.section_id,
+                se.title,
+                se.meeting_type,
+                se.start_at,
+                se.end_at,
+                se.note,
+                cs.section_code,
+                coalesce(se.instructor, cs.instructor_name) as instructor_name,
                 coalesce(c.code, c.course_code) as course_code,
                 coalesce(c.name, c.course_title) as course_name,
-                r.id as room_id,
-                r.building,
-                r.room_name,
-                r.capacity as room_capacity
-            from student_course_enrollments sce
+                coalesce(c.name_vi, c.course_title_vi) as course_name_vi,
+                null::uuid as room_id,
+                se.building,
+                se.room as room_name,
+                null::integer as room_capacity
+            from student_schedule_events se
+            join student_course_enrollments sce on sce.id = se.enrollment_id
             join academic_terms t on t.id = sce.term_id
-            join course_sections cs on cs.id = sce.section_id
-            join courses c on c.id = cs.course_id
-            join class_meetings cm on cm.section_id = cs.id
-            left join rooms r on r.id = cm.room_id
-            where sce.student_id = %s
+            left join course_sections cs on cs.id = se.section_id
+            left join courses c on c.id = se.course_id
+            where se.student_id = %s
               and t.code = %s
-              and sce.status in ('planned', 'enrolled', 'completed', 'retaking', 'improvement')
-            order by cm.start_at, course_code, cm.title
+              and sce.status in ('planned', 'enrolled', 'retaking', 'improvement')
+            order by se.start_at, course_code, se.title
             """,
             (student_id, term_code),
         )
@@ -291,7 +300,7 @@ class AcademicRepository:
         start_at: datetime,
         end_at: datetime,
     ) -> list[dict[str, Any]]:
-        """Timetable events for the student's enrolled sections within a datetime window.
+        """Calendar events for the student within a datetime window.
 
         Used by the month-scoped schedule endpoint. Spans terms (the window, not a term code,
         bounds the result) so a month that straddles two terms still returns every meeting.
@@ -299,31 +308,31 @@ class AcademicRepository:
         rows = await self._fetchall(
             """
             select
-                cm.id,
-                cm.section_id,
-                cm.title,
-                cm.meeting_type,
-                cm.start_at,
-                cm.end_at,
-                cm.note,
+                se.id,
+                se.section_id,
+                se.title,
+                se.meeting_type,
+                se.start_at,
+                se.end_at,
+                se.note,
                 cs.section_code,
-                cs.instructor_name,
+                coalesce(se.instructor, cs.instructor_name) as instructor_name,
                 coalesce(c.code, c.course_code) as course_code,
                 coalesce(c.name, c.course_title) as course_name,
-                r.id as room_id,
-                r.building,
-                r.room_name,
-                r.capacity as room_capacity
-            from student_course_enrollments sce
-            join course_sections cs on cs.id = sce.section_id
-            join courses c on c.id = cs.course_id
-            join class_meetings cm on cm.section_id = cs.id
-            left join rooms r on r.id = cm.room_id
-            where sce.student_id = %s
-              and sce.status in ('planned', 'enrolled', 'completed', 'retaking', 'improvement')
-              and cm.start_at >= %s
-              and cm.start_at < %s
-            order by cm.start_at, course_code, cm.title
+                coalesce(c.name_vi, c.course_title_vi) as course_name_vi,
+                null::uuid as room_id,
+                se.building,
+                se.room as room_name,
+                null::integer as room_capacity
+            from student_schedule_events se
+            left join student_course_enrollments sce on sce.id = se.enrollment_id
+            left join course_sections cs on cs.id = se.section_id
+            left join courses c on c.id = se.course_id
+            where se.student_id = %s
+              and (se.enrollment_id is null or sce.status in ('planned', 'enrolled', 'retaking', 'improvement'))
+              and se.start_at >= %s
+              and se.start_at < %s
+            order by se.start_at, course_code, se.title
             """,
             (student_id, start_at, end_at),
         )
@@ -354,6 +363,8 @@ class AcademicRepository:
                 cr.note,
                 coalesce(required.code, required.course_code) as required_course_code,
                 coalesce(required.name, required.course_title) as required_course_name,
+                coalesce(required.name_vi, required.course_title_vi) as required_course_name_vi,
+                required.credits as required_course_credits,
                 exists (
                     select 1
                     from student_course_enrollments passed_sce
@@ -416,6 +427,8 @@ class AcademicRepository:
                 cr.note,
                 coalesce(required.code, required.course_code) as required_course_code,
                 coalesce(required.name, required.course_title) as required_course_name,
+                coalesce(required.name_vi, required.course_title_vi) as required_course_name_vi,
+                required.credits as required_course_credits,
                 exists (
                     select 1
                     from student_course_enrollments passed_sce

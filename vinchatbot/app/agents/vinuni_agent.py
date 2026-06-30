@@ -182,8 +182,12 @@ class VinUniAgentService:
                 "citation needed) — but do not invent anything not present here. For any "
                 "official policy/rule, still rely on retrieved official sources and say so if "
                 "they are missing. If the user asks an identity/profile question, answer only "
-                "with profile, academic summary, and current-course facts; do not volunteer "
-                "schedule items or deadlines unless the user asks for them."
+                "with profile, academic summary, and current-course facts; if asked about "
+                "current courses, count and list all courses present in the context including "
+                "0-credit courses, while excluding 0-credit courses from credit totals. Use "
+                "Vietnamese course-title fields when answering in Vietnamese, and English "
+                "course-title fields when answering in English. Do not volunteer schedule items "
+                "or deadlines unless the user asks for them."
             )
             user_message = (
                 f"{user_message}\n\n[Student personalization context — authenticated, current "

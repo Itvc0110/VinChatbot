@@ -66,7 +66,9 @@ class AcademicCourseResponse(BaseModel):
     id: uuid.UUID
     code: str
     name: str
+    name_vi: str | None = None
     credits: int
+    instructor_name: str | None = None
     course_level: int | None = None
     department_code: str | None = None
     is_general_education: bool = False
@@ -134,6 +136,7 @@ class ClassMeetingResponse(BaseModel):
     section_id: uuid.UUID
     course_code: str
     course_name: str
+    course_name_vi: str | None = None
     title: str
     meeting_type: MeetingType
     start_at: datetime
@@ -179,6 +182,7 @@ class ScheduleEventResponse(BaseModel):
     id: uuid.UUID
     course_code: str
     course_name: str
+    course_name_vi: str | None = None
     section_code: str | None = None
     instructor_name: str | None = None
     meeting_type: MeetingType

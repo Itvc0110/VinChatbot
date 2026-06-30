@@ -40,6 +40,7 @@ class PersonalizationCourse(BaseModel):
     id: uuid.UUID
     course_code: str
     course_title: str
+    course_title_vi: str | None = None
     credits: int | None = None
     semester: str | None = None
     academic_year: str | None = None
@@ -54,6 +55,7 @@ class PersonalizationScheduleItem(BaseModel):
     end_time: datetime
     course_code: str | None = None
     course_title: str | None = None
+    course_title_vi: str | None = None
     location: str | None = None
     room: str | None = None
 
@@ -65,6 +67,7 @@ class PersonalizationDeadline(BaseModel):
     kind: str | None = None
     course_code: str | None = None
     course_title: str | None = None
+    course_title_vi: str | None = None
 
 
 class PersonalizationNotification(BaseModel):

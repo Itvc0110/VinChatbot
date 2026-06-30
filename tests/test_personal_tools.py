@@ -31,6 +31,7 @@ PROGRAM_ID = uuid.uuid4()
 TERM_ID = uuid.uuid4()
 COURSE_1010 = uuid.uuid4()
 COURSE_2020 = uuid.uuid4()
+COURSE_LAB100 = uuid.uuid4()
 
 
 # --- fakes ----------------------------------------------------------------------------------------
@@ -160,6 +161,7 @@ class FakeAcademicRepo:
                 "course_code": "COMP2020",
                 "course_name": "Data Structures",
                 "credits": 4,
+                "instructor_name": "Dr. Structure",
                 "grade_10": None,
                 "grade_4": None,
                 "letter_grade": None,
@@ -184,6 +186,38 @@ class FakeAcademicRepo:
                 "is_general_education": False,
                 "section_id": uuid.uuid4(),
                 "section_code": "A",
+            },
+            {
+                "id": uuid.uuid4(),
+                "student_id": student_id,
+                "course_code": "LAB100",
+                "course_name": "Safety Lab Orientation",
+                "credits": 0,
+                "instructor_name": "Dr. Lab",
+                "grade_10": None,
+                "grade_4": None,
+                "letter_grade": None,
+                "passed": False,
+                "status": "enrolled",
+                "attempt_no": 1,
+                "is_improvement": False,
+                "retake_of_enrollment_id": None,
+                "term_name": "Summer 2026",
+                "term_id": TERM_ID,
+                "term_code": "2026-SUMMER",
+                "start_date": date(2026, 6, 1),
+                "end_date": date(2026, 7, 31),
+                "academic_year": 2026,
+                "term_order": 3,
+                "is_gpa_counted": False,
+                "earned_credits": 0,
+                "completed_at": None,
+                "course_id": COURSE_LAB100,
+                "course_level": 100,
+                "department_code": "LAB",
+                "is_general_education": False,
+                "section_id": uuid.uuid4(),
+                "section_code": "O",
             },
         ]
 
@@ -253,7 +287,7 @@ def test_tools_scope_queries_to_the_session_identity_only(tools):
         assert FakeAcademicRepo.last_user_id == USER_A
 
         transcript = _call(tools["get_my_transcript"])
-        assert transcript["count"] == 2
+        assert transcript["count"] == 3
         # transcript keyed by the session's student_profile_id
         assert FakeAcademicRepo.last_student_id == PROFILE_A
     finally:
@@ -303,7 +337,13 @@ def test_courses_come_from_current_academic_enrollments_not_legacy_portal(tools)
         result = _call(tools["get_my_courses"])
         assert result["source"] == "academic_read_model"
         assert result["term"] == "2026-SUMMER"
-        assert [course["course_code"] for course in result["courses"]] == ["COMP2020"]
+        assert [course["course_code"] for course in result["courses"]] == ["COMP2020", "LAB100"]
+        assert result["count"] == 2
+        assert result["credit_bearing_count"] == 1
+        assert result["zero_credit_count"] == 1
+        assert result["current_credits"] == 4
+        assert result["courses"][0]["instructor"] == "Dr. Structure"
+        assert [course["course_code"] for course in result["zero_credit_courses"]] == ["LAB100"]
         assert FakeStudentRepo.last_profile_id is None
     finally:
         reset_student_identity()

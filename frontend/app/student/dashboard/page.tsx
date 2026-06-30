@@ -273,6 +273,16 @@ function meetingSub(m: AcademicScheduleEvent): string {
     .join(" · ");
 }
 
+function localizedCourseName(
+  item: AcademicCourse | AcademicScheduleEvent,
+  lang: Lang
+): string {
+  if ("course_name" in item) {
+    return lang === "vi" ? item.course_name_vi ?? item.course_name : item.course_name;
+  }
+  return lang === "vi" ? item.name_vi ?? item.name : item.name;
+}
+
 export default function StudentDashboardPage() {
   const { p, lang } = usePortal();
   const s = STR[lang];
@@ -306,7 +316,7 @@ export default function StudentDashboardPage() {
   const ac = academic.status === "success" ? academic.data : null;
   const name = user?.name ?? pr?.preferred_name ?? "";
 
-  // Prefer academic-record values (Phase 13B academic DB); fall back to the legacy profile.
+  // Prefer rich academic-record values; the profile endpoint exposes the same canonical DB summary.
   const gpaText = ac?.current_gpa ?? (pr ? pr.gpa.toFixed(2) : null);
   const cpaText = ac?.cumulative_cpa ?? null;
   const creditsText = ac
@@ -424,7 +434,7 @@ export default function StudentDashboardPage() {
           label={s.focusNextClass}
           detail={
             nextTodayMeeting
-              ? `${timeLabel(nextTodayMeeting.start_at, locale)} · ${nextTodayMeeting.course_name}`
+              ? `${timeLabel(nextTodayMeeting.start_at, locale)} · ${localizedCourseName(nextTodayMeeting, lang)}`
               : hadClassesToday
               ? s.noMoreClassesToday
               : s.noClassesToday
@@ -534,7 +544,13 @@ export default function StudentDashboardPage() {
                   </div>
                 </div>
 
-                <CourseChips title={s.currentlyStudying} courses={ac.enrolled_courses} none={s.none} more={s.moreCount} />
+                <CourseChips
+                  title={s.currentlyStudying}
+                  courses={ac.enrolled_courses}
+                  none={s.none}
+                  more={s.moreCount}
+                  lang={lang}
+                />
               </>
             )}
           </Card>
@@ -613,7 +629,7 @@ export default function StudentDashboardPage() {
                     <span className="rail-time">{timeLabel(m.start_at, locale)}</span>
                     <div className="rail-sched-main">
                       <div className="rail-sched-title">
-                        {m.course_name}
+                        {localizedCourseName(m, lang)}
                         {state === "current" ? (
                           <span className="sched-badge now">
                             <span className="sched-dot" aria-hidden />
@@ -661,7 +677,7 @@ export default function StudentDashboardPage() {
                         {new Date(m.start_at).toLocaleDateString(locale, { day: "2-digit", month: "short" })}
                       </span>
                       <div className="rail-sched-main">
-                        <div className="rail-sched-title">{m.course_name}</div>
+                        <div className="rail-sched-title">{localizedCourseName(m, lang)}</div>
                         <div className="rail-sched-sub">
                           {timeLabel(m.start_at, locale)} · {meetingSub(m)}
                         </div>
@@ -754,11 +770,13 @@ function CourseChips({
   courses,
   none,
   more,
+  lang,
 }: {
   title: string;
   courses: AcademicCourse[];
   none: string;
   more: (n: number) => string;
+  lang: Lang;
 }) {
   const shown = courses.slice(0, MAX_CHIPS);
   const extra = courses.length - shown.length;
@@ -774,7 +792,7 @@ function CourseChips({
       ) : (
         <div className="chip-row">
           {shown.map((c) => (
-            <span key={c.id} className="ah-chip neutral">
+            <span key={c.id} className="ah-chip neutral" title={localizedCourseName(c, lang)}>
               {c.code}
             </span>
           ))}

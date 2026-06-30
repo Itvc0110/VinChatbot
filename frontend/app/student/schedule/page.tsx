@@ -22,16 +22,21 @@ import {
 } from "@/lib/calendar";
 import { IconCalendar } from "@/components/shell/icons";
 
+function localizedCourseName(m: AcademicScheduleEvent, lang: Lang): string {
+  return lang === "vi" ? m.course_name_vi ?? m.course_name : m.course_name;
+}
+
 // Map a backend class meeting (GET /schedule/me) onto the calendar's CalendarEvent shape.
 // lecture/lab/tutorial/seminar/office_hour render as "class"; exam and deadline keep their type.
-function meetingToCalendarEvent(m: AcademicScheduleEvent): CalendarEvent {
+function meetingToCalendarEvent(m: AcademicScheduleEvent, lang: Lang): CalendarEvent {
   const type: CalendarEvent["type"] =
     m.meeting_type === "exam" ? "exam" : m.meeting_type === "deadline" ? "deadline" : "class";
   const location = [m.room_name, m.building].filter(Boolean).join(", ") || undefined;
   const course = m.section_code ? `${m.course_code} · ${m.section_code}` : m.course_code;
+  const courseName = localizedCourseName(m, lang);
   const description = [
     m.instructor_name ? `Instructor: ${m.instructor_name}` : null,
-    m.course_name ? `Course: ${m.course_name}` : null,
+    courseName ? `Course: ${courseName}` : null,
     m.note || null,
   ]
     .filter(Boolean)
@@ -39,7 +44,7 @@ function meetingToCalendarEvent(m: AcademicScheduleEvent): CalendarEvent {
   return {
     id: m.id,
     type,
-    title: m.title || m.course_name,
+    title: m.title || courseName,
     start: m.start_at,
     end: m.end_at,
     location,
@@ -681,9 +686,9 @@ export default function StudentCalendarPage() {
   const sched = useAsync(
     async () => {
       const months = await Promise.all(visibleMonthKeys.map((month) => getMonthlySchedule(month)));
-      return uniqueEvents(months.flat().map(meetingToCalendarEvent));
+      return uniqueEvents(months.flat().map((meeting) => meetingToCalendarEvent(meeting, lang)));
     },
-    [token, visibleMonthKey]
+    [token, visibleMonthKey, lang]
   );
 
   useEffect(() => {

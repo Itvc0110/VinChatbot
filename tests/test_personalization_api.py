@@ -103,9 +103,19 @@ def sample_context(*, ai_enabled: bool = True) -> PersonalizationContext:
                 id=COURSE_ID,
                 course_code="CSC202",
                 course_title="Data Structures and Algorithms",
+                credits=4,
                 semester="Fall 2026",
                 academic_year="2026-2027",
                 instructor="Tuan Nguyen",
+            ),
+            PersonalizationCourse(
+                id=uuid.UUID("88888888-8888-8888-8888-888888888888"),
+                course_code="PE101",
+                course_title="Physical Education",
+                credits=0,
+                semester="Fall 2026",
+                academic_year="2026-2027",
+                instructor="Sports Center",
             )
         ],
         schedule=[
@@ -289,6 +299,8 @@ def test_prompt_is_bounded_and_includes_each_source():
 
     assert "Student profile:" in prompt
     assert "CSC202" in prompt
+    assert "CSC202 Data Structures and Algorithms (4 credits)" in prompt
+    assert "PE101 Physical Education (0 credits)" in prompt
     assert "CSC202 Assignment 1" in prompt
     assert "Required CECS lab safety training" in prompt
     assert "What DSA deadlines are coming up?" in prompt

@@ -36,32 +36,98 @@ class StudentRepository:
     async def get_current_student_profile(self, user_id: uuid.UUID) -> dict[str, Any] | None:
         row = await self._fetchone(
             """
+            with profile as (
+                select
+                    sp.id,
+                    coalesce(sp.student_code, sp.student_id) as student_id,
+                    coalesce(sp.program, p.name) as program,
+                    coalesce(sp.major, p.name) as major,
+                    coalesce(sp.cohort, sp.cohort_year) as cohort,
+                    coalesce(sp.academic_year, sp.current_year) as academic_year,
+                    coalesce(sp.student_status, sp.status, 'active') as student_status,
+                    sp.preferred_language,
+                    sp.advisor_name,
+                    sp.advisor_email,
+                    sp.ai_personalization_enabled,
+                    sp.institute_id,
+                    sp.updated_at,
+                    coalesce(p.total_required_credits, 120) as credits_required
+                from student_profiles sp
+                left join programs p on p.id = sp.program_id
+                where sp.user_id = %s
+            ),
+            current_term as (
+                select t.name
+                from academic_terms t
+                order by
+                    (current_date between t.start_date and t.end_date) desc,
+                    (t.start_date <= current_date) desc,
+                    t.start_date desc
+                limit 1
+            ),
+            summary as (
+                select
+                    p.id as student_profile_id,
+                    round(
+                        (
+                            sum(sce.grade_4 * c.credits) filter (
+                                where c.credits > 0
+                                  and sce.status in ('completed', 'failed', 'improvement')
+                                  and sce.is_gpa_counted = true
+                                  and sce.grade_4 is not null
+                            )
+                            / nullif(
+                                sum(c.credits) filter (
+                                    where c.credits > 0
+                                      and sce.status in ('completed', 'failed', 'improvement')
+                                      and sce.is_gpa_counted = true
+                                      and sce.grade_4 is not null
+                                ),
+                                0
+                            )
+                        )::numeric,
+                        2
+                    ) as gpa,
+                    coalesce(sum(sce.earned_credits) filter (where sce.passed = true), 0)::int
+                        as credits_earned,
+                    p.credits_required,
+                    max(sce.updated_at) as enrollment_updated_at
+                from profile p
+                left join student_course_enrollments sce on sce.student_id = p.id
+                left join courses c on c.id = sce.course_id
+                group by p.id, p.credits_required
+            )
             select
-                sp.id,
-                sp.student_id,
-                sp.program,
-                sp.major,
-                sp.cohort,
-                sp.academic_year,
-                sp.student_status,
-                sp.preferred_language,
-                sp.advisor_name,
-                sp.advisor_email,
-                sp.ai_personalization_enabled,
+                p.id,
+                p.student_id,
+                p.program,
+                p.major,
+                p.cohort,
+                p.academic_year,
+                p.student_status,
+                p.preferred_language,
+                p.advisor_name,
+                p.advisor_email,
+                p.ai_personalization_enabled,
                 i.id as institute_id,
                 i.code as institute_code,
                 i.name_vi as institute_name_vi,
                 i.name_en as institute_name_en,
-                a.gpa,
-                a.credits_earned,
-                a.credits_required,
-                a.current_semester,
-                a.academic_status,
-                a.updated_at as academic_summary_updated_at
-            from student_profiles sp
-            join institutes i on i.id = sp.institute_id
-            left join academic_summaries a on a.student_profile_id = sp.id
-            where sp.user_id = %s
+                s.gpa,
+                s.credits_earned,
+                s.credits_required,
+                (select name from current_term) as current_semester,
+                case
+                    when s.gpa is null then 'normal'
+                    when s.gpa < 1.50 then 'probation'
+                    when s.gpa < 2.00 then 'warning'
+                    else 'normal'
+                end as academic_status,
+                greatest(p.updated_at, coalesce(s.enrollment_updated_at, p.updated_at))
+                    as academic_summary_updated_at
+            from profile p
+            join institutes i on i.id = p.institute_id
+            join summary s on s.student_profile_id = p.id
             """,
             (user_id,),
         )
@@ -74,21 +140,25 @@ class StudentRepository:
             """
             select
                 c.id,
-                c.course_code,
-                c.course_title,
+                coalesce(c.code, c.course_code) as course_code,
+                coalesce(c.name, c.course_title) as course_title,
+                coalesce(c.name_vi, c.course_title_vi) as course_title_vi,
                 c.credits,
                 c.semester,
                 c.academic_year,
-                c.instructor,
+                coalesce(cs.instructor_name, c.instructor) as instructor,
                 i.id as institute_id,
                 i.code as institute_code,
                 i.name_vi as institute_name_vi,
                 i.name_en as institute_name_en
-            from enrollments e
-            join courses c on c.id = e.course_id
-            left join institutes i on i.id = c.institute_id
-            where e.student_profile_id = %s
-            order by c.course_code
+            from student_course_enrollments sce
+            join student_profiles sp on sp.id = sce.student_id
+            join courses c on c.id = sce.course_id
+            left join course_sections cs on cs.id = sce.section_id
+            left join institutes i on i.id = coalesce(c.institute_id, sp.institute_id)
+            where sce.student_id = %s
+              and sce.status in ('planned', 'enrolled', 'retaking', 'improvement')
+            order by coalesce(c.code, c.course_code)
             """,
             (student_profile_id,),
         )
@@ -103,24 +173,31 @@ class StudentRepository:
         rows = await self._fetchall(
             """
             select
-                s.id,
-                s.course_id,
-                c.course_code,
-                c.course_title,
-                s.title,
-                s.schedule_type,
-                s.start_time,
-                s.end_time,
-                s.location,
-                s.building,
-                s.room,
-                s.instructor,
-                s.recurrence_rule
-            from schedules s
-            left join courses c on c.id = s.course_id
-            where s.student_profile_id = %s
-              and (%s = false or s.end_time >= now())
-            order by s.start_time, s.title
+                se.id,
+                se.course_id,
+                coalesce(c.code, c.course_code) as course_code,
+                coalesce(c.name, c.course_title) as course_title,
+                coalesce(c.name_vi, c.course_title_vi) as course_title_vi,
+                se.title,
+                case
+                    when se.meeting_type in ('lecture', 'tutorial', 'seminar') then 'class'
+                    when se.meeting_type = 'lab' then 'lab'
+                    when se.meeting_type = 'exam' then 'exam'
+                    when se.meeting_type = 'office_hour' then 'office_hour'
+                    else 'other'
+                end as schedule_type,
+                se.start_at as start_time,
+                se.end_at as end_time,
+                se.location,
+                se.building,
+                se.room,
+                se.instructor,
+                null::text as recurrence_rule
+            from student_schedule_events se
+            left join courses c on c.id = se.course_id
+            where se.student_id = %s
+              and (%s = false or se.end_at >= now())
+            order by se.start_at, se.title
             """,
             (student_profile_id, upcoming_only),
         )
@@ -137,8 +214,9 @@ class StudentRepository:
             select
                 d.id,
                 d.course_id,
-                c.course_code,
-                c.course_title,
+                coalesce(c.code, c.course_code) as course_code,
+                coalesce(c.name, c.course_title) as course_title,
+                coalesce(c.name_vi, c.course_title_vi) as course_title_vi,
                 d.title,
                 d.kind,
                 d.due_at,
@@ -196,7 +274,7 @@ class StudentRepository:
                 n.institute_id,
                 i.code as institute_code,
                 n.course_id,
-                c.course_code,
+                coalesce(c.code, c.course_code) as course_code,
                 n.cohort,
                 n.deadline,
                 n.event_date,
@@ -429,7 +507,7 @@ class StudentRepository:
                 sq.institute_id,
                 i.code as institute_code,
                 sq.course_id,
-                c.course_code,
+                coalesce(c.code, c.course_code) as course_code,
                 sq.cohort,
                 sq.score,
                 sq.priority,
@@ -916,8 +994,9 @@ class StudentRepository:
         rows = await self._fetchall(
             """
             select course_id
-            from enrollments
-            where student_profile_id = %s
+            from student_course_enrollments
+            where student_id = %s
+              and status in ('planned', 'enrolled', 'retaking', 'improvement')
             """,
             (student_profile_id,),
         )
@@ -983,6 +1062,7 @@ class StudentRepository:
             "id": row["id"],
             "course_code": row["course_code"],
             "course_title": row["course_title"],
+            "course_title_vi": row["course_title_vi"],
             "credits": row["credits"],
             "semester": row["semester"],
             "academic_year": row["academic_year"],

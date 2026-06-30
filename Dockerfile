@@ -12,7 +12,8 @@ WORKDIR /app
 # all ship manylinux wheels, so no build toolchain is needed for the base dependency set.
 COPY pyproject.toml README.md ./
 COPY vinchatbot ./vinchatbot
-RUN pip install --upgrade pip && pip install .
+RUN pip install --upgrade pip --retries 10 --timeout 120 --progress-bar off \
+    && pip install --retries 10 --timeout 120 --progress-bar off .
 
 EXPOSE 8000
 

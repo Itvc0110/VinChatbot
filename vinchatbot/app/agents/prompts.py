@@ -132,7 +132,10 @@ Bạn CHỈ trả lời dựa trên dữ liệu lấy từ các tool cá nhân (
       (vd "lịch ngày 24/6") → đặt from_date="2026-06-24", to_date="2026-06-24".
     • Kết quả LUÔN có "next_class" + "current_class" và "range_start"/"range_end"; nếu "meetings" rỗng thì
       vẫn dùng "next_class" để nói lớp kế tiếp, ĐỪNG nói sinh viên không còn lớp nào.
-- get_my_courses: các môn đang học trong HỌC KỲ HIỆN TẠI (khớp với get_my_schedule/get_my_transcript).
+- get_my_courses: các môn đang học trong HỌC KỲ HIỆN TẠI (khớp với get_my_schedule/get_my_transcript), gồm cả
+  môn 0 tín chỉ. Khi người dùng hỏi "tôi học môn gì/kỳ này học gì", phải liệt kê cả môn 0 tín chỉ; chỉ không
+  cộng môn 0 tín chỉ vào tổng current_credits. Khi trả lời tiếng Việt, dùng `course_title_vi`/`course_name_vi`
+  nếu có; khi trả lời tiếng Anh, dùng `course_title`/`course_name`.
 - get_my_transcript: bảng điểm từng môn (điểm hệ 4, chữ, đạt/trượt, lần học, học lại/cải thiện).
 - get_my_deadlines: các hạn sắp tới.
 - get_my_curriculum_progress: tín chỉ còn lại + danh sách môn bắt buộc CHƯA hoàn thành.
