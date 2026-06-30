@@ -12,8 +12,48 @@ import type { CalendarEvent } from "@/lib/portalTypes";
 import { addDays, addMonths, monthTitle, weekTitle, timeLabel, ymd } from "@/lib/calendar";
 import { formatDate } from "@/lib/format";
 
+<<<<<<< Updated upstream
 type ViewMode = "day" | "week" | "month" | "list";
 type CalFilter = "all" | "class" | "exam" | "assignment" | "tuition" | "event";
+=======
+function localizedCourseName(m: AcademicScheduleEvent, lang: Lang): string {
+  return lang === "vi" ? m.course_name_vi ?? m.course_name : m.course_name;
+}
+
+// Map a backend class meeting (GET /schedule/me) onto the calendar's CalendarEvent shape.
+// lecture/lab/tutorial/seminar/office_hour render as "class"; exam and deadline keep their type.
+function meetingToCalendarEvent(m: AcademicScheduleEvent, lang: Lang): CalendarEvent {
+  const type: CalendarEvent["type"] =
+    m.meeting_type === "exam" ? "exam" : m.meeting_type === "deadline" ? "deadline" : "class";
+  const location = [m.room_name, m.building].filter(Boolean).join(", ") || undefined;
+  const course = m.section_code ? `${m.course_code} · ${m.section_code}` : m.course_code;
+  const courseName = localizedCourseName(m, lang);
+  const description = [
+    m.instructor_name ? `Instructor: ${m.instructor_name}` : null,
+    courseName ? `Course: ${courseName}` : null,
+    m.note || null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return {
+    id: m.id,
+    type,
+    title: m.title || courseName,
+    start: m.start_at,
+    end: m.end_at,
+    location,
+    course,
+    category: m.meeting_type,
+    description: description || undefined,
+  };
+}
+
+function monthKeyOf(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+type ScheduleViewMode = "week" | "month";
+>>>>>>> Stashed changes
 type Lang = "en" | "vi";
 
 const FILTER_KEYS: CalFilter[] = ["all", "class", "exam", "assignment", "tuition", "event"];
@@ -131,7 +171,21 @@ export default function StudentCalendarPage() {
   const autoCursorApplied = useRef(false);
   const manualCursorNavigation = useRef(false);
 
+<<<<<<< Updated upstream
   const events = cal.status === "success" ? cal.data : [];
+=======
+  const visibleMonthKeys = useMemo(() => monthKeysForView(cursor, view), [cursor, view]);
+  const visibleMonthKey = visibleMonthKeys.join(",");
+
+  const sched = useAsync(
+    async () => {
+      const months = await Promise.all(visibleMonthKeys.map((month) => getMonthlySchedule(month)));
+      return uniqueEvents(months.flat().map((meeting) => meetingToCalendarEvent(meeting, lang)));
+    },
+    [token, visibleMonthKey, lang]
+  );
+
+>>>>>>> Stashed changes
   useEffect(() => {
     if (cal.status !== "success" || autoCursorApplied.current || manualCursorNavigation.current) {
       return;

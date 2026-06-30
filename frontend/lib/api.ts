@@ -81,6 +81,7 @@ export interface BackendCourse {
   id: string;
   course_code: string;
   course_title: string;
+  course_title_vi?: string | null;
   credits: number;
   semester?: string | null;
   academic_year?: string | null;
@@ -93,6 +94,7 @@ export interface BackendScheduleItem {
   course_id?: string | null;
   course_code?: string | null;
   course_title?: string | null;
+  course_title_vi?: string | null;
   title: string;
   schedule_type: string;
   start_time: string;
@@ -109,6 +111,7 @@ export interface BackendDeadline {
   course_id?: string | null;
   course_code?: string | null;
   course_title?: string | null;
+  course_title_vi?: string | null;
   title: string;
   kind?: string | null;
   due_at: string;
@@ -697,6 +700,7 @@ function mapScheduleItem(item: BackendScheduleItem): ClassSession {
     id: item.id,
     course_code: item.course_code ?? item.title,
     course_title: item.course_title ?? item.title,
+    course_title_vi: item.course_title_vi ?? undefined,
     day: SCHEDULE_DAYS[start.getDay()],
     start: isoTime(item.start_time),
     end: isoTime(item.end_time),
@@ -1262,9 +1266,8 @@ export async function getActiveSuggestedQuestions(
 }
 
 // ---- Calendar ---------------------------------------------------------------
-// [LIVE-composed] The backend exposes schedule and deadlines separately in Phase 7.
-// Calendar UI gets a combined feed from those real endpoints; campus event data remains
-// empty until a dedicated student events endpoint exists.
+// [LIVE-composed] Frontend only consumes stable APIs. The backend maps schedule data from
+// the canonical student calendar table and combines it with deadline data here.
 export async function getStudentCalendar(
   from?: string,
   to?: string
@@ -1284,6 +1287,242 @@ export async function getStudentCalendar(
   });
 }
 
+<<<<<<< Updated upstream
+=======
+// ---- Academic read APIs (Phase 13B/13C) ------------------------------------
+// All student-facing and resolved through the authenticated session on the backend
+// (current_user.id -> student_profiles.user_id). The client never sends a student_id.
+// JSON shapes mirror the FastAPI response models 1:1; Decimal fields arrive as strings.
+
+export type AcademicMeetingType =
+  | "lecture"
+  | "lab"
+  | "tutorial"
+  | "seminar"
+  | "exam"
+  | "office_hour"
+  | "deadline";
+export type AcademicEnrollmentStatus =
+  | "planned"
+  | "enrolled"
+  | "completed"
+  | "failed"
+  | "withdrawn"
+  | "retaking"
+  | "improvement";
+export type CurriculumProgressStatus = "completed" | "in_progress" | "failed" | "remaining";
+export type AcademicCurriculumCategory =
+  | "general_education"
+  | "foundation"
+  | "major_core"
+  | "major_elective"
+  | "physical_education"
+  | "capstone";
+export type AcademicRequisiteType = "prerequisite" | "corequisite";
+
+export interface AcademicFaculty {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface AcademicProgram {
+  id: string;
+  faculty_id: string;
+  code: string;
+  name: string;
+  degree_level: string;
+  curriculum_year: number;
+  total_required_credits: number;
+}
+
+export interface AcademicTerm {
+  id: string;
+  code: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  academic_year: number;
+  term_order: number;
+}
+
+export interface AcademicCourse {
+  id: string;
+  code: string;
+  name: string;
+  name_vi?: string | null;
+  credits: number;
+  instructor_name?: string | null;
+  course_level?: number | null;
+  department_code?: string | null;
+  is_general_education?: boolean;
+  description?: string | null;
+}
+
+export interface AcademicProfile {
+  id: string;
+  student_code?: string | null;
+  full_name?: string | null;
+  current_year?: number | null;
+  cohort_year?: number | null;
+  status?: string | null;
+  faculty?: AcademicFaculty | null;
+  program?: AcademicProgram | null;
+}
+
+export interface AcademicProgressSummary {
+  earned_credits: number;
+  required_credits: number;
+  completed_required_courses: number;
+  remaining_required_courses: number;
+  progress_percent: string;
+}
+
+export interface AcademicScheduleEvent {
+  id: string;
+  course_code: string;
+  course_name: string;
+  course_name_vi?: string | null;
+  section_code?: string | null;
+  instructor_name?: string | null;
+  meeting_type: AcademicMeetingType;
+  title: string;
+  start_at: string;
+  end_at: string;
+  room_name?: string | null;
+  building?: string | null;
+  note?: string | null;
+}
+
+export interface AcademicOverview {
+  profile: AcademicProfile;
+  current_term: AcademicTerm | null;
+  current_gpa: string | null;
+  cumulative_cpa: string | null;
+  earned_credits: number;
+  required_credits: number;
+  failed_courses: AcademicCourse[];
+  enrolled_courses: AcademicCourse[];
+  upcoming_meetings: AcademicScheduleEvent[];
+  summary: AcademicProgressSummary;
+}
+
+export interface AcademicEnrollment {
+  id: string;
+  student_id: string;
+  course: AcademicCourse;
+  term: AcademicTerm;
+  section_id?: string | null;
+  status: AcademicEnrollmentStatus;
+  attempt_no: number;
+  is_improvement: boolean;
+  retake_of_enrollment_id?: string | null;
+  grade_10?: string | null;
+  grade_4?: string | null;
+  letter_grade?: string | null;
+  passed: boolean;
+  earned_credits: number;
+  is_gpa_counted: boolean;
+  completed_at?: string | null;
+}
+
+export interface AcademicTranscriptTerm {
+  term: AcademicTerm;
+  enrollments: AcademicEnrollment[];
+  term_gpa: string | null;
+  cumulative_cpa: string | null;
+}
+
+export interface AcademicTranscriptSummary {
+  student_id: string;
+  attempted_credits: number;
+  earned_credits: number;
+  gpa_credits: number;
+  gpa: string | null;
+  counted_enrollment_ids: string[];
+}
+
+export interface AcademicTranscript {
+  student_id: string;
+  terms: AcademicTranscriptTerm[];
+  summary: AcademicTranscriptSummary;
+}
+
+export interface CurriculumProgressCourse {
+  course: AcademicCourse;
+  category: AcademicCurriculumCategory;
+  is_required: boolean;
+  suggested_year?: number | null;
+  suggested_term?: number | null;
+  status: CurriculumProgressStatus;
+  grade_4?: string | null;
+}
+
+export interface AcademicCurriculumProgress {
+  program: AcademicProgram | null;
+  completed: CurriculumProgressCourse[];
+  in_progress: CurriculumProgressCourse[];
+  failed: CurriculumProgressCourse[];
+  remaining_required: CurriculumProgressCourse[];
+  remaining_zero_credit: CurriculumProgressCourse[];
+  summary: AcademicProgressSummary;
+}
+
+export interface AcademicRequisiteExplanation {
+  requisite_type: AcademicRequisiteType;
+  required_course: AcademicCourse;
+  min_grade_4?: string | null;
+  satisfied: boolean;
+  reason: string;
+}
+
+export interface EligibleCourse {
+  course: AcademicCourse;
+  category?: AcademicCurriculumCategory | null;
+  is_required: boolean;
+  eligible: boolean;
+  already_completed: boolean;
+  currently_enrolled: boolean;
+  can_retake_or_improve: boolean;
+  blocking_reasons: string[];
+  prerequisites: AcademicRequisiteExplanation[];
+  corequisites: AcademicRequisiteExplanation[];
+}
+
+export interface AcademicEligibility {
+  term: AcademicTerm | null;
+  eligible: EligibleCourse[];
+  blocked: EligibleCourse[];
+}
+
+const ACADEMIC_MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+export async function getAcademicOverview(): Promise<AcademicOverview> {
+  return getJSON<AcademicOverview>("/api/academic/me");
+}
+
+export async function getAcademicTranscript(): Promise<AcademicTranscript> {
+  return getJSON<AcademicTranscript>("/api/academic/me/transcript");
+}
+
+export async function getAcademicCurriculum(): Promise<AcademicCurriculumProgress> {
+  return getJSON<AcademicCurriculumProgress>("/api/academic/me/curriculum");
+}
+
+export async function getEligibleCourses(): Promise<AcademicEligibility> {
+  return getJSON<AcademicEligibility>("/api/academic/me/courses/eligible");
+}
+
+// month: "YYYY-MM". Validated client-side so an invalid value never reaches the API (the
+// backend would answer 422); the page derives `month` from the calendar cursor, so this is a guard.
+export async function getMonthlySchedule(month: string): Promise<AcademicScheduleEvent[]> {
+  if (!ACADEMIC_MONTH_RE.test(month)) {
+    throw new ApiError("month must be in YYYY-MM format.", 422);
+  }
+  return getJSON<AcademicScheduleEvent[]>(`/api/schedule/me?month=${encodeURIComponent(month)}`);
+}
+
+>>>>>>> Stashed changes
 // ---- Knowledge sources (admin) ---------------------------------------------
 // [LIVE] GET /api/sources -> SourceSummary[]  (FastAPI GET /sources)
 // Mapped onto the richer KnowledgeSource shape the admin table renders. Falls back

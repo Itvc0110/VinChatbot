@@ -209,6 +209,28 @@ function relTime(iso: string, s: (typeof STR)[Lang]): string {
   return s.daysAgo(Math.round(h / 24));
 }
 
+<<<<<<< Updated upstream
+=======
+function meetingSub(m: AcademicScheduleEvent): string {
+  return [
+    m.section_code ? `${m.course_code} · ${m.section_code}` : m.course_code,
+    [m.room_name, m.building].filter(Boolean).join(", "),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function localizedCourseName(
+  item: AcademicCourse | AcademicScheduleEvent,
+  lang: Lang
+): string {
+  if ("course_name" in item) {
+    return lang === "vi" ? item.course_name_vi ?? item.course_name : item.course_name;
+  }
+  return lang === "vi" ? item.name_vi ?? item.name : item.name;
+}
+
+>>>>>>> Stashed changes
 export default function StudentDashboardPage() {
   const { p, lang } = usePortal();
   const s = STR[lang];
@@ -237,6 +259,7 @@ export default function StudentDashboardPage() {
   const pr = profile.status === "success" ? profile.data : null;
   const name = user?.name ?? pr?.preferred_name ?? "";
 
+<<<<<<< Updated upstream
   // Today's classes (fall back to next day with classes, like the original).
   const allClasses = schedule.status === "success" ? schedule.data : [];
   const today = todayShort();
@@ -256,6 +279,30 @@ export default function StudentDashboardPage() {
   // When today has no classes we fall back to the next day with classes — those
   // are all genuinely upcoming, so we skip the now/past comparison.
   const isToday = schedDay === today;
+=======
+  // Prefer rich academic-record values; the profile endpoint exposes the same canonical DB summary.
+  const gpaText = ac?.current_gpa ?? (pr ? pr.gpa.toFixed(2) : null);
+  const cpaText = ac?.cumulative_cpa ?? null;
+  const creditsText = ac
+    ? `${ac.earned_credits}/${ac.required_credits}`
+    : pr
+    ? `${pr.credits_earned}/${pr.credits_required}`
+    : null;
+  const progressPct = ac
+    ? Math.max(0, Math.min(100, Number(ac.summary.progress_percent) || 0))
+    : 0;
+
+  // ---- Schedule (dated meetings for the current month) ----
+  const monthMeetings = (monthly.status === "success" ? monthly.data : [])
+    .slice()
+    .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
+  const todayMeetings = monthMeetings.filter((m) => sameDay(new Date(m.start_at), clock));
+  // The next class still ahead today (ongoing counts as the current focus).
+  const nextTodayMeeting = todayMeetings.find((m) => meetingState(m, clock) !== "past");
+  const hadClassesToday = todayMeetings.length > 0;
+  // Upcoming meetings anywhere in the month (drives the month card list).
+  const upcomingMonth = monthMeetings.filter((m) => new Date(m.start_at).getTime() >= clock.getTime());
+>>>>>>> Stashed changes
 
   const activeTickets = (tickets.status === "success" ? tickets.data : [])
     .filter((t) => ACTIVE_STATUSES.includes(t.status) && !t.archived && !t.deleted)
@@ -314,6 +361,76 @@ export default function StudentDashboardPage() {
         <p className="dash-welcome-sub">{p.productTagline}</p>
       </div>
 
+<<<<<<< Updated upstream
+=======
+      {/* Today Focus — full-width priority strip */}
+      <section className="focus-strip" aria-label={s.todayFocus}>
+        <FocusCard
+          icon={<IconCap size={18} />}
+          label={s.focusNextClass}
+          detail={
+            nextTodayMeeting
+              ? `${timeLabel(nextTodayMeeting.start_at, locale)} · ${localizedCourseName(nextTodayMeeting, lang)}`
+              : hadClassesToday
+              ? s.noMoreClassesToday
+              : s.noClassesToday
+          }
+          status={
+            nextTodayMeeting
+              ? meetingState(nextTodayMeeting, clock) === "current"
+                ? { text: s.nowLabel, tone: "success" }
+                : startsSoon
+                ? { text: s.startsSoon, tone: "warning" }
+                : null
+              : null
+          }
+          muted={!nextTodayMeeting}
+          onClick={() => router.push("/student/schedule")}
+        />
+        <FocusCard
+          icon={<IconTicket size={18} />}
+          label={s.focusTicket}
+          detail={
+            needsInputTicket
+              ? needsInputTicket.subject
+              : allActiveTickets.length > 0
+              ? s.ticketsOpen(allActiveTickets.length)
+              : s.noTicketAttention
+          }
+          status={needsInputTicket ? { text: s.needsInput, tone: "warning" } : null}
+          muted={!needsInputTicket && allActiveTickets.length === 0}
+          onClick={() => router.push("/student/support")}
+        />
+        <FocusCard
+          icon={<IconClock size={18} />}
+          label={s.focusDeadline}
+          detail={nextDeadline ? nextDeadline.title : s.noUrgentDeadline}
+          status={
+            nextDeadline
+              ? dl !== null && dl <= 0
+                ? { text: s.dueToday, tone: "warning" }
+                : dl !== null
+                ? { text: s.dueInDays(dl), tone: dl <= 3 ? "warning" : "neutral" }
+                : null
+              : null
+          }
+          muted={!nextDeadline}
+          onClick={nextDeadline ? () => go(`Tell me about the deadline: ${nextDeadline.title}`) : undefined}
+        />
+        <FocusCard
+          icon={<IconCalendar size={18} />}
+          label={s.focusEvent}
+          detail={
+            nextEvent
+              ? `${new Date(nextEvent.start).toLocaleDateString(locale, { month: "short", day: "numeric" })} · ${nextEvent.title}`
+              : s.noUpcomingEventToday
+          }
+          muted={!nextEvent}
+          onClick={() => router.push("/student/events")}
+        />
+      </section>
+
+>>>>>>> Stashed changes
       <div className="dash-grid">
         <div className="dash-main">
           {/* Academic Profile */}
@@ -332,6 +449,57 @@ export default function StudentDashboardPage() {
                 v={pr ? `${pr.credits_earned}/${pr.credits_required}` : "—"}
               />
             </div>
+<<<<<<< Updated upstream
+=======
+            {academic.status === "loading" ? (
+              <p className="rail-empty">
+                …
+              </p>
+            ) : academic.status === "error" || !ac ? (
+              <p className="rail-empty">
+                {s.academicUnavailable}
+              </p>
+            ) : (
+              <>
+                <div className="snapshot-stats">
+                  <Stat k={s.fieldGpa} v={gpaText ?? "—"} />
+                  <Stat k={s.fieldCpa} v={cpaText ?? "—"} />
+                  <Stat k={s.fieldCredits} v={creditsText ?? "—"} />
+                  <Stat
+                    k={s.fieldRequired}
+                    v={s.requiredValue(
+                      ac.summary.completed_required_courses,
+                      ac.summary.remaining_required_courses
+                    )}
+                  />
+                </div>
+
+                <div className="snapshot-progress">
+                  <div className="snapshot-progress-meta">
+                    <span className="profile-field-k">{s.fieldCredits}</span>
+                    <span className="profile-field-v">{progressPct}%</span>
+                  </div>
+                  <div
+                    className="academic-progress-bar"
+                    role="progressbar"
+                    aria-valuenow={progressPct}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                  >
+                    <div className="academic-progress-fill" style={{ width: `${progressPct}%` }} />
+                  </div>
+                </div>
+
+                <CourseChips
+                  title={s.currentlyStudying}
+                  courses={ac.enrolled_courses}
+                  none={s.none}
+                  more={s.moreCount}
+                  lang={lang}
+                />
+              </>
+            )}
+>>>>>>> Stashed changes
           </Card>
 
           {/* Recommended for You */}
@@ -429,8 +597,13 @@ export default function StudentDashboardPage() {
                     <span className="rail-time">{cls.start}</span>
                     <div className="rail-sched-main">
                       <div className="rail-sched-title">
+<<<<<<< Updated upstream
                         {cls.course_title}
                         {state === "current" && (
+=======
+                        {localizedCourseName(m, lang)}
+                        {state === "current" ? (
+>>>>>>> Stashed changes
                           <span className="sched-badge now">
                             <span className="sched-dot" aria-hidden />
                             {s.schedNow}
@@ -450,6 +623,7 @@ export default function StudentDashboardPage() {
             )}
           </div>
 
+<<<<<<< Updated upstream
           <div className="ask-vinnie-card">
             <h3>{p.askCta}</h3>
             <p>{p.askAnything}</p>
@@ -459,6 +633,42 @@ export default function StudentDashboardPage() {
             >
               <IconChat size={15} /> {s.askVinnieAboutToday}
             </button>
+=======
+          {/* Current month schedule */}
+          <div className="rail-card dash-card dash-card--month">
+            <div className="rail-head">
+              <h3 className="rail-title">{s.monthScheduleTitle}</h3>
+              <span className="month-pill">{monthTitle(clock, locale)}</span>
+            </div>
+            {monthly.status === "loading" ? (
+              <p className="rail-empty">…</p>
+            ) : monthly.status === "error" ? (
+              <p className="rail-empty">{s.scheduleUnavailable}</p>
+            ) : monthMeetings.length === 0 ? (
+              <p className="rail-empty">{s.noClassesThisMonth}</p>
+            ) : (
+              <>
+                <div className="month-list">
+                  {(upcomingMonth.length > 0 ? upcomingMonth : monthMeetings).slice(0, 4).map((m) => (
+                    <div key={m.id} className="rail-sched-row">
+                      <span className="rail-time rail-time--date">
+                        {new Date(m.start_at).toLocaleDateString(locale, { day: "2-digit", month: "short" })}
+                      </span>
+                      <div className="rail-sched-main">
+                        <div className="rail-sched-title">{localizedCourseName(m, lang)}</div>
+                        <div className="rail-sched-sub">
+                          {timeLabel(m.start_at, locale)} · {meetingSub(m)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Link className="dash-viewall month-viewall" href="/student/schedule">
+                  {s.viewFullSchedule} <IconArrow size={14} />
+                </Link>
+              </>
+            )}
+>>>>>>> Stashed changes
           </div>
         </div>
       </div>
@@ -470,7 +680,82 @@ function Field({ k, v }: { k: string; v: string }) {
   return (
     <div>
       <div className="profile-field-k">{k}</div>
+<<<<<<< Updated upstream
       <div className="profile-field-v">{v}</div>
+=======
+      <div className="snapshot-stat-v">{v}</div>
+    </div>
+  );
+}
+
+function FocusCard({
+  icon,
+  label,
+  detail,
+  status,
+  muted,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  detail: string;
+  status?: { text: string; tone: "success" | "warning" | "neutral" } | null;
+  muted?: boolean;
+  onClick?: () => void;
+}) {
+  const inner = (
+    <>
+      <span className="focus-icon">{icon}</span>
+      <div className="focus-body">
+        <div className="focus-label">{label}</div>
+        <div className={`focus-detail ${muted ? "muted" : ""}`}>{detail}</div>
+      </div>
+      {status && <span className={`ah-chip ${status.tone} focus-chip`}>{status.text}</span>}
+    </>
+  );
+  if (!onClick) return <div className="focus-card focus-card--static">{inner}</div>;
+  return (
+    <button className="focus-card" onClick={onClick}>
+      {inner}
+    </button>
+  );
+}
+
+function CourseChips({
+  title,
+  courses,
+  none,
+  more,
+  lang,
+}: {
+  title: string;
+  courses: AcademicCourse[];
+  none: string;
+  more: (n: number) => string;
+  lang: Lang;
+}) {
+  const shown = courses.slice(0, MAX_CHIPS);
+  const extra = courses.length - shown.length;
+  return (
+    <div className="snapshot-chips">
+      <div className="profile-field-k" style={{ marginBottom: 8 }}>
+        {title}
+      </div>
+      {courses.length === 0 ? (
+        <p className="rail-empty">
+          {none}
+        </p>
+      ) : (
+        <div className="chip-row">
+          {shown.map((c) => (
+            <span key={c.id} className="ah-chip neutral" title={localizedCourseName(c, lang)}>
+              {c.code}
+            </span>
+          ))}
+          {extra > 0 && <span className="ah-chip neutral chip-more">{more(extra)}</span>}
+        </div>
+      )}
+>>>>>>> Stashed changes
     </div>
   );
 }

@@ -137,6 +137,38 @@ class VinUniAgentService:
             except Exception:
                 logger.debug("Time-context injection skipped.", exc_info=True)
 
+<<<<<<< Updated upstream
+=======
+        # Phase 14A: backend-owned personalization. The chat route builds this bounded snapshot of
+        # the signed-in student's own data (profile/courses/schedule/deadlines/notifications/
+        # suggestions/forum/conversations) server-side; it is advisory background the agent may use
+        # to tailor an answer ("when is my next class?") but still grounds facts in retrieval. The
+        # raw question — NOT this block — is what gets persisted as the user message.
+        # Inject the context ONLY when the question is (at least partly) about the student's own app
+        # data. For general/greeting/unknown turns we deliberately do NOT attach it — otherwise a bare
+        # "hi" carries the full profile/schedule/deadlines into the prompt and the model dumps it
+        # (an over-share, not a leak). The context is the student's OWN, verified data.
+        if request.backend_personalization_context and scope in ("personal_app_data", "hybrid"):
+            usage_directive = (
+                "This is the signed-in student's OWN, verified app data. You MAY answer the "
+                "personal app-data part of the question directly from it (no official web "
+                "citation needed) — but do not invent anything not present here. For any "
+                "official policy/rule, still rely on retrieved official sources and say so if "
+                "they are missing. If the user asks an identity/profile question, answer only "
+                "with profile, academic summary, and current-course facts; if asked about "
+                "current courses, count and list all courses present in the context including "
+                "0-credit courses, while excluding 0-credit courses from credit totals. Use "
+                "Vietnamese course-title fields when answering in Vietnamese, and English "
+                "course-title fields when answering in English. Do not volunteer schedule items "
+                "or deadlines unless the user asks for them."
+            )
+            user_message = (
+                f"{user_message}\n\n[Student personalization context — authenticated, current "
+                f"student's own data; do not echo verbatim. {usage_directive}\n"
+                f"{request.backend_personalization_context}]"
+            )
+
+>>>>>>> Stashed changes
         if self.settings.enable_langfuse:
             # Group this turn's traces under the conversation and tag with the request id, so a
             # multi-turn session reads as one thread in Langfuse (the per-call handler is attached

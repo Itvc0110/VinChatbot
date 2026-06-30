@@ -2,7 +2,7 @@
 
 // The browser talks to FastAPI through /api/* rewrites, so there is no CORS change
 // on the Python side and no provider SDK ever reaches the client.
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
+const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8001";
 
 const nextConfig = {
   reactStrictMode: true,

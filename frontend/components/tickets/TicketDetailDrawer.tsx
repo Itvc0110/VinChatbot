@@ -53,6 +53,9 @@ export function TicketDetailDrawer({
 
   const authorLabel = (a: "student" | "admin" | "system") =>
     a === "student" ? p.tickets.you : a === "admin" ? p.tickets.staff : p.tickets.systemAuthor;
+  const replyLabel = mode === "admin" ? p.adminTickets.respond : p.tickets.respondToAdmin;
+  const replyPlaceholder =
+    mode === "admin" ? p.adminTickets.respondPlaceholder : p.tickets.respondToAdminPlaceholder;
 
   return (
     <>
@@ -179,14 +182,14 @@ export function TicketDetailDrawer({
               {onRespond && (
                 <div style={{ marginTop: 14 }}>
                   <label className="field-label" htmlFor="ticket-reply">
-                    {p.adminTickets.respond}
+                    {replyLabel}
                   </label>
                   <textarea
                     id="ticket-reply"
                     className="textarea"
                     value={reply}
                     onChange={(e) => setReply(e.target.value)}
-                    placeholder={p.adminTickets.respondPlaceholder}
+                    placeholder={replyPlaceholder}
                   />
                   <button
                     className="btn btn-outline btn-sm"

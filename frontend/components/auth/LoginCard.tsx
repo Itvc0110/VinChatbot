@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth, type SessionUser } from "@/lib/auth";
 import { usePortal } from "@/lib/portalI18n";
+<<<<<<< Updated upstream
 import { IconCap, IconShield } from "@/components/shell/icons";
-
-const DEMO_PASSWORD = "Demo@123456";
-const DEMO_STUDENT_EMAIL = "student.cs.demo@vinuni.edu.vn";
-const DEMO_ADMIN_EMAIL = "admin.global.demo@vinuni.edu.vn";
+=======
+import { LogoCopilot } from "@/components/shell/Logos";
+>>>>>>> Stashed changes
 
 function MailIcon() {
   return (
@@ -54,12 +54,6 @@ export function LoginCard() {
     } finally {
       setBusy(false);
     }
-  };
-
-  const signInDemo = async (nextEmail: string) => {
-    setEmail(nextEmail);
-    setPassword(DEMO_PASSWORD);
-    await signIn(nextEmail, DEMO_PASSWORD);
   };
 
   return (
@@ -138,45 +132,6 @@ export function LoginCard() {
             {busy ? "Signing in..." : p.login.signIn}
           </button>
         </form>
-
-        <div className="ah-login-divider">
-          <span>{p.login.or}</span>
-        </div>
-
-        <button
-          type="button"
-          className="ah-btn-outline-full"
-          disabled
-          title="VinUni SSO is not configured in this demo environment."
-        >
-          <LockIcon />
-          {p.login.sso}
-        </button>
-
-        <div className="ah-login-demo">
-          <button
-            type="button"
-            className="ah-login-demo-btn"
-            onClick={() => signInDemo(DEMO_STUDENT_EMAIL)}
-            disabled={busy}
-          >
-            <IconCap size={15} /> {p.login.continueStudent}
-          </button>
-          <button
-            type="button"
-            className="ah-login-demo-btn"
-            onClick={() => signInDemo(DEMO_ADMIN_EMAIL)}
-            disabled={busy}
-          >
-            <IconShield size={15} /> {p.login.continueAdmin}
-          </button>
-        </div>
-
-        <div className="ah-login-demo-hint">
-          <span>{p.login.demoStudent}: {DEMO_STUDENT_EMAIL}</span>
-          <span>{p.login.demoAdmin}: {DEMO_ADMIN_EMAIL}</span>
-          <span>Password: {DEMO_PASSWORD}</span>
-        </div>
 
         <p className="ah-login-foot">{p.login.securityNote}</p>
       </div>

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from typing import Any
 
 import psycopg
 from psycopg import sql
@@ -25,10 +26,27 @@ APP_MANAGED_TABLES = (
     "events",
     "notification_reads",
     "notifications",
-    "deadlines",
+<<<<<<< Updated upstream
+=======
+    "forum_reports",
+    "forum_mentions",
+    "forum_votes",
+    "forum_comments",
+    "forum_topics",
+    "forum_categories",
+    "student_schedule_events",
     "schedules",
     "academic_summaries",
     "enrollments",
+    "class_meetings",
+    "student_course_enrollments",
+    "course_requisites",
+    "curriculum_courses",
+    "course_sections",
+    "rooms",
+    "academic_terms",
+>>>>>>> Stashed changes
+    "deadlines",
     "courses",
     "student_profiles",
     "institutes",
@@ -38,7 +56,17 @@ APP_MANAGED_TABLES = (
     "users",
     "schema_migrations",
 )
+<<<<<<< Updated upstream
 APP_MANAGED_FUNCTIONS = ("set_updated_at",)
+=======
+APP_MANAGED_FUNCTIONS = (
+    "normalize_student_course_enrollment",
+    "sync_student_schedule_event_local_times",
+    "sync_class_meeting_local_times",
+    "app_stable_uuid",
+    "set_updated_at",
+)
+>>>>>>> Stashed changes
 APP_MANAGED_TYPES: tuple[str, ...] = ()
 
 
@@ -51,6 +79,38 @@ def validate_reset_environment(app_env: str) -> None:
         raise MigrationError(f"Refusing to reset the app database for APP_ENV={env!r}; allowed: {allowed}.")
 
 
+def drop_relation_if_exists(conn: psycopg.Connection[Any], relation_name: str) -> None:
+    row = conn.execute(
+        """
+        select c.relkind
+        from pg_class c
+        join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = current_schema()
+          and c.relname = %s
+          and c.relkind in ('r', 'p', 'v', 'm', 'f')
+        order by
+            case c.relkind
+                when 'v' then 1
+                when 'm' then 2
+                else 3
+            end
+        limit 1
+        """,
+        (relation_name,),
+    ).fetchone()
+    if row is None:
+        return
+
+    relkind = row["relkind"]
+    identifier = sql.Identifier(relation_name)
+    if relkind == "v":
+        conn.execute(sql.SQL("drop view if exists {}").format(identifier))
+    elif relkind == "m":
+        conn.execute(sql.SQL("drop materialized view if exists {}").format(identifier))
+    else:
+        conn.execute(sql.SQL("drop table if exists {}").format(identifier))
+
+
 def reset_app_database(settings: Settings | None = None, *, yes: bool = False) -> None:
     settings = settings or get_settings()
     validate_reset_environment(settings.app_env)
@@ -60,9 +120,7 @@ def reset_app_database(settings: Settings | None = None, *, yes: bool = False) -
     with connect_direct(settings) as conn:
         with conn.transaction():
             for table in APP_MANAGED_TABLES:
-                conn.execute(
-                    sql.SQL("drop table if exists {}").format(sql.Identifier(table))
-                )
+                drop_relation_if_exists(conn, table)
             for type_name in APP_MANAGED_TYPES:
                 conn.execute(
                     sql.SQL("drop type if exists {}").format(sql.Identifier(type_name))

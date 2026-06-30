@@ -41,6 +41,27 @@ def test_discover_repo_migrations_includes_initial_app_schema():
     assert "000003_seed_base_reference_data.sql" in filenames
 
 
+def test_canonical_academic_single_source_migration_removes_legacy_tables():
+    migration_path = (
+        db_migrate.DEFAULT_MIGRATIONS_DIR
+        / "000010_canonical_academic_single_source.sql"
+    )
+    migration_sql = migration_path.read_text(encoding="utf-8").lower()
+
+    for legacy_relation in ["enrollments", "schedules", "academic_summaries"]:
+        assert f"drop table if exists {legacy_relation}" in migration_sql
+        assert f"create view {legacy_relation}" not in migration_sql
+
+    assert "create table if not exists student_schedule_events" in migration_sql
+    assert "student_course_enrollments" in migration_sql
+    assert "class_meetings" in migration_sql
+    assert "add column if not exists start_time time" in migration_sql
+    assert "add column if not exists end_time time" in migration_sql
+    assert "student_schedule_events_no_overlap" in migration_sql
+    assert "btree_gist" in migration_sql
+    assert "insert into schedules" not in migration_sql
+
+
 def test_base_reference_seed_contains_only_roles_and_institutes():
     migration_path = (
         db_migrate.DEFAULT_MIGRATIONS_DIR / "000003_seed_base_reference_data.sql"
@@ -162,6 +183,19 @@ def test_reset_tracks_initial_schema_app_objects():
         "question_trends",
         "suggested_questions",
         "audit_logs",
+<<<<<<< Updated upstream
+=======
+        "faculties",
+        "programs",
+        "academic_terms",
+        "curriculum_courses",
+        "course_requisites",
+        "student_course_enrollments",
+        "student_schedule_events",
+        "rooms",
+        "course_sections",
+        "class_meetings",
+>>>>>>> Stashed changes
         "schema_migrations",
     }
 
@@ -172,6 +206,9 @@ def test_reset_tracks_initial_schema_app_objects():
 
     assert expected_tables <= reset_tables
     assert "set_updated_at" in db_reset.APP_MANAGED_FUNCTIONS
+    assert "sync_class_meeting_local_times" in db_reset.APP_MANAGED_FUNCTIONS
+    assert "sync_student_schedule_event_local_times" in db_reset.APP_MANAGED_FUNCTIONS
+    assert "app_stable_uuid" in db_reset.APP_MANAGED_FUNCTIONS
     assert not {"qdrant", "redis"} & reset_tables
     assert table_order["ticket_messages"] < table_order["tickets"]
     assert table_order["student_profiles"] < table_order["users"]

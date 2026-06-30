@@ -37,6 +37,7 @@ export interface ClassSession {
   id: string;
   course_code: string;
   course_title: string;
+  course_title_vi?: string;
   day: ScheduleDay;
   start: string; // "09:00"
   end: string; // "10:30"
