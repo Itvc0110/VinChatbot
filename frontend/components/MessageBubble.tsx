@@ -298,6 +298,27 @@ export function MessageBubble({
         />
       )}
 
+      {/* Personal answers have no web citations — show the canonical "your personal data" source. */}
+      {resp?.personal_data && !hasCites && (
+        <div className="cite-list">
+          <span className="cite-sources-btn" style={{ cursor: "default" }}>
+            <svg
+              viewBox="0 0 24 24"
+              width="13"
+              height="13"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+            >
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
+            </svg>
+            {t.personalDataSource}
+          </span>
+        </div>
+      )}
+
       {extraActions}
       {resp && (
         <div className="bubble-actions">

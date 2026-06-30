@@ -30,7 +30,7 @@ from psycopg_pool import AsyncConnectionPool
 
 from vinchatbot.app.core.config import Settings, get_settings
 from vinchatbot.app.core.observability import StudentIdentity, get_student_identity
-from vinchatbot.app.core.timeutils import VINUNI_TZ, now_in_vietnam
+from vinchatbot.app.core.timeutils import VINUNI_TZ, now_in_vietnam, week_bounds
 from vinchatbot.app.repositories.academic import AcademicRepository
 from vinchatbot.app.repositories.students import StudentRepository
 from vinchatbot.app.services import academic as academic_service
@@ -50,7 +50,16 @@ _REFUSAL = {
     ),
 }
 
-_SCHEDULE_WINDOWS = ("now", "today", "tomorrow", "this_week", "next", "all")
+_SCHEDULE_WINDOWS = (
+    "now",
+    "today",
+    "tomorrow",
+    "this_week",
+    "last_week",
+    "next_week",
+    "next",
+    "all",
+)
 
 # The names the personal tools are exposed under (must match the @tool function names below). Used by
 # the agent service to recognize that an answer was grounded in the read-only, own-data-only tools and
@@ -145,6 +154,39 @@ def _strip_internal(meeting: dict | None) -> dict | None:
     if not meeting:
         return meeting
     return {k: v for k, v in meeting.items() if k not in ("_start", "_end")}
+
+
+def _parse_date_range(
+    from_date: str | None, to_date: str | None, now: datetime
+) -> tuple[datetime, datetime] | None:
+    """Parse optional ISO ``YYYY-MM-DD`` ``from_date``/``to_date`` into a half-open
+    ``[start, end)`` range in ``now``'s timezone, with ``to_date`` INCLUSIVE (so end = to_date + 1d).
+
+    Tolerant of one-sided input (a lone date → that single day) and bad input (returns None so the
+    caller falls back to the named window). Returns None when neither date is given.
+    """
+    if not from_date and not to_date:
+        return None
+
+    def _one(value: str | None) -> datetime | None:
+        if not value:
+            return None
+        try:
+            d = datetime.strptime(value.strip(), "%Y-%m-%d").date()
+        except (ValueError, AttributeError):
+            return None
+        return datetime(d.year, d.month, d.day, tzinfo=now.tzinfo)
+
+    start = _one(from_date)
+    end_inclusive = _one(to_date)
+    if start is None and end_inclusive is None:
+        return None
+    start = start or end_inclusive
+    end_inclusive = end_inclusive or start
+    end = end_inclusive + timedelta(days=1)
+    if end <= start:
+        end = start + timedelta(days=1)
+    return start, end
 
 
 def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = None) -> list[Any]:
@@ -291,110 +333,136 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
     # ---- schedule -----------------------------------------------------------------------------
 
     @tool
-    async def get_my_schedule(window: str = "today") -> str:
+    async def get_my_schedule(
+        window: str = "today",
+        from_date: str | None = None,
+        to_date: str | None = None,
+    ) -> str:
         """Return the signed-in student's own class schedule, in VinUni local time (Asia/Ho_Chi_Minh).
 
-        window: one of "now" (the class happening right now + the next one), "today", "tomorrow",
-        "this_week" (next 7 days), "next" (just the next upcoming class), "all" (next 30 days).
-        Use for "what's my next class / what classes do I have today / this week / right now?"."""
+        Pick ONE selector:
+        - window:
+            "today"/"tomorrow"  → the WHOLE calendar day (INCLUDING classes already finished today),
+            "this_week"/"last_week"/"next_week" → that calendar week, Monday→Sunday,
+            "now"   → the class happening right now (or null) + the next one,
+            "next"  → just the next upcoming class,
+            "all"   → the next 30 days.
+        - from_date / to_date: explicit ISO dates "YYYY-MM-DD" for an arbitrary INCLUSIVE range
+            (e.g. one specific day → from_date == to_date). When given, they OVERRIDE `window`.
+
+        Use "last_week"/"this_week"/"next_week" for "lịch tuần trước / tuần này / tuần sau"; "today"
+        for "lịch hôm nay" (the answer must list the whole day, not only未学 classes); from_date/to_date
+        for "lịch ngày 24/6". The result lists EVERY meeting in the resolved range (past and future
+        within it), sorted by time, and ALWAYS includes "next_class" (soonest upcoming) and
+        "current_class" (now, or null). An empty "meetings" list does NOT mean no upcoming class — use
+        "next_class". Fields "range_start"/"range_end" are the resolved local dates (inclusive)."""
         ident = _identity()
         if ident is None:
             return _json(_REFUSAL)
-        window = (window or "today").strip().lower()
-        if window not in _SCHEDULE_WINDOWS:
-            window = "today"
-
         now = now_in_vietnam()
         day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        if window == "today":
-            start, end = day_start, day_start + timedelta(days=1)
-        elif window == "tomorrow":
-            start, end = day_start + timedelta(days=1), day_start + timedelta(days=2)
-        elif window == "this_week":
-            start, end = day_start, day_start + timedelta(days=7)
-        else:  # now / next / all -> scan a broad forward window, compute in Python
-            start, end = now - timedelta(hours=6), now + timedelta(days=30)
 
+        # Resolve the [range_start, range_end) window (end EXCLUSIVE). Explicit dates win over `window`.
+        explicit = _parse_date_range(from_date, to_date, now)
+        range_start: datetime | None
+        range_end: datetime | None
+        if explicit is not None:
+            range_start, range_end = explicit
+            window = "range"
+        else:
+            window = (window or "today").strip().lower()
+            if window not in _SCHEDULE_WINDOWS:
+                window = "today"
+            if window == "today":
+                range_start, range_end = day_start, day_start + timedelta(days=1)
+            elif window == "tomorrow":
+                range_start, range_end = day_start + timedelta(days=1), day_start + timedelta(days=2)
+            elif window == "this_week":
+                range_start, range_end = week_bounds(now, 0)
+            elif window == "last_week":
+                range_start, range_end = week_bounds(now, -1)
+            elif window == "next_week":
+                range_start, range_end = week_bounds(now, 1)
+            elif window == "all":
+                range_start, range_end = day_start, now + timedelta(days=30)
+            else:  # now / next — answered from the broad scan below, no range listing
+                range_start, range_end = None, None
+
+        # Authoritative current/next class + "does this student have an academic timetable AT ALL?":
+        # one broad forward scan. This keeps an empty single day/week from being mistaken for "no
+        # timetable" and wrongly replaced by the unrelated portal schedule.
         try:
-            rows = await academic.get_student_meetings_in_range(
-                student_id=ident.student_profile_id, start_at=start, end_at=end
+            broad_rows = await academic.get_student_meetings_in_range(
+                student_id=ident.student_profile_id,
+                start_at=now - timedelta(hours=6),
+                end_at=now + timedelta(days=120),
             )
         except Exception:
             logger.exception("get_my_schedule failed.")
             return _error("Could not read the class schedule right now.")
-
-        meetings = []
-        for row in rows:
-            start_vn = _to_vn(row.get("start_at"))
-            end_vn = _to_vn(row.get("end_at"))
-            meetings.append(
-                {
-                    "course_code": row.get("course_code"),
-                    "course_name": row.get("course_name"),
-                    "title": row.get("title"),
-                    "type": row.get("meeting_type"),
-                    "start": _fmt(start_vn),
-                    "end": _fmt(end_vn),
-                    "_start": start_vn,
-                    "_end": end_vn,
-                    "section": row.get("section_code"),
-                    "instructor": row.get("instructor_name"),
-                    "room": row.get("room_name"),
-                    "building": row.get("building"),
-                }
-            )
-
-        # Fallback to the portal schedule model if the academic timetable is empty for this student.
-        if not meetings:
-            try:
-                sched = await students.get_schedule(ident.student_profile_id, upcoming_only=True)
-            except Exception:
-                sched = []
-            if sched:
-                fallback = []
-                for row in sched:
-                    start_vn = _to_vn(row.get("start_time"))
-                    end_vn = _to_vn(row.get("end_time"))
-                    fallback.append(
-                        {
-                            "course_code": row.get("course_code"),
-                            "course_name": row.get("course_title"),
-                            "title": row.get("title"),
-                            "type": row.get("schedule_type"),
-                            "start": _fmt(start_vn),
-                            "end": _fmt(end_vn),
-                            "room": row.get("room"),
-                            "building": row.get("building"),
-                            "instructor": row.get("instructor"),
-                        }
-                    )
-                return _json({"window": window, "now": _fmt(now), "source": "portal", "meetings": fallback})
-            return _json({"window": window, "now": _fmt(now), "meetings": []})
-
-        current = None
-        nxt = None
-        for meeting in meetings:
-            mstart, mend = meeting.get("_start"), meeting.get("_end")
-            if mstart and mend and mstart <= now <= mend and current is None:
-                current = meeting
-            if mstart and mstart > now and nxt is None:
-                nxt = meeting
-        for meeting in meetings:
-            meeting.pop("_start", None)
-            meeting.pop("_end", None)
+        broad = [_academic_meeting(r) for r in broad_rows]
+        current = next(
+            (m for m in broad if m["_start"] and m["_end"] and m["_start"] <= now <= m["_end"]),
+            None,
+        )
+        nxt = next((m for m in broad if m["_start"] and m["_start"] > now), None)
+        has_academic = bool(broad)
 
         if window == "now":
             return _json(
                 {
                     "window": window,
                     "now": _fmt(now),
-                    "current_class": current,
-                    "next_class": nxt,
+                    "current_class": _strip_internal(current),
+                    "next_class": _strip_internal(nxt),
                 }
             )
         if window == "next":
-            return _json({"window": window, "now": _fmt(now), "next_class": nxt})
-        return _json({"window": window, "now": _fmt(now), "meetings": meetings})
+            return _json({"window": window, "now": _fmt(now), "next_class": _strip_internal(nxt)})
+
+        # Range windows: list EVERY meeting in [range_start, range_end) — past AND future within it
+        # (so "lịch hôm nay" includes finished classes, and "tuần trước" returns last week's classes).
+        try:
+            win_rows = await academic.get_student_meetings_in_range(
+                student_id=ident.student_profile_id, start_at=range_start, end_at=range_end
+            )
+        except Exception:
+            logger.exception("get_my_schedule failed.")
+            return _error("Could not read the class schedule right now.")
+        meetings = [_strip_internal(_academic_meeting(r)) for r in win_rows]
+
+        # Portal fallback ONLY when the student has NO academic timetable at all (not merely an empty
+        # window). Filter the portal schedule to the SAME resolved range — no upcoming-only drop.
+        source = "academic"
+        if not has_academic:
+            try:
+                sched = await students.get_schedule(ident.student_profile_id, upcoming_only=False)
+            except Exception:
+                sched = []
+            if sched:
+                source = "portal"
+                portal = [_portal_meeting(r) for r in sched]
+                meetings = [
+                    _strip_internal(m)
+                    for m in portal
+                    if m["_start"] and range_start <= m["_start"] < range_end
+                ]
+                nxt = nxt or next((m for m in portal if m["_start"] and m["_start"] > now), None)
+
+        return _json(
+            {
+                "window": window,
+                "now": _fmt(now),
+                "range_start": range_start.strftime("%Y-%m-%d") if range_start else None,
+                "range_end": (range_end - timedelta(days=1)).strftime("%Y-%m-%d")
+                if range_end
+                else None,
+                "source": source,
+                "meetings": meetings,
+                "current_class": _strip_internal(current),
+                "next_class": _strip_internal(nxt),
+            }
+        )
 
     # ---- courses & transcript -----------------------------------------------------------------
 
@@ -402,7 +470,8 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
     async def get_my_courses() -> str:
         """Return the signed-in student's own current academic-term courses from the same academic
         read-model used by the dashboard (code, title, credits, term, status). No input. Use for
-        "what courses am I taking / what am I enrolled in?"."""
+        "what courses am I taking / what am I enrolled in?". Reads the academic model so it matches
+        get_my_schedule / get_my_transcript."""
         ident = _identity()
         if ident is None:
             return _json(_REFUSAL)

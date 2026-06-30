@@ -337,6 +337,58 @@ def test_schedule_converts_utc_to_vietnam_and_picks_current_and_next(tools, monk
         reset_student_identity()
 
 
+def test_schedule_last_week_is_calendar_monday_to_sunday(tools, monkeypatch):
+    # Tue 2026-06-30 → last week must be Mon 2026-06-22 .. Sun 2026-06-28 (the W26 the user expected),
+    # NOT a rolling now-7d window.
+    monkeypatch.setattr(pt, "now_in_vietnam", lambda: datetime(2026, 6, 30, 20, 0, tzinfo=VINUNI_TZ))
+    FakeAcademicRepo.meetings = [
+        {"course_code": "CS102", "course_name": "Data Structures", "title": "Lecture",
+         "meeting_type": "lecture", "start_at": datetime(2026, 6, 22, 1, 0, tzinfo=UTC),
+         "end_at": datetime(2026, 6, 22, 2, 30, tzinfo=UTC), "section_code": "S1",
+         "instructor_name": "Prof X", "room_name": "R101", "building": "B1"},
+    ]
+    set_student_identity(student_profile_id=PROFILE_A, user_id=USER_A)
+    try:
+        result = _call(tools["get_my_schedule"], {"window": "last_week"})
+        assert result["range_start"] == "2026-06-22"
+        assert result["range_end"] == "2026-06-28"  # inclusive Sunday
+        assert any(m["course_code"] == "CS102" for m in result["meetings"])  # full week listed
+    finally:
+        reset_student_identity()
+
+
+def test_schedule_today_lists_full_day_including_finished_classes(tools, monkeypatch):
+    # now = 15:00; a class that already finished this morning must still appear for "today".
+    monkeypatch.setattr(pt, "now_in_vietnam", lambda: datetime(2026, 6, 29, 15, 0, tzinfo=VINUNI_TZ))
+    FakeAcademicRepo.meetings = [
+        {"course_code": "CS102", "course_name": "Data Structures", "title": "Lecture",
+         "meeting_type": "lecture", "start_at": datetime(2026, 6, 29, 1, 0, tzinfo=UTC),  # 08:00 VN (done)
+         "end_at": datetime(2026, 6, 29, 2, 30, tzinfo=UTC), "section_code": "S1",
+         "instructor_name": "Prof X", "room_name": "R101", "building": "B1"},
+    ]
+    set_student_identity(student_profile_id=PROFILE_A, user_id=USER_A)
+    try:
+        result = _call(tools["get_my_schedule"], {"window": "today"})
+        assert result["range_start"] == "2026-06-29" and result["range_end"] == "2026-06-29"
+        assert [m["course_code"] for m in result["meetings"]] == ["CS102"]  # finished class kept
+    finally:
+        reset_student_identity()
+
+
+def test_schedule_explicit_date_range_overrides_window(tools, monkeypatch):
+    monkeypatch.setattr(pt, "now_in_vietnam", lambda: datetime(2026, 6, 30, 20, 0, tzinfo=VINUNI_TZ))
+    FakeAcademicRepo.meetings = []
+    set_student_identity(student_profile_id=PROFILE_A, user_id=USER_A)
+    try:
+        result = _call(
+            tools["get_my_schedule"], {"window": "today", "from_date": "2026-06-24", "to_date": "2026-06-24"}
+        )
+        assert result["window"] == "range"
+        assert result["range_start"] == "2026-06-24" and result["range_end"] == "2026-06-24"
+    finally:
+        reset_student_identity()
+
+
 # --- routing: personal vs hybrid vs general, gated on identity ------------------------------------
 
 def _personal_specialist(name: str, record: dict):

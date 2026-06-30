@@ -7,6 +7,8 @@ from decimal import Decimal
 from types import SimpleNamespace
 from typing import Any
 
+from langchain_core.messages import AIMessage, ToolMessage
+
 import vinchatbot.app.agents.vinuni_agent as agent_mod
 from vinchatbot.app.api import routes_chat
 from vinchatbot.app.core.config import get_settings
@@ -487,3 +489,66 @@ def test_follow_up_failure_does_not_break_turn(monkeypatch):
     response = _run(service.chat(_follow_up_request("fu-3")))  # must not raise
     assert response.answer == _FU_ANSWER
     assert response.suggested_follow_ups == []
+
+
+# --- Personalization context injection is scope-gated + personal_data flag --------------------
+
+
+class _MessageCapturingAgent:
+    def __init__(self) -> None:
+        self.user_messages: list[str] = []
+
+    async def ainvoke(self, payload, config):
+        self.user_messages.append(payload["messages"][0]["content"])
+        return {"messages": [SimpleNamespace(content="ok")]}
+
+
+class _PersonalToolAgent:
+    """Mimics a personal-route turn: a ToolMessage from a personal tool + an answer."""
+
+    async def ainvoke(self, payload, config):
+        tool = ToolMessage(content='{"meetings": []}', name="get_my_schedule", tool_call_id="t1")
+        return {"messages": [tool, AIMessage(content="Lịch của bạn …")], "intent": "personal"}
+
+
+def _service_with(agent, **overrides):
+    settings = get_settings().model_copy(
+        update={"enable_output_moderation": False, "enable_followup_suggestions": False, **overrides}
+    )
+    return agent_mod.VinUniAgentService(settings=settings, retriever=SimpleNamespace(), agent=agent)
+
+
+def test_personalization_context_not_injected_for_general_scope(monkeypatch):
+    _stub_input_guard(monkeypatch)
+    agent = _MessageCapturingAgent()
+    service = _service_with(agent)
+    request = ChatRequest(message="VinUni có những ngành nào?", conversation_id="ctx-gen")
+    request.backend_personalization_context = "Student profile:\n- GPA 2.97; PE101 Lab @ Gym 1"
+
+    response = _run(service.chat(request))
+    # A general/greeting-scope turn must NOT carry the student's profile/schedule into the prompt.
+    assert "Student personalization context" not in agent.user_messages[0]
+    assert "2.97" not in agent.user_messages[0]
+    assert response.personal_data is False
+
+
+def test_personalization_context_injected_for_personal_scope(monkeypatch):
+    _stub_input_guard(monkeypatch)
+    agent = _MessageCapturingAgent()
+    service = _service_with(agent)
+    request = ChatRequest(message="GPA của tôi là bao nhiêu?", conversation_id="ctx-pers")
+    request.backend_personalization_context = "Academic standing: GPA 2.97"
+
+    _run(service.chat(request))
+    assert "Student personalization context" in agent.user_messages[0]
+
+
+def test_personal_turn_sets_personal_data_flag(monkeypatch):
+    _stub_input_guard(monkeypatch)
+    service = _service_with(_PersonalToolAgent())
+    token = set_student_identity(student_profile_id=PROFILE_ID, user_id=STUDENT_USER_ID)
+    try:
+        response = _run(service.chat(ChatRequest(message="Lịch của tôi?", conversation_id="pd-1")))
+    finally:
+        reset_student_identity(token)
+    assert response.personal_data is True

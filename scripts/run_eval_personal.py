@@ -22,6 +22,12 @@ from pathlib import Path
 
 if sys.platform == "win32":  # psycopg async needs the selector loop on Windows
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    # The report prints Vietnamese; the default Windows console codec (cp1252) cannot encode it and
+    # crashes mid-run. Force UTF-8 stdout so the eval completes.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
 
 from vinchatbot.app.agents.guardrails import normalize_for_matching  # noqa: E402
 from vinchatbot.app.agents.vinuni_agent import VinUniAgentService  # noqa: E402

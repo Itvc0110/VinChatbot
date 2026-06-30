@@ -116,6 +116,27 @@ GREETING_PATTERNS = (
     re.compile(r"^(xin chao|chao ban|chao|alo|chao buoi (sang|chieu|toi))" + _GREETING_TAIL + r"$"),
 )
 
+# A trailing language/style directive a user may append to a greeting or opener — e.g.
+# "hi, trả lời bằng tiếng việt", "chào bạn, answer in english". It is stripped ONLY for the
+# greeting / vague-opener fullmatch tests so such turns still take the conversational fast-path
+# (and DON'T fall through to the agent, which would then over-share the personalization context).
+# Operates on already accent-folded, lowercased text (see normalize_for_matching).
+_LANG_DIRECTIVE_RE = re.compile(
+    r"\s*[,;.\-—:]*\s*"
+    r"(?:please |pls |xin |vui long |lam on |hay )?"
+    r"(?:tra loi|phan hoi|reply|answer|respond|noi|write|viet)?\s*"
+    r"(?:lai )?(?:bang|in|using|with)?\s*"
+    r"(?:tieng viet|tieng anh|vietnamese|english)"
+    r"(?:\s+(?:nhe|nha|a|oi|please|pls|nho|with|too))*"
+    r"\s*[!.?,…]*$"
+)
+
+
+def _strip_trailing_language_directive(normalized: str) -> str:
+    """Remove a trailing 'answer in <language>' clause from already-normalized text (else return it
+    unchanged), so a greeting/opener with such a tail still matches the conversational fast-path."""
+    return _LANG_DIRECTIVE_RE.sub("", normalized).strip()
+
 # Vague / contentless openers: the user signals they want to ask but names no actual topic
 # ("cho tôi hỏi với", "tôi muốn hỏi", "let me ask", "i have a question"). Pre-retrieval we ask what
 # they'd like to know rather than run RAG on an empty query (which returned a random FAQ). FULLMATCH
@@ -406,8 +427,13 @@ def assess_user_message(message: str) -> GuardrailDecision:
             reason="The request asks for access to private student or account data.",
         )
 
-    # Pure greeting — friendly, before scope checks.
-    if any(pattern.fullmatch(normalized) for pattern in GREETING_PATTERNS):
+    # Pure greeting — friendly, before scope checks. Tolerate a trailing language directive
+    # ("hi, trả lời bằng tiếng việt") so it still takes the conversational path, not the agent.
+    greeting_text = _strip_trailing_language_directive(normalized)
+    if any(
+        pattern.fullmatch(normalized) or pattern.fullmatch(greeting_text)
+        for pattern in GREETING_PATTERNS
+    ):
         return GuardrailDecision(action="smalltalk", reason="Greeting")
 
     # Out-of-scope GENERATIVE task (write code/poem/rhythm, do math homework, role-play) — refuse BEFORE
@@ -446,7 +472,11 @@ def assess_user_message(message: str) -> GuardrailDecision:
 
     # Vague opener with no concrete question ("cho tôi hỏi với") — ask what they'd like instead of
     # running retrieval on an empty query. A real question already won via the in-scope branch above.
-    if any(pattern.fullmatch(normalized) for pattern in VAGUE_OPENER_PATTERNS):
+    # Tolerate a trailing language directive here too.
+    if any(
+        pattern.fullmatch(normalized) or pattern.fullmatch(greeting_text)
+        for pattern in VAGUE_OPENER_PATTERNS
+    ):
         return GuardrailDecision(action="clarify", reason="Vague opener without a concrete question.")
 
     if any(pattern.search(normalized) for pattern in GRAY_SCOPE_PATTERNS):
@@ -1036,7 +1066,11 @@ async def _capability_reply(message: str, language: Literal["vi", "en"], setting
 def _smalltalk_answer(message: str, language: Literal["vi", "en"]) -> str:
     """Warm canned reply for greeting / thanks / farewell / acknowledgement. No source list."""
     normalized = normalize_for_matching(message)
-    if any(pattern.fullmatch(normalized) for pattern in GREETING_PATTERNS):
+    greeting_text = _strip_trailing_language_directive(normalized)
+    if any(
+        pattern.fullmatch(normalized) or pattern.fullmatch(greeting_text)
+        for pattern in GREETING_PATTERNS
+    ):
         return _greeting_answer(language)
     is_thanks = "cam on" in normalized or "thank" in normalized or "tks" in normalized
     is_farewell = any(token in normalized for token in ("tam biet", "bye", "goodbye", "hen gap lai", "see you"))

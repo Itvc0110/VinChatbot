@@ -66,6 +66,7 @@ export interface Strings {
   unverifiedTag: string;
   showPassage: string;
   untitledSource: string;
+  personalDataSource: string;
 
   // chat message chrome + follow-ups
   youLabel: string;
@@ -176,6 +177,7 @@ const en: Strings = {
   unverifiedTag: "Needs confirmation",
   showPassage: "Show the full passage",
   untitledSource: "Untitled source",
+  personalDataSource: "Your personal data",
 
   youLabel: "You",
   retry: "Retry",
@@ -287,6 +289,7 @@ const vi: Strings = {
   unverifiedTag: "Cần xác nhận",
   showPassage: "Xem toàn bộ đoạn trích",
   untitledSource: "Nguồn chưa có tiêu đề",
+  personalDataSource: "Dữ liệu cá nhân của bạn",
 
   youLabel: "Bạn",
   retry: "Thử lại",

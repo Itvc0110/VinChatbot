@@ -171,29 +171,20 @@ class VinUniAgentService:
         # suggestions/forum/conversations) server-side; it is advisory background the agent may use
         # to tailor an answer ("when is my next class?") but still grounds facts in retrieval. The
         # raw question — NOT this block — is what gets persisted as the user message.
-        if request.backend_personalization_context:
-            if scope in ("personal_app_data", "hybrid"):
-                # The question is (at least partly) about the student's own app data. Treat the
-                # context as TRUSTED current-user data: answer the personal part directly from it —
-                # for notifications, summarize the important ones with title, priority, and any
-                # deadline/event date — without needing official web citations. Do not invent
-                # anything beyond the context. For any official policy/regulation claim, still rely
-                # on retrieved official sources; if none are available, say that part needs
-                # confirmation from official VinUni sources.
-                usage_directive = (
-                    "This is the signed-in student's OWN, verified app data. You MAY answer the "
-                    "personal app-data part of the question directly from it (no official web "
-                    "citation needed) — but do not invent anything not present here. For any "
-                    "official policy/rule, still rely on retrieved official sources and say so if "
-                    "they are missing. If the user asks an identity/profile question, answer only "
-                    "with profile, academic summary, and current-course facts; do not volunteer "
-                    "schedule items or deadlines unless the user asks for them."
-                )
-            else:
-                usage_directive = (
-                    "Use only when relevant to the question; official policy/general claims still "
-                    "require retrieved official sources."
-                )
+        # Inject the context ONLY when the question is (at least partly) about the student's own app
+        # data. For general/greeting/unknown turns we deliberately do NOT attach it — otherwise a bare
+        # "hi" carries the full profile/schedule/deadlines into the prompt and the model dumps it
+        # (an over-share, not a leak). The context is the student's OWN, verified data.
+        if request.backend_personalization_context and scope in ("personal_app_data", "hybrid"):
+            usage_directive = (
+                "This is the signed-in student's OWN, verified app data. You MAY answer the "
+                "personal app-data part of the question directly from it (no official web "
+                "citation needed) — but do not invent anything not present here. For any "
+                "official policy/rule, still rely on retrieved official sources and say so if "
+                "they are missing. If the user asks an identity/profile question, answer only "
+                "with profile, academic summary, and current-course facts; do not volunteer "
+                "schedule items or deadlines unless the user asks for them."
+            )
             user_message = (
                 f"{user_message}\n\n[Student personalization context — authenticated, current "
                 f"student's own data; do not echo verbatim. {usage_directive}\n"
@@ -222,9 +213,10 @@ class VinUniAgentService:
         # fan-out whose personal subtask answered (e.g. "tốt nghiệp loại Xuất sắc cần điểm bao nhiêu",
         # which classifies hybrid because "tốt nghiệp" is a policy term). Requires a live verified
         # identity too (defense-in-depth: a forged/injected intent alone can never relax grounding).
-        if get_student_identity() is not None and (
+        personal_data = get_student_identity() is not None and (
             result.get("intent") == PERSONAL_INTENT or _used_personal_tool(messages)
-        ):
+        )
+        if personal_data:
             trusted_app_data = True
         answer = _message_content(messages[-1]) if messages else ""
         citations = _extract_citations(messages)
@@ -411,6 +403,7 @@ class VinUniAgentService:
             tool_trace=tool_trace,
             needs_human_review=needs_human_review,
             suggested_follow_ups=follow_ups,
+            personal_data=personal_data,
         )
 
     def _sensitive_output_block(
