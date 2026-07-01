@@ -17,6 +17,12 @@ from vinchatbot.app.agents.question_scope import classify_question_scope
         "CPA của tôi là bao nhiêu?",
         "CPA tích lũy của tôi là bao nhiêu?",
         "Do I have any tickets open?",
+        # "tiết" class-period phrasings (schedule) — the reported refusal bug
+        "hôm nay tôi có tiết gì",
+        "chiều nay tôi có tiết không",
+        "tôi đang học tiết gì hôm nay",
+        "nay tôi còn tiết nào",
+        "sáng nay tôi đã học gì",
     ],
 )
 def test_personal_app_data_scope(message):
@@ -70,6 +76,8 @@ def test_general_unknown_scope(message):
         "lớp hôm nay?",      # class/session (generic) without a pronoun
         "gpa kì này?",       # inherent — personal regardless
         "cpa tích lũy?",     # inherent — personal regardless
+        "hôm nay có tiết gì không",  # tiết schedule (generic) without a pronoun
+        "đang học tiết gì",           # tiết schedule (generic) without a pronoun
     ],
 )
 def test_authenticated_student_elliptical_is_personal(message):
@@ -90,6 +98,23 @@ def test_anonymous_generic_without_pronoun_is_not_personal(message):
     # Anonymous (public assistant): a generic noun with no first-person pronoun stays non-personal
     # (precision) — only inherently-personal nouns (gpa, lịch, deadline) fire pronoun-free.
     assert classify_question_scope(message, authenticated=False) != "personal_app_data"
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        # "tiết" homographs must NOT be read as the class-period schedule sense (over-fire guard for the
+        # schedule-recall widening). Checked at authenticated=True — the most permissive case.
+        "cho tôi chi tiết học phí",
+        "thời tiết hôm nay thế nào",
+        "làm sao tôi tiết kiệm tiền",
+        "trường có tiết lộ thông tin của tôi không",
+        "tiết mục văn nghệ có gì",
+        "sinh viên đang học gì ở VinUni",
+    ],
+)
+def test_tiet_homographs_do_not_overfire(message):
+    assert classify_question_scope(message, authenticated=True) != "personal_app_data"
 
 
 @pytest.mark.parametrize(

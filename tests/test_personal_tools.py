@@ -377,6 +377,45 @@ def test_schedule_converts_utc_to_vietnam_and_picks_current_and_next(tools, monk
         reset_student_identity()
 
 
+def test_schedule_today_tags_status_and_counts(tools, monkeypatch):
+    # now = 11:00 VN → 08:30 done (finished), 10:30 ongoing, 13:30 upcoming. The WHOLE day must be listed
+    # with per-meeting status + counts, so the model never drops the finished class.
+    monkeypatch.setattr(pt, "now_in_vietnam", lambda: datetime(2026, 6, 29, 11, 0, tzinfo=VINUNI_TZ))
+    FakeAcademicRepo.meetings = [
+        {"course_code": "FIN", "course_name": "Finance", "title": "Tutorial", "meeting_type": "tutorial",
+         "start_at": datetime(2026, 6, 29, 1, 30, tzinfo=UTC), "end_at": datetime(2026, 6, 29, 3, 0, tzinfo=UTC),
+         "section_code": "S1", "instructor_name": "P", "room_name": "R1", "building": "B1"},
+        {"course_code": "DAT", "course_name": "Data", "title": "Lecture", "meeting_type": "lecture",
+         "start_at": datetime(2026, 6, 29, 3, 30, tzinfo=UTC), "end_at": datetime(2026, 6, 29, 5, 0, tzinfo=UTC),
+         "section_code": "S2", "instructor_name": "P", "room_name": "R2", "building": "B2"},
+        {"course_code": "VIE", "course_name": "Vietnamese", "title": "Lecture", "meeting_type": "lecture",
+         "start_at": datetime(2026, 6, 29, 6, 30, tzinfo=UTC), "end_at": datetime(2026, 6, 29, 8, 0, tzinfo=UTC),
+         "section_code": "S3", "instructor_name": "P", "room_name": "R3", "building": "B3"},
+    ]
+    set_student_identity(student_profile_id=PROFILE_A, user_id=USER_A)
+    try:
+        result = _call(tools["get_my_schedule"], {"window": "today"})
+        status = {m["course_code"]: m["status"] for m in result["meetings"]}
+        assert status == {"FIN": "finished", "DAT": "ongoing", "VIE": "upcoming"}
+        assert result["counts"] == {"total": 3, "finished": 1, "ongoing": 1, "upcoming": 1}
+    finally:
+        reset_student_identity()
+
+
+def test_schedule_yesterday_window_resolves_prior_day(tools, monkeypatch):
+    # "hôm qua" must resolve to the PRIOR calendar day (not silently default to today).
+    monkeypatch.setattr(pt, "now_in_vietnam", lambda: datetime(2026, 6, 30, 20, 0, tzinfo=VINUNI_TZ))
+    FakeAcademicRepo.meetings = []
+    set_student_identity(student_profile_id=PROFILE_A, user_id=USER_A)
+    try:
+        result = _call(tools["get_my_schedule"], {"window": "yesterday"})
+        assert result["window"] == "yesterday"
+        assert result["range_start"] == "2026-06-29"
+        assert result["range_end"] == "2026-06-29"
+    finally:
+        reset_student_identity()
+
+
 def test_schedule_last_week_is_calendar_monday_to_sunday(tools, monkeypatch):
     # Tue 2026-06-30 → last week must be Mon 2026-06-22 .. Sun 2026-06-28 (the W26 the user expected),
     # NOT a rolling now-7d window.

@@ -53,6 +53,7 @@ _REFUSAL = {
 _SCHEDULE_WINDOWS = (
     "now",
     "today",
+    "yesterday",
     "tomorrow",
     "this_week",
     "last_week",
@@ -156,6 +157,38 @@ def _strip_internal(meeting: dict | None) -> dict | None:
     if not meeting:
         return meeting
     return {k: v for k, v in meeting.items() if k not in ("_start", "_end")}
+
+
+def _classify_status(meeting: dict, now: datetime) -> str:
+    """Per-meeting status relative to ``now`` so the model can report the WHOLE day with correct labels
+    (đã học / đang học / sắp tới) instead of dropping finished classes. Missing times → 'upcoming'."""
+    start, end = meeting.get("_start"), meeting.get("_end")
+    if start and end and start <= now <= end:
+        return "ongoing"
+    if start and start > now:
+        return "upcoming"
+    if start:
+        return "finished"
+    return "upcoming"
+
+
+def _listed_meetings(rows: list[dict], build: Any, now: datetime) -> list[dict]:
+    """Build display meetings (with a `status`) from raw rows, stripping internal fields."""
+    out: list[dict] = []
+    for row in rows:
+        meeting = build(row)
+        meeting["status"] = _classify_status(meeting, now)
+        out.append(_strip_internal(meeting))
+    return out
+
+
+def _status_counts(meetings: list[dict]) -> dict[str, int]:
+    return {
+        "total": len(meetings),
+        "finished": sum(1 for m in meetings if m.get("status") == "finished"),
+        "ongoing": sum(1 for m in meetings if m.get("status") == "ongoing"),
+        "upcoming": sum(1 for m in meetings if m.get("status") == "upcoming"),
+    }
 
 
 def _parse_date_range(
@@ -346,11 +379,14 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
 
         Pick ONE selector:
         - window:
-            "today"/"tomorrow"  → the WHOLE calendar day (INCLUDING classes already finished today),
+            "today"/"yesterday"/"tomorrow"  → the WHOLE calendar day (INCLUDING classes already finished),
             "this_week"/"last_week"/"next_week" → that calendar week, Monday→Sunday,
             "now"   → the class happening right now (or null) + the next one,
             "next"  → just the next upcoming class,
             "all"   → the next 30 days.
+          Each listed meeting carries a "status": "finished" | "ongoing" | "upcoming" (relative to now), and
+          the result includes a "counts" summary — use these to report the WHOLE day (đã học/đang học/sắp tới)
+          and to answer "còn tiết nào" (upcoming) WITHOUT hiding the finished classes.
         - from_date / to_date: explicit ISO dates "YYYY-MM-DD" for an arbitrary INCLUSIVE range
             (e.g. one specific day → from_date == to_date). When given, they OVERRIDE `window`.
 
@@ -379,6 +415,8 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
                 window = "today"
             if window == "today":
                 range_start, range_end = day_start, day_start + timedelta(days=1)
+            elif window == "yesterday":
+                range_start, range_end = day_start - timedelta(days=1), day_start
             elif window == "tomorrow":
                 range_start, range_end = day_start + timedelta(days=1), day_start + timedelta(days=2)
             elif window == "this_week":
@@ -451,7 +489,7 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
         except Exception:
             logger.exception("get_my_schedule failed.")
             return _error("Could not read the class schedule right now.")
-        meetings = [_strip_internal(_academic_meeting(r)) for r in win_rows]
+        meetings = _listed_meetings(win_rows, _academic_meeting, now)
 
         # Stable student-schedule API fallback ONLY when the student has NO academic timetable at
         # all (not merely an empty window). It is backed by the canonical student calendar table.
@@ -464,11 +502,10 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
             if sched:
                 source = "student_schedule_api"
                 api_schedule = [_student_api_meeting(r) for r in sched]
-                meetings = [
-                    _strip_internal(m)
-                    for m in api_schedule
-                    if m["_start"] and range_start <= m["_start"] < range_end
+                in_window = [
+                    r for r in sched if _to_vn(r.get("start_time")) and range_start <= _to_vn(r.get("start_time")) < range_end
                 ]
+                meetings = _listed_meetings(in_window, _student_api_meeting, now)
                 nxt = nxt or next(
                     (m for m in api_schedule if m["_start"] and m["_start"] > now), None
                 )
@@ -482,6 +519,7 @@ def build_personal_tools(pool: AsyncConnectionPool, settings: Settings | None = 
                 if range_end
                 else None,
                 "source": source,
+                "counts": _status_counts(meetings),
                 "meetings": meetings,
                 "current_class": _strip_internal(current),
                 "next_class": _strip_internal(nxt),

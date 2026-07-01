@@ -242,6 +242,20 @@ _SELF_REFERENCE = (
 )
 
 
+# Class-period "tiết" in a SCHEDULE sense, matched on accent-stripped text. Homograph-safe: it matches
+# "tiết gì/nào/không/tiếp theo/mấy/nay/sáng/chiều/tối" and "còn/mấy/hết tiết" but NOT "chi tiết", "thời
+# tiết", "tiết kiệm", "tiết lộ", "tiết mục" (those never form these bigrams). "tiết học" is already covered
+# by the _GENERIC_APP_DATA term "tiet hoc", so "hoc" is deliberately excluded here to avoid "chi tiết học…".
+_SCHEDULE_TIET_RE = re.compile(
+    r"\btiet\s+(nao|gi|tiep theo|may|khong|nay|sang|chieu|toi)\b"
+    r"|\b(con|may|het|con lai)\s+tiet\b"
+)
+
+# First-person study status ("đã/đang học") — e.g. "sáng nay tôi đã học gì", "tôi đang học tiết gì". Counted
+# as personal ONLY with an explicit pronoun (like _PERSONAL_PROGRESS) so "sinh viên đang học gì" stays general.
+_SELF_STUDY_RE = re.compile(r"\b(da|dang)\s+hoc\b")
+
+
 def _matches_any(normalized: str, terms: tuple[str, ...]) -> bool:
     return any(re.search(rf"\b{re.escape(term)}\b", normalized) for term in terms)
 
@@ -285,7 +299,9 @@ def classify_question_scope(
     if not has_pronoun and _matches_any(normalized, _OFFICIAL_COURSE_ACTION):
         return "official_policy"
     has_inherent_personal = _matches_any(normalized, _INHERENT_PERSONAL_APP_DATA)
-    has_generic_app_data = _matches_any(normalized, _GENERIC_APP_DATA)
+    has_generic_app_data = _matches_any(normalized, _GENERIC_APP_DATA) or bool(
+        _SCHEDULE_TIET_RE.search(normalized)
+    )
     has_policy = _matches_any(normalized, _POLICY_TERMS)
 
     # A catalog / org-level question with NO self-reference is about the university at large, not the
@@ -301,6 +317,10 @@ def classify_question_scope(
     # so the general phrasings ("who is eligible…?", "do most students graduate on time?") stay general.
     has_personal_progress = has_pronoun and _matches_any(normalized, _PERSONAL_PROGRESS)
 
+    # First-person "đã/đang học …" — the student asking about their own current/finished study (schedule or
+    # transcript). Pronoun-gated to avoid catching the general "sinh viên đang học gì?".
+    has_self_study = has_pronoun and bool(_SELF_STUDY_RE.search(normalized))
+
     # A personal/app-data angle: an inherently-personal data noun, OR a generic app-data noun paired
     # with a first-person pronoun ("những môn của tôi") — or, for a signed-in student, a generic noun
     # alone, since they routinely omit the pronoun ("điểm CS101?", "cố vấn?") — or an explicit
@@ -309,6 +329,7 @@ def classify_question_scope(
         has_inherent_personal
         or ((has_pronoun or authenticated) and has_generic_app_data)
         or has_personal_progress
+        or has_self_study
     ) and not catalog_general
 
     if has_policy and (personal_app_data or has_pronoun):
