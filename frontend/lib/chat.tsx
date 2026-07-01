@@ -26,14 +26,16 @@ import {
   useState,
 } from "react";
 import type { ChatMessage, ChatResponse } from "@/lib/types";
-import type { TicketDraft } from "@/lib/portalTypes";
+import type { FormDraft, TicketDraft } from "@/lib/portalTypes";
 import {
   deleteConversation as deleteBackendConversation,
+  downloadFilledForm,
   getConversationMessages,
   getConversations,
   postChat,
   postChatStream,
   submitTicket,
+  suggestFormFill,
   suggestTicketDraft,
   saveTicketDraft,
   updateConversation,
@@ -287,6 +289,22 @@ interface ChatContextValue {
   // Bumps each time a ticket is successfully sent to admin (the single submit path), so any
   // open ticket list (e.g. the support page) can refresh without a hard reload.
   ticketsRevision: number;
+  // Form Assistant: Vinnie drafts an official form → student reviews/edits the fields → downloads a
+  // filled file. The draft lives here in React state only (never persisted, nothing sent to any office).
+  formDraft: FormDraft | null;
+  prepareFormFill: (args: {
+    officialUrl: string;
+    formTitle?: string;
+    question: string;
+    answer?: string;
+  }) => Promise<void>;
+  // True while Vinnie's field suggestion is being fetched (the drawer shows a "drafting…" state).
+  formSuggesting: boolean;
+  updateFormField: (key: string, value: string) => void;
+  cancelFormFill: () => void;
+  // Generate + download the filled file from the (edited) fields. Returns whether it succeeded.
+  downloadForm: () => Promise<boolean>;
+  formBusy: boolean;
   // floating-bubble unread badge: answers that arrived while no surface was open
   unread: number;
   registerViewer: () => () => void;
@@ -310,6 +328,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [draftBusy, setDraftBusy] = useState(false);
   const [draftSuggesting, setDraftSuggesting] = useState(false);
   const [ticketsRevision, setTicketsRevision] = useState(0);
+  const [formDraft, setFormDraft] = useState<FormDraft | null>(null);
+  const [formSuggesting, setFormSuggesting] = useState(false);
+  const [formBusy, setFormBusy] = useState(false);
   const [composerSeed, setComposerSeed] = useState<{ text: string; nonce: number } | null>(null);
   const seedNonce = useRef(0);
   const [sourceMessageId, setSourceMessageId] = useState<string | null>(null);
@@ -352,6 +373,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setSourceMessageId(null);
       setSourceFocus(null);
       setTicketDraft(null);
+      setFormDraft(null);
       setUnread(0);
       return;
     }
@@ -369,6 +391,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setSourceMessageId(null);
       setSourceFocus(null);
       setTicketDraft(null);
+      setFormDraft(null);
       setUnread(0);
     }
 
@@ -897,6 +920,97 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     [ticketDraft, draftBusy, p]
   );
 
+  // --- Form Assistant (review-before-download) ------------------------------
+  const prepareFormFill = useCallback(
+    async (args: {
+      officialUrl: string;
+      formTitle?: string;
+      question: string;
+      answer?: string;
+    }): Promise<void> => {
+      const id = nextId();
+      // Open the drawer immediately in a "drafting…" state, then let Vinnie fill the fields.
+      setFormDraft({
+        id,
+        official_url: args.officialUrl,
+        form_title: args.formTitle || "VinUni form",
+        file_kind: "docx",
+        fields: [],
+        narrative: "",
+        created_by_ai: false,
+        origin_question: args.question,
+      });
+      setFormSuggesting(true);
+      try {
+        const suggestion = await suggestFormFill({
+          official_url: args.officialUrl,
+          form_title: args.formTitle,
+          origin_question: args.question,
+          answer: args.answer,
+        });
+        setFormDraft((cur) =>
+          cur && cur.id === id
+            ? {
+                ...cur,
+                form_title: suggestion.form_title || cur.form_title,
+                file_kind: suggestion.file_kind || cur.file_kind,
+                fields: suggestion.fields,
+                narrative: suggestion.narrative,
+                created_by_ai: suggestion.created_by_ai,
+                notice: suggestion.notice ?? null,
+              }
+            : cur
+        );
+      } catch {
+        setToast(p.formReview.suggestFailed);
+      } finally {
+        setFormSuggesting(false);
+      }
+    },
+    [p]
+  );
+
+  const updateFormField = useCallback((key: string, value: string) => {
+    setFormDraft((cur) =>
+      cur
+        ? { ...cur, fields: cur.fields.map((f) => (f.key === key ? { ...f, value } : f)) }
+        : cur
+    );
+  }, []);
+
+  const cancelFormFill = useCallback(() => {
+    setFormDraft(null);
+    setFormSuggesting(false);
+    setFormBusy(false);
+  }, []);
+
+  const downloadForm = useCallback(async (): Promise<boolean> => {
+    if (!formDraft || formBusy) return false;
+    setFormBusy(true);
+    try {
+      const blob = await downloadFilledForm(formDraft);
+      const ext = blob.type.includes("pdf") ? "pdf" : "docx";
+      const base =
+        (formDraft.form_title || "vinuni_form").replace(/[^\w.-]+/g, "_").slice(0, 80) ||
+        "vinuni_form";
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${base}.${ext}`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setToast(p.formReview.downloaded);
+      return true;
+    } catch {
+      setToast(p.formReview.downloadFailed);
+      return false;
+    } finally {
+      setFormBusy(false);
+    }
+  }, [formDraft, formBusy, p]);
+
   const seedComposer = useCallback((text: string) => {
     seedNonce.current += 1;
     setComposerSeed({ text, nonce: seedNonce.current });
@@ -1077,6 +1191,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     submitDraft,
     draftBusy,
     ticketsRevision,
+    formDraft,
+    prepareFormFill,
+    formSuggesting,
+    updateFormField,
+    cancelFormFill,
+    downloadForm,
+    formBusy,
     unread,
     registerViewer,
   };

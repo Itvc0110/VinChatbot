@@ -12,6 +12,7 @@ from vinchatbot.app.api.routes_admin_notifications import router as admin_notifi
 from vinchatbot.app.api.routes_auth import router as auth_router
 from vinchatbot.app.api.routes_chat import router as chat_router
 from vinchatbot.app.api.routes_conversations import router as conversations_router
+from vinchatbot.app.api.routes_forms import router as forms_router
 from vinchatbot.app.api.routes_forum import router as forum_router
 from vinchatbot.app.api.routes_health import router as health_router
 from vinchatbot.app.api.routes_ingest import router as ingest_router
@@ -66,6 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(academic_router)
     app.include_router(personalization_router)
     app.include_router(tickets_router)
+    app.include_router(forms_router)
     app.include_router(forum_router)
     app.include_router(conversations_router)
     app.include_router(health_router)

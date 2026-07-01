@@ -333,7 +333,22 @@ SCOPE_TERMS = (
     "leave of absence",
     "bao luu",
     "withdrawal",
+    "nghi hoc",
+    "thoi hoc",
+    "hoc lai",
+    "chuyen nganh",
+    "phuc khao",
     "student gateway",
+    # Official student forms / đơn từ (Form Assistant): these were missing, so leave/withdraw + form
+    # requests ("viết cho tôi đơn nghỉ học", "đơn xin phúc khảo") fell through to the flaky gray-LLM and
+    # were sometimes over-refused. All are distinctive student-support topics → safe to allow deterministically.
+    "form",
+    "bieu mau",
+    "mau don",
+    "don tu",
+    "don xin",
+    "kien nghi",
+    "petition",
     # Broader student-life topics (Phase 1.18 guard-precision: these were missing, so legitimate
     # questions about them were over-refused). Accent-less VI forms; plurals auto via _contains_term.
     "internship",

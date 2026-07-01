@@ -58,6 +58,13 @@ SEED_URLS = [
     "https://policy.vinuni.edu.vn/publication-public/",
     "https://vinuni.edu.vn/registrar/",
     "https://registrar.vinuni.edu.vn/",
+    # Registrar student-forms hubs (Form Assistant): the "Biểu mẫu & Đơn từ" page and the two
+    # highest-traffic form pages (leave/withdrawal/retake, transcript/certificate requests). These are
+    # reachable from the registrar home only past the depth cap, so they must be seeded explicitly; once
+    # crawled, the linked form files (PDF/DOCX) get followed as file assets and become citable + fillable.
+    "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/bieu-mau-don-tu/",
+    "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/tam-nghi-hoc-thoi-hoc-hoc-lai/",
+    "https://registrar.vinuni.edu.vn/vi/hoc-thuat-dich-vu/yeu-cau-cap-bang-diem-va-chung-nhan/",
     "https://experience.vinuni.edu.vn/",
     # Expansion seeds — high-value sections of the new student-relevant subdomains.
     "https://admissions.vinuni.edu.vn/undergraduate/",

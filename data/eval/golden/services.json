@@ -40,6 +40,22 @@
       "required_facts": ["course books"],
       "expected_source": "library.vinuni.edu.vn",
       "expects_refusal": false
+    },
+    {
+      "id": "svc-form-leave-of-absence-vi",
+      "language": "vi",
+      "question": "Tôi muốn xin nghỉ học một học kỳ thì dùng biểu mẫu nào và tải ở đâu?",
+      "required_facts": ["nghỉ học|thôi học|tạm nghỉ"],
+      "expected_source": "registrar.vinuni.edu.vn",
+      "expects_refusal": false
+    },
+    {
+      "id": "svc-form-transcript-request-en",
+      "language": "en",
+      "question": "Which form do I use to request an official transcript or certificate, and where is it?",
+      "required_facts": ["transcript|certificate"],
+      "expected_source": "registrar.vinuni.edu.vn",
+      "expects_refusal": false
     }
   ]
 }

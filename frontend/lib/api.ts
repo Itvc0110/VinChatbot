@@ -16,6 +16,8 @@ import type {
   ForumVoteResult,
   ForumVoteTarget,
   ForumVoteValue,
+  FormDraft,
+  FormFieldDraft,
   KnowledgeSource,
   Notification,
   NotificationType,
@@ -1155,6 +1157,68 @@ export async function suggestTicketDraft(payload: {
     body: row.body,
     category: safeTicketCategory(row.category),
   };
+}
+
+// [LIVE] POST /forms/suggest -> Vinnie fetches the official form, extracts its fields, and pre-fills them
+// with the signed-in student's data + request for review before download. Advisory only (nothing persisted);
+// the backend fails open to a generated editable draft so this always resolves.
+export async function suggestFormFill(payload: {
+  official_url: string;
+  form_title?: string | null;
+  origin_question: string;
+  answer?: string | null;
+  context?: string | null;
+}): Promise<{
+  form_title: string;
+  official_url: string;
+  file_kind: string;
+  fields: FormFieldDraft[];
+  narrative: string;
+  created_by_ai: boolean;
+  notice?: string | null;
+}> {
+  return apiRequest<{
+    form_title: string;
+    official_url: string;
+    file_kind: string;
+    fields: FormFieldDraft[];
+    narrative: string;
+    created_by_ai: boolean;
+    notice?: string | null;
+  }>("/api/forms/suggest", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      official_url: payload.official_url,
+      form_title: payload.form_title ?? undefined,
+      origin_question: payload.origin_question,
+      answer: payload.answer ?? undefined,
+      context: payload.context ?? undefined,
+    }),
+  });
+}
+
+// [LIVE] POST /forms/fill -> streams the filled file (PDF or DOCX) built from the (student-edited) fields.
+// Returns a Blob for the browser to download; nothing is stored server-side.
+export async function downloadFilledForm(draft: FormDraft): Promise<Blob> {
+  const res = await fetch("/api/forms/fill", {
+    method: "POST",
+    headers: authenticatedHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({
+      official_url: draft.official_url,
+      form_title: draft.form_title,
+      file_kind: draft.file_kind || "auto",
+      fields: draft.fields.map((field) => ({
+        key: field.key,
+        label: field.label,
+        value: field.value,
+      })),
+    }),
+  });
+  if (!res.ok) {
+    throw await responseError(res, `Could not generate the form (${res.status}).`);
+  }
+  return res.blob();
 }
 
 export async function createTicket(payload: CreateTicketPayload): Promise<SupportTicket> {

@@ -216,6 +216,22 @@
       "loose": true
     },
     {
+      "id": "pers-today-tiet",
+      "language": "vi",
+      "question": "Nay tôi còn tiết nào không?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_schedule",
+      "loose": true
+    },
+    {
+      "id": "pers-next-tiet",
+      "language": "vi",
+      "question": "Tiết tiếp theo của tôi là gì?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_schedule",
+      "loose": true
+    },
+    {
       "id": "pers-now-class",
       "language": "en",
       "question": "Do I have a class right now?",
