@@ -232,6 +232,22 @@
       "loose": true
     },
     {
+      "id": "pers-today-tiet-gi",
+      "language": "vi",
+      "question": "Hôm nay tôi có tiết gì?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_schedule",
+      "loose": true
+    },
+    {
+      "id": "pers-yesterday-classes",
+      "language": "vi",
+      "question": "Hôm qua tôi có môn học gì?",
+      "expect_route": "personal",
+      "expect_tool": "get_my_schedule",
+      "loose": true
+    },
+    {
       "id": "pers-now-class",
       "language": "en",
       "question": "Do I have a class right now?",
