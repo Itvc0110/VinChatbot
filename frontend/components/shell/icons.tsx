@@ -154,3 +154,10 @@ export const IconSliders = ({ size = 18 }: P) => (
     <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
   </svg>
 );
+
+export const IconFileText = ({ size = 18 }: P) => (
+  <svg {...base(size)}>
+    <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+    <path d="M14 3v6h6M8 13h8M8 17h8M8 9h2" />
+  </svg>
+);

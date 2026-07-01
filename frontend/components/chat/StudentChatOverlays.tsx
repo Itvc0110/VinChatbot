@@ -1,5 +1,6 @@
 "use client";
 
+import { ReviewFormDrawer } from "@/components/forms/ReviewFormDrawer";
 import { ReviewTicketDrawer } from "@/components/tickets/ReviewTicketDrawer";
 import { Toast } from "@/components/ui/primitives";
 import { useChat } from "@/lib/chat";
@@ -13,6 +14,7 @@ export function StudentChatOverlays() {
   return (
     <>
       <ReviewTicketDrawer />
+      <ReviewFormDrawer />
       {chat.toast && <Toast message={chat.toast} onClose={() => chat.setToast(null)} />}
     </>
   );

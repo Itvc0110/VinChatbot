@@ -5,6 +5,7 @@ import { deriveState } from "@/lib/responseState";
 import { usePortal } from "@/lib/portalI18n";
 import {
   IconChat,
+  IconFileText,
   IconTicket,
 } from "@/components/shell/icons";
 
@@ -17,10 +18,13 @@ export function AnswerActions({
   response,
   onPrepareTicket,
   onAskFollowUp,
+  onDraftForm,
 }: {
   response: ChatResponse;
   onPrepareTicket: () => void;
   onAskFollowUp: () => void;
+  // Present only when the answer cites an official VinUni form file — offers "Draft this form".
+  onDraftForm?: () => void;
 }) {
   const { p } = usePortal();
   const state = deriveState(response);
@@ -34,6 +38,11 @@ export function AnswerActions({
       <button className="answer-action primary" onClick={onAskFollowUp}>
         <IconChat size={13} /> {p.actAskFollowUp}
       </button>
+      {onDraftForm && (
+        <button className="answer-action" onClick={onDraftForm}>
+          <IconFileText size={13} /> {p.actDraftForm}
+        </button>
+      )}
       <button className="answer-action" onClick={onPrepareTicket}>
         <IconTicket size={13} /> {p.actPrepareTicket}
       </button>

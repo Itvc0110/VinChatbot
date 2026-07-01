@@ -2,6 +2,7 @@
 
 import type { ChatMessage } from "@/lib/types";
 import { useChat } from "@/lib/chat";
+import { findFormLink } from "@/lib/forms";
 import { AnswerActions } from "@/components/portal/AnswerActions";
 import { FollowUpSuggestions } from "@/components/chat/FollowUpSuggestions";
 
@@ -22,12 +23,24 @@ export function ConnectedAnswerActions({ message }: { message: ChatMessage }) {
   }
 
   const question = chat.questionFor(message.id);
+  const formLink = findFormLink(message.response);
   return (
     <>
       <AnswerActions
         response={message.response}
         onPrepareTicket={() => chat.prepareDraftFromAnswer(question, message.response!)}
         onAskFollowUp={() => chat.seedComposer("")}
+        onDraftForm={
+          formLink
+            ? () =>
+                void chat.prepareFormFill({
+                  officialUrl: formLink.url,
+                  formTitle: formLink.title,
+                  question,
+                  answer: message.response?.answer,
+                })
+            : undefined
+        }
       />
       <FollowUpSuggestions
         question={question}

@@ -30,7 +30,7 @@ SPECIALIST_TOOLS: dict[str, set[str]] = {
     "calendar": {"search_academic_calendar", "get_source_detail"},
     "policy": {"search_policy_documents", "get_source_detail"},
     "financial": {"search_financial_regulations", "get_source_detail"},
-    "services": {"search_vinuni", "get_source_detail"},
+    "services": {"search_vinuni", "search_forms", "get_source_detail"},
 }
 
 SPECIALIST_PROMPTS: dict[str, str] = {

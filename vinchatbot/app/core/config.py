@@ -85,6 +85,12 @@ class Settings(BaseSettings):
     ticket_suggest_model: str = Field(
         default="openai/gpt-4o-mini", validation_alias="TICKET_SUGGEST_MODEL"
     )
+    # Form Assistant: a dedicated SMALL/FAST model (separate LLM call) that maps a student's request +
+    # personal data onto an official form's fields (a review-ready draft). Still OpenRouter — change only
+    # FORM_SUGGEST_MODEL in .env to swap it. Fail-open: on no key / error we return a heuristic draft.
+    form_suggest_model: str = Field(
+        default="openai/gpt-4o-mini", validation_alias="FORM_SUGGEST_MODEL"
+    )
     # Per-answer follow-up question suggestions: a dedicated SMALL/FAST model (separate LLM call) that
     # derives the next questions a student would naturally ask from THIS turn's answer, replacing the
     # frontend's canned rule-based chips. Still OpenRouter — change only FOLLOWUP_SUGGEST_MODEL to swap.
@@ -423,6 +429,12 @@ class Settings(BaseSettings):
 
     raw_data_dir: str = Field(default="data/raw", validation_alias="RAW_DATA_DIR")
     processed_data_dir: str = Field(default="data/processed", validation_alias="PROCESSED_DATA_DIR")
+    # Form Assistant deterministic override catalog (core student forms → exact official file URL). Consulted
+    # by search_forms so high-traffic forms (which embed weakly, being mostly blank fields) are cited exactly;
+    # RAG still covers the long tail. Relative paths resolve against the repo root. Fail-open if missing.
+    forms_catalog_path: str = Field(
+        default="data/forms_catalog.json", validation_alias="FORMS_CATALOG_PATH"
+    )
 
 
 @lru_cache

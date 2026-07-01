@@ -203,6 +203,31 @@ export interface TicketDraft {
   created_by_ai?: boolean;
 }
 
+// ---- Form Assistant ---------------------------------------------------------
+
+// One editable field of a drafted form (mirrors backend schemas.forms.FormField).
+export interface FormFieldDraft {
+  key: string;
+  label: string;
+  value: string;
+}
+
+// Frontend-only editable buffer the Review Form drawer binds to. Held in ChatProvider React state and
+// NEVER persisted — the student edits it and downloads a file; nothing is sent to any office.
+export interface FormDraft {
+  id: string;
+  official_url: string;
+  form_title: string;
+  // "pdf" = the official fillable form filled in-place; "docx" = a clean editable copy we generated.
+  file_kind: string;
+  fields: FormFieldDraft[];
+  narrative: string;
+  created_by_ai?: boolean;
+  // Set when the official file was flat/non-fillable and we generated an editable .docx instead.
+  notice?: string | null;
+  origin_question?: string;
+}
+
 // ---- Notifications ----------------------------------------------------------
 
 export type NotificationType =

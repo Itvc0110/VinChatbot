@@ -243,6 +243,7 @@ export interface PortalStrings {
 
   // PLAN22.6 answer-action set (Vinnie never auto-submits a ticket)
   actPrepareTicket: string;
+  actDraftForm: string;
   actAskFollowUp: string;
   actContactOffice: string;
   actOpenPolicy: string;
@@ -273,6 +274,23 @@ export interface PortalStrings {
     draftSaved: string;
     submitted: (id: string) => string;
     submitFailed: string;
+    close: string;
+  };
+
+  // Review Form drawer (draft → review/edit → download). Vinnie fills an official form; the STUDENT
+  // downloads it and submits it — nothing is sent to any office from here.
+  formReview: {
+    banner: string;
+    drafting: string;
+    aiDraftedChip: string;
+    officialSource: string;
+    noFields: string;
+    cancel: string;
+    download: string;
+    preparing: string;
+    downloaded: string;
+    downloadFailed: string;
+    suggestFailed: string;
     close: string;
   };
 
@@ -876,6 +894,7 @@ const en: PortalStrings = {
   forwardedOk: (id) => `Forwarded to admin — ticket ${id} created.`,
   forwardFailed: "Couldn't forward right now. Try again.",
   actPrepareTicket: "Prepare support ticket",
+  actDraftForm: "Draft this form",
   actAskFollowUp: "Ask follow-up",
   actContactOffice: "Contact office",
   actOpenPolicy: "Open source",
@@ -906,6 +925,21 @@ const en: PortalStrings = {
     draftSaved: "Draft saved. It stays private until you send it.",
     submitted: (id) => `Ticket ${id} submitted to admin.`,
     submitFailed: "Couldn't submit the ticket. Try again.",
+    close: "Close",
+  },
+  formReview: {
+    banner:
+      "Vinnie drafted this form. Please review and edit every field carefully — you download it and submit it yourself, not Vinnie.",
+    drafting: "Vinnie is filling in your form…",
+    aiDraftedChip: "Drafted by Vinnie",
+    officialSource: "Official form",
+    noFields: "No fillable fields were found for this form.",
+    cancel: "Cancel",
+    download: "Download form",
+    preparing: "Preparing…",
+    downloaded: "Form downloaded. Review it before you submit it.",
+    downloadFailed: "Couldn't generate the form. Try again.",
+    suggestFailed: "Couldn't draft the form right now. You can still fill it in manually.",
     close: "Close",
   },
   adminTickets: {
@@ -1559,6 +1593,7 @@ const vi: PortalStrings = {
   forwardedOk: (id) => `Đã chuyển cho quản trị — đã tạo phiếu ${id}.`,
   forwardFailed: "Chưa chuyển được lúc này. Thử lại nhé.",
   actPrepareTicket: "Soạn phiếu hỗ trợ",
+  actDraftForm: "Soạn giúp mẫu này",
   actAskFollowUp: "Hỏi tiếp",
   actContactOffice: "Liên hệ phòng ban",
   actOpenPolicy: "Mở nguồn",
@@ -1589,6 +1624,21 @@ const vi: PortalStrings = {
     draftSaved: "Đã lưu nháp. Phiếu vẫn riêng tư cho đến khi bạn gửi.",
     submitted: (id) => `Đã gửi phiếu ${id} cho quản trị.`,
     submitFailed: "Chưa gửi được phiếu. Thử lại nhé.",
+    close: "Đóng",
+  },
+  formReview: {
+    banner:
+      "Vinnie đã soạn giúp em mẫu đơn này. Hãy kiểm tra và chỉnh sửa kỹ từng mục — em là người tải về và nộp, không phải Vinnie.",
+    drafting: "Vinnie đang điền giúp em mẫu đơn…",
+    aiDraftedChip: "Do Vinnie soạn",
+    officialSource: "Mẫu chính thức",
+    noFields: "Không tìm thấy trường nào để điền cho mẫu này.",
+    cancel: "Hủy",
+    download: "Tải mẫu đơn",
+    preparing: "Đang tạo…",
+    downloaded: "Đã tải mẫu đơn. Hãy kiểm tra lại trước khi nộp nhé.",
+    downloadFailed: "Chưa tạo được mẫu đơn. Thử lại nhé.",
+    suggestFailed: "Chưa soạn được mẫu lúc này. Em vẫn có thể tự điền thủ công.",
     close: "Đóng",
   },
   adminTickets: {

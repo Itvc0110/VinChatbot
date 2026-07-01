@@ -1,0 +1,70 @@
+{
+  "description": "Deterministic override catalog of VinUni's core student forms for the Form Assistant. WHY: form PDFs are mostly blank fields, so they embed weakly and rank below the forms-hub page in vector search — this catalog lets search_forms cite the EXACT official file for the highest-traffic forms. It is an OVERRIDE layer only: RAG (search_forms/search_vinuni) still covers everything not listed here. Keep it small + current. Provenance: URLs verified live (HTTP 200) on 2026-07-01 from https://registrar.vinuni.edu.vn/academics/forms-petitions/ and the policy site. REFRESH: if the registrar re-versions a form, re-run the hub fetch and update the url here (an out-of-date url just falls back to RAG).",
+  "verified_on": "2026-07-01",
+  "forms": [
+    {
+      "id": "FRM07",
+      "name_vi": "Đơn xin nghỉ học / thôi học (bảo lưu)",
+      "name_en": "Defer / Withdraw Form",
+      "department": "Registrar",
+      "url": "https://registrar.vinuni.edu.vn/wp-content/uploads/sites/22/2025/10/FRM07_VinUni_Defer-Withdraw-Form.pdf",
+      "keywords": ["nghỉ học", "thôi học", "tạm nghỉ", "bảo lưu", "leave of absence", "defer", "withdraw", "drop out"]
+    },
+    {
+      "id": "FRM09",
+      "name_vi": "Đơn xin quay lại học sau khi nghỉ",
+      "name_en": "Request to Return from a Leave of Absence",
+      "department": "Registrar",
+      "url": "https://registrar.vinuni.edu.vn/wp-content/uploads/sites/22/2025/10/FRM09_VinUni_Request-to-return-from-a-leave-of-absence.pdf",
+      "keywords": ["quay lại học", "trở lại học", "đi học lại", "return from leave", "return from a leave of absence", "resume study"]
+    },
+    {
+      "id": "FRM10",
+      "name_vi": "Đơn xin chuyển đổi tín chỉ",
+      "name_en": "Transfer Credit Form",
+      "department": "Registrar",
+      "url": "https://registrar.vinuni.edu.vn/wp-content/uploads/sites/22/2026/01/FRM10_VinUni_Transfer-Credit-Form_vF-1.pdf",
+      "keywords": ["chuyển đổi tín chỉ", "chuyển tín chỉ", "transfer credit", "credit transfer"]
+    },
+    {
+      "id": "FRM06",
+      "name_vi": "Đơn xin chuyển ngành / chuyên ngành / ngành phụ",
+      "name_en": "Change of Program / Major / Minor Form",
+      "department": "Registrar",
+      "url": "https://registrar.vinuni.edu.vn/wp-content/uploads/sites/22/2025/10/FRM06_VinUni_Change-of-Program-Major-Minor.pdf",
+      "keywords": ["chuyển ngành", "đổi ngành", "chuyển chuyên ngành", "chuyển chương trình", "change of program", "change major", "change minor", "change program"]
+    },
+    {
+      "id": "FRM02",
+      "name_vi": "Đơn kiến nghị chung",
+      "name_en": "General Petition Form",
+      "department": "Registrar",
+      "url": "https://registrar.vinuni.edu.vn/wp-content/uploads/sites/22/2025/10/FRM02_VinUni_General-Petition-Form.pdf",
+      "keywords": ["kiến nghị", "đơn kiến nghị", "đề nghị chung", "general petition", "petition form"]
+    },
+    {
+      "id": "FRM18",
+      "name_vi": "Đơn đăng ký bằng kép (song bằng)",
+      "name_en": "Double Degree Form",
+      "department": "Registrar",
+      "url": "https://registrar.vinuni.edu.vn/wp-content/uploads/sites/22/2025/12/FRM.18-DOUBLE-DEGREE-FORM.docx",
+      "keywords": ["bằng kép", "song bằng", "double degree", "dual degree"]
+    },
+    {
+      "id": "GRADE_APPEAL",
+      "name_vi": "Đơn phúc khảo điểm",
+      "name_en": "Grade Appeal Form",
+      "department": "Academic Quality Assurance",
+      "url": "https://policy.vinuni.edu.vn/wp-content/uploads/2026/01/PRC_AQA_002_Grade-Appeal-Form_21.01.2026.pdf",
+      "keywords": ["phúc khảo", "phúc tra", "khiếu nại điểm", "chấm phúc khảo", "grade appeal", "appeal a grade", "regrade"]
+    },
+    {
+      "id": "FRM11",
+      "name_vi": "Đơn đăng ký học phần độc lập",
+      "name_en": "Independent Study Form",
+      "department": "Registrar",
+      "url": "https://policy.vinuni.edu.vn/wp-content/uploads/2023/05/FRM11_VinUni_Independent-Study-Form.pdf",
+      "keywords": ["học độc lập", "học phần độc lập", "independent study"]
+    }
+  ]
+}

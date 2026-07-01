@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import time
 from typing import Any
 
@@ -11,6 +12,7 @@ from vinchatbot.app.core.observability import get_user_message, mark_point_looku
 from vinchatbot.app.rag.canonical_lookup import AID_URL, canonical_doc_match
 from vinchatbot.app.rag.citations import excerpt
 from vinchatbot.app.rag.context import dedup_by_text, reorder_for_long_context
+from vinchatbot.app.rag.forms_catalog import match_forms
 from vinchatbot.app.rag.policy_lookup import match as policy_doc_match
 from vinchatbot.app.rag.query_engineering import (
     expand_query,
@@ -368,6 +370,44 @@ def build_retrieval_tools(retriever: Retriever):
         return await _search(query=query, filters=filters, cross_lingual=cross_lingual)
 
     @tool
+    async def search_forms(
+        query: str, filters: dict[str, Any] | None = None, cross_lingual: bool = False
+    ) -> str:
+        """Tìm BIỂU MẪU / ĐƠN TỪ chính thức của VinUni (đơn xin nghỉ học/thôi học, hủy môn, phúc khảo
+        điểm, xin cấp bảng điểm/giấy chứng nhận, hoãn thi...) và ĐƯỜNG DẪN TẢI file gốc.
+
+        Dùng tool này khi sinh viên hỏi về một biểu mẫu/đơn từ, cần tải mẫu, hoặc muốn được điền giúp.
+        Kết quả trả về gồm 'results' (các đoạn văn liên quan) và 'form_files' (danh sách URL file mẫu
+        chính thức .pdf/.docx). Hãy TRÍCH DẪN đúng URL file chính thức từ 'form_files', rồi CHỦ ĐỘNG hỏi
+        sinh viên có muốn "Soạn giúp em mẫu này? / Draft this form for you?".
+
+        cross_lingual: mặc định False. Chỉ đặt True khi lần tìm đầu không ra kết quả (tìm thêm VI↔EN).
+        """
+
+        # Augment the query with form cues so form pages/files outrank generic prose, then search softly
+        # (no hard category) so BOTH registrar forms and policy appendix forms are reachable.
+        augmented = f"{query} biểu mẫu đơn từ mẫu đơn form application"
+        raw = await _search(query=augmented, filters=filters, cross_lingual=cross_lingual)
+        try:
+            payload = json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            return raw
+        # Deterministic catalog FIRST (form PDFs embed weakly — they're mostly blank fields — so the exact
+        # file often ranks below the hub page in vector search), then RAG-extracted links for the long tail.
+        catalog = [
+            {"url": form["url"], "title": form["title"], "department": form.get("department"),
+             "source": "catalog"}
+            for form in match_forms(get_user_message() or query)
+        ]
+        seen = {entry["url"] for entry in catalog}
+        for extracted in _extract_form_files(payload.get("results", [])):
+            if extracted["url"] not in seen:
+                seen.add(extracted["url"])
+                catalog.append({**extracted, "source": "retrieved"})
+        payload["form_files"] = catalog[:8]
+        return json.dumps(payload, ensure_ascii=False)
+
+    @tool
     async def get_current_datetime() -> str:
         """Trả về ngày hôm nay, năm học và học kỳ hiện tại của VinUni (dùng cho câu hỏi về thời điểm
         'hiện tại/sắp tới' hoặc tính 'còn bao nhiêu ngày/tuần đến ...')."""
@@ -402,7 +442,41 @@ def build_retrieval_tools(retriever: Retriever):
         search_policy_documents,
         search_financial_regulations,
         search_vinuni,
+        search_forms,
         get_current_datetime,
         get_source_detail,
     ]
+
+
+# Matches an official VinUni form/document file URL (.pdf/.doc/.docx), incl. WordPress upload paths.
+_FORM_FILE_URL_RE = re.compile(
+    r"https?://[^\s\"'<>)\]]+?\.(?:pdf|docx?)(?:\?[^\s\"'<>)\]]*)?", re.IGNORECASE
+)
+_FORM_FILE_EXT_RE = re.compile(r"\.(pdf|docx?)(?:\?|$)", re.IGNORECASE)
+
+
+def _extract_form_files(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Pull official form-file URLs (.pdf/.docx) out of retrieved chunks so the agent can cite the exact
+    downloadable file. Looks at each chunk's metadata (asset_url / source_url / canonical_url) and scans
+    the chunk text for file links. Deduped, capped, order-preserving."""
+    seen: set[str] = set()
+    files: list[dict[str, Any]] = []
+    for result in results:
+        metadata = result.get("metadata") or {}
+        title = metadata.get("document_title") or metadata.get("filename")
+        candidates: list[str] = []
+        for key in ("asset_url", "source_url", "canonical_url"):
+            value = metadata.get(key)
+            if value and _FORM_FILE_EXT_RE.search(str(value)):
+                candidates.append(str(value))
+        candidates.extend(match.group(0) for match in _FORM_FILE_URL_RE.finditer(result.get("text") or ""))
+        for url in candidates:
+            url = url.rstrip(".,);]")
+            if not _FORM_FILE_EXT_RE.search(url) or url in seen:
+                continue
+            seen.add(url)
+            files.append({"url": url, "title": title, "source_page": metadata.get("source_url")})
+            if len(files) >= 8:
+                return files
+    return files
 
