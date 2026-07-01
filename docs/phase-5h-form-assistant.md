@@ -111,6 +111,25 @@ Forms live in the **same** collection (`vinuni_full_e5_v2`), not a separate one:
 wiring, cross-references (a policy answer citing its linked form) work, and there's one index to reconcile. A
 separate collection would only pay off for a different embedding / access-tier / rebuild cadence — none apply.
 
+## Live UI fixes (2026-07-01, found running the real app end-to-end)
+Running the stack (portable Node + `next dev` :3000 + uvicorn :8001) surfaced three integration bugs the
+unit tests couldn't catch:
+1. **`/api/forms/*` proxy missing** (`frontend/next.config.js`) — Next had no rewrite for forms, so
+   `/api/forms/suggest|fill` 404'd instead of reaching FastAPI. **Root cause of "UI doesn't work."** Added the
+   `/api/forms/:path* → {BACKEND_URL}/forms/:path*` rewrite.
+2. **Form/leave requests over-refused** — `SCOPE_TERMS` (guardrails) lacked "nghi hoc"/"thoi hoc"/"phuc khao"/
+   "chuyen nganh" and all form vocab ("bieu mau", "don xin", "mau don", "don tu", "form", "petition", "kien
+   nghi"), so *"viết cho tôi đơn nghỉ học"* fell through to the flaky gray-LLM and got `out_of_scope`. Added
+   those terms → deterministically allowed. (Verified the poem request still refuses — no over-allow.)
+3. **Form file not cited** — the router sends "nghỉ học" to the **policy** specialist, which didn't have
+   `search_forms`, so it cited the LOA *page*, not FRM07. Bound `search_forms` to `policy` (+ services) and
+   added a forms cue to `POLICY_PROMPT`. **End-to-end verified:** both "viết cho tôi đơn nghỉ học" and "chuẩn
+   bị gì nếu muốn nghỉ học" now cite the FRM07 PDF link + offer to draft → the frontend "Draft this form"
+   button appears. 762 tests still pass.
+
+Windows dev note: run uvicorn via `scratchpad/run_backend.py` (sets `WindowsSelectorEventLoopPolicy` so psycopg
+connects) and pin `BACKEND_URL=http://127.0.0.1:8001` (IPv4).
+
 ## Progress / follow-ups
 - **Coverage: complete — no build needed** (verified above).
 - **VI recall — RESOLVED** via the deterministic forms catalog: "đơn xin nghỉ học" now cites FRM07 directly

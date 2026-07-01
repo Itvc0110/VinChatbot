@@ -93,6 +93,13 @@ _GENERIC_APP_DATA = (
     "lop hoc",
     "tiet hoc",
     "buoi hoc",
+    # "tiết" (class period) schedule phrasings — "nay tôi còn tiết nào", "tiết tiếp theo của tôi". Use
+    # schedule-distinctive multiword phrases (NOT bare "tiet") to avoid colliding with "chi tiết",
+    # "thời tiết", "tiết kiệm", "tiết lộ". ("tiet nao" covers "có/còn tiết nào".)
+    "con tiet",
+    "tiet nao",
+    "may tiet",
+    "tiet tiep theo",
     # student identity fields answerable by get_my_profile.
     "student id",
     "student code",
