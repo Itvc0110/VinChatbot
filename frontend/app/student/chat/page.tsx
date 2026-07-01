@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ChatColumn } from "@/components/ChatColumn";
@@ -17,6 +18,12 @@ import { IconClock, IconBell, IconTicket, IconCalendar } from "@/components/shel
 import { LogoVinnie } from "@/components/shell/Logos";
 
 const SUGG_ICONS = [IconClock, IconBell, IconTicket, IconCalendar];
+const RAIL_MIN = 76;
+const RAIL_DEFAULT = 282;
+const RAIL_MAX = 380;
+const SOURCE_MIN = 292;
+const SOURCE_DEFAULT = 360;
+const SOURCE_MAX = 560;
 
 interface SuggestionItem {
   text: string;
@@ -33,6 +40,14 @@ function ChatView() {
   const { user, token } = useAuth();
   const chat = useChat();
   const searchParams = useSearchParams();
+  const [railWidth, setRailWidth] = useState(RAIL_DEFAULT);
+  const [sourceWidth, setSourceWidth] = useState(SOURCE_DEFAULT);
+  const railCompact = railWidth <= 132;
+  const sourceOpen = Boolean(chat.sourceMessage?.response?.citations.length);
+  const paneStyle = {
+    "--chat-rail-width": `${railWidth}px`,
+    "--chat-source-width": `${sourceWidth}px`,
+  } as CSSProperties;
 
   const suggested = useAsync(() => getActiveSuggestedQuestions(lang), [lang, token]);
   const chips =
@@ -79,12 +94,96 @@ function ChatView() {
         }))
       : p.chatSuggested.slice(0, 4).map((text) => ({ text }));
 
+  const beginResize = (
+    pane: "rail" | "source",
+    event: React.PointerEvent<HTMLButtonElement>
+  ) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = pane === "rail" ? railWidth : sourceWidth;
+    const min = pane === "rail" ? RAIL_MIN : SOURCE_MIN;
+    const max = pane === "rail" ? RAIL_MAX : SOURCE_MAX;
+
+    document.documentElement.classList.add("chat-is-resizing");
+
+    const onMove = (moveEvent: PointerEvent) => {
+      const delta = moveEvent.clientX - startX;
+      const next =
+        pane === "rail" ? startWidth + delta : startWidth - delta;
+      const clamped = Math.max(min, Math.min(max, Math.round(next)));
+      if (pane === "rail") setRailWidth(clamped);
+      else setSourceWidth(clamped);
+    };
+
+    const onUp = () => {
+      document.documentElement.classList.remove("chat-is-resizing");
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
+  const resizeWithKeyboard = (
+    pane: "rail" | "source",
+    event: React.KeyboardEvent<HTMLButtonElement>
+  ) => {
+    const key = event.key;
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(key)) return;
+    event.preventDefault();
+
+    const setter = pane === "rail" ? setRailWidth : setSourceWidth;
+    const min = pane === "rail" ? RAIL_MIN : SOURCE_MIN;
+    const max = pane === "rail" ? RAIL_MAX : SOURCE_MAX;
+    const dir = pane === "rail" ? 1 : -1;
+
+    if (key === "Home") setter(min);
+    if (key === "End") setter(max);
+    if (key === "ArrowLeft") {
+      setter((w) => Math.max(min, Math.min(max, w - 16 * dir)));
+    }
+    if (key === "ArrowRight") {
+      setter((w) => Math.max(min, Math.min(max, w + 16 * dir)));
+    }
+  };
+
+  const toggleRail = () => {
+    setRailWidth((width) => (width <= 132 ? RAIL_DEFAULT : RAIL_MIN));
+  };
+
+  const conversationHead = (
+    <div className="pane-head chat-page-head">
+      <span>{lang === "vi" ? "Hội thoại" : "Conversation"}</span>
+    </div>
+  );
+
   return (
     <div className="chat-shell">
-      <div className="chat-body">
-        <ConversationRail />
+      <div
+        className={`chat-body ${railCompact ? "rail-collapsed" : ""} ${
+          sourceOpen ? "source-open" : ""
+        }`}
+        style={paneStyle}
+      >
+        <div className="chat-side-shell">
+          <ConversationRail compact={railCompact} onToggleCompact={toggleRail} />
+          <button
+            className="chat-resize-handle rail"
+            type="button"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize conversation sidebar"
+            aria-valuemin={RAIL_MIN}
+            aria-valuemax={RAIL_MAX}
+            aria-valuenow={railWidth}
+            onPointerDown={(event) => beginResize("rail", event)}
+            onKeyDown={(event) => resizeWithKeyboard("rail", event)}
+          />
+        </div>
 
         <div className="chat-full">
+          {conversationHead}
           {chat.messagesLoading ? (
             <div className="vinnie-welcome-wrap">
               <div className="vinnie-welcome" role="status" aria-busy="true">
@@ -153,14 +252,30 @@ function ChatView() {
               renderActions={(m) => <ConnectedAnswerActions message={m} />}
               composerChips={chips}
               note={p.chatTrustNote}
+              showHead={false}
               composerSeedText={chat.composerSeed?.text}
               composerSeedNonce={chat.composerSeed?.nonce}
             />
           )}
         </div>
 
+        {sourceOpen && (
+          <button
+            className="chat-resize-handle source"
+            type="button"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sources panel"
+            aria-valuemin={SOURCE_MIN}
+            aria-valuemax={SOURCE_MAX}
+            aria-valuenow={sourceWidth}
+            onPointerDown={(event) => beginResize("source", event)}
+            onKeyDown={(event) => resizeWithKeyboard("source", event)}
+          />
+        )}
         <SourceDrawer
           variant="inline"
+          width={sourceWidth}
           message={chat.sourceMessage}
           focus={chat.sourceFocus}
           onClose={chat.closeSources}

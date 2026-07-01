@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import type { ChatMessage } from "@/lib/types";
 import type { SourceFocus } from "@/lib/chat";
 import { deriveState } from "@/lib/responseState";
@@ -18,11 +19,13 @@ export function SourceDrawer({
   focus,
   onClose,
   variant = "overlay",
+  width,
 }: {
   message: ChatMessage | null;
   focus: SourceFocus | null;
   onClose: () => void;
   variant?: "overlay" | "inline";
+  width?: number;
 }) {
   const { t } = useI18n();
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -53,6 +56,10 @@ export function SourceDrawer({
 
   const grounded = !!resp && deriveState(resp) === "grounded";
   const cardVariant = grounded ? "grounded" : "unverified";
+  const drawerStyle =
+    variant === "inline" && width
+      ? ({ "--source-drawer-width": `${width}px` } as CSSProperties)
+      : undefined;
   cardRefs.current = [];
 
   return (
@@ -66,6 +73,7 @@ export function SourceDrawer({
       />
       <aside
         className={`source-drawer ${variant} ${open ? "open" : ""}`}
+        style={drawerStyle}
         aria-hidden={!open}
         aria-label={t.drawerTitle}
       >

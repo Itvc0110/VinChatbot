@@ -251,7 +251,11 @@ export function MessageBubble({
   // with a blinking caret. The verified ChatResponse (meta + citations) lands on `done`.
   if (message.streaming) {
     return (
-      <div className="msg assistant">
+      <div
+        className={`msg assistant streaming ${
+          message.text ? "has-text" : "thinking-only"
+        }`}
+      >
         <div className="role">
           <BotAvatar /> Vinnie
         </div>
