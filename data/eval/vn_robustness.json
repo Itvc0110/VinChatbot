@@ -1,0 +1,52 @@
+{
+  "description": "Temporary VN-input robustness test set. Each case has a CLEAN baseline (ground-truth intent) and a CORRUPTED variant (teencode / no-diacritics / mistyped / capslock / mixed). The corrupted variant should classify + pass the guardrail the SAME as the clean one; divergence = a robustness failure. authenticated=True (Vinnie is auth-only).",
+  "cases": [
+    {"id": "sch-teen-1", "kind": "teencode", "clean": "hôm nay tôi có tiết gì", "q": "hnay t có tiết j"},
+    {"id": "sch-notone-1", "kind": "no_diacritics", "clean": "hôm nay tôi có tiết gì", "q": "hom nay toi co tiet gi"},
+    {"id": "sch-caps-1", "kind": "capslock", "clean": "hôm nay tôi có tiết gì", "q": "HÔM NAY TÔI CÓ TIẾT GÌ"},
+    {"id": "sch-notone-2", "kind": "no_diacritics", "clean": "lịch học tuần này của tôi", "q": "lich hoc tuan nay cua toi"},
+    {"id": "sch-teen-2", "kind": "teencode", "clean": "tiết tiếp theo của tôi là gì", "q": "tiết tiếp theo của t là j"},
+    {"id": "sch-teen-3", "kind": "teencode", "clean": "ngày mai tôi có lớp không", "q": "mai t có lớp ko"},
+    {"id": "sch-teen-4", "kind": "teencode", "clean": "bây giờ tôi có lớp nào không", "q": "bh t có lớp nào hok"},
+    {"id": "sch-abbr-tkb", "kind": "teencode", "clean": "thời khóa biểu của tôi", "q": "tkb của t"},
+    {"id": "sch-mixed-1", "kind": "mixed", "clean": "hôm nay tôi có tiết nào không", "q": "hnay t co tiet nao ko"},
+    {"id": "sch-yest-teen", "kind": "teencode", "clean": "hôm qua tôi có môn gì", "q": "hqua t có môn j"},
+
+    {"id": "gpa-teen-1", "kind": "teencode", "clean": "GPA của tôi là bao nhiêu", "q": "gpa mik bao nhiu"},
+    {"id": "gpa-notone-1", "kind": "no_diacritics", "clean": "GPA của tôi là bao nhiêu", "q": "gpa cua toi la bao nhieu"},
+    {"id": "gpa-teen-2", "kind": "teencode", "clean": "GPA của mình được bao nhiêu rồi", "q": "gpa cua m dc bao nhiu r"},
+    {"id": "cred-teen-1", "kind": "teencode", "clean": "tôi còn bao nhiêu tín chỉ nữa", "q": "t còn bnhiu tín chỉ nữa"},
+    {"id": "fail-teen-1", "kind": "teencode", "clean": "tôi có bị trượt môn nào không", "q": "t có trượt môn nào ko"},
+    {"id": "adv-notone-1", "kind": "no_diacritics", "clean": "cố vấn học tập của tôi là ai", "q": "co van hoc tap cua toi la ai"},
+    {"id": "grade-teen-1", "kind": "teencode", "clean": "điểm CS101 của tôi", "q": "điểm cs101 của t"},
+    {"id": "mssv-abbr", "kind": "teencode", "clean": "mã số sinh viên của tôi", "q": "mssv của t"},
+    {"id": "course-teen-1", "kind": "teencode", "clean": "kỳ này tôi học môn gì", "q": "kỳ này t học môn j"},
+    {"id": "course-notone-1", "kind": "no_diacritics", "clean": "tôi đang học những môn nào", "q": "toi dang hoc nhung mon nao"},
+    {"id": "dl-teen-1", "kind": "teencode", "clean": "tôi có deadline nào sắp tới không", "q": "t có dl nào sắp tới ko"},
+    {"id": "grad-teen-1", "kind": "teencode", "clean": "tôi có thể tốt nghiệp đúng hạn không", "q": "t có tn đúng hạn ko"},
+    {"id": "elig-teen-1", "kind": "teencode", "clean": "tôi đủ điều kiện học CS301 chưa", "q": "t đủ đk học cs301 chưa"},
+
+    {"id": "form-teen-1", "kind": "teencode", "clean": "làm sao để xin nghỉ học", "q": "làm sao đ xin nghỉ học"},
+    {"id": "form-notone-1", "kind": "no_diacritics", "clean": "đơn xin nghỉ học ở đâu", "q": "don xin nghi hoc o dau"},
+    {"id": "form-teen-2", "kind": "teencode", "clean": "viết cho tôi đơn nghỉ học", "q": "vt cho t đơn nghỉ học"},
+    {"id": "form-notone-2", "kind": "no_diacritics", "clean": "mẫu đơn phúc khảo điểm", "q": "mau don phuc khao diem"},
+
+    {"id": "fee-teen-1", "kind": "teencode", "clean": "học phí một năm là bao nhiêu", "q": "hp 1 năm bao nhiu"},
+    {"id": "fee-notone-1", "kind": "no_diacritics", "clean": "học phí một năm là bao nhiêu", "q": "hoc phi mot nam bao nhieu"},
+    {"id": "exam-teen-1", "kind": "teencode", "clean": "bao giờ thi cuối kỳ", "q": "baoh thì thi ck"},
+    {"id": "reg-teen-1", "kind": "teencode", "clean": "khi nào đăng ký môn", "q": "khi nào đki môn"},
+    {"id": "drop-teen-1", "kind": "teencode", "clean": "hạn cuối hủy môn là khi nào", "q": "hạn chót hủy môn khi nào"},
+    {"id": "sch-pol-notone", "kind": "no_diacritics", "clean": "quy định về học bổng", "q": "quy dinh ve hoc bong"},
+    {"id": "integrity-notone", "kind": "no_diacritics", "clean": "quy định liêm chính học thuật", "q": "quy dinh liem chinh hoc thuat"},
+
+    {"id": "gpa-caps", "kind": "capslock", "clean": "GPA của tôi bao nhiêu", "q": "GPA CỦA TÔI BAO NHIÊU"},
+    {"id": "yest-caps", "kind": "capslock", "clean": "hôm qua tôi học môn gì", "q": "HÔM QUA TÔI HỌC MÔN GÌ"},
+    {"id": "sch-spacing", "kind": "mistyped", "clean": "hôm nay tôi có tiết gì", "q": "hôm nay,tôi có tiết gì???"},
+    {"id": "sch-typo-1", "kind": "mistyped", "clean": "lịch học của tôi", "q": "lịc hoc cua tôii"},
+    {"id": "greet-teen", "kind": "teencode", "clean": "chào bạn", "q": "helu shop"},
+    {"id": "cap-teen", "kind": "teencode", "clean": "bạn giúp được gì", "q": "b giúp đc j"},
+
+    {"id": "neg-catalog-notone", "kind": "no_diacritics", "clean": "VinUni có những ngành nào", "q": "vinuni co nhung nganh nao"},
+    {"id": "neg-weather-notone", "kind": "no_diacritics", "clean": "thời tiết hôm nay thế nào", "q": "thoi tiet hom nay the nao"}
+  ]
+}

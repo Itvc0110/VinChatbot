@@ -462,7 +462,10 @@ def assess_user_message(message: str) -> GuardrailDecision:
             reason=f"out-of-scope generative task: {task_category}",
         )
 
-    has_scope = any(_contains_term(normalized, term) for term in SCOPE_TERMS)
+    # Expand VN teencode/abbreviations for the scope check ONLY (not injection/abuse/greeting), so
+    # "hp 1 năm", "tkb của t", "t có dl nào" are recognized as in-scope instead of refused.
+    scope_normalized = expand_teencode(normalized)
+    has_scope = any(_contains_term(scope_normalized, term) for term in SCOPE_TERMS)
     has_abuse = any(pattern.search(normalized) for pattern in ABUSIVE_PATTERNS)
     has_threat = any(pattern.search(normalized) for pattern in THREAT_PATTERNS)
 
@@ -933,6 +936,33 @@ def normalize_for_matching(text: str) -> str:
     return re.sub(r"\s+", " ", without_accents.replace("đ", "d")).strip()
 
 
+# VN chat/teencode abbreviations → their canonical accent-free forms. Applied ONLY to the deterministic
+# INPUT gates (scope allow-list + question-scope classifier + answer-language), NEVER to the output
+# grounding/injection checks — the goal is that "hnay t có tiết j" / "tkb của t" / "hp 1 năm" are
+# recognized as in-scope personal/policy questions instead of being refused. Keys are already-normalized
+# (lowercase, accent-free, đ→d); expansion is a single word-boundary pass (no cascading). Curated +
+# conservative to avoid over-expansion; validated by the over-fire audit + the VN-robustness eval.
+_TEENCODE_MAP = {
+    "hnay": "hom nay", "hqua": "hom qua", "baoh": "bao gio",
+    "tkb": "thoi khoa bieu", "dl": "deadline", "hp": "hoc phi",
+    "dk": "dieu kien", "dki": "dang ky", "dky": "dang ky",
+    "tn": "tot nghiep", "sv": "sinh vien",
+    "mik": "minh", "nhiu": "nhieu", "bnhiu": "bao nhieu",
+    "j": "gi", "ji": "gi", "ko": "khong", "hok": "khong", "dc": "duoc",
+    "t": "toi",
+}
+_TEENCODE_RE = re.compile(
+    r"\b(" + "|".join(sorted(map(re.escape, _TEENCODE_MAP), key=len, reverse=True)) + r")\b"
+)
+
+
+def expand_teencode(normalized: str) -> str:
+    """Expand VN teencode/abbreviations in already-normalized text (see `_TEENCODE_MAP`). For the input
+    gates only — so the deterministic scope/classifier layers see canonical words. The LLM already handles
+    teencode at generation time, so this never rewrites the user's actual message."""
+    return _TEENCODE_RE.sub(lambda m: _TEENCODE_MAP[m.group(0)], normalized)
+
+
 _ZERO_WIDTH_RE = re.compile(r"[​-‏⁠﻿]")
 _LEET_MAP = str.maketrans({"4": "a", "3": "e", "1": "i", "0": "o", "$": "s", "@": "a", "5": "s", "7": "t"})
 _BASE64_RE = re.compile(r"[A-Za-z0-9+/]{16,}={0,2}")
@@ -986,16 +1016,21 @@ _VI_WORD_HINTS = frozenset(
         "la", "khi", "ngay", "hoc", "sinh", "vien", "toi", "ban", "minh", "xin", "chao",
         "cam", "tam", "biet", "gi", "vay", "khong", "khoe", "oke", "vang", "duoc", "roi",
         "lai", "giup", "cua", "nhe", "voi",
+        # Accent-free student-domain content words so no-diacritics/teencode VN isn't misread as English
+        # ("mau don phuc khao diem", "hom nay co tiet gi"). All chosen to NOT collide with common English.
+        "hom", "tiet", "mon", "lop", "lich", "diem", "don", "phuc", "khao", "nghi",
+        "hoi", "nhieu", "bao", "nganh", "nhung", "mssv", "tkb",
     )
 )
 
 
 def answer_language(message: str) -> Literal["vi", "en"]:
     # Any Vietnamese diacritic → Vietnamese (the full accent set, reused from the normalizer);
-    # otherwise fall back to accent-less hint words; default English.
+    # otherwise fall back to accent-less hint words (with teencode expanded so "gpa mik bao nhiu" →
+    # "minh"/"nhieu" hits); default English.
     if any(char in VIETNAMESE_MARKERS for char in message.lower()):
         return "vi"
-    if set(normalize_for_matching(message).split()) & _VI_WORD_HINTS:
+    if set(expand_teencode(normalize_for_matching(message)).split()) & _VI_WORD_HINTS:
         return "vi"
     return "en"
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-from vinchatbot.app.agents.guardrails import normalize_for_matching
+from vinchatbot.app.agents.guardrails import expand_teencode, normalize_for_matching
 from vinchatbot.app.core.observability import get_student_identity
 
 QuestionScope = Literal[
@@ -286,7 +286,9 @@ def classify_question_scope(
     if authenticated is None:
         authenticated = get_student_identity() is not None
 
-    normalized = normalize_for_matching(message)
+    # Expand VN teencode/abbreviations so "hnay t có tiết j", "t có dl nào", "gpa mik" classify the same
+    # as their canonical forms (else they fall to general_unknown → the guardrail refuses a legit question).
+    normalized = expand_teencode(normalize_for_matching(message))
     if not normalized:
         return "general_unknown"
 
